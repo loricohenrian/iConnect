@@ -1,0 +1,124 @@
+﻿{% extends "base_portal.html" %}
+
+{% block title %}iConnect — Session Active{% endblock %}
+
+{% block portal_content %}
+
+<!-- Connection Status -->
+<div class="status-connected mt-md">
+    <span>Connected</span>
+</div>
+
+<!-- Session Timer -->
+<div class="timer-container animate-fadeIn">
+    <div class="timer-label">TIME REMAINING</div>
+    <div class="timer-display timer-green" id="session-timer"
+         data-seconds="{{ time_remaining_seconds }}"
+         data-mac="{{ mac_address }}">
+        {{ session.time_remaining_display }}
+    </div>
+
+    <!-- Plan info -->
+    <div class="mt-md">
+        <span class="badge badge-active">{{ session.plan.name }}</span>
+    </div>
+
+    <!-- Speed display -->
+    <div class="speed-display">
+        <i class="bi bi-speedometer2"></i>
+        {% if session.plan.speed_limit %}
+            <span>{{ session.plan.speed_limit }} Mbps limit</span>
+        {% else %}
+            <span>Full Speed</span>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Session Details -->
+<div class="card mt-md animate-fadeIn" style="animation-delay: 100ms">
+    <div class="d-flex justify-content-between mb-sm">
+        <span class="text-small text-muted">Amount Paid</span>
+        <span class="font-semibold">₱{{ session.amount_paid }}</span>
+    </div>
+    <div class="d-flex justify-content-between mb-sm">
+        <span class="text-small text-muted">Duration</span>
+        <span class="font-semibold">{{ session.plan.duration_display }}</span>
+    </div>
+    <div class="d-flex justify-content-between mb-sm">
+        <span class="text-small text-muted">Price / Minute</span>
+        <span class="font-semibold">₱{{ session.plan.price_per_minute|floatformat:2 }}/min</span>
+    </div>
+    <div class="d-flex justify-content-between mb-sm">
+        <span class="text-small text-muted">Started</span>
+        <span class="font-semibold">{{ session.time_in|date:"h:i A" }}</span>
+    </div>
+    <div class="d-flex justify-content-between">
+        <span class="text-small text-muted">Device</span>
+        <span class="font-semibold text-xs">{{ mac_address }}</span>
+    </div>
+</div>
+
+<!-- Speed Test Display -->
+<div class="card mt-md animate-fadeIn" style="animation-delay: 150ms">
+    <div class="d-flex justify-content-between align-items-center mb-sm">
+        <span class="font-semibold"><i class="bi bi-speedometer2"></i> Current Speed Test</span>
+        <button class="btn btn-secondary btn-sm" id="speed-test-refresh" type="button">Refresh</button>
+    </div>
+
+    <div class="d-flex justify-content-between mb-sm">
+        <span class="text-small text-muted">Measurement Mode</span>
+        <span class="badge badge-warning" id="speed-mode-badge">SIMULATED</span>
+    </div>
+
+    <div class="d-flex justify-content-between mb-sm">
+        <span class="text-small text-muted">Download</span>
+        <span class="font-semibold" id="speed-download">-- Mbps</span>
+    </div>
+    <div class="d-flex justify-content-between mb-sm">
+        <span class="text-small text-muted">Upload</span>
+        <span class="font-semibold" id="speed-upload">-- Mbps</span>
+    </div>
+    <div class="d-flex justify-content-between mb-sm">
+        <span class="text-small text-muted">Ping</span>
+        <span class="font-semibold" id="speed-ping">-- ms</span>
+    </div>
+    <div class="text-xs text-muted" id="speed-meta">Waiting for measurement. Mode will be shown clearly.</div>
+</div>
+
+<!-- Dynamic Band Recommendation -->
+<div class="card mt-md animate-fadeIn" style="animation-delay: 175ms">
+    <div class="d-flex justify-content-between align-items-center mb-sm">
+        <span class="font-semibold"><i class="bi bi-broadcast-pin"></i> Recommended WiFi Band</span>
+        <button class="btn btn-secondary btn-sm" id="band-refresh" type="button">Refresh</button>
+    </div>
+    <div class="d-flex justify-content-between mb-sm">
+        <span class="text-small text-muted">Recommended Band</span>
+        <span class="font-semibold" id="band-recommendation">--</span>
+    </div>
+    <div class="d-flex justify-content-between mb-sm">
+        <span class="text-small text-muted">Signal Strength</span>
+        <span class="font-semibold" id="band-rssi">-- dBm</span>
+    </div>
+    <div class="d-flex justify-content-between mb-sm">
+        <span class="text-small text-muted">Signal Quality</span>
+        <span class="font-semibold" id="band-quality">--</span>
+    </div>
+    <div class="text-xs text-muted" id="band-meta">Waiting for recommendation...</div>
+</div>
+
+<!-- Extend Session -->
+<div class="extend-section animate-fadeIn" style="animation-delay: 200ms">
+    <h3><i class="bi bi-plus-circle"></i> Extend Session</h3>
+    <p class="text-small text-muted mb-md">Insert more coins into the machine, then enter the voucher code shown on the display.</p>
+
+    <div class="voucher-input-group">
+        <input type="text" id="voucher-input" placeholder="A7X392" maxlength="6"
+               class="form-input" autocomplete="off">
+        <button class="btn btn-primary" id="voucher-submit">Apply</button>
+    </div>
+    <div id="voucher-message" style="display: none;"></div>
+</div>
+
+{% endblock %}
+
+

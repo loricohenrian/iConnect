@@ -1,0 +1,25 @@
+[Unit]
+Description=iConnect Celery Worker
+After=network-online.target redis-server.service
+Wants=network-online.target
+Requires=redis-server.service
+
+[Service]
+Type=simple
+# This project executes iptables commands from Django/Celery.
+# Run as root unless you provide equivalent NET_ADMIN privileges.
+User=root
+Group=root
+WorkingDirectory=/opt/iconnect/pisowifi
+EnvironmentFile=/opt/iconnect/pisowifi/.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/iconnect/pisowifi/.venv/bin/celery -A pisowifi worker --loglevel=INFO --concurrency=2 --hostname=iconnect-worker@%H
+ExecReload=/bin/kill -s HUP $MAINPID
+Restart=always
+RestartSec=5
+TimeoutStartSec=30
+TimeoutStopSec=60
+KillMode=mixed
+
+[Install]
+WantedBy=multi-user.target

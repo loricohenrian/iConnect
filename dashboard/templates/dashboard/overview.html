@@ -1,0 +1,208 @@
+{% extends "base_dashboard.html" %}
+
+{% block page_title %}Overview{% endblock %}
+{% block topbar_title %}Overview{% endblock %}
+
+{% block dashboard_content %}
+
+<!-- Stat Cards Row -->
+<div class="stats-grid">
+    <div class="stat-card gradient-blue animate-fadeIn">
+        <div class="stat-info">
+            <div class="stat-label">Revenue Today</div>
+            <div class="stat-value" id="revenue-today">₱{{ revenue_today|default:"0" }}</div>
+        </div>
+        <div class="stat-icon-wrap">
+            <i class="bi bi-coin"></i>
+        </div>
+    </div>
+
+    <div class="stat-card gradient-green animate-fadeIn" style="animation-delay: 100ms">
+        <div class="stat-info">
+            <div class="stat-label">Connected Users</div>
+            <div class="stat-value" id="connected-users">{{ total_connected|default:"0" }}</div>
+        </div>
+        <div class="stat-icon-wrap">
+            <i class="bi bi-people"></i>
+        </div>
+    </div>
+
+    <div class="stat-card gradient-teal animate-fadeIn" style="animation-delay: 200ms">
+        <div class="stat-info">
+            <div class="stat-label">Sessions Today</div>
+            <div class="stat-value" id="sessions-today">{{ sessions_today|default:"0" }}</div>
+        </div>
+        <div class="stat-icon-wrap">
+            <i class="bi bi-clock"></i>
+        </div>
+    </div>
+
+    <div class="stat-card gradient-amber animate-fadeIn" style="animation-delay: 300ms">
+        <div class="stat-info">
+            <div class="stat-label">ROI Progress</div>
+            <div class="stat-value" id="roi-progress">{{ roi_percentage|default:"0" }}%</div>
+        </div>
+        <div class="stat-icon-wrap">
+            <i class="bi bi-bar-chart"></i>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="grid-2">
+    <!-- Revenue Chart -->
+    <div class="chart-card animate-fadeIn" style="animation-delay: 400ms">
+        <div class="chart-header">
+            <h3 class="chart-title">Revenue (Last 7 Days)</h3>
+        </div>
+        <div class="chart-wrapper">
+            <canvas id="revenue-chart"></canvas>
+        </div>
+    </div>
+
+    <!-- ROI Summary -->
+    <div class="chart-card animate-fadeIn" style="animation-delay: 500ms">
+        <div class="chart-header">
+            <h3 class="chart-title">ROI Tracker</h3>
+            <span class="badge badge-info">{{ roi_percentage }}%</span>
+        </div>
+        <div class="d-flex justify-content-between text-small mb-sm">
+            <span class="text-muted">₱{{ total_revenue }} earned</span>
+            <span class="text-muted">₱{{ total_cost }} total cost</span>
+        </div>
+        <div class="progress-bar mb-md">
+            <div class="progress-fill" style="width: {{ roi_percentage }}%"></div>
+        </div>
+        <div class="d-flex justify-content-between align-items-center">
+            <span class="text-small text-muted">Recovery Status</span>
+            <span class="font-semibold">{{ roi_percentage }}% complete</span>
+        </div>
+    </div>
+</div>
+
+<!-- Live Network Visibility -->
+<div class="grid-2 mt-lg">
+    <div class="chart-card animate-fadeIn" style="animation-delay: 650ms">
+        <div class="chart-header">
+            <h3 class="chart-title">Live Network Usage</h3>
+            <span class="badge badge-info">Auto-refresh</span>
+        </div>
+        <div class="d-flex flex-column gap-md">
+            <div class="d-flex justify-content-between align-items-center">
+                <span class="text-small text-muted">Active Users Right Now</span>
+                <span class="font-semibold" id="live-active-users">0</span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center">
+                <span class="text-small text-muted">Total Bandwidth In Use</span>
+                <span class="font-semibold" id="live-total-bandwidth">0 MB</span>
+            </div>
+            <div class="text-xs text-muted" id="live-network-meta">Waiting for live update...</div>
+        </div>
+    </div>
+
+    <div class="chart-card animate-fadeIn" style="animation-delay: 700ms">
+        <div class="chart-header">
+            <h3 class="chart-title">Bandwidth Per User</h3>
+        </div>
+        <div class="table-container">
+            <table id="live-bandwidth-table">
+                <thead>
+                    <tr>
+                        <th>Device</th>
+                        <th>MAC Address</th>
+                        <th>Bandwidth Used</th>
+                    </tr>
+                </thead>
+                <tbody id="bandwidth-users-body">
+                    <tr>
+                        <td colspan="3" class="text-center text-muted">No active users</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Sessions Table -->
+<div class="chart-card mt-lg animate-fadeIn" style="animation-delay: 700ms">
+    <div class="chart-header">
+        <h3 class="chart-title">Recent Sessions</h3>
+        <a href="{% url 'dashboard:sessions' %}" class="btn btn-sm btn-secondary">View All</a>
+    </div>
+
+    {% if recent_sessions %}
+    <div class="table-container">
+        <table id="recent-sessions-table">
+            <thead>
+                <tr>
+                    <th>Device</th>
+                    <th>Plan</th>
+                    <th>Amount</th>
+                    <th>Time In</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for session in recent_sessions %}
+                <tr>
+                    <td>
+                        <div class="font-semibold">{{ session.device_name|default:"Unknown" }}</div>
+                        <div class="text-xs text-muted">{{ session.mac_address }}</div>
+                    </td>
+                    <td>{{ session.plan.name }}</td>
+                    <td class="font-semibold">₱{{ session.amount_paid }}</td>
+                    <td>{{ session.time_in|date:"M d, h:i A" }}</td>
+                    <td>
+                        {% if session.status == 'active' %}
+                            <span class="badge badge-active">Active</span>
+                        {% elif session.status == 'expired' %}
+                            <span class="badge badge-expired">Expired</span>
+                        {% else %}
+                            <span class="badge badge-paused">{{ session.get_status_display }}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <i class="bi bi-clock-history"></i>
+        <p>No sessions yet</p>
+        <small>Data will appear here once students start using the system</small>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}
+
+{% block dashboard_js %}
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+    // Fetch revenue data for chart
+    try {
+        const data = await fetchRevenueData('weekly');
+        if (data && data.revenue_data) {
+            const labels = data.revenue_data.map(d => {
+                const date = new Date(d.day);
+                return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+            });
+            const values = data.revenue_data.map(d => d.revenue);
+            initRevenueChart('revenue-chart', { labels, values });
+        } else {
+            // Mock data if no real data
+            initRevenueChart('revenue-chart', {
+                labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                values: [0, 0, 0, 0, 0, 0, 0]
+            });
+        }
+    } catch (err) {
+        initRevenueChart('revenue-chart', {
+            labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+            values: [0, 0, 0, 0, 0, 0, 0]
+        });
+    }
+});
+</script>
+{% endblock %}

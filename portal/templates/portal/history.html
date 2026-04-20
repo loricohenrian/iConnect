@@ -1,0 +1,70 @@
+﻿{% extends "base_portal.html" %}
+
+{% block title %}iConnect — Usage History{% endblock %}
+
+{% block portal_content %}
+
+<h2 class="mt-lg mb-sm">Usage History</h2>
+<p class="text-small text-muted mb-md">Your recent WiFi sessions</p>
+
+{% if passcode_required and not history_verified %}
+<div class="card">
+    <h3 class="card-title mb-sm"><i class="bi bi-shield-lock"></i> Session History Locked</h3>
+    <p class="text-small text-muted mb-md">Enter the passcode to view your session records on this device.</p>
+
+    {% if passcode_error %}
+    <div class="alert alert-danger mb-sm">{{ passcode_error }}</div>
+    {% endif %}
+
+    <form method="post" class="d-flex gap-sm flex-wrap">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="verify_history_passcode">
+        <input type="password" name="passcode" class="form-input" placeholder="Enter passcode" maxlength="32" required>
+        <button type="submit" class="btn btn-primary">Unlock</button>
+    </form>
+</div>
+{% else %}
+    {% if passcode_required %}
+    <form method="post" class="mb-md">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="lock_history">
+        <button type="submit" class="btn btn-sm btn-secondary"><i class="bi bi-lock"></i> Lock History</button>
+    </form>
+    {% endif %}
+
+    {% if sessions %}
+    <div class="history-list">
+        {% for session in sessions %}
+        <div class="history-item animate-fadeIn" style="animation-delay: {{ forloop.counter0 }}50ms">
+            <div>
+                <div class="font-semibold">{{ session.plan.name }}</div>
+                <div class="history-date">{{ session.time_in|date:"M d, Y h:i A" }}</div>
+                <div class="mt-xs">
+                    {% if session.status == 'active' %}
+                        <span class="badge badge-active">Active</span>
+                    {% elif session.status == 'expired' %}
+                        <span class="badge badge-expired">Expired</span>
+                    {% else %}
+                        <span class="badge badge-paused">{{ session.get_status_display }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="text-right">
+                <div class="history-amount">₱{{ session.amount_paid }}</div>
+                <div class="text-small text-muted">{{ session.duration_minutes_purchased }} mins</div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <i class="bi bi-clock-history"></i>
+        <p>No sessions yet</p>
+        <small>Your session history will appear here once you start using iConnect</small>
+    </div>
+    {% endif %}
+{% endif %}
+
+{% endblock %}
+
+

@@ -1,0 +1,130 @@
+{% extends "base_dashboard.html" %}
+
+{% block page_title %}Analytics{% endblock %}
+{% block topbar_title %}User Behavior Analytics{% endblock %}
+
+{% block dashboard_content %}
+
+<!-- Summary Cards -->
+<div class="stats-grid" style="grid-template-columns: repeat(3, 1fr);">
+    <div class="stat-card animate-fadeIn">
+        <div class="stat-info">
+            <div class="stat-label">Avg Session Duration</div>
+            <div class="stat-value">{{ avg_duration }} min</div>
+        </div>
+        <div class="stat-icon-wrap" style="background: rgba(26,115,232,0.1); color: var(--color-primary);">
+            <i class="bi bi-clock"></i>
+        </div>
+    </div>
+
+    <div class="stat-card animate-fadeIn" style="animation-delay: 100ms">
+        <div class="stat-info">
+            <div class="stat-label">Total Bandwidth (30d)</div>
+            <div class="stat-value">{{ total_bandwidth }} MB</div>
+        </div>
+        <div class="stat-icon-wrap" style="background: rgba(6,182,212,0.1); color: var(--color-info);">
+            <i class="bi bi-speedometer2"></i>
+        </div>
+    </div>
+
+    <div class="stat-card animate-fadeIn" style="animation-delay: 200ms">
+        <div class="stat-info">
+            <div class="stat-label">Most Popular Plan</div>
+            <div class="stat-value">
+                {% if plan_stats %}
+                    {{ plan_stats.0.plan__name }}
+                {% else %}
+                    —
+                {% endif %}
+            </div>
+        </div>
+        <div class="stat-icon-wrap" style="background: rgba(16,185,129,0.1); color: var(--color-success);">
+            <i class="bi bi-star"></i>
+        </div>
+    </div>
+</div>
+
+<div class="grid-2 mt-lg">
+    <!-- Plan Popularity Chart -->
+    <div class="chart-card animate-fadeIn" style="animation-delay: 300ms">
+        <h3 class="chart-title mb-md">Plan Popularity (Last 30 Days)</h3>
+        <div class="chart-wrapper" style="height: 280px;">
+            <canvas id="plan-popularity-chart"></canvas>
+        </div>
+    </div>
+
+    <!-- Plan Stats Table -->
+    <div class="chart-card animate-fadeIn" style="animation-delay: 400ms">
+        <h3 class="chart-title mb-md">Plan Performance</h3>
+        {% if plan_stats %}
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Plan</th>
+                        <th>Sessions</th>
+                        <th>Revenue</th>
+                        <th>Avg Duration</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for plan in plan_stats %}
+                    <tr>
+                        <td class="font-semibold">{{ plan.plan__name }}</td>
+                        <td>{{ plan.count }}</td>
+                        <td class="font-semibold">₱{{ plan.total_revenue }}</td>
+                        <td>{{ plan.avg_duration|floatformat:0 }} min</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-graph-up"></i>
+            <p>No analytics data yet</p>
+            <small>Data will appear once sessions are recorded</small>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Session Trends -->
+<div class="chart-card mt-lg animate-fadeIn" style="animation-delay: 500ms">
+    <div class="chart-header">
+        <h3 class="chart-title">Session Count Trend</h3>
+    </div>
+    <div class="chart-wrapper">
+        <canvas id="session-trend-chart"></canvas>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block dashboard_js %}
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+    // Plan popularity doughnut
+    {% if plan_stats %}
+    const planLabels = [{% for p in plan_stats %}'{{ p.plan__name }}',{% endfor %}];
+    const planValues = [{% for p in plan_stats %}{{ p.count }},{% endfor %}];
+    initPlanChart('plan-popularity-chart', { labels: planLabels, values: planValues });
+    {% endif %}
+
+    // Session trend line chart
+    try {
+        const data = await fetchRevenueData('monthly');
+        if (data && data.revenue_data.length > 0) {
+            const labels = data.revenue_data.map(d => {
+                const date = new Date(d.day);
+                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            });
+            const values = data.revenue_data.map(d => d.sessions);
+            initSessionsChart('session-trend-chart', { labels, values });
+        }
+    } catch (err) {
+        console.error('Failed to load session trends:', err);
+    }
+});
+</script>
+{% endblock %}

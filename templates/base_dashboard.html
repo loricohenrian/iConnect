@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}iConnect Dashboard — {% block page_title %}Overview{% endblock %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+{% endblock %}
+
+{% block body %}
+<div class="dashboard-wrapper">
+    <!-- Sidebar Overlay (mobile) -->
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-name">iConnect</div>
+            <div class="brand-subtitle">Admin Dashboard</div>
+        </div>
+
+        <nav class="sidebar-nav">
+            <div class="nav-section">
+                <div class="nav-section-title">Main</div>
+                <a href="{% url 'dashboard:overview' %}" class="nav-item {% if active_page == 'overview' %}active{% endif %}" id="nav-overview">
+                    <i class="bi bi-grid-1x2"></i>
+                    <span>Overview</span>
+                </a>
+                <a href="{% url 'dashboard:revenue' %}" class="nav-item {% if active_page == 'revenue' %}active{% endif %}" id="nav-revenue">
+                    <i class="bi bi-coin"></i>
+                    <span>Revenue</span>
+                </a>
+                <a href="{% url 'dashboard:sessions' %}" class="nav-item {% if active_page == 'sessions' %}active{% endif %}" id="nav-sessions">
+                    <i class="bi bi-people"></i>
+                    <span>Sessions</span>
+                </a>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-title">Analytics</div>
+                <a href="{% url 'dashboard:heatmap' %}" class="nav-item {% if active_page == 'heatmap' %}active{% endif %}" id="nav-heatmap">
+                    <i class="bi bi-calendar-range"></i>
+                    <span>Peak Hours</span>
+                </a>
+                <a href="{% url 'dashboard:analytics' %}" class="nav-item {% if active_page == 'analytics' %}active{% endif %}" id="nav-analytics">
+                    <i class="bi bi-graph-up"></i>
+                    <span>Analytics</span>
+                </a>
+                <a href="{% url 'dashboard:roi' %}" class="nav-item {% if active_page == 'roi' %}active{% endif %}" id="nav-roi">
+                    <i class="bi bi-bar-chart"></i>
+                    <span>ROI Tracker</span>
+                </a>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-title">Management</div>
+                <a href="{% url 'dashboard:reports' %}" class="nav-item {% if active_page == 'reports' %}active{% endif %}" id="nav-reports">
+                    <i class="bi bi-download"></i>
+                    <span>Reports</span>
+                </a>
+                <a href="{% url 'dashboard:announcements' %}" class="nav-item {% if active_page == 'announcements' %}active{% endif %}" id="nav-announcements">
+                    <i class="bi bi-bell"></i>
+                    <span>Announcements</span>
+                </a>
+                <a href="{% url 'dashboard:plans' %}" class="nav-item {% if active_page == 'plans' %}active{% endif %}" id="nav-plans">
+                    <i class="bi bi-tags"></i>
+                    <span>WiFi Rates</span>
+                </a>
+                <a href="{% url 'dashboard:security' %}" class="nav-item {% if active_page == 'security' %}active{% endif %}" id="nav-security">
+                    <i class="bi bi-shield-exclamation"></i>
+                    <span>Security</span>
+                </a>
+                <a href="{% url 'dashboard:account' %}" class="nav-item {% if active_page == 'account' %}active{% endif %}" id="nav-account">
+                    <i class="bi bi-person-gear"></i>
+                    <span>Account</span>
+                </a>
+                <form method="post" action="{% url 'dashboard:logout' %}" class="nav-item-form" id="nav-logout-form">
+                    {% csrf_token %}
+                    <button type="submit" class="nav-item nav-item-btn" id="nav-logout">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Logout</span>
+                    </button>
+                </form>
+                <a href="/admin/" class="nav-item" id="nav-django-admin">
+                    <i class="bi bi-gear"></i>
+                    <span>Django Admin</span>
+                </a>
+            </div>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="system-status">
+                <span class="status-dot"></span>
+                <span>System Online</span>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Top Bar -->
+        <header class="topbar">
+            <div class="d-flex align-items-center gap-md">
+                <button class="hamburger" id="sidebar-toggle" aria-label="Toggle menu">
+                    <i class="bi bi-list"></i>
+                </button>
+                <h1 class="page-title">{% block topbar_title %}Overview{% endblock %}</h1>
+            </div>
+            <div class="topbar-actions">
+                {% block topbar_actions %}{% endblock %}
+            </div>
+        </header>
+
+        <!-- Content Area -->
+        <main class="content-area">
+            {% block dashboard_content %}{% endblock %}
+        </main>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/dashboard.js' %}"></script>
+{% block dashboard_js %}{% endblock %}
+{% endblock %}
+
+

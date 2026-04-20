@@ -1,0 +1,89 @@
+{% extends "base_dashboard.html" %}
+
+{% block page_title %}Pricing{% endblock %}
+{% block topbar_title %}Pricing Recommendations{% endblock %}
+
+{% block dashboard_content %}
+
+<!-- Recommendations -->
+{% if recommendations %}
+<div class="mb-lg">
+    <h3 class="mb-md"><i class="bi bi-lightbulb"></i> Recommendations</h3>
+    {% for rec in recommendations %}
+    <div class="alert alert-{{ rec.type }} animate-fadeIn" style="animation-delay: {{ forloop.counter0 }}00ms">
+        <i class="bi {{ rec.icon }}"></i>
+        <div>
+            <strong>{{ rec.title }}</strong>
+            <p class="mb-0 mt-xs">{{ rec.message }}</p>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Plan Performance Table -->
+<div class="chart-card animate-fadeIn" style="animation-delay: 300ms">
+    <div class="chart-header">
+        <h3 class="chart-title">Plan Performance (Last 30 Days)</h3>
+    </div>
+
+    {% if plan_stats %}
+    <div class="table-container mt-md">
+        <table>
+            <thead>
+                <tr>
+                    <th>Plan</th>
+                    <th>Price</th>
+                    <th>Duration</th>
+                    <th>Sessions</th>
+                    <th>Revenue</th>
+                    <th>Revenue / Session</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for plan in plan_stats %}
+                <tr>
+                    <td class="font-semibold">{{ plan.plan__name }}</td>
+                    <td>₱{{ plan.plan__price }}</td>
+                    <td>{{ plan.plan__duration_minutes }} min</td>
+                    <td>{{ plan.usage_count }}</td>
+                    <td class="font-semibold">₱{{ plan.total_revenue }}</td>
+                    <td>₱{{ plan.plan__price }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <i class="bi bi-tag"></i>
+        <p>No pricing data available</p>
+        <small>Data will appear once sessions are recorded</small>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Plan Comparison Chart -->
+{% if plan_stats %}
+<div class="chart-card mt-lg animate-fadeIn" style="animation-delay: 400ms">
+    <h3 class="chart-title mb-md">Plan Popularity Comparison</h3>
+    <div class="chart-wrapper" style="height: 280px;">
+        <canvas id="pricing-chart"></canvas>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block dashboard_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    {% if plan_stats %}
+    const labels = [{% for p in plan_stats %}'{{ p.plan__name }}',{% endfor %}];
+    const values = [{% for p in plan_stats %}{{ p.usage_count }},{% endfor %}];
+
+    initRevenueChart('pricing-chart', { labels, values });
+    {% endif %}
+});
+</script>
+{% endblock %}

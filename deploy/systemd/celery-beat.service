@@ -1,0 +1,25 @@
+[Unit]
+Description=iConnect Celery Beat Scheduler
+After=network-online.target redis-server.service
+Wants=network-online.target
+Requires=redis-server.service
+
+[Service]
+Type=simple
+# Keep user aligned with worker permissions for consistency.
+User=root
+Group=root
+WorkingDirectory=/opt/iconnect/pisowifi
+EnvironmentFile=/opt/iconnect/pisowifi/.env
+Environment=PYTHONUNBUFFERED=1
+RuntimeDirectory=celery
+StateDirectory=celery
+ExecStart=/opt/iconnect/pisowifi/.venv/bin/celery -A pisowifi beat --loglevel=INFO --pidfile=/run/celery/beat.pid --schedule=/var/lib/celery/beat-schedule
+Restart=always
+RestartSec=5
+TimeoutStartSec=30
+TimeoutStopSec=60
+KillMode=mixed
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}iConnect Dashboard Login{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/base.css' %}">
+<style>
+    .login-wrap {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+    }
+
+    .login-card {
+        width: 100%;
+        max-width: 420px;
+        background: #ffffff;
+        border-radius: 14px;
+        padding: 28px;
+        box-shadow: 0 14px 32px rgba(15, 23, 42, 0.12);
+        border: 1px solid #e2e8f0;
+    }
+
+    .login-title {
+        margin: 0 0 6px;
+        font-size: 26px;
+        font-weight: 700;
+        color: #0f172a;
+    }
+
+    .login-subtitle {
+        margin: 0 0 22px;
+        color: #64748b;
+        font-size: 14px;
+    }
+
+    .login-form {
+        display: grid;
+        gap: 12px;
+    }
+
+    .login-form label {
+        font-size: 13px;
+        color: #334155;
+        font-weight: 600;
+        margin-bottom: 4px;
+        display: block;
+    }
+
+    .login-form input {
+        width: 100%;
+        border: 1px solid #cbd5e1;
+        border-radius: 10px;
+        padding: 10px 12px;
+        font-size: 14px;
+        outline: none;
+    }
+
+    .login-form input:focus {
+        border-color: #1A73E8;
+        box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.15);
+    }
+
+    .btn-login {
+        margin-top: 8px;
+        width: 100%;
+        border: 0;
+        border-radius: 10px;
+        background: #1A73E8;
+        color: #fff;
+        padding: 11px 12px;
+        font-weight: 700;
+        cursor: pointer;
+    }
+
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="login-wrap">
+    <div class="login-card">
+        <h1 class="login-title">iConnect</h1>
+        <p class="login-subtitle">Dashboard Admin Login</p>
+
+        {% if error_message %}
+        <div class="alert alert-danger mb-sm">{{ error_message }}</div>
+        {% endif %}
+
+        <form method="post" class="login-form">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ next }}">
+
+            <div>
+                <label for="username">Username</label>
+                <input id="username" type="text" name="username" required>
+            </div>
+
+            <div>
+                <label for="password">Password</label>
+                <input id="password" type="password" name="password" required>
+            </div>
+
+            <button type="submit" class="btn-login">Log In</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

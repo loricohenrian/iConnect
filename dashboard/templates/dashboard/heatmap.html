@@ -1,0 +1,87 @@
+{% extends "base_dashboard.html" %}
+
+{% block page_title %}Peak Hours{% endblock %}
+{% block topbar_title %}Peak Hours Heatmap{% endblock %}
+
+{% block dashboard_content %}
+
+<div class="chart-card animate-fadeIn">
+    <div class="chart-header">
+        <h3 class="chart-title">Usage Heatmap — Last 7 Days</h3>
+        <p class="text-small text-muted">Shows when students use WiFi the most</p>
+    </div>
+
+    <div class="heatmap-grid" id="heatmap-container">
+        <!-- Populated by JavaScript -->
+        <div class="text-center p-xl" style="grid-column: 1 / -1;">
+            <div class="spinner spinner-lg"></div>
+            <p class="text-small text-muted mt-md">Loading heatmap data...</p>
+        </div>
+    </div>
+
+    <!-- Legend -->
+    <div class="heatmap-legend">
+        <span>Less</span>
+        <div class="legend-cell heat-0"></div>
+        <div class="legend-cell heat-1"></div>
+        <div class="legend-cell heat-2"></div>
+        <div class="legend-cell heat-3"></div>
+        <div class="legend-cell heat-4"></div>
+        <span>More</span>
+    </div>
+</div>
+
+<!-- Peak Hours Summary -->
+<div class="grid-2 mt-lg">
+    <div class="chart-card animate-fadeIn" style="animation-delay: 200ms">
+        <h3 class="card-title mb-md"><i class="bi bi-sunrise"></i> Morning Peak</h3>
+        <div id="morning-peak">
+            <div class="skeleton skeleton-text"></div>
+            <div class="skeleton skeleton-text"></div>
+        </div>
+    </div>
+
+    <div class="chart-card animate-fadeIn" style="animation-delay: 300ms">
+        <h3 class="card-title mb-md"><i class="bi bi-sunset"></i> Afternoon Peak</h3>
+        <div id="afternoon-peak">
+            <div class="skeleton skeleton-text"></div>
+            <div class="skeleton skeleton-text"></div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block dashboard_js %}
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+    const data = await fetchHeatmapData();
+    initHeatmap('heatmap-container', data);
+
+    // Calculate peak summaries
+    const morningPeak = document.getElementById('morning-peak');
+    const afternoonPeak = document.getElementById('afternoon-peak');
+
+    const morningData = data.filter(d => d.hour >= 6 && d.hour < 12);
+    const afternoonData = data.filter(d => d.hour >= 12 && d.hour < 18);
+
+    const morningTotal = morningData.reduce((sum, d) => sum + d.count, 0);
+    const afternoonTotal = afternoonData.reduce((sum, d) => sum + d.count, 0);
+
+    const morningBest = morningData.sort((a, b) => b.count - a.count)[0];
+    const afternoonBest = afternoonData.sort((a, b) => b.count - a.count)[0];
+
+    morningPeak.innerHTML = `
+        <p class="stat-value">${morningTotal} sessions</p>
+        <p class="text-small text-muted mt-xs">6:00 AM — 12:00 PM</p>
+        ${morningBest ? `<p class="text-small text-muted">Busiest: ${morningBest.hour}:00 (${morningBest.count} sessions)</p>` : ''}
+    `;
+
+    afternoonPeak.innerHTML = `
+        <p class="stat-value">${afternoonTotal} sessions</p>
+        <p class="text-small text-muted mt-xs">12:00 PM — 6:00 PM</p>
+        ${afternoonBest ? `<p class="text-small text-muted">Busiest: ${afternoonBest.hour}:00 (${afternoonBest.count} sessions)</p>` : ''}
+    `;
+});
+</script>
+{% endblock %}

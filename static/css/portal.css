@@ -1,0 +1,312 @@
+/*
+ * iConnect — Captive Portal Stylesheet
+ * Mobile-first, single column, centered layout
+ */
+
+/* ============================================
+   Portal Layout
+   ============================================ */
+.portal-wrapper {
+    min-height: 100vh;
+    background: var(--color-light);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-bottom: 80px; /* Space for bottom nav */
+}
+
+.portal-container {
+    width: 100%;
+    max-width: 440px;
+    padding: 24px 20px;
+    margin: 0 auto;
+}
+
+/* ============================================
+   Portal Header — Minimalist & Sharp
+   ============================================ */
+.portal-header {
+    background: var(--color-white);
+    padding: 48px 20px;
+    text-align: center;
+    width: 100%;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.portal-header .brand-name {
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -1.5px;
+    color: var(--color-dark);
+    margin-bottom: 4px;
+}
+
+.portal-header .brand-tagline {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-gray);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.portal-header .wifi-icon {
+    font-size: 32px;
+    color: var(--color-primary);
+    margin-bottom: 12px;
+    display: inline-block;
+}
+
+/* ============================================
+   Plan Selection — Minimalist Cards
+   ============================================ */
+.plan-grid {
+    display: grid;
+    gap: 16px;
+    margin-top: 24px;
+}
+
+.plan-card {
+    background: var(--color-white);
+    border: 1px solid var(--color-border);
+    border-radius: 20px;
+    padding: 32px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: var(--transition-base);
+    position: relative;
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+}
+
+.plan-card:hover {
+    border-color: var(--color-primary);
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+}
+
+.plan-card.selected {
+    border-color: var(--color-primary);
+    background: #F0F9FF;
+    transform: scale(1.02);
+    box-shadow: 0 0 0 2px var(--color-primary);
+}
+
+.plan-card .plan-price {
+    font-size: 40px;
+    font-weight: 800;
+    color: var(--color-dark);
+    line-height: 1;
+    margin-bottom: 8px;
+    letter-spacing: -1px;
+}
+
+.plan-card .plan-duration {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--color-primary);
+    margin-bottom: 4px;
+}
+
+.plan-card .plan-speed {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-gray);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.plan-card .plan-popular {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: var(--color-primary);
+    color: white;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 4px 10px;
+    border-radius: 20px;
+    text-transform: uppercase;
+}
+
+/* ============================================
+   Session Timer — The Master Element
+   ============================================ */
+.timer-container {
+    text-align: center;
+    padding: 64px 24px;
+    background: var(--color-white);
+    border-radius: 32px;
+    border: 1px solid var(--color-border);
+    margin-top: 24px;
+    box-shadow: var(--shadow-soft);
+    position: relative;
+    overflow: hidden;
+}
+
+.timer-display {
+    font-size: 72px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -3px;
+    line-height: 1;
+    margin-bottom: 8px;
+    color: var(--color-dark);
+    transition: color 0.3s ease;
+}
+
+.timer-label {
+    font-size: 12px;
+    color: var(--color-gray);
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    font-weight: 700;
+    opacity: 0.7;
+}
+
+/* Low Time Animation */
+@keyframes timerPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); color: var(--color-danger); }
+    100% { transform: scale(1); }
+}
+
+.timer-display.low-time {
+    animation: timerPulse 1s infinite;
+    color: var(--color-danger);
+}
+
+/* Simple status dot */
+.status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 16px;
+    background: #F8FAFC;
+    border: 1px solid var(--color-border);
+    border-radius: 100px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--color-dark);
+    margin-bottom: 24px;
+}
+
+/* ============================================
+   Announcements — Sharp & Discrete
+   ============================================ */
+.announcement-banner {
+    background: #FEF3C7;
+    border-radius: 12px;
+    padding: 16px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #92400E;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    border: 1px solid #FDE68A;
+}
+
+/* ============================================
+   Portal Navigation — Minimalist Floating
+   ============================================ */
+.portal-nav {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(100% - 48px);
+    max-width: 380px;
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 100px;
+    display: flex;
+    justify-content: space-around;
+    padding: 8px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+    z-index: 1000;
+}
+
+.portal-nav a {
+    color: #94A3B8;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    text-decoration: none;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    flex: 1;
+    padding: 8px 0;
+    border-radius: 100px;
+    transition: var(--transition-base);
+}
+
+.portal-nav a.active {
+    color: var(--color-white);
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.portal-nav a i {
+    font-size: 22px;
+}
+
+.portal-footer {
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--color-gray);
+    font-size: 12px;
+    font-weight: 500;
+}
+
+/* ============================================
+   Coin Section
+   ============================================ */
+.insert-coins-section {
+    background: var(--color-white);
+    border-radius: 24px;
+    padding: 32px 24px;
+    text-align: center;
+    border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-sm);
+}
+
+.coins-icon {
+    font-size: 48px;
+    color: var(--color-warning);
+    margin-bottom: 16px;
+    display: inline-block;
+    filter: drop-shadow(0 4px 6px rgba(245, 158, 11, 0.2));
+}
+
+.coin-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+}
+
+.coin-item {
+    background: var(--color-light);
+    padding: 12px 8px;
+    border-radius: 16px;
+    border: 1px solid var(--color-border);
+}
+
+.coin-value {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--color-dark);
+}
+
+.coin-label {
+    font-size: 10px;
+    color: var(--color-gray);
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+

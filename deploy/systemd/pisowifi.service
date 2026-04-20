@@ -1,0 +1,25 @@
+[Unit]
+Description=iConnect Django Application (Gunicorn)
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+# This app executes iptables commands from request/task code.
+# Keep root unless you provide equivalent NET_ADMIN capability.
+User=root
+Group=root
+WorkingDirectory=/opt/iconnect/pisowifi
+EnvironmentFile=/opt/iconnect/pisowifi/.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/iconnect/pisowifi/.venv/bin/gunicorn --config /opt/iconnect/pisowifi/deploy/gunicorn/gunicorn.conf.py pisowifi.wsgi:application
+ExecReload=/bin/kill -s HUP $MAINPID
+RuntimeDirectory=gunicorn
+Restart=always
+RestartSec=5
+TimeoutStartSec=30
+TimeoutStopSec=60
+KillMode=mixed
+
+[Install]
+WantedBy=multi-user.target

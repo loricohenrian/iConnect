@@ -1,0 +1,164 @@
+{% extends "base_dashboard.html" %}
+
+{% block page_title %}Security{% endblock %}
+{% block topbar_title %}Suspicious Device Security{% endblock %}
+
+{% block dashboard_content %}
+
+{% if action_message %}
+<div class="alert alert-success">
+    <i class="bi bi-check-circle"></i> {{ action_message }}
+</div>
+{% endif %}
+{% if action_error %}
+<div class="alert alert-danger">
+    <i class="bi bi-exclamation-triangle"></i> {{ action_error }}
+</div>
+{% endif %}
+
+<div class="stats-grid">
+    <div class="stat-card animate-fadeIn">
+        <div class="stat-info">
+            <div class="stat-label">New Alerts</div>
+            <div class="stat-value">{{ counts.new }}</div>
+        </div>
+        <div class="stat-icon-wrap"><i class="bi bi-exclamation-circle"></i></div>
+    </div>
+    <div class="stat-card animate-fadeIn" style="animation-delay: 100ms">
+        <div class="stat-info">
+            <div class="stat-label">Blocked</div>
+            <div class="stat-value">{{ counts.blocked }}</div>
+        </div>
+        <div class="stat-icon-wrap"><i class="bi bi-shield-fill-x"></i></div>
+    </div>
+    <div class="stat-card animate-fadeIn" style="animation-delay: 200ms">
+        <div class="stat-info">
+            <div class="stat-label">False Positive</div>
+            <div class="stat-value">{{ counts.false_positive }}</div>
+        </div>
+        <div class="stat-icon-wrap"><i class="bi bi-check2-circle"></i></div>
+    </div>
+    <div class="stat-card animate-fadeIn" style="animation-delay: 300ms">
+        <div class="stat-info">
+            <div class="stat-label">Cleared</div>
+            <div class="stat-value">{{ counts.cleared }}</div>
+        </div>
+        <div class="stat-icon-wrap"><i class="bi bi-shield-check"></i></div>
+    </div>
+</div>
+
+<div class="filter-bar">
+    <form method="GET" action="" class="d-flex gap-md flex-wrap w-100">
+        <input type="search" name="search" value="{{ search }}" placeholder="Search MAC, IP, reason..." class="form-input search-input">
+        <select name="status" class="form-input" onchange="this.form.submit()">
+            <option value="">All Statuses</option>
+            {% for value, label in status_choices %}
+            <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-primary btn-sm">
+            <i class="bi bi-search"></i> Filter
+        </button>
+    </form>
+</div>
+
+<div class="chart-card">
+    <div class="chart-header">
+        <h3 class="chart-title">Suspicious Devices</h3>
+        <span class="badge badge-info">{{ suspicious_devices|length }} record{{ suspicious_devices|length|pluralize }}</span>
+    </div>
+
+    {% if suspicious_devices %}
+    <div class="table-container">
+        <table id="security-table">
+            <thead>
+                <tr>
+                    <th>MAC / IP</th>
+                    <th>Reason</th>
+                    <th>Detections</th>
+                    <th>Status</th>
+                    <th>Last Seen</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for incident in suspicious_devices %}
+                <tr>
+                    <td>
+                        <div class="font-semibold">{{ incident.mac_address }}</div>
+                        <div class="text-xs text-muted">{{ incident.last_ip_address|default:"No IP" }}</div>
+                    </td>
+                    <td>
+                        <div class="font-semibold">{{ incident.reason|title }}</div>
+                        {% if incident.evidence %}
+                        <div class="text-xs text-muted">{{ incident.evidence|truncatechars:100 }}</div>
+                        {% endif %}
+                    </td>
+                    <td>{{ incident.detection_count }}</td>
+                    <td>
+                        {% if incident.status == 'blocked' %}
+                        <span class="badge badge-expired">Blocked</span>
+                        {% elif incident.status == 'false_positive' %}
+                        <span class="badge badge-active">False Positive</span>
+                        {% elif incident.status == 'cleared' %}
+                        <span class="badge badge-info">Cleared</span>
+                        {% else %}
+                        <span class="badge badge-paused">New</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div>{{ incident.last_detected_at|date:"M d, h:i A" }}</div>
+                        <div class="text-xs text-muted">First: {{ incident.first_detected_at|date:"M d" }}</div>
+                    </td>
+                    <td>
+                        <div class="d-flex gap-sm flex-wrap">
+                            {% if incident.status != 'blocked' %}
+                            <form method="POST" action="">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="block">
+                                <input type="hidden" name="incident_id" value="{{ incident.id }}">
+                                <button type="submit" class="btn btn-sm btn-danger">Block</button>
+                            </form>
+                            {% else %}
+                            <form method="POST" action="">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="unblock">
+                                <input type="hidden" name="incident_id" value="{{ incident.id }}">
+                                <button type="submit" class="btn btn-sm btn-secondary">Unblock</button>
+                            </form>
+                            {% endif %}
+
+                            {% if incident.status != 'false_positive' %}
+                            <form method="POST" action="">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="false_positive">
+                                <input type="hidden" name="incident_id" value="{{ incident.id }}">
+                                <button type="submit" class="btn btn-sm btn-secondary">False Positive</button>
+                            </form>
+                            {% endif %}
+
+                            {% if incident.status != 'cleared' %}
+                            <form method="POST" action="">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="clear">
+                                <input type="hidden" name="incident_id" value="{{ incident.id }}">
+                                <button type="submit" class="btn btn-sm btn-secondary">Clear</button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <i class="bi bi-shield-check"></i>
+        <p>No suspicious devices recorded</p>
+        <small>Detected clone/mismatch events will appear here automatically</small>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}

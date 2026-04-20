@@ -1,0 +1,168 @@
+{% extends "base_dashboard.html" %}
+
+{% block page_title %}Revenue{% endblock %}
+{% block topbar_title %}Revenue Monitoring{% endblock %}
+
+{% block dashboard_content %}
+
+{% if goal_message %}
+<div class="alert alert-success">
+    <i class="bi bi-check-circle"></i> {{ goal_message }}
+</div>
+{% endif %}
+{% if goal_error %}
+<div class="alert alert-danger">
+    <i class="bi bi-exclamation-triangle"></i> {{ goal_error }}
+</div>
+{% endif %}
+
+<!-- Period Selector -->
+<div class="chart-card">
+    <div class="chart-header">
+        <h3 class="chart-title">Revenue Trends</h3>
+        <div class="chart-controls">
+            <button class="active" onclick="loadRevenue('weekly')" id="btn-weekly">Weekly</button>
+            <button onclick="loadRevenue('monthly')" id="btn-monthly">Monthly</button>
+            <button onclick="loadRevenue('yearly')" id="btn-yearly">Yearly</button>
+        </div>
+    </div>
+    <div class="chart-wrapper">
+        <canvas id="revenue-trend-chart"></canvas>
+    </div>
+</div>
+
+<div class="grid-2 mt-lg">
+    <!-- Revenue Goal Progress -->
+    <div class="chart-card">
+        <h3 class="chart-title mb-md">Revenue Goal</h3>
+        <div id="goal-container">
+            <div class="text-center">
+                <div class="spinner"></div>
+                <p class="text-small text-muted mt-sm">Loading...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Plan Breakdown -->
+    <div class="chart-card">
+        <h3 class="chart-title mb-md">Revenue by Plan</h3>
+        <div class="chart-wrapper" style="height: 250px;">
+            <canvas id="plan-revenue-chart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Revenue Goal Settings -->
+<div class="chart-card mt-lg">
+    <h3 class="chart-title mb-md">Set Revenue Goals</h3>
+    <div class="grid-2">
+        <form method="POST" action="" class="d-flex gap-sm align-items-end flex-wrap">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="update_goal">
+            <input type="hidden" name="period" value="daily">
+            <div class="form-group" style="min-width: 220px;">
+                <label class="form-label" for="daily-goal">Daily Goal (₱)</label>
+                <input id="daily-goal" class="form-input" type="number" min="1" name="target_amount" value="{{ goals.daily|default:'' }}" required>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">
+                <i class="bi bi-save"></i> Save Daily Goal
+            </button>
+        </form>
+
+        <form method="POST" action="" class="d-flex gap-sm align-items-end flex-wrap">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="update_goal">
+            <input type="hidden" name="period" value="weekly">
+            <div class="form-group" style="min-width: 220px;">
+                <label class="form-label" for="weekly-goal">Weekly Goal (₱)</label>
+                <input id="weekly-goal" class="form-input" type="number" min="1" name="target_amount" value="{{ goals.weekly|default:'' }}" required>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">
+                <i class="bi bi-save"></i> Save Weekly Goal
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Low Revenue Alert -->
+<div id="low-revenue-alert-container" class="mt-lg"></div>
+
+{% endblock %}
+
+{% block dashboard_js %}
+<script>
+let revenueChart = null;
+let planChart = null;
+
+async function loadRevenue(period) {
+    // Update active button
+    document.querySelectorAll('.chart-controls button').forEach(b => b.classList.remove('active'));
+    document.getElementById('btn-' + period).classList.add('active');
+
+    const data = await fetchRevenueData(period);
+    if (!data) return;
+
+    // Update revenue chart
+    const labels = data.revenue_data.map(d => {
+        const date = new Date(d.day);
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    });
+    const values = data.revenue_data.map(d => d.revenue);
+
+    if (revenueChart) revenueChart.destroy();
+    revenueChart = initRevenueChart('revenue-trend-chart', { labels, values });
+
+    // Update goal
+    const goalContainer = document.getElementById('goal-container');
+    const totalRevenue = values.reduce((a, b) => a + b, 0);
+    const goalAmount = data.goal_amount || 0;
+    const goalPct = goalAmount > 0 ? Math.min(100, (totalRevenue / goalAmount * 100)) : 0;
+    const goalClass = goalPct >= 100 ? 'exceeded' : goalPct >= 70 ? 'on-track' : 'under-target';
+
+    goalContainer.innerHTML = `
+        <div class="stat-value mb-sm">₱${totalRevenue.toLocaleString()}</div>
+        ${goalAmount > 0 ? `
+            <div class="goal-progress">
+                <div class="goal-status">
+                    <span class="text-muted">₱${totalRevenue.toLocaleString()}</span>
+                    <span class="font-semibold">₱${goalAmount.toLocaleString()} goal</span>
+                </div>
+                <div class="goal-bar">
+                    <div class="goal-fill ${goalClass}" style="width: ${goalPct}%"></div>
+                </div>
+                <div class="text-xs text-muted mt-xs text-center">${goalPct.toFixed(1)}% of target</div>
+            </div>
+        ` : `
+            <p class="text-small text-muted">No revenue goal set. Set one in Django Admin.</p>
+        `}
+    `;
+
+    const alertContainer = document.getElementById('low-revenue-alert-container');
+    if (alertContainer) {
+        if (data.low_revenue_alert && data.low_revenue_alert.triggered) {
+            alertContainer.innerHTML = `
+                <div class="alert alert-warning">
+                    <i class="bi bi-bell-fill"></i>
+                    <strong>Low Revenue Alert:</strong>
+                    ${data.low_revenue_alert.message}
+                </div>
+            `;
+        } else {
+            alertContainer.innerHTML = '';
+        }
+    }
+
+    // Update plan chart
+    if (data.plan_breakdown && data.plan_breakdown.length > 0) {
+        const planLabels = data.plan_breakdown.map(p => p.plan__name);
+        const planValues = data.plan_breakdown.map(p => p.total);
+        if (planChart) planChart.destroy();
+        planChart = initPlanChart('plan-revenue-chart', { labels: planLabels, values: planValues });
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadRevenue('weekly');
+});
+</script>
+{% endblock %}

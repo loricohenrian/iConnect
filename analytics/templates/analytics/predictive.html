@@ -1,0 +1,91 @@
+{% extends "base_dashboard.html" %}
+
+{% block page_title %}Revenue Forecast{% endblock %}
+{% block topbar_title %}Revenue Forecasting{% endblock %}
+
+{% block dashboard_content %}
+
+<!-- Forecast Summary -->
+<div class="stats-grid" style="grid-template-columns: repeat(3, 1fr);">
+    <div class="stat-card gradient-blue animate-fadeIn">
+        <div class="stat-info">
+            <div class="stat-label">Daily Average</div>
+            <div class="stat-value">₱{{ daily_avg }}</div>
+        </div>
+        <div class="stat-icon-wrap">
+            <i class="bi bi-calendar-day"></i>
+        </div>
+    </div>
+
+    <div class="stat-card gradient-green animate-fadeIn" style="animation-delay: 100ms">
+        <div class="stat-info">
+            <div class="stat-label">Projected This Week</div>
+            <div class="stat-value">₱{{ forecast_week }}</div>
+        </div>
+        <div class="stat-icon-wrap">
+            <i class="bi bi-calendar-week"></i>
+        </div>
+    </div>
+
+    <div class="stat-card gradient-teal animate-fadeIn" style="animation-delay: 200ms">
+        <div class="stat-info">
+            <div class="stat-label">Projected This Month</div>
+            <div class="stat-value">₱{{ forecast_month }}</div>
+        </div>
+        <div class="stat-icon-wrap">
+            <i class="bi bi-calendar-month"></i>
+        </div>
+    </div>
+</div>
+
+<!-- Trend Indicator -->
+<div class="chart-card mt-lg animate-fadeIn" style="animation-delay: 300ms">
+    <div class="d-flex align-items-center gap-md">
+        {% if trend == 'up' %}
+            <i class="bi bi-arrow-up-circle-fill" style="font-size: 32px; color: var(--color-success);"></i>
+            <div>
+                <h3 class="font-semibold text-success">Revenue is trending up</h3>
+                <p class="text-small text-muted mb-0">{{ trend_pct }}% increase compared to the previous week</p>
+            </div>
+        {% elif trend == 'down' %}
+            <i class="bi bi-arrow-down-circle-fill" style="font-size: 32px; color: var(--color-danger);"></i>
+            <div>
+                <h3 class="font-semibold text-danger">Revenue is trending down</h3>
+                <p class="text-small text-muted mb-0">{{ trend_pct }}% decrease compared to the previous week</p>
+            </div>
+        {% else %}
+            <i class="bi bi-dash-circle-fill" style="font-size: 32px; color: var(--color-warning);"></i>
+            <div>
+                <h3 class="font-semibold text-warning">Revenue is stable</h3>
+                <p class="text-small text-muted mb-0">No significant change from the previous week</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Revenue Trend Chart -->
+<div class="chart-card mt-lg animate-fadeIn" style="animation-delay: 400ms">
+    <h3 class="chart-title mb-md">Daily Revenue — Last 30 Days</h3>
+    <div class="chart-wrapper">
+        <canvas id="forecast-chart"></canvas>
+    </div>
+</div>
+
+<div class="alert alert-info mt-lg">
+    <i class="bi bi-info-circle"></i>
+    <strong>Forecasting Method:</strong> Projections use a 7-day Simple Moving Average (SMA). For advanced forecasting, connect Power BI to the PostgreSQL database.
+</div>
+
+{% endblock %}
+
+{% block dashboard_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    {% if daily_data %}
+    const labels = [{% for d in daily_data %}'{{ d.day|date:"M d" }}',{% endfor %}];
+    const values = [{% for d in daily_data %}{{ d.revenue }},{% endfor %}];
+    initSessionsChart('forecast-chart', { labels, values });
+    {% endif %}
+});
+</script>
+{% endblock %}

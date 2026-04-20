@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/portal.css' %}">
+{% endblock %}
+
+{% block body %}
+<div class="portal-wrapper" data-mac="{{ mac_address|default:'' }}">
+    <!-- Header -->
+    <header class="portal-header">
+        <i class="bi bi-wifi wifi-icon"></i>
+        <div class="brand-name">iConnect</div>
+        <div class="brand-tagline">Affordable Internet, Smart Monitoring</div>
+    </header>
+
+    <!-- Announcements -->
+    <div class="portal-container" id="portal-announcements" style="padding-bottom: 0;{% if not announcements %} display: none;{% endif %}">
+        {% for ann in announcements %}
+        <div class="announcement-banner" data-announcement-id="{{ ann.id }}">
+            <i class="bi bi-megaphone-fill"></i>
+            <span>{{ ann.message }}</span>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Main Content -->
+    <main class="portal-container">
+        {% block portal_content %}{% endblock %}
+    </main>
+
+    <!-- Bottom Navigation -->
+    <nav class="portal-nav">
+        <a href="{% url 'portal:index' %}{% if mac_address %}?mac={{ mac_address|urlencode }}{% endif %}" class="{% if active_page == 'home' %}active{% endif %}" id="nav-home">
+            <i class="bi bi-house"></i>
+            <span>Home</span>
+        </a>
+        <a href="{% url 'portal:history' %}{% if mac_address %}?mac={{ mac_address|urlencode }}{% endif %}" class="{% if active_page == 'history' %}active{% endif %}" id="nav-history">
+            <i class="bi bi-clock-history"></i>
+            <span>History</span>
+        </a>
+        <a href="{% url 'portal:manual' %}{% if mac_address %}?mac={{ mac_address|urlencode }}{% endif %}" class="{% if active_page == 'manual' %}active{% endif %}" id="nav-manual">
+            <i class="bi bi-question-circle"></i>
+            <span>Help</span>
+        </a>
+    </nav>
+
+    <!-- Footer -->
+    <footer class="portal-footer">
+        <p>iConnect &copy; 2026 — Powered by Solar Energy</p>
+    </footer>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/portal.js' %}"></script>
+{% block portal_js %}{% endblock %}
+{% endblock %}
+
+

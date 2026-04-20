@@ -1,0 +1,85 @@
+{% extends "base_dashboard.html" %}
+
+{% block page_title %}Reports{% endblock %}
+{% block topbar_title %}Reports{% endblock %}
+
+{% block dashboard_content %}
+
+<div class="grid-3">
+    <!-- Daily Report -->
+    <div class="chart-card text-center animate-fadeIn">
+        <div class="mb-md">
+            <i class="bi bi-file-earmark-text" style="font-size: 48px; color: var(--color-primary);"></i>
+        </div>
+        <h3 class="card-title">Daily Report</h3>
+        <p class="text-small text-muted mb-md">Revenue, sessions, and peak hours for today</p>
+        <div class="d-flex gap-sm justify-content-center">
+            <button class="btn btn-primary" onclick="generateReport(this, 'daily', 'today', 'pdf')" id="btn-daily-report-pdf">
+                <i class="bi bi-filetype-pdf"></i> PDF
+            </button>
+            <button class="btn btn-secondary" onclick="generateReport(this, 'daily', 'today', 'csv')" id="btn-daily-report-csv">
+                <i class="bi bi-filetype-csv"></i> CSV
+            </button>
+        </div>
+    </div>
+
+    <!-- Weekly Report -->
+    <div class="chart-card text-center animate-fadeIn" style="animation-delay: 100ms">
+        <div class="mb-md">
+            <i class="bi bi-file-earmark-bar-graph" style="font-size: 48px; color: var(--color-info);"></i>
+        </div>
+        <h3 class="card-title">Weekly Report</h3>
+        <p class="text-small text-muted mb-md">Trends, top plans, and user statistics for the week</p>
+        <div class="d-flex gap-sm justify-content-center">
+            <button class="btn btn-primary" onclick="generateReport(this, 'weekly', 'week', 'pdf')" id="btn-weekly-report-pdf">
+                <i class="bi bi-filetype-pdf"></i> PDF
+            </button>
+            <button class="btn btn-secondary" onclick="generateReport(this, 'weekly', 'week', 'csv')" id="btn-weekly-report-csv">
+                <i class="bi bi-filetype-csv"></i> CSV
+            </button>
+        </div>
+    </div>
+
+    <!-- Monthly Report -->
+    <div class="chart-card text-center animate-fadeIn" style="animation-delay: 200ms">
+        <div class="mb-md">
+            <i class="bi bi-file-earmark-spreadsheet" style="font-size: 48px; color: var(--color-success);"></i>
+        </div>
+        <h3 class="card-title">Monthly Report</h3>
+        <p class="text-small text-muted mb-md">Full analytics summary for the month</p>
+        <div class="d-flex gap-sm justify-content-center">
+            <button class="btn btn-primary" onclick="generateReport(this, 'monthly', 'month', 'pdf')" id="btn-monthly-report-pdf">
+                <i class="bi bi-filetype-pdf"></i> PDF
+            </button>
+            <button class="btn btn-secondary" onclick="generateReport(this, 'monthly', 'month', 'csv')" id="btn-monthly-report-csv">
+                <i class="bi bi-filetype-csv"></i> CSV
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Export -->
+<div class="chart-card mt-lg">
+    <h3 class="chart-title mb-md">Quick Data Export</h3>
+    <p class="text-small text-muted mb-md">Export raw data in CSV format for use in Power BI or Excel</p>
+
+    <div class="d-flex gap-md flex-wrap">
+        <a href="{% url 'dashboard:sessions' %}" class="btn btn-secondary btn-sm" id="export-sessions-link">
+            <i class="bi bi-table"></i> Sessions Data
+        </a>
+        <button class="btn btn-secondary btn-sm" onclick="window.open('/api/connected-users/')" id="export-connected-btn">
+            <i class="bi bi-people"></i> Connected Users
+        </button>
+        <button class="btn btn-secondary btn-sm" onclick="window.open('/api/dashboard/stats/')" id="export-stats-btn">
+            <i class="bi bi-bar-chart"></i> Dashboard Stats
+        </button>
+    </div>
+</div>
+
+<!-- Info about Power BI -->
+<div class="alert alert-info mt-lg">
+    <i class="bi bi-info-circle"></i>
+    <strong>Power BI Integration:</strong> Connect Power BI directly to the PostgreSQL database for advanced analytics and automated reporting.
+</div>
+
+{% endblock %}

@@ -1,0 +1,135 @@
+{% extends "base_dashboard.html" %}
+
+{% block page_title %}ROI Tracker{% endblock %}
+{% block topbar_title %}ROI Tracker{% endblock %}
+
+{% block dashboard_content %}
+
+<!-- Main ROI Card -->
+<div class="roi-card animate-fadeIn">
+    <div class="roi-percentage">{{ roi_percentage }}%</div>
+    <div class="roi-label">ROI Recovered</div>
+
+    <div class="progress-bar" style="max-width: 400px; margin: 0 auto; height: 16px;">
+        <div class="progress-fill" style="width: {{ roi_percentage }}%"></div>
+    </div>
+
+    <div class="roi-details mt-xl">
+        <div class="roi-detail-item">
+            <div class="detail-value" style="color: var(--color-danger);">₱{{ total_cost|default:"0" }}</div>
+            <div class="detail-label">Total Project Cost</div>
+        </div>
+        <div class="roi-detail-item">
+            <div class="detail-value" style="color: var(--color-success);">₱{{ total_revenue|default:"0" }}</div>
+            <div class="detail-label">Total Revenue</div>
+        </div>
+        <div class="roi-detail-item">
+            <div class="detail-value">₱{{ daily_avg_revenue|default:"0" }}</div>
+            <div class="detail-label">Daily Average Revenue</div>
+        </div>
+    </div>
+</div>
+
+<div class="grid-2 mt-lg">
+    <!-- Breakeven Projection -->
+    <div class="chart-card animate-fadeIn" style="animation-delay: 200ms">
+        <h3 class="card-title mb-md"><i class="bi bi-calendar-check"></i> Breakeven Projection</h3>
+        {% if projected_breakeven %}
+        <div class="stat-value mb-sm">{{ projected_breakeven|date:"M d, Y" }}</div>
+        <p class="text-small text-muted">Estimated {{ days_to_breakeven }} days remaining</p>
+        <p class="text-small text-muted mt-xs">Based on current daily average of ₱{{ daily_avg_revenue }}</p>
+        {% else %}
+        <div class="empty-state" style="padding: var(--space-lg);">
+            <i class="bi bi-calculator"></i>
+            <p>Not enough data</p>
+            <small>Breakeven projection requires at least 1 day of revenue data</small>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- ROI Chart -->
+    <div class="chart-card animate-fadeIn" style="animation-delay: 300ms">
+        <h3 class="card-title mb-md"><i class="bi bi-graph-up-arrow"></i> Revenue vs Cost</h3>
+        <div class="chart-wrapper" style="height: 250px;">
+            <canvas id="roi-chart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Project Costs Breakdown -->
+<div class="chart-card mt-lg animate-fadeIn" style="animation-delay: 400ms">
+    <div class="chart-header">
+        <h3 class="chart-title">Project Costs Breakdown</h3>
+        <a href="/admin/dashboard/projectcost/add/" class="btn btn-sm btn-primary" id="add-cost-btn">
+            <i class="bi bi-plus"></i> Add Cost
+        </a>
+    </div>
+
+    {% if costs %}
+    <div>
+        {% for cost in costs %}
+        <div class="cost-item">
+            <div>
+                <div class="cost-desc">{{ cost.description }}</div>
+                <div class="text-xs text-muted">{{ cost.date_added|date:"M d, Y" }}</div>
+            </div>
+            <div class="cost-amount">₱{{ cost.amount }}</div>
+        </div>
+        {% endfor %}
+        <div class="cost-item" style="background: var(--color-light); border-radius: var(--radius-sm);">
+            <div class="font-semibold">Total</div>
+            <div class="cost-amount font-bold">₱{{ total_cost }}</div>
+        </div>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <i class="bi bi-receipt"></i>
+        <p>No costs entered yet</p>
+        <small>Add your project costs to track ROI accurately</small>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}
+
+{% block dashboard_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const ctx = document.getElementById('roi-chart');
+    if (!ctx) return;
+
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['Total Cost', 'Total Revenue'],
+            datasets: [{
+                data: [{{ total_cost|default:"0" }}, {{ total_revenue|default:"0" }}],
+                backgroundColor: ['#EF4444', '#10B981'],
+                borderRadius: 8,
+                barPercentage: 0.5,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: (ctx) => '₱' + ctx.parsed.y.toLocaleString()
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: { color: '#E2E8F0' },
+                    ticks: { callback: (val) => '₱' + val.toLocaleString() }
+                },
+                x: { grid: { display: false } }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

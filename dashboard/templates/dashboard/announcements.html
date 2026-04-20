@@ -1,0 +1,112 @@
+{% extends "base_dashboard.html" %}
+
+{% block page_title %}Announcements{% endblock %}
+{% block topbar_title %}Announcement Management{% endblock %}
+
+{% block dashboard_content %}
+
+<!-- Create New Announcement -->
+<div class="chart-card animate-fadeIn">
+    <h3 class="card-title mb-md"><i class="bi bi-megaphone"></i> Post New Announcement</h3>
+    <form method="POST" action="" id="announcement-form">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="create">
+        <div class="form-group">
+            <label class="form-label" for="announcement-message">Message</label>
+            <textarea name="message" id="announcement-message" rows="3" class="form-input"
+                      placeholder="e.g., WiFi maintenance scheduled for 5:00 PM today" required></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary" id="post-announcement-btn">
+            <i class="bi bi-send"></i> Post Announcement
+        </button>
+    </form>
+</div>
+
+<!-- Preview -->
+<div class="chart-card mt-lg animate-fadeIn" style="animation-delay: 100ms">
+    <h3 class="card-title mb-md"><i class="bi bi-eye"></i> Preview (How students see it)</h3>
+    <div class="announcement-banner" id="preview-banner">
+        <i class="bi bi-megaphone-fill"></i>
+        <span id="preview-text">Your announcement will appear like this</span>
+    </div>
+</div>
+
+<!-- Announcements List -->
+<div class="chart-card mt-lg animate-fadeIn" style="animation-delay: 200ms">
+    <div class="chart-header">
+        <h3 class="chart-title">All Announcements</h3>
+        <span class="badge badge-info">{{ announcements.count }} total</span>
+    </div>
+
+    {% if announcements %}
+    <div class="mt-md">
+        {% for ann in announcements %}
+        <div class="announcement-item {% if not ann.is_active %}inactive{% endif %}">
+            <div class="ann-message">
+                <div class="font-semibold mb-xs">{{ ann.message }}</div>
+                <div class="text-xs text-muted">
+                    Created: {{ ann.created_at|date:"M d, Y h:i A" }}
+                    {% if ann.is_active %}
+                        <span class="badge badge-active" style="font-size: 11px;">Active</span>
+                    {% else %}
+                        <span class="badge badge-expired" style="font-size: 11px;">Inactive</span>
+                    {% endif %}
+                </div>
+
+                <form method="POST" action="" class="mt-sm">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="update">
+                    <input type="hidden" name="announcement_id" value="{{ ann.id }}">
+                    <div class="d-flex gap-sm">
+                        <input type="text" name="message" class="form-input" value="{{ ann.message }}" required>
+                        <button type="submit" class="btn btn-sm btn-primary" title="Save changes">
+                            <i class="bi bi-pencil-square"></i> Save
+                        </button>
+                    </div>
+                </form>
+            </div>
+            <div class="ann-actions">
+                <form method="POST" action="" style="display: inline;">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="toggle">
+                    <input type="hidden" name="announcement_id" value="{{ ann.id }}">
+                    <button type="submit" class="btn btn-sm btn-secondary" title="{% if ann.is_active %}Deactivate{% else %}Activate{% endif %}">
+                        <i class="bi bi-toggle-{% if ann.is_active %}on{% else %}off{% endif %}"></i>
+                    </button>
+                </form>
+                <form method="POST" action="" style="display: inline;" onsubmit="return confirm('Delete this announcement?')">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="delete">
+                    <input type="hidden" name="announcement_id" value="{{ ann.id }}">
+                    <button type="submit" class="btn btn-sm btn-danger" title="Delete">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <i class="bi bi-bell-slash"></i>
+        <p>No announcements</p>
+        <small>Create an announcement to notify students</small>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}
+
+{% block dashboard_js %}
+<script>
+// Live preview
+const msgInput = document.getElementById('announcement-message');
+const previewText = document.getElementById('preview-text');
+
+if (msgInput && previewText) {
+    msgInput.addEventListener('input', () => {
+        previewText.textContent = msgInput.value || 'Your announcement will appear like this';
+    });
+}
+</script>
+{% endblock %}

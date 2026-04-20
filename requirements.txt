@@ -1,0 +1,26 @@
+# Django Core
+Django==4.2.16
+djangorestframework==3.15.2
+django-cors-headers==4.4.0
+
+# Database
+psycopg2-binary==2.9.9
+
+# Task Queue
+celery==5.4.0
+redis==5.0.8
+
+# Report Generation
+reportlab==4.2.2
+
+# Environment
+python-dotenv==1.0.1
+
+# HTTP client (GPIO coin detector -> Django API)
+requests==2.32.3
+
+# GPIO (Orange Pi / ALLAN H3 only)
+OPi.GPIO==0.5.4 ; platform_system == "Linux" and (platform_machine == "armv7l" or platform_machine == "aarch64" or platform_machine == "armv6l")
+
+# Server (production)
+gunicorn==22.0.0

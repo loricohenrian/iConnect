@@ -1,0 +1,23 @@
+[Unit]
+Description=iConnect Coin Detector (GPIO)
+After=network-online.target pisowifi.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/opt/iconnect/pisowifi
+EnvironmentFile=/opt/iconnect/pisowifi/.env
+Environment=PYTHONUNBUFFERED=1
+# Use local Nginx listener for API calls in production.
+Environment=DJANGO_URL=http://127.0.0.1
+ExecStart=/opt/iconnect/pisowifi/.venv/bin/python /opt/iconnect/pisowifi/gpio/coin_detector.py
+Restart=always
+RestartSec=3
+TimeoutStartSec=30
+TimeoutStopSec=30
+KillMode=mixed
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,88 @@
+{% extends "base_dashboard.html" %}
+
+{% block page_title %}Sessions{% endblock %}
+{% block topbar_title %}Session Logs{% endblock %}
+
+{% block dashboard_content %}
+
+<!-- Filter Bar -->
+<div class="filter-bar">
+    <form method="GET" action="" class="d-flex gap-md flex-wrap w-100">
+        <input type="search" name="search" value="{{ search }}" placeholder="Search MAC, device, IP..."
+               class="form-input search-input" id="session-search">
+        <select name="status" class="form-input" id="status-filter" onchange="this.form.submit()">
+            <option value="">All Status</option>
+            <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+            <option value="expired" {% if status_filter == 'expired' %}selected{% endif %}>Expired</option>
+            <option value="paused" {% if status_filter == 'paused' %}selected{% endif %}>Paused</option>
+        </select>
+        <button type="submit" class="btn btn-primary btn-sm" id="search-btn">
+            <i class="bi bi-search"></i> Search
+        </button>
+        <button type="button" class="btn btn-sm btn-secondary" onclick="exportTableToCSV('sessions-table', 'iconnect_sessions.csv')" id="export-csv-btn">
+            <i class="bi bi-download"></i> Export CSV
+        </button>
+    </form>
+</div>
+
+<!-- Sessions Table -->
+{% if sessions %}
+<div class="chart-card">
+    <div class="table-container">
+        <table id="sessions-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Device</th>
+                    <th>Plan</th>
+                    <th>Amount</th>
+                    <th>Time In</th>
+                    <th>Time Out</th>
+                    <th>Duration</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for session in sessions %}
+                <tr>
+                    <td>#{{ session.id }}</td>
+                    <td>
+                        <div class="font-semibold">{{ session.device_name|default:"Unknown" }}</div>
+                        <div class="text-xs text-muted">{{ session.mac_address }}</div>
+                        {% if session.ip_address %}
+                        <div class="text-xs text-muted">{{ session.ip_address }}</div>
+                        {% endif %}
+                    </td>
+                    <td>{{ session.plan.name }}</td>
+                    <td class="font-semibold">₱{{ session.amount_paid }}</td>
+                    <td>{{ session.time_in|date:"M d, h:i A" }}</td>
+                    <td>{{ session.time_out|date:"M d, h:i A"|default:"—" }}</td>
+                    <td>{{ session.duration_minutes_purchased }} min</td>
+                    <td>
+                        {% if session.status == 'active' %}
+                            <span class="badge badge-active">Active</span>
+                        {% elif session.status == 'expired' %}
+                            <span class="badge badge-expired">Expired</span>
+                        {% else %}
+                            <span class="badge badge-paused">{{ session.get_status_display }}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="chart-card">
+    <div class="empty-state">
+        <i class="bi bi-clock-history"></i>
+        <p>No sessions found</p>
+        <small>{% if search or status_filter %}Try adjusting your filters{% else %}Data will appear here once students start using the system{% endif %}</small>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+

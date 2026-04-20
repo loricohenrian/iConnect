@@ -1,0 +1,39 @@
+/*
+ * Local fallback for Bootstrap Icons classes.
+ * Keeps icon layout stable without external CDN assets.
+ */
+
+.bi {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1em;
+    min-width: 1em;
+    line-height: 1;
+    vertical-align: -0.125em;
+}
+
+.bi::before {
+    content: "\25CF";
+    font-size: 0.58em;
+    font-weight: 700;
+}
+
+.bi-list::before {
+    content: "\2630";
+    font-size: 0.86em;
+}
+
+.bi-check2::before,
+.bi-check2-circle::before {
+    content: "\2713";
+    font-size: 0.78em;
+}
+
+.bi-x-circle::before,
+.bi-exclamation-circle::before,
+.bi-exclamation-triangle::before,
+.bi-exclamation-triangle-fill::before {
+    content: "!";
+    font-size: 0.78em;
+}
