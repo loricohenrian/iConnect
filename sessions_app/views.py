@@ -1,7 +1,6 @@
 """
 Session management API views.
 """
-from datetime import timedelta
 import hmac
 import logging
 import random
@@ -9,7 +8,7 @@ import random
 from django.conf import settings
 from django.core.cache import cache
 from django.db import transaction
-from django.db.models import Sum
+from django.db.models import Q, Sum
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -18,7 +17,7 @@ from rest_framework.response import Response
 
 from . import iptables
 from .bandwidth import refresh_session_bandwidth_usage
-from .models import CoinEvent, CoinInsertRequest, Plan, Session, WhitelistedDevice, SuspiciousDevice
+from .models import CoinEvent, Plan, Session, WhitelistedDevice, SuspiciousDevice
 from .serializers import (
     CoinInsertedSerializer,
     PlanSerializer,
@@ -123,183 +122,9 @@ def _public_read_rate_limited(request, scope):
 def _pending_coin_events_for_mac(mac_address):
     return CoinEvent.objects.filter(
         session__isnull=True,
-        mac_address=mac_address,
+    ).filter(
+        Q(mac_address=mac_address) | Q(mac_address__isnull=True)
     ).order_by("timestamp", "id")
-
-
-def _ensure_firewall_ready_for_session_start():
-    """Ensure baseline firewall policy is enforced before starting a session."""
-    if not getattr(settings, "PISONET_REQUIRE_FORWARD_DROP_BEFORE_SESSION", True):
-        return True
-    return iptables.enforce_firewall_baseline()
-
-
-def _coin_request_window_seconds():
-    return max(15, int(getattr(settings, "PISONET_COIN_REQUEST_WINDOW_SECONDS", 45)))
-
-
-def _coin_request_max_queue():
-    return max(1, int(getattr(settings, "PISONET_COIN_REQUEST_MAX_QUEUE", 20)))
-
-
-def _activate_next_coin_request(now=None):
-    """Ensure only one active shared-slot request at a time."""
-    now = now or timezone.now()
-    window_seconds = _coin_request_window_seconds()
-
-    with transaction.atomic():
-        CoinInsertRequest.objects.select_for_update().filter(
-            status=CoinInsertRequest.STATUS_ACTIVE,
-            expires_at__isnull=False,
-            expires_at__lte=now,
-        ).update(status=CoinInsertRequest.STATUS_EXPIRED)
-
-        active_request = CoinInsertRequest.objects.select_for_update().filter(
-            status=CoinInsertRequest.STATUS_ACTIVE
-        ).order_by("created_at", "id").first()
-        if active_request:
-            return active_request
-
-        next_request = CoinInsertRequest.objects.select_for_update().filter(
-            status=CoinInsertRequest.STATUS_PENDING
-        ).order_by("created_at", "id").first()
-        if not next_request:
-            return None
-
-        next_request.status = CoinInsertRequest.STATUS_ACTIVE
-        next_request.activated_at = now
-        next_request.expires_at = now + timedelta(seconds=window_seconds)
-        next_request.save(update_fields=["status", "activated_at", "expires_at"])
-        return next_request
-
-
-def _coin_request_queue_position(coin_request):
-    if coin_request.status not in (CoinInsertRequest.STATUS_PENDING, CoinInsertRequest.STATUS_ACTIVE):
-        return None
-
-    queue_ids = list(
-        CoinInsertRequest.objects.filter(
-            status__in=[CoinInsertRequest.STATUS_ACTIVE, CoinInsertRequest.STATUS_PENDING]
-        ).order_by("created_at", "id").values_list("id", flat=True)
-    )
-    try:
-        return queue_ids.index(coin_request.id) + 1
-    except ValueError:
-        return None
-
-
-def _coin_request_payload(coin_request):
-    if not coin_request:
-        return None
-
-    return {
-        "id": coin_request.id,
-        "purpose": coin_request.purpose,
-        "status": coin_request.status,
-        "mac_address": coin_request.mac_address,
-        "expected_amount": coin_request.expected_amount,
-        "credited_amount": coin_request.credited_amount,
-        "queue_position": _coin_request_queue_position(coin_request),
-        "expires_at": coin_request.expires_at,
-        "ready_to_start": coin_request.status == CoinInsertRequest.STATUS_COMPLETED,
-    }
-
-
-def _sync_coin_request_progress(coin_request):
-    """Sync credited amount and transition request status when needed."""
-    now = timezone.now()
-    credited_amount = _pending_coin_events_for_mac(coin_request.mac_address).aggregate(
-        total=Sum("amount")
-    )["total"] or 0
-
-    update_fields = []
-    transitioned = False
-
-    if coin_request.credited_amount != credited_amount:
-        coin_request.credited_amount = credited_amount
-        update_fields.append("credited_amount")
-
-    if (
-        coin_request.status == CoinInsertRequest.STATUS_ACTIVE
-        and coin_request.expires_at
-        and coin_request.expires_at <= now
-    ):
-        coin_request.status = CoinInsertRequest.STATUS_EXPIRED
-        update_fields.append("status")
-        transitioned = True
-    elif (
-        coin_request.status in (CoinInsertRequest.STATUS_PENDING, CoinInsertRequest.STATUS_ACTIVE)
-        and coin_request.expected_amount > 0
-        and credited_amount >= coin_request.expected_amount
-    ):
-        coin_request.status = CoinInsertRequest.STATUS_COMPLETED
-        coin_request.completed_at = now
-        update_fields.extend(["status", "completed_at"])
-        transitioned = True
-
-    if update_fields:
-        # Avoid duplicate field entries in update_fields.
-        coin_request.save(update_fields=list(dict.fromkeys(update_fields)))
-
-    if transitioned:
-        _activate_next_coin_request(now=now)
-
-    return coin_request
-
-
-def _active_coin_request_for_unscoped_insert():
-    """Pick the currently active queue request for unscoped coin inserts."""
-    active_request = _activate_next_coin_request()
-    if not active_request:
-        return None
-
-    active_request = _sync_coin_request_progress(active_request)
-    if active_request.status == CoinInsertRequest.STATUS_ACTIVE:
-        return active_request
-
-    return _activate_next_coin_request()
-
-
-def _get_or_create_start_coin_request(mac_address, ip_address, plan):
-    """Create/reuse a queued start-session coin request for this device."""
-    existing_request = CoinInsertRequest.objects.filter(
-        mac_address=mac_address,
-        purpose=CoinInsertRequest.PURPOSE_START,
-        status__in=[CoinInsertRequest.STATUS_PENDING, CoinInsertRequest.STATUS_ACTIVE],
-    ).order_by("created_at", "id").first()
-
-    if existing_request:
-        return _sync_coin_request_progress(existing_request), False
-
-    queue_depth = CoinInsertRequest.objects.filter(
-        status__in=[CoinInsertRequest.STATUS_PENDING, CoinInsertRequest.STATUS_ACTIVE]
-    ).count()
-    if queue_depth >= _coin_request_max_queue():
-        raise ValueError("Coin request queue is full. Please try again shortly.")
-
-    credited_amount = _pending_coin_events_for_mac(mac_address).aggregate(total=Sum("amount"))["total"] or 0
-    initial_status = (
-        CoinInsertRequest.STATUS_COMPLETED
-        if credited_amount >= plan.price
-        else CoinInsertRequest.STATUS_PENDING
-    )
-
-    coin_request = CoinInsertRequest.objects.create(
-        mac_address=mac_address,
-        ip_address=ip_address,
-        purpose=CoinInsertRequest.PURPOSE_START,
-        plan=plan,
-        expected_amount=plan.price,
-        credited_amount=credited_amount,
-        status=initial_status,
-        completed_at=timezone.now() if initial_status == CoinInsertRequest.STATUS_COMPLETED else None,
-    )
-
-    if coin_request.status == CoinInsertRequest.STATUS_PENDING:
-        _activate_next_coin_request()
-        coin_request.refresh_from_db()
-
-    return _sync_coin_request_progress(coin_request), True
 
 
 @api_view(["POST"])
@@ -330,12 +155,6 @@ def coin_inserted(request):
     amount = serializer.validated_data["amount"]
     denomination = serializer.validated_data["denomination"]
     mac_address = serializer.validated_data.get("mac_address")
-    assigned_request = None
-
-    if not mac_address:
-        assigned_request = _active_coin_request_for_unscoped_insert()
-        if assigned_request:
-            mac_address = assigned_request.mac_address
 
     session = None
     voucher_code = None
@@ -352,16 +171,12 @@ def coin_inserted(request):
         session=session,
     )
     audit_logger.info(
-        "event=coin_received amount=%s denomination=%s mac=%s request_id=%s ip=%s",
+        "event=coin_received amount=%s denomination=%s mac=%s ip=%s",
         amount,
         denomination,
         mac_address or "<none>",
-        assigned_request.id if assigned_request else "<none>",
         _client_ip(request),
     )
-
-    if assigned_request:
-        assigned_request = _sync_coin_request_progress(assigned_request)
 
     if session:
         plan = Plan.objects.filter(price=amount, is_active=True).first()
@@ -383,106 +198,8 @@ def coin_inserted(request):
             "coin_event_id": coin_event.id,
             "voucher_code": voucher_code,
             "amount": amount,
-            "assigned_mac_address": mac_address,
-            "coin_request": _coin_request_payload(assigned_request),
         },
         status=status.HTTP_201_CREATED,
-    )
-
-
-@api_view(["POST"])
-@permission_classes([AllowAny])
-def session_start_request(request):
-    """Create/retrieve a queued coin-insert request for starting a session."""
-    serializer = SessionStartSerializer(data=request.data)
-    if not serializer.is_valid():
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    mac_address = serializer.validated_data["mac_address"]
-    plan_id = serializer.validated_data["plan_id"]
-    ip_address = _client_ip(request)
-
-    try:
-        plan = Plan.objects.get(id=plan_id, is_active=True)
-    except Plan.DoesNotExist:
-        return Response(
-            {"error": "Plan not found or inactive"},
-            status=status.HTTP_404_NOT_FOUND,
-        )
-
-    existing = Session.objects.filter(mac_address=mac_address, status="active").first()
-    if existing:
-        return Response(
-            {
-                "error": "Device already has an active session",
-                "session": SessionSerializer(existing).data,
-            },
-            status=status.HTTP_409_CONFLICT,
-        )
-
-    try:
-        coin_request, created = _get_or_create_start_coin_request(mac_address, ip_address, plan)
-    except ValueError as exc:
-        return Response({"error": str(exc)}, status=status.HTTP_429_TOO_MANY_REQUESTS)
-
-    if coin_request.status == CoinInsertRequest.STATUS_COMPLETED:
-        message = "Payment is already sufficient. Tap Connect to start your session."
-    elif coin_request.status == CoinInsertRequest.STATUS_ACTIVE:
-        message = "Insert coins now. Your device currently owns the coin slot window."
-    elif coin_request.status == CoinInsertRequest.STATUS_PENDING:
-        message = "Request queued. Wait until your turn, then insert coins."
-    else:
-        message = "Request is no longer active. Please request again."
-
-    return Response(
-        {
-            "status": "success",
-            "message": message,
-            "coin_request": _coin_request_payload(coin_request),
-        },
-        status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
-    )
-
-
-@api_view(["GET"])
-@permission_classes([AllowAny])
-def session_start_request_status(request):
-    """Return progress for a queued start-session coin request."""
-    request_id = request.query_params.get("request_id", "").strip()
-    if not request_id.isdigit():
-        return Response(
-            {"error": "request_id parameter is required"},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
-    coin_request = CoinInsertRequest.objects.filter(
-        id=int(request_id),
-        purpose=CoinInsertRequest.PURPOSE_START,
-    ).first()
-    if not coin_request:
-        return Response(
-            {"error": "Coin request not found"},
-            status=status.HTTP_404_NOT_FOUND,
-        )
-
-    mac_address = request.query_params.get("mac_address", "").upper().strip()
-    if mac_address and mac_address != coin_request.mac_address:
-        return Response(
-            {"error": "Coin request belongs to another device"},
-            status=status.HTTP_403_FORBIDDEN,
-        )
-
-    coin_request = _sync_coin_request_progress(coin_request)
-    if coin_request.status == CoinInsertRequest.STATUS_PENDING:
-        _activate_next_coin_request()
-        coin_request.refresh_from_db()
-        coin_request = _sync_coin_request_progress(coin_request)
-
-    return Response(
-        {
-            "status": "success",
-            "coin_request": _coin_request_payload(coin_request),
-        }
     )
 
 
@@ -545,34 +262,11 @@ def session_start(request):
             status=status.HTTP_409_CONFLICT,
         )
 
-    if not _ensure_firewall_ready_for_session_start():
-        audit_logger.error(
-            "event=session_start_firewall_baseline_failed mac=%s ip=%s",
-            mac_address,
-            ip_address,
-        )
-        return Response(
-            {"error": "Firewall baseline is not ready. Please retry shortly."},
-            status=status.HTTP_503_SERVICE_UNAVAILABLE,
-        )
-
     total_coins = _pending_coin_events_for_mac(mac_address).aggregate(
         total=Sum("amount")
     )["total"] or 0
 
     if total_coins < plan.price:
-        try:
-            coin_request, _ = _get_or_create_start_coin_request(mac_address, ip_address, plan)
-        except ValueError as exc:
-            return Response(
-                {
-                    "error": str(exc),
-                    "required": plan.price,
-                    "received": total_coins,
-                },
-                status=status.HTTP_429_TOO_MANY_REQUESTS,
-            )
-
         return Response(
             {
                 "error": (
@@ -581,7 +275,6 @@ def session_start(request):
                 ),
                 "required": plan.price,
                 "received": total_coins,
-                "coin_request": _coin_request_payload(coin_request),
             },
             status=status.HTTP_402_PAYMENT_REQUIRED,
         )
@@ -607,15 +300,6 @@ def session_start(request):
                 event.save(update_fields=["session"])
                 used_amount += event.amount
 
-            CoinInsertRequest.objects.filter(
-                mac_address=mac_address,
-                purpose=CoinInsertRequest.PURPOSE_START,
-                status__in=[CoinInsertRequest.STATUS_PENDING, CoinInsertRequest.STATUS_ACTIVE],
-            ).update(
-                status=CoinInsertRequest.STATUS_CANCELLED,
-                completed_at=timezone.now(),
-            )
-
             if not iptables.allow_device(mac_address):
                 raise RuntimeError("Failed to allow internet access for this device")
     except RuntimeError as exc:
@@ -623,8 +307,6 @@ def session_start(request):
             {"error": str(exc)},
             status=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
-
-    _activate_next_coin_request()
 
     return Response(
         {
@@ -749,17 +431,6 @@ def session_extend(request):
                 "message": f"Session extended by {voucher_session.duration_minutes_purchased} minutes",
                 "session": SessionSerializer(active_session).data,
             }
-        )
-
-    if not _ensure_firewall_ready_for_session_start():
-        audit_logger.error(
-            "event=session_extend_firewall_baseline_failed mac=%s ip=%s",
-            mac_address,
-            _client_ip(request),
-        )
-        return Response(
-            {"error": "Firewall baseline is not ready. Please retry shortly."},
-            status=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
 
     try:

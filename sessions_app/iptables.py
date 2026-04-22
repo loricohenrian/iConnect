@@ -13,22 +13,6 @@ logger = logging.getLogger(__name__)
 SIMULATION_MODE = getattr(settings, 'PISONET_GPIO_SIMULATION', True)
 
 
-def _run_command_capture(cmd):
-    """Execute a command and return a completed process (or None on exception)."""
-    if SIMULATION_MODE:
-        logger.info(f'[SIMULATION] Would run: {" ".join(cmd)}')
-        return None
-
-    try:
-        return subprocess.run(cmd, capture_output=True, text=True, timeout=10)
-    except subprocess.TimeoutExpired:
-        logger.error('iptables command timed out')
-        return None
-    except Exception as e:
-        logger.error(f'iptables exception: {e}')
-        return None
-
-
 def _ensure_forward_rule(rule_spec):
     """Ensure a FORWARD rule exists by checking first, then inserting at top."""
     check_cmd = ['iptables', '-C', 'FORWARD'] + rule_spec
@@ -122,53 +106,6 @@ def setup_default_policy():
     if success:
         logger.info('Default FORWARD policy set to DROP')
     return success
-
-
-def get_forward_default_policy():
-    """Return FORWARD chain default policy (e.g., DROP/ACCEPT), or None if unknown."""
-    if SIMULATION_MODE:
-        return 'DROP'
-
-    result = _run_command_capture(['iptables', '-S', 'FORWARD'])
-    if result is None:
-        return None
-
-    if result.returncode != 0:
-        logger.error('Failed to read FORWARD policy: %s', result.stderr)
-        return None
-
-    for line in result.stdout.splitlines():
-        # Expected format: -P FORWARD DROP
-        tokens = line.strip().split()
-        if len(tokens) == 3 and tokens[0] == '-P' and tokens[1] == 'FORWARD':
-            return tokens[2].upper()
-
-    logger.warning('Unable to detect FORWARD default policy from iptables output')
-    return None
-
-
-def is_forward_default_drop():
-    """True when FORWARD default policy is DROP."""
-    return get_forward_default_policy() == 'DROP'
-
-
-def enforce_firewall_baseline():
-    """Enforce baseline policy and verify FORWARD default policy is DROP."""
-    if getattr(settings, 'PISONET_DNS_ONLY_PREAUTH', False):
-        baseline_ok = apply_pre_auth_dns_policy()
-    else:
-        baseline_ok = setup_default_policy()
-
-    if not baseline_ok:
-        logger.error('Failed to apply firewall baseline rules')
-        return False
-
-    if not is_forward_default_drop():
-        logger.error('FORWARD default policy is not DROP after baseline enforcement')
-        return False
-
-    logger.info('Firewall baseline verified: FORWARD policy is DROP')
-    return True
 
 
 def apply_pre_auth_dns_policy():
