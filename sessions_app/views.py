@@ -5,11 +5,13 @@ from datetime import timedelta
 import hmac
 import logging
 import random
+import re
+import subprocess
 
 from django.conf import settings
 from django.core.cache import cache
 from django.db import transaction
-from django.db.models import Sum
+from django.db.models import Q, Sum
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -32,6 +34,7 @@ from .serializers import (
 PESO_SYMBOL = "\u20b1"
 logger = logging.getLogger(__name__)
 audit_logger = logging.getLogger("audit")
+MAC_ADDRESS_RE = re.compile(r"^([0-9A-F]{2}:){5}[0-9A-F]{2}$")
 
 
 def _is_dashboard_admin(user):
@@ -58,6 +61,98 @@ def _client_ip(request):
     if forwarded:
         return forwarded.split(",")[0].strip()
     return request.META.get("REMOTE_ADDR", "unknown")
+
+
+def _normalize_mac(value):
+    normalized = (value or "").strip().upper()
+    if MAC_ADDRESS_RE.match(normalized):
+        return normalized
+    return ""
+
+
+def _arp_mac_for_ip(ip_address):
+    """Resolve client MAC from ARP/neighbor table when available."""
+    if not ip_address or ip_address == "unknown":
+        return ""
+
+    interface = getattr(settings, "PISONET_LAN_INTERFACE", "").strip()
+
+    try:
+        if interface:
+            result = subprocess.run(
+                ["ip", "neigh", "show", "dev", interface],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if result.returncode != 0:
+                return ""
+            lines = result.stdout.splitlines()
+        else:
+            result = subprocess.run(
+                ["ip", "neigh", "show", ip_address],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if result.returncode != 0:
+                return ""
+            lines = result.stdout.splitlines()
+    except Exception:
+        return ""
+
+    for line in lines:
+        parts = line.split()
+        if not parts or parts[0] != ip_address or "lladdr" not in parts:
+            continue
+
+        index = parts.index("lladdr")
+        if index + 1 < len(parts):
+            return _normalize_mac(parts[index + 1])
+
+    return ""
+
+
+def _effective_mac_for_request(request, provided_mac=""):
+    """Pick best MAC identity for this request (ARP preferred, request fallback)."""
+    request_ip = _client_ip(request)
+    provided = _normalize_mac(provided_mac)
+    resolved = _arp_mac_for_ip(request_ip)
+
+    if resolved and provided and resolved != provided:
+        audit_logger.info(
+            "event=mac_resolved_from_arp provided_mac=%s resolved_mac=%s ip=%s",
+            provided,
+            resolved,
+            request_ip,
+        )
+
+    return resolved or provided
+
+
+def _rebind_session_identity(session, request_ip, request_mac):
+    """Rebind active session identity to current request network identity."""
+    target_mac = _normalize_mac(request_mac) or session.mac_address
+    old_mac = session.mac_address
+    update_fields = []
+
+    if request_ip and session.ip_address != request_ip:
+        session.ip_address = request_ip
+        update_fields.append("ip_address")
+
+    if target_mac and session.mac_address != target_mac:
+        session.mac_address = target_mac
+        update_fields.append("mac_address")
+
+    if update_fields:
+        session.save(update_fields=update_fields)
+
+    if target_mac:
+        if old_mac != target_mac:
+            iptables.block_device(old_mac)
+        iptables.allow_device(target_mac)
+
+    return session
 
 
 def _coin_rate_limited(request):
@@ -268,7 +363,23 @@ def _get_or_create_start_coin_request(mac_address, ip_address, plan):
         status__in=[CoinInsertRequest.STATUS_PENDING, CoinInsertRequest.STATUS_ACTIVE],
     ).order_by("created_at", "id").first()
 
+    if not existing_request and ip_address and ip_address != "unknown":
+        existing_request = CoinInsertRequest.objects.filter(
+            ip_address=ip_address,
+            purpose=CoinInsertRequest.PURPOSE_START,
+            status__in=[CoinInsertRequest.STATUS_PENDING, CoinInsertRequest.STATUS_ACTIVE],
+        ).order_by("created_at", "id").first()
+
     if existing_request:
+        update_fields = []
+        if existing_request.mac_address != mac_address:
+            existing_request.mac_address = mac_address
+            update_fields.append("mac_address")
+        if ip_address and existing_request.ip_address != ip_address:
+            existing_request.ip_address = ip_address
+            update_fields.append("ip_address")
+        if update_fields:
+            existing_request.save(update_fields=update_fields)
         return _sync_coin_request_progress(existing_request), False
 
     queue_depth = CoinInsertRequest.objects.filter(
@@ -398,7 +509,14 @@ def session_start_request(request):
     if not serializer.is_valid():
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    mac_address = serializer.validated_data["mac_address"]
+    provided_mac = serializer.validated_data.get("mac_address", "")
+    mac_address = _effective_mac_for_request(request, provided_mac)
+    if not mac_address:
+        return Response(
+            {"error": "Unable to determine device identity. Please reconnect and try again."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
     plan_id = serializer.validated_data["plan_id"]
     ip_address = _client_ip(request)
 
@@ -465,12 +583,18 @@ def session_start_request_status(request):
             status=status.HTTP_404_NOT_FOUND,
         )
 
-    mac_address = request.query_params.get("mac_address", "").upper().strip()
-    if mac_address and mac_address != coin_request.mac_address:
-        return Response(
-            {"error": "Coin request belongs to another device"},
-            status=status.HTTP_403_FORBIDDEN,
-        )
+    provided_mac = request.query_params.get("mac_address", "")
+    resolved_mac = _effective_mac_for_request(request, provided_mac)
+    if resolved_mac and resolved_mac != coin_request.mac_address:
+        request_ip = _client_ip(request)
+        if coin_request.ip_address and request_ip != coin_request.ip_address:
+            return Response(
+                {"error": "Coin request belongs to another device"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        coin_request.mac_address = resolved_mac
+        coin_request.ip_address = request_ip
+        coin_request.save(update_fields=["mac_address", "ip_address"])
 
     coin_request = _sync_coin_request_progress(coin_request)
     if coin_request.status == CoinInsertRequest.STATUS_PENDING:
@@ -497,7 +621,14 @@ def session_start(request):
     if not serializer.is_valid():
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    mac_address = serializer.validated_data["mac_address"]
+    provided_mac = serializer.validated_data.get("mac_address", "")
+    mac_address = _effective_mac_for_request(request, provided_mac)
+    if not mac_address:
+        return Response(
+            {"error": "Unable to determine device identity. Please reconnect and try again."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
     plan_id = serializer.validated_data["plan_id"]
     ip_address = _client_ip(request)
     device_name = serializer.validated_data.get("device_name")
@@ -514,35 +645,21 @@ def session_start(request):
         mac_address=mac_address,
         status="active",
     ).first()
-    if existing:
-        if existing.ip_address and existing.ip_address != ip_address:
-            SuspiciousDevice.record_incident(
-                mac_address=mac_address,
-                ip_address=ip_address,
-                reason="mac_ip_conflict_start",
-                evidence=f"Active session already bound to IP {existing.ip_address}",
-            )
-            audit_logger.warning(
-                "event=session_start_mac_clone_detected mac=%s existing_ip=%s request_ip=%s",
-                mac_address,
-                existing.ip_address,
-                ip_address,
-            )
-            return Response(
-                {
-                    "error": "Possible MAC cloning detected. Active session is bound to another IP.",
-                    "session": SessionSerializer(existing).data,
-                    "suspected_clone": True,
-                },
-                status=status.HTTP_403_FORBIDDEN,
-            )
+    if not existing and ip_address and ip_address != "unknown":
+        existing = Session.objects.filter(
+            ip_address=ip_address,
+            status="active",
+        ).first()
 
+    if existing:
+        existing = _rebind_session_identity(existing, ip_address, mac_address)
         return Response(
             {
-                "error": "Device already has an active session",
+                "status": "success",
+                "message": "Session already active",
                 "session": SessionSerializer(existing).data,
             },
-            status=status.HTTP_409_CONFLICT,
+            status=status.HTTP_200_OK,
         )
 
     if not _ensure_firewall_ready_for_session_start():
@@ -648,7 +765,14 @@ def session_extend(request):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     voucher_code = serializer.validated_data["voucher_code"].upper()
-    mac_address = serializer.validated_data["mac_address"]
+    provided_mac = serializer.validated_data.get("mac_address", "")
+    request_ip = _client_ip(request)
+    mac_address = _effective_mac_for_request(request, provided_mac)
+    if not mac_address:
+        return Response(
+            {"error": "Unable to determine device identity. Please reconnect and try again."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     if _session_extend_rate_limited(request, mac_address):
         audit_logger.warning(
@@ -688,44 +812,28 @@ def session_extend(request):
         )
 
     if voucher_session.mac_address and voucher_session.mac_address != mac_address:
-        audit_logger.warning(
-            "event=session_extend_mac_mismatch voucher_mac=%s request_mac=%s voucher=%s ip=%s",
-            voucher_session.mac_address,
-            mac_address,
-            voucher_code,
-            _client_ip(request),
-        )
-        return Response(
-            {"error": "This voucher code belongs to a different device"},
-            status=status.HTTP_403_FORBIDDEN,
-        )
+        if not voucher_session.ip_address or voucher_session.ip_address == request_ip:
+            voucher_session.mac_address = mac_address
+            voucher_session.save(update_fields=["mac_address"])
+        else:
+            audit_logger.warning(
+                "event=session_extend_mac_mismatch voucher_mac=%s request_mac=%s voucher=%s ip=%s",
+                voucher_session.mac_address,
+                mac_address,
+                voucher_code,
+                request_ip,
+            )
+            return Response(
+                {"error": "This voucher code belongs to a different device"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
-    active_session = Session.objects.filter(
-        mac_address=mac_address,
-        status="active",
+    active_session = Session.objects.filter(status="active").filter(
+        Q(mac_address=mac_address) | Q(ip_address=request_ip)
     ).first()
 
-    if active_session and not _session_ip_matches_request(active_session, request):
-        request_ip = _client_ip(request)
-        SuspiciousDevice.record_incident(
-            mac_address=mac_address,
-            ip_address=request_ip,
-            reason="mac_ip_conflict_extend",
-            evidence=f"Session extend request IP {request_ip} differs from active session IP {active_session.ip_address}",
-        )
-        audit_logger.warning(
-            "event=session_extend_ip_mismatch mac=%s request_ip=%s session_ip=%s",
-            mac_address,
-            request_ip,
-            active_session.ip_address,
-        )
-        return Response(
-            {
-                "error": "Session is active on a different IP. Possible MAC cloning detected.",
-                "suspected_clone": True,
-            },
-            status=status.HTTP_403_FORBIDDEN,
-        )
+    if active_session:
+        active_session = _rebind_session_identity(active_session, request_ip, mac_address)
 
     if active_session:
         active_session.extend_session(voucher_session.duration_minutes_purchased)
@@ -765,12 +873,14 @@ def session_extend(request):
     try:
         with transaction.atomic():
             voucher_session.mac_address = mac_address
+            voucher_session.ip_address = request_ip
             voucher_session.status = "active"
             voucher_session.time_in = timezone.now()
             voucher_session.time_out = None
             voucher_session.save(
                 update_fields=[
                     "mac_address",
+                    "ip_address",
                     "status",
                     "time_in",
                     "time_out",
@@ -866,11 +976,13 @@ def session_status(request):
     Returns remaining time for active session.
     GET /api/session/status/?mac_address=AA:BB:CC:DD:EE:FF
     """
-    mac_address = request.query_params.get("mac_address", "").upper()
+    provided_mac = request.query_params.get("mac_address", "")
+    request_ip = _client_ip(request)
+    mac_address = _effective_mac_for_request(request, provided_mac)
 
     if not mac_address:
         return Response(
-            {"error": "mac_address parameter required"},
+            {"error": "Unable to determine device identity"},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -894,9 +1006,8 @@ def session_status(request):
             }
         )
 
-    session = Session.objects.filter(
-        mac_address=mac_address,
-        status="active",
+    session = Session.objects.filter(status="active").filter(
+        Q(mac_address=mac_address) | Q(ip_address=request_ip)
     ).first()
 
     if session:
@@ -917,29 +1028,23 @@ def session_status(request):
                     }
                 )
 
-            if not _session_ip_matches_request(locked_session, request):
-                request_ip = _client_ip(request)
-                SuspiciousDevice.record_incident(
+            if locked_session.mac_address != mac_address:
+                conflicting = Session.objects.filter(
+                    status="active",
                     mac_address=mac_address,
-                    ip_address=request_ip,
-                    reason="mac_ip_conflict_status",
-                    evidence=f"Session status request IP {request_ip} differs from active session IP {locked_session.ip_address}",
-                )
-                audit_logger.warning(
-                    "event=session_status_ip_mismatch mac=%s request_ip=%s session_ip=%s",
-                    mac_address,
-                    request_ip,
-                    locked_session.ip_address,
-                )
-                return Response(
-                    {
-                        "status": "no_session",
-                        "message": "No active session found",
-                        "mac_address": mac_address,
-                        "is_whitelisted": False,
-                        "suspected_clone": True,
-                    }
-                )
+                ).exclude(id=locked_session.id).exists()
+                if conflicting:
+                    return Response(
+                        {
+                            "status": "no_session",
+                            "message": "No active session found",
+                            "mac_address": mac_address,
+                            "is_whitelisted": False,
+                            "suspected_clone": True,
+                        }
+                    )
+
+            locked_session = _rebind_session_identity(locked_session, request_ip, mac_address)
 
             if locked_session.time_remaining_seconds <= 0:
                 locked_session.expire_session()
@@ -1126,11 +1231,13 @@ def speed_test(request):
     Returns internet speed metrics for a specific device.
     GET /api/speed-test/?mac_address=AA:BB:CC:DD:EE:FF
     """
-    mac_address = request.query_params.get("mac_address", "").upper()
+    provided_mac = request.query_params.get("mac_address", "")
+    request_ip = _client_ip(request)
+    mac_address = _effective_mac_for_request(request, provided_mac)
 
     if not mac_address:
         return Response(
-            {"error": "mac_address parameter required"},
+            {"error": "Unable to determine device identity"},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -1141,35 +1248,18 @@ def speed_test(request):
             status=status.HTTP_429_TOO_MANY_REQUESTS,
         )
 
-    session = Session.objects.filter(
-        mac_address=mac_address,
-        status="active",
+    session = Session.objects.filter(status="active").filter(
+        Q(mac_address=mac_address) | Q(ip_address=request_ip)
     ).select_related("plan").first()
-
-    if session and not _session_ip_matches_request(session, request):
-        request_ip = _client_ip(request)
-        SuspiciousDevice.record_incident(
-            mac_address=mac_address,
-            ip_address=request_ip,
-            reason="mac_ip_conflict_speed_test",
-            evidence=f"Speed-test request IP {request_ip} differs from active session IP {session.ip_address}",
-        )
-        audit_logger.warning(
-            "event=speed_test_ip_mismatch mac=%s request_ip=%s session_ip=%s",
-            mac_address,
-            request_ip,
-            session.ip_address,
-        )
-        return Response(
-            {"error": "No active session found for this device"},
-            status=status.HTTP_404_NOT_FOUND,
-        )
 
     if not session:
         return Response(
             {"error": "No active session found for this device"},
             status=status.HTTP_404_NOT_FOUND,
         )
+
+    session = _rebind_session_identity(session, request_ip, mac_address)
+    mac_address = session.mac_address
 
     # On development/simulation mode, return realistic mock values.
     is_simulated = getattr(settings, "PISONET_GPIO_SIMULATION", True)

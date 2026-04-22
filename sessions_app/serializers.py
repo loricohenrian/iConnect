@@ -93,21 +93,25 @@ class CoinInsertedSerializer(serializers.Serializer):
 
 class SessionStartSerializer(serializers.Serializer):
     """Serializer for starting a new session."""
-    mac_address = serializers.CharField(max_length=17)
+    mac_address = serializers.CharField(max_length=17, required=False, allow_blank=True)
     plan_id = serializers.IntegerField()
     ip_address = serializers.IPAddressField(required=False)
     device_name = serializers.CharField(max_length=100, required=False)
 
     def validate_mac_address(self, value):
+        if not value:
+            return ""
         return normalize_mac_address(value)
 
 
 class SessionExtendSerializer(serializers.Serializer):
     """Serializer for extending a session with a voucher code."""
     voucher_code = serializers.CharField(max_length=10)
-    mac_address = serializers.CharField(max_length=17)
+    mac_address = serializers.CharField(max_length=17, required=False, allow_blank=True)
 
     def validate_mac_address(self, value):
+        if not value:
+            return ""
         return normalize_mac_address(value)
 
 

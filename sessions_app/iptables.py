@@ -48,8 +48,9 @@ def _run_command(cmd, ignore_errors=False):
 
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
-        if result.returncode != 0 and not ignore_errors:
-            logger.error(f'iptables error: {result.stderr}')
+        if result.returncode != 0:
+            if not ignore_errors:
+                logger.error(f'iptables error: {result.stderr}')
             return False
         return True
     except subprocess.TimeoutExpired:

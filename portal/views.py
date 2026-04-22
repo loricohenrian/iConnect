@@ -36,14 +36,25 @@ def _get_mac_address(request):
     stored_mac = _normalize_mac(request.session.get(SESSION_MAC_KEY, ""))
     query_mac = _normalize_mac(request.GET.get("mac", ""))
 
-    if stored_mac and query_mac and query_mac != stored_mac:
-        return stored_mac
-
-    if query_mac and not stored_mac:
+    if query_mac:
         request.session[SESSION_MAC_KEY] = query_mac
         return query_mac
 
     return stored_mac
+
+
+def _bind_active_session_to_request(active_session, request_ip):
+    """Keep active session aligned with request network identity."""
+    if not active_session:
+        return None
+
+    if request_ip and active_session.ip_address != request_ip:
+        active_session.ip_address = request_ip
+        active_session.save(update_fields=["ip_address"])
+
+    # Ensure paid access remains allowed across reconnects.
+    iptables.allow_device(active_session.mac_address)
+    return active_session
 
 
 def _history_passcode_enabled():
@@ -70,10 +81,10 @@ def index(request):
         active_session = Session.objects.filter(
             mac_address=mac_address,
             status="active",
-            ip_address=request_ip,
         ).select_related("plan").first()
 
     if active_session and active_session.time_remaining_seconds > 0:
+        _bind_active_session_to_request(active_session, request_ip)
         return redirect(f"/session/?mac={mac_address}")
 
     context = {
@@ -102,8 +113,9 @@ def session_page(request):
     active_session = Session.objects.filter(
         mac_address=mac_address,
         status="active",
-        ip_address=request_ip,
     ).select_related("plan").first()
+
+    active_session = _bind_active_session_to_request(active_session, request_ip)
 
     if not active_session or active_session.time_remaining_seconds <= 0:
         if active_session:
@@ -147,12 +159,10 @@ def history(request):
             request.session.pop(HISTORY_PASSCODE_VERIFIED_KEY, None)
             history_verified = False
 
-    request_ip = _client_ip(request)
     sessions = []
     if history_verified:
         sessions = Session.objects.filter(
             mac_address=mac_address,
-            ip_address=request_ip,
         ).select_related("plan").order_by("-time_in")[:20]
 
     announcements = Announcement.objects.filter(is_active=True)
