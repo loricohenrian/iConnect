@@ -311,7 +311,7 @@ if not DEBUG:
     if CORS_ALLOW_ALL_ORIGINS:
         raise ImproperlyConfigured('CORS_ALLOW_ALL_ORIGINS must be False when DEBUG=False.')
 
-    SECURE_SSL_REDIRECT = os.getenv('SECURE_SSL_REDIRECT', 'True').lower() in ('true', '1', 'yes')
+    SECURE_SSL_REDIRECT = os.getenv('SECURE_SSL_REDIRECT', 'False').lower() in ('true', '1', 'yes')
     if SECURE_SSL_REDIRECT:
         # TLS-enabled deployment (reverse proxy/cert in place).
         SESSION_COOKIE_SECURE = True
