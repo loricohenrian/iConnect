@@ -88,11 +88,6 @@ function initPlanSelection() {
                 selectedPlanInput.value = card.dataset.planId;
             }
 
-            const connectBtn = document.getElementById("connect-btn");
-            if (connectBtn) {
-                connectBtn.disabled = false;
-            }
-
             const requestBtn = document.getElementById("request-slot-btn");
             if (requestBtn) {
                 requestBtn.disabled = false;
@@ -147,7 +142,6 @@ function renderPlans(plans) {
     }
 
     const selectedPlanInput = document.getElementById("selected-plan");
-    const connectBtn = document.getElementById("connect-btn");
     const requestBtn = document.getElementById("request-slot-btn");
     const startBtn = document.getElementById("start-session-btn");
     const insertCoinsSection = document.getElementById("insert-coins-section");
@@ -166,9 +160,6 @@ function renderPlans(plans) {
         }
         if (selectedPlanInput) {
             selectedPlanInput.value = "";
-        }
-        if (connectBtn) {
-            connectBtn.disabled = true;
         }
         if (requestBtn) {
             requestBtn.disabled = true;
@@ -214,9 +205,6 @@ function renderPlans(plans) {
 
     if (selectedCard) {
         selectedCard.classList.add("selected");
-        if (connectBtn) {
-            connectBtn.disabled = false;
-        }
         if (requestBtn) {
             requestBtn.disabled = false;
         }
@@ -226,9 +214,6 @@ function renderPlans(plans) {
     } else {
         if (selectedPlanInput) {
             selectedPlanInput.value = "";
-        }
-        if (connectBtn) {
-            connectBtn.disabled = true;
         }
         if (requestBtn) {
             requestBtn.disabled = true;
@@ -715,120 +700,6 @@ function showFiveMinuteWarning() {
     }
 }
 
-async function fetchAndRenderSpeedTest(macAddress) {
-    const downloadEl = document.getElementById("speed-download");
-    const uploadEl = document.getElementById("speed-upload");
-    const pingEl = document.getElementById("speed-ping");
-    const metaEl = document.getElementById("speed-meta");
-    const modeBadgeEl = document.getElementById("speed-mode-badge");
-
-    if (!downloadEl || !uploadEl || !pingEl || !metaEl || !modeBadgeEl) {
-        return;
-    }
-
-    try {
-        metaEl.textContent = "Measuring...";
-        const response = await fetch(
-            `/api/speed-test/?mac_address=${encodeURIComponent(macAddress)}`
-        );
-        const data = await response.json();
-
-        if (!response.ok) {
-            metaEl.textContent = data.error || "Unable to measure speed right now.";
-            return;
-        }
-
-        downloadEl.textContent = `${Number(data.download_mbps).toFixed(2)} Mbps`;
-        uploadEl.textContent = `${Number(data.upload_mbps).toFixed(2)} Mbps`;
-        pingEl.textContent = `${data.ping_ms} ms`;
-        if (data.speed_mode === "simulated") {
-            modeBadgeEl.className = "badge badge-warning";
-            modeBadgeEl.textContent = "SIMULATED";
-        } else {
-            modeBadgeEl.className = "badge badge-info";
-            modeBadgeEl.textContent = "ESTIMATED";
-        }
-        metaEl.textContent = data.mode_label || "Values are labeled by measurement mode.";
-    } catch (error) {
-        metaEl.textContent = "Speed test unavailable. Please try again.";
-    }
-}
-
-function initSpeedTest(macAddress) {
-    const refreshBtn = document.getElementById("speed-test-refresh");
-    const speedCardExists = document.getElementById("speed-download");
-    if (!speedCardExists) {
-        return;
-    }
-
-    fetchAndRenderSpeedTest(macAddress);
-    setInterval(() => {
-        fetchAndRenderSpeedTest(macAddress);
-    }, 30000);
-
-    if (refreshBtn) {
-        refreshBtn.addEventListener("click", () => {
-            fetchAndRenderSpeedTest(macAddress);
-        });
-    }
-}
-
-async function fetchAndRenderBandRecommendation(macAddress) {
-    const bandEl = document.getElementById('band-recommendation');
-    const rssiEl = document.getElementById('band-rssi');
-    const qualityEl = document.getElementById('band-quality');
-    const metaEl = document.getElementById('band-meta');
-    if (!bandEl || !rssiEl || !qualityEl || !metaEl) {
-        return;
-    }
-
-    try {
-        metaEl.textContent = 'Checking signal...';
-        const response = await fetch('/api/signal-strength/');
-        const data = await response.json();
-
-        if (!response.ok || !data.devices) {
-            metaEl.textContent = 'Band recommendation unavailable right now.';
-            return;
-        }
-
-        const device = data.devices.find((item) =>
-            (item.mac_address || '').toUpperCase() === macAddress.toUpperCase()
-        );
-
-        if (!device) {
-            metaEl.textContent = 'No signal data found for this device yet.';
-            return;
-        }
-
-        bandEl.textContent = device.recommended_band || '--';
-        rssiEl.textContent = `${device.rssi} dBm`;
-        qualityEl.textContent = device.signal_quality || '--';
-        metaEl.textContent = 'Recommendation updates every 20s';
-    } catch (error) {
-        metaEl.textContent = 'Failed to load recommendation.';
-    }
-}
-
-function initBandRecommendation(macAddress) {
-    const refreshBtn = document.getElementById('band-refresh');
-    const bandPanelExists = document.getElementById('band-recommendation');
-    if (!bandPanelExists) {
-        return;
-    }
-
-    fetchAndRenderBandRecommendation(macAddress);
-    setInterval(() => {
-        fetchAndRenderBandRecommendation(macAddress);
-    }, 20000);
-
-    if (refreshBtn) {
-        refreshBtn.addEventListener('click', () => {
-            fetchAndRenderBandRecommendation(macAddress);
-        });
-    }
-}
-
 function getCSRFToken() {
     const cookie = document.cookie
         .split(";")
@@ -912,7 +783,4 @@ document.addEventListener("DOMContentLoaded", () => {
     };
     window.sessionTimer.start();
     pollSessionStatus(macAddress);
-    initSpeedTest(macAddress);
-    initBandRecommendation(macAddress);
 });
-

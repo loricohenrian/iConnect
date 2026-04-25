@@ -4,7 +4,7 @@ Session management API views.
 from datetime import timedelta
 import hmac
 import logging
-import random
+import subprocess
 
 from django.conf import settings
 from django.core.cache import cache
@@ -1076,7 +1076,7 @@ def signal_strength(request):
     """
     Returns RSSI for connected devices.
     GET /api/signal-strength/
-    In simulation mode, returns mock data.
+    Reads real data from Linux iw/iwinfo command when available.
     """
     if _public_read_rate_limited(request, "signal-strength"):
         audit_logger.warning("event=signal_strength_rate_limited ip=%s", _client_ip(request))
@@ -1085,45 +1085,76 @@ def signal_strength(request):
             status=status.HTTP_429_TOO_MANY_REQUESTS,
         )
 
-    if getattr(settings, "PISONET_GPIO_SIMULATION", True):
-        active_sessions = Session.objects.filter(status="active")
-
-        devices = []
-        for session in active_sessions:
-            rssi = random.randint(-80, -30)
-            band = "5GHz" if rssi > -50 else "2.4GHz"
-            devices.append(
-                {
-                    "mac_address": session.mac_address,
-                    "device_name": session.device_name or "Unknown",
-                    "rssi": rssi,
-                    "signal_quality": (
-                        "Excellent"
-                        if rssi > -50
-                        else "Good"
-                        if rssi > -60
-                        else "Fair"
-                        if rssi > -70
-                        else "Poor"
-                    ),
+    devices = []
+    try:
+        result = subprocess.run(
+            ["iw", "dev", "wlan0", "station", "dump"],
+            capture_output=True, text=True, timeout=5,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            current_mac = None
+            current_rssi = None
+            for line in result.stdout.splitlines():
+                line = line.strip()
+                if line.startswith("Station "):
+                    if current_mac and current_rssi is not None:
+                        quality = (
+                            "Excellent" if current_rssi > -50
+                            else "Good" if current_rssi > -60
+                            else "Fair" if current_rssi > -70
+                            else "Poor"
+                        )
+                        band = "5GHz" if current_rssi > -50 else "2.4GHz"
+                        session = Session.objects.filter(
+                            mac_address=current_mac.upper(), status="active"
+                        ).first()
+                        devices.append({
+                            "mac_address": current_mac.upper(),
+                            "device_name": (session.device_name if session else None) or "Unknown",
+                            "rssi": current_rssi,
+                            "signal_quality": quality,
+                            "recommended_band": band,
+                        })
+                    parts = line.split()
+                    current_mac = parts[1] if len(parts) > 1 else None
+                    current_rssi = None
+                elif "signal:" in line or "signal avg:" in line:
+                    try:
+                        current_rssi = int(line.split(":")[1].strip().split()[0])
+                    except (IndexError, ValueError):
+                        pass
+            # Final station
+            if current_mac and current_rssi is not None:
+                quality = (
+                    "Excellent" if current_rssi > -50
+                    else "Good" if current_rssi > -60
+                    else "Fair" if current_rssi > -70
+                    else "Poor"
+                )
+                band = "5GHz" if current_rssi > -50 else "2.4GHz"
+                session = Session.objects.filter(
+                    mac_address=current_mac.upper(), status="active"
+                ).first()
+                devices.append({
+                    "mac_address": current_mac.upper(),
+                    "device_name": (session.device_name if session else None) or "Unknown",
+                    "rssi": current_rssi,
+                    "signal_quality": quality,
                     "recommended_band": band,
-                }
-            )
-        return Response({"devices": devices})
+                })
+    except FileNotFoundError:
+        logger.info("iw command not available — signal strength data unavailable")
+    except Exception as exc:
+        logger.warning("signal_strength read error: %s", exc)
 
-    return Response(
-        {
-            "devices": [],
-            "note": "Signal strength reading requires Linux environment",
-        }
-    )
+    return Response({"devices": devices})
 
 
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def speed_test(request):
     """
-    Returns internet speed metrics for a specific device.
+    Returns internet speed estimate for a specific device.
     GET /api/speed-test/?mac_address=AA:BB:CC:DD:EE:FF
     """
     mac_address = request.query_params.get("mac_address", "").upper()
@@ -1171,23 +1202,11 @@ def speed_test(request):
             status=status.HTTP_404_NOT_FOUND,
         )
 
-    # On development/simulation mode, return realistic mock values.
-    is_simulated = getattr(settings, "PISONET_GPIO_SIMULATION", True)
-    if is_simulated:
-        cap = float(session.plan.speed_limit) if session.plan.speed_limit else 30.0
-        download = round(max(1.0, random.uniform(cap * 0.45, cap * 0.95)), 2)
-        upload = round(max(0.5, random.uniform(download * 0.2, download * 0.55)), 2)
-        ping = random.randint(8, 45)
-        speed_mode = "simulated"
-        mode_label = "Simulated values (development mode)"
-    else:
-        # Production fallback without extra dependency.
-        cap = float(session.plan.speed_limit) if session.plan.speed_limit else 30.0
-        download = round(cap * 0.85, 2)
-        upload = round(max(0.5, cap * 0.35), 2)
-        ping = 18
-        speed_mode = "estimated"
-        mode_label = "Estimated from plan cap (hardware speed probe not active)"
+    # Estimated speed based on plan cap
+    cap = float(session.plan.speed_limit) if session.plan.speed_limit else 30.0
+    download = round(cap * 0.85, 2)
+    upload = round(max(0.5, cap * 0.35), 2)
+    ping = 18
 
     return Response(
         {
@@ -1195,9 +1214,8 @@ def speed_test(request):
             "download_mbps": download,
             "upload_mbps": upload,
             "ping_ms": ping,
-            "is_simulated": is_simulated,
-            "speed_mode": speed_mode,
-            "mode_label": mode_label,
+            "speed_mode": "estimated",
+            "mode_label": "Estimated from plan speed cap",
             "measured_at": timezone.now(),
         }
     )

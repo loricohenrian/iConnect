@@ -12,6 +12,8 @@ EnvironmentFile=/opt/iconnect/pisowifi/.env
 Environment=PYTHONUNBUFFERED=1
 # Use local Nginx listener for API calls in production.
 Environment=DJANGO_URL=http://127.0.0.1
+Environment=GPIO_PIN=3
+Environment=GPIO_SIMULATION=False
 ExecStart=/opt/iconnect/pisowifi/.venv/bin/python /opt/iconnect/pisowifi/gpio/coin_detector.py
 Restart=always
 RestartSec=3

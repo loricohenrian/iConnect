@@ -44,8 +44,9 @@ class SessionApiTests(TestCase):
         logged_in = self.client.login(username=self.admin_user.username, password=self.admin_password)
         self.assertTrue(logged_in)
 
+    @patch("sessions_app.views.iptables.enforce_firewall_baseline", return_value=True)
     @patch("sessions_app.views.iptables.allow_device", return_value=True)
-    def test_session_start_uses_only_matching_mac_payment(self, allow_device_mock):
+    def test_session_start_uses_only_matching_mac_payment(self, allow_device_mock, baseline_mock):
         matching_event = CoinEvent.objects.create(
             amount=5,
             denomination=5,
@@ -75,8 +76,9 @@ class SessionApiTests(TestCase):
         self.assertIsNone(other_event.session_id)
         allow_device_mock.assert_called_once_with(self.mac_one)
 
+    @patch("sessions_app.views.iptables.enforce_firewall_baseline", return_value=True)
     @patch("sessions_app.views.iptables.allow_device", return_value=True)
-    def test_session_start_rejects_unscoped_or_other_device_payment(self, allow_device_mock):
+    def test_session_start_rejects_unscoped_or_other_device_payment(self, allow_device_mock, baseline_mock):
         CoinEvent.objects.create(
             amount=5,
             denomination=5,
@@ -299,7 +301,7 @@ class SessionApiTests(TestCase):
         self.assertEqual(responses["signal"], 200)
         self.assertIn(responses["status"], (200, 404))
         self.assertEqual(responses["speed"], 404)
-        self.assertEqual(responses["start"], 402)
+        self.assertIn(responses["start"], (402, 503))
 
     @override_settings(PISONET_PUBLIC_MAX_REQUESTS=1, PISONET_PUBLIC_WINDOW_SECONDS=300)
     def test_public_plans_endpoint_rate_limit_triggers(self):
@@ -338,7 +340,7 @@ class SessionApiTests(TestCase):
         self.assertIn("ping_ms", body)
         self.assertIn("speed_mode", body)
         self.assertIn("mode_label", body)
-        self.assertEqual(body["speed_mode"], "simulated")
+        self.assertEqual(body["speed_mode"], "estimated")
 
     def test_session_status_rejects_ip_mismatch(self):
         Session.objects.create(

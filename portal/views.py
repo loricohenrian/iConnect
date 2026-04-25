@@ -83,9 +83,6 @@ def index(request):
         "is_whitelisted": is_whitelisted,
         "mac_address": mac_address,
         "mac_required": mac_required,
-        "show_dev_portal_flow": bool(
-            getattr(settings, "PISONET_PORTAL_DEV_FLOW_ENABLED", settings.DEBUG)
-        ),
         "active_page": "home",
     }
     return render(request, "portal/index.html", context)

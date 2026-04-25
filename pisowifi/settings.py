@@ -232,8 +232,8 @@ PISONET_DAILY_REPORT_RECIPIENTS = [
 ]
 
 # iConnect Custom Settings
-PISONET_GPIO_PIN = int(os.getenv('GPIO_PIN', '7'))
-PISONET_GPIO_SIMULATION = os.getenv('GPIO_SIMULATION', 'True').lower() in ('true', '1', 'yes')
+PISONET_GPIO_PIN = int(os.getenv('GPIO_PIN', '3'))
+PISONET_GPIO_SIMULATION = os.getenv('GPIO_SIMULATION', 'False').lower() in ('true', '1', 'yes')
 DEFAULT_DEVICE_API_KEY = 'iconnect-local-device-key-change-me'
 PISONET_DEVICE_API_KEY = os.getenv('DEVICE_API_KEY', DEFAULT_DEVICE_API_KEY)
 PISONET_ELECTRICITY_RATE = float(os.getenv('ELECTRICITY_RATE', '11.0'))
@@ -244,10 +244,7 @@ PISONET_DNS_RESOLVER = os.getenv('DNS_RESOLVER', '').strip()
 PISONET_PORTAL_IP = os.getenv('PORTAL_IP', '').strip()
 PISONET_ENFORCE_FIREWALL_BASELINE_ON_STARTUP = os.getenv('ENFORCE_FIREWALL_BASELINE_ON_STARTUP', 'True').lower() in ('true', '1', 'yes')
 PISONET_REQUIRE_FORWARD_DROP_BEFORE_SESSION = os.getenv('REQUIRE_FORWARD_DROP_BEFORE_SESSION', 'True').lower() in ('true', '1', 'yes')
-PISONET_PORTAL_DEV_FLOW_ENABLED = os.getenv(
-    'PORTAL_DEV_FLOW_ENABLED',
-    'True' if DEBUG else 'False',
-).lower() in ('true', '1', 'yes')
+# Dev portal flow removed — production only.
 
 # Portal history passcode security
 DEFAULT_HISTORY_PASSCODE = '123456'

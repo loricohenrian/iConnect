@@ -1,4 +1,4 @@
-﻿{% extends "base_portal.html" %}
+{% extends "base_portal.html" %}
 
 {% block title %}iConnect — Connect to WiFi{% endblock %}
 
@@ -101,102 +101,8 @@
         <p id="start-flow-meta" class="text-small text-muted mt-md" style="margin-bottom:0;"></p>
     </div>
 </div>
-
-<!-- Dev: Manual session start (development only) -->
-{% if show_dev_portal_flow %}
-<div class="mt-lg" style="border-top: 1px dashed var(--color-border); padding-top: var(--space-lg);">
-    <p class="text-xs text-muted text-center mb-sm">[DEV] Development Mode — Simulate Coin Insert</p>
-    <form id="dev-start-form" class="d-flex flex-column gap-sm">
-        <input type="hidden" name="mac_address" value="{{ mac_address }}">
-        <button type="submit" class="btn btn-primary btn-block btn-lg" id="connect-btn" disabled>
-            <i class="bi bi-wifi"></i> Connect (Dev Mode)
-        </button>
-    </form>
-</div>
-{% endif %}
 {% endif %}
 
 {% endif %}
 
 {% endblock %}
-
-{% block portal_js %}
-{% if show_dev_portal_flow %}
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    const form = document.getElementById('dev-start-form');
-    if (!form) return;
-
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const planId = document.getElementById('selected-plan').value;
-        if (!planId) {
-            alert('Please select a plan first');
-            return;
-        }
-
-        const btn = document.getElementById('connect-btn');
-        btn.innerHTML = '<span class="spinner"></span> Connecting...';
-        btn.disabled = true;
-
-        try {
-            const macAddress = '{{ mac_address|default:"" }}';
-            if (!macAddress) {
-                alert('Device identity missing. Re-open the portal from the WiFi login page.');
-                btn.innerHTML = '<i class="bi bi-wifi"></i> Connect (Dev Mode)';
-                btn.disabled = false;
-                return;
-            }
-
-            // First simulate coin insert
-            const planCard = document.querySelector(`[data-plan-id="${planId}"]`);
-            const priceText = planCard.querySelector('.plan-price').textContent;
-            const price = parseInt(priceText.replace('₱', ''));
-
-            await fetch('/api/coin-inserted/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': getCSRFToken(),
-                },
-                body: JSON.stringify({
-                    amount: price,
-                    denomination: price,
-                    mac_address: '{{ mac_address }}',
-                }),
-            });
-
-            // Then start session
-            const response = await fetch('/api/session/start/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': getCSRFToken(),
-                },
-                body: JSON.stringify({
-                    mac_address: '{{ mac_address }}',
-                    plan_id: parseInt(planId),
-                }),
-            });
-
-            const data = await response.json();
-
-            if (response.ok) {
-                window.location.href = '/session/?mac={{ mac_address }}';
-            } else {
-                alert(data.error || 'Failed to start session');
-                btn.innerHTML = '<i class="bi bi-wifi"></i> Connect (Dev Mode)';
-                btn.disabled = false;
-            }
-        } catch (err) {
-            alert('Connection error: ' + err.message);
-            btn.innerHTML = '<i class="bi bi-wifi"></i> Connect (Dev Mode)';
-            btn.disabled = false;
-        }
-    });
-});
-</script>
-{% endif %}
-{% endblock %}
-
-

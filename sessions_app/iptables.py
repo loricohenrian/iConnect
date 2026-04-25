@@ -2,7 +2,7 @@
 iConnect — iptables Internet Access Control
 
 Uses Linux iptables to manage device access to the internet.
-In simulation mode (development), just logs the commands instead of executing them.
+When not on Linux (development), commands are logged but not executed.
 """
 import subprocess
 import logging
@@ -10,13 +10,16 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
-SIMULATION_MODE = getattr(settings, 'PISONET_GPIO_SIMULATION', True)
+
+def _is_simulation():
+    """Check simulation mode dynamically from settings each call."""
+    return getattr(settings, 'PISONET_GPIO_SIMULATION', False)
 
 
 def _run_command_capture(cmd):
     """Execute a command and return a completed process (or None on exception)."""
-    if SIMULATION_MODE:
-        logger.info(f'[SIMULATION] Would run: {" ".join(cmd)}')
+    if _is_simulation():
+        logger.info('[SIM] Would run: %s', ' '.join(cmd))
         return None
 
     try:
@@ -25,7 +28,7 @@ def _run_command_capture(cmd):
         logger.error('iptables command timed out')
         return None
     except Exception as e:
-        logger.error(f'iptables exception: {e}')
+        logger.error('iptables exception: %s', e)
         return None
 
 
@@ -41,22 +44,21 @@ def _ensure_forward_rule(rule_spec):
 
 def _run_command(cmd, ignore_errors=False):
     """Execute an iptables command or log it in simulation mode."""
-    if SIMULATION_MODE:
-        logger.info(f'[SIMULATION] Would run: {" ".join(cmd)}')
-        print(f'[SIMULATION] iptables: {" ".join(cmd)}')
+    if _is_simulation():
+        logger.info('[SIM] Would run: %s', ' '.join(cmd))
         return True
 
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
         if result.returncode != 0 and not ignore_errors:
-            logger.error(f'iptables error: {result.stderr}')
+            logger.error('iptables error: %s', result.stderr)
             return False
         return True
     except subprocess.TimeoutExpired:
         logger.error('iptables command timed out')
         return False
     except Exception as e:
-        logger.error(f'iptables exception: {e}')
+        logger.error('iptables exception: %s', e)
         return False
 
 
@@ -73,7 +75,7 @@ def allow_device(mac_address):
     Idempotent: Only adds the rule if it doesn't already exist.
     """
     if is_device_allowed(mac_address):
-        logger.info(f'Device {mac_address} already allowed')
+        logger.info('Device %s already allowed', mac_address)
         return True
 
     if getattr(settings, 'PISONET_DNS_ONLY_PREAUTH', False):
@@ -84,7 +86,7 @@ def allow_device(mac_address):
     cmd = ['iptables', '-I', 'FORWARD', '1', '-m', 'mac', '--mac-source', mac, '-j', 'ACCEPT']
     success = _run_command(cmd)
     if success:
-        logger.info(f'Allowed device: {mac}')
+        logger.info('Allowed device: %s', mac)
     return success
 
 
@@ -105,7 +107,7 @@ def block_device(mac_address):
             break
 
     if deleted:
-        logger.info(f'Blocked device: {mac}')
+        logger.info('Blocked device: %s', mac)
 
     if getattr(settings, 'PISONET_DNS_ONLY_PREAUTH', False):
         apply_pre_auth_dns_policy()
@@ -126,7 +128,7 @@ def setup_default_policy():
 
 def get_forward_default_policy():
     """Return FORWARD chain default policy (e.g., DROP/ACCEPT), or None if unknown."""
-    if SIMULATION_MODE:
+    if _is_simulation():
         return 'DROP'
 
     result = _run_command_capture(['iptables', '-S', 'FORWARD'])
@@ -225,6 +227,3 @@ def flush_rules():
     if success:
         logger.info('Flushed all FORWARD rules')
     return success
-
-
-

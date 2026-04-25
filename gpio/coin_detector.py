@@ -1,20 +1,29 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """
 iConnect GPIO coin detector.
 
-Listens for pulses from the coin acceptor and posts them to Django.
+Listens for pulses from the ALLAN 1239A coin acceptor and posts them to Django.
+Production-only script — runs on Orange Pi / ALLAN H3 hardware.
+
 Shared-slot safe by default: coin events are sent unscoped.
 Set DEVICE_SCOPE_ENABLED=true and DEVICE_MAC to opt in to fixed-device scoping.
 """
 import os
+import sys
 import time
+import logging
 
 import requests
 
 
-DJANGO_URL = os.getenv("DJANGO_URL", "http://localhost:8000")
-GPIO_PIN = int(os.getenv("GPIO_PIN", "7"))
-SIMULATION_MODE = os.getenv("GPIO_SIMULATION", "True").lower() in ("true", "1", "yes")
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+)
+logger = logging.getLogger("coin_detector")
+
+DJANGO_URL = os.getenv("DJANGO_URL", "http://127.0.0.1")
+GPIO_PIN = int(os.getenv("GPIO_PIN", "3"))
 DEVICE_MAC = os.getenv("DEVICE_MAC", "").upper().strip()
 DEVICE_SCOPE_ENABLED = os.getenv("DEVICE_SCOPE_ENABLED", "False").lower() in ("true", "1", "yes")
 DEVICE_API_KEY = os.getenv("DEVICE_API_KEY", "iconnect-local-device-key-change-me")
@@ -43,59 +52,16 @@ def send_coin_event(amount, denomination):
             timeout=5,
         )
         data = response.json()
-        print(f"  Server response: {data.get('message', 'OK')}")
+        logger.info("Server response: %s", data.get("message", "OK"))
         if data.get("voucher_code"):
-            print(f"  Voucher code: {data['voucher_code']}")
+            logger.info("Voucher code: %s", data["voucher_code"])
         return data
     except requests.exceptions.ConnectionError:
-        print(f"  Cannot connect to Django at {DJANGO_URL}")
+        logger.error("Cannot connect to Django at %s", DJANGO_URL)
         return None
     except Exception as exc:
-        print(f"  Error: {exc}")
+        logger.error("Error sending coin event: %s", exc)
         return None
-
-
-def run_simulation():
-    """Simulation mode for local development."""
-    print("=" * 50)
-    print("iConnect Coin Detector - SIMULATION MODE")
-    print("=" * 50)
-    print(f"API endpoint: {API_ENDPOINT}")
-    if device_scope_active():
-        print(f"Scoped device MAC: {DEVICE_MAC}")
-    elif DEVICE_MAC and not DEVICE_SCOPE_ENABLED:
-        print("DEVICE_MAC is set but DEVICE_SCOPE_ENABLED is false; using shared-slot unscoped mode.")
-    elif DEVICE_SCOPE_ENABLED and not DEVICE_MAC:
-        print("DEVICE_SCOPE_ENABLED is true but DEVICE_MAC is empty; using shared-slot unscoped mode.")
-    print()
-    print('Enter coin denomination (1, 5, 10, 20) or "q" to quit:')
-    print()
-
-    while True:
-        try:
-            user_input = input("Insert coin: ").strip()
-            if user_input.lower() in ("q", "quit", "exit"):
-                print("Shutting down...")
-                break
-
-            try:
-                amount = int(user_input)
-            except ValueError:
-                print("  Invalid input. Enter 1, 5, 10, or 20.")
-                continue
-
-            if amount not in (1, 5, 10, 20):
-                print("  Invalid denomination. Accepted: 1, 5, 10, 20.")
-                continue
-
-            print(f"  {amount} coin detected ({amount} pulses)")
-            send_coin_event(amount, amount)
-            print()
-        except KeyboardInterrupt:
-            print("\nShutting down...")
-            break
-        except EOFError:
-            break
 
 
 def run_gpio():
@@ -103,22 +69,23 @@ def run_gpio():
     try:
         import OPi.GPIO as GPIO
     except ImportError:
-        print("ERROR: OPi.GPIO not installed. Falling back to simulation mode...")
-        run_simulation()
-        return
+        logger.critical(
+            "OPi.GPIO library not installed. "
+            "Install with: pip install OPi.GPIO. "
+            "This script must run on the Orange Pi hardware."
+        )
+        sys.exit(1)
 
-    print("=" * 50)
-    print("iConnect Coin Detector - HARDWARE MODE")
-    print("=" * 50)
-    print(f"GPIO Pin: {GPIO_PIN}")
-    print(f"API endpoint: {API_ENDPOINT}")
+    logger.info("=" * 50)
+    logger.info("iConnect Coin Detector — PRODUCTION MODE")
+    logger.info("=" * 50)
+    logger.info("GPIO Pin: %s", GPIO_PIN)
+    logger.info("API endpoint: %s", API_ENDPOINT)
     if device_scope_active():
-        print(f"Scoped device MAC: {DEVICE_MAC}")
-    elif DEVICE_MAC and not DEVICE_SCOPE_ENABLED:
-        print("DEVICE_MAC is set but DEVICE_SCOPE_ENABLED is false; using shared-slot unscoped mode.")
-    elif DEVICE_SCOPE_ENABLED and not DEVICE_MAC:
-        print("DEVICE_SCOPE_ENABLED is true but DEVICE_MAC is empty; using shared-slot unscoped mode.")
-    print("Listening for coin pulses...")
+        logger.info("Scoped device MAC: %s", DEVICE_MAC)
+    else:
+        logger.info("Shared-slot unscoped mode (coin queue attribution)")
+    logger.info("Listening for coin pulses...")
 
     GPIO.setmode(GPIO.BOARD)
     GPIO.setup(GPIO_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
@@ -131,7 +98,7 @@ def run_gpio():
             if GPIO.input(GPIO_PIN) == GPIO.LOW:
                 pulse_count += 1
                 last_pulse_time = time.time()
-                print(f"  Pulse #{pulse_count}")
+                logger.debug("Pulse #%d", pulse_count)
 
                 while GPIO.input(GPIO_PIN) == GPIO.LOW:
                     time.sleep(0.01)
@@ -139,24 +106,19 @@ def run_gpio():
             if pulse_count > 0 and (time.time() - last_pulse_time) > PULSE_TIMEOUT:
                 if pulse_count in (1, 5, 10, 20):
                     amount = pulse_count
-                    print(f"  {amount} coin detected ({pulse_count} pulses)")
+                    logger.info("₱%d coin detected (%d pulses)", amount, pulse_count)
                     send_coin_event(amount, amount)
                 else:
-                    print(f"  Invalid pulse count: {pulse_count}. Ignoring.")
+                    logger.warning("Invalid pulse count: %d. Ignoring.", pulse_count)
 
                 pulse_count = 0
-                print()
 
             time.sleep(0.01)
     except KeyboardInterrupt:
-        print("\nShutting down...")
+        logger.info("Shutting down coin detector...")
     finally:
         GPIO.cleanup()
 
 
 if __name__ == "__main__":
-    if SIMULATION_MODE:
-        run_simulation()
-    else:
-        run_gpio()
-
+    run_gpio()
