@@ -363,7 +363,10 @@ def coin_inserted(request):
     if assigned_request:
         assigned_request = _sync_coin_request_progress(assigned_request)
 
-    if session:
+    # Only create voucher session if there's an active session AND no coin request
+    # (i.e., user inserted coins without going through the UI flow).
+    # When a coin request exists, coins credit to it for the extend flow.
+    if session and not assigned_request:
         plan = Plan.objects.filter(price=amount, is_active=True).first()
         if plan:
             voucher_code = Session.generate_voucher_code()

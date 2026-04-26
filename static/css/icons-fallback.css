@@ -1,49 +1,52 @@
 /*
  * Local fallback for Bootstrap Icons classes.
- * Uses Unicode/emoji for icons since captive portal has no internet for CDN.
+ * Uses simple Unicode symbols since captive portal has no internet for CDN.
  */
 
 .bi {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 1em;
-    min-width: 1em;
+    width: 1.1em;
+    min-width: 1.1em;
     line-height: 1;
     vertical-align: -0.125em;
     font-style: normal;
+    font-weight: normal;
 }
 
-/* Navigation icons */
-.bi-house::before { content: "🏠"; font-size: 1em; }
-.bi-clock-history::before { content: "📋"; font-size: 1em; }
-.bi-question-circle::before { content: "❓"; font-size: 1em; }
+/* Default dot */
+.bi::before { content: "\2022"; font-size: 1em; }
 
-/* Session/status icons */
-.bi-wifi::before { content: "📶"; font-size: 1em; }
-.bi-hourglass-split::before { content: "⏳"; font-size: 1em; }
-.bi-plus-circle::before { content: "➕"; font-size: 1em; }
-.bi-megaphone-fill::before { content: "📢"; font-size: 1em; }
-.bi-speedometer2::before { content: "⚡"; font-size: 1em; }
-.bi-calculator::before { content: "💰"; font-size: 1em; }
-.bi-coin::before { content: "🪙"; font-size: 1em; }
+/* Navigation */
+.bi-house::before { content: "\2302"; font-size: 1.2em; }
+.bi-clock-history::before { content: "\29D6"; font-size: 1em; }
+.bi-question-circle::before { content: "?"; font-size: 1em; font-weight: 700; }
 
-/* Timer/warning icons */
-.bi-exclamation-triangle-fill::before { content: "⚠️"; font-size: 1em; }
-.bi-exclamation-triangle::before { content: "⚠️"; font-size: 1em; }
-.bi-exclamation-circle::before { content: "⚠️"; font-size: 1em; }
+/* Session */
+.bi-wifi::before { content: "\25E0"; font-size: 1em; }
+.bi-hourglass-split::before { content: "\29D6"; font-size: 1em; }
+.bi-plus-circle::before { content: "+"; font-size: 1.2em; font-weight: 700; }
+.bi-megaphone-fill::before { content: "\25B6"; font-size: 0.8em; }
+.bi-speedometer2::before { content: "\2191"; font-size: 1em; }
+.bi-calculator::before { content: "\20B1"; font-size: 1em; }
+.bi-coin::before { content: "\20B1"; font-size: 1em; }
 
-/* Info/help icons */
-.bi-translate::before { content: "🌐"; font-size: 1em; }
-.bi-shield-lock::before { content: "🔒"; font-size: 1em; }
-.bi-lock::before { content: "🔒"; font-size: 1em; }
-.bi-wifi-off::before { content: "📵"; font-size: 1em; }
+/* Warnings */
+.bi-exclamation-triangle-fill::before,
+.bi-exclamation-triangle::before,
+.bi-exclamation-circle::before,
+.bi-exclamation-octagon::before { content: "!"; font-size: 1em; font-weight: 700; }
 
-/* Generic */
+/* Info/locks */
+.bi-translate::before { content: "\2637"; font-size: 1em; }
+.bi-shield-lock::before,
+.bi-shield-check::before,
+.bi-lock::before { content: "\2616"; font-size: 1em; }
+.bi-wifi-off::before { content: "\2298"; font-size: 1em; }
+
+/* Checks/crosses */
 .bi-check2::before,
-.bi-check2-circle::before { content: "✅"; font-size: 1em; }
-.bi-x-circle::before { content: "❌"; font-size: 1em; }
-.bi-list::before { content: "☰"; font-size: 1em; }
-.bi-calendar::before { content: "📅"; font-size: 1em; }
-.bi-clock::before { content: "🕐"; font-size: 1em; }
-.bi-arrow-right::before { content: "→"; font-size: 1em; }
+.bi-check2-circle::before { content: "\2713"; font-size: 1em; }
+.bi-x-circle::before { content: "\2717"; font-size: 1em; }
+.bi-list::before { content: "\2630"; font-size: 1em; }
