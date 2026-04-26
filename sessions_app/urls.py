@@ -15,6 +15,7 @@ urlpatterns = [
     path('session/start/request-status/', views.session_start_request_status, name='session-start-request-status'),
     path('session/start/', views.session_start, name='session-start'),
     path('session/extend/', views.session_extend, name='session-extend'),
+    path('session/extend-paid/', views.session_extend_paid, name='session-extend-paid'),
     path('session/end/', views.session_end, name='session-end'),
     path('session/status/', views.session_status, name='session-status'),
 

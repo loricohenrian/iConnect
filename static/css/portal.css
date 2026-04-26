@@ -30,7 +30,7 @@
     padding: 48px 20px;
     text-align: center;
     width: 100%;
-    border-bottom: 1px solid var(--color-border);
+    border-bottom: 3px solid var(--color-primary);
 }
 
 .portal-header .brand-name {
@@ -86,7 +86,7 @@
 
 .plan-card.selected {
     border-color: var(--color-primary);
-    background: #F0F9FF;
+    background: var(--color-primary-light);
     transform: scale(1.02);
     box-shadow: 0 0 0 2px var(--color-primary);
 }
@@ -217,15 +217,15 @@
     transform: translateX(-50%);
     width: calc(100% - 48px);
     max-width: 380px;
-    background: rgba(15, 23, 42, 0.85);
+    background: rgba(93, 29, 42, 0.92);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: 100px;
     display: flex;
     justify-content: space-around;
     padding: 8px;
-    box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+    box-shadow: 0 20px 40px rgba(93, 29, 42, 0.3);
     z-index: 1000;
 }
 

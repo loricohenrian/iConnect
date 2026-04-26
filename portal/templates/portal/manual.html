@@ -1,61 +1,96 @@
-﻿{% extends "base_portal.html" %}
+{% extends "base_portal.html" %}
 
 {% block title %}iConnect — How to Use{% endblock %}
 
 {% block portal_content %}
 
 <h2 class="mt-lg mb-sm">How to Use iConnect</h2>
-<p class="text-small text-muted mb-lg">Follow these simple steps to connect</p>
+<p class="text-small text-muted mb-lg">Follow these steps to get connected</p>
 
-<!-- Step-by-step Guide -->
+<!-- Step-by-step Guide (English) -->
 <div class="manual-step animate-fadeIn">
     <div class="step-number">1</div>
     <div class="step-content">
         <h4>Select a Plan</h4>
-        <p>Choose from the available WiFi plans on the home page. Each plan shows the price and duration.</p>
+        <p>On the Home page, browse the available WiFi plans. Each plan displays its price and internet duration. Tap the plan that suits your needs.</p>
     </div>
 </div>
 
 <div class="manual-step animate-fadeIn" style="animation-delay: 100ms">
     <div class="step-number">2</div>
     <div class="step-content">
-        <h4>Insert Coins</h4>
-        <p>Insert the correct amount of Philippine coins into the coin slot on the machine.</p>
+        <h4>Tap "Request Coin Slot"</h4>
+        <p>After selecting a plan, tap the <strong>Request Coin Slot</strong> button. This activates the coin acceptor and reserves your turn to pay.</p>
     </div>
 </div>
 
 <div class="manual-step animate-fadeIn" style="animation-delay: 200ms">
     <div class="step-number">3</div>
     <div class="step-content">
-        <h4>Get Connected</h4>
-        <p>Once payment is detected, your device will automatically connect to the internet. Enjoy browsing!</p>
+        <h4>Insert Coins</h4>
+        <p>Insert the required amount of coins into the machine. Wait for the system to confirm your payment — a message will appear once payment is complete.</p>
     </div>
 </div>
 
 <div class="manual-step animate-fadeIn" style="animation-delay: 300ms">
     <div class="step-number">4</div>
     <div class="step-content">
-        <h4>Extend Your Time (Optional)</h4>
-        <p>Insert more coins while your session is active. Enter the voucher code shown on the machine display to add more time.</p>
+        <h4>Tap "Connect Now"</h4>
+        <p>Once your payment is confirmed, tap the <strong>Connect Now</strong> button. Your device will be connected to the internet immediately. Enjoy browsing!</p>
+    </div>
+</div>
+
+<!-- Tagalog Guide -->
+<h3 class="mt-xl mb-md"><i class="bi bi-translate"></i> Paano Gamitin (Tagalog)</h3>
+
+<div class="manual-step animate-fadeIn" style="animation-delay: 400ms">
+    <div class="step-number">1</div>
+    <div class="step-content">
+        <h4>Pumili ng Plano</h4>
+        <p>Sa Home page, tingnan ang mga available na WiFi plan. Makikita ang presyo at tagal ng internet sa bawat plano. I-tap ang plano na gusto mo.</p>
+    </div>
+</div>
+
+<div class="manual-step animate-fadeIn" style="animation-delay: 450ms">
+    <div class="step-number">2</div>
+    <div class="step-content">
+        <h4>I-tap ang "Request Coin Slot"</h4>
+        <p>Pagkatapos pumili ng plano, i-tap ang <strong>Request Coin Slot</strong> na button. Ito ang mag-a-activate ng coin acceptor para makapaghulog ka ng barya.</p>
+    </div>
+</div>
+
+<div class="manual-step animate-fadeIn" style="animation-delay: 500ms">
+    <div class="step-number">3</div>
+    <div class="step-content">
+        <h4>Maghulog ng Barya</h4>
+        <p>Ihulog ang tamang halaga ng barya sa machine. Hintayin ang confirmation sa screen — may lalabas na mensahe kapag kumpleto na ang bayad.</p>
+    </div>
+</div>
+
+<div class="manual-step animate-fadeIn" style="animation-delay: 550ms">
+    <div class="step-number">4</div>
+    <div class="step-content">
+        <h4>I-tap ang "Connect Now"</h4>
+        <p>Kapag nakumpirma na ang bayad, i-tap ang <strong>Connect Now</strong> na button. Kaagad na makakonek ang device mo sa internet. Enjoy!</p>
     </div>
 </div>
 
 <!-- Accepted Coins -->
 <h3 class="mt-xl mb-md"><i class="bi bi-coin"></i> Accepted Coins</h3>
 <div class="coin-grid">
-    <div class="coin-item animate-fadeIn" style="animation-delay: 400ms">
+    <div class="coin-item animate-fadeIn" style="animation-delay: 600ms">
         <div class="coin-value">₱1</div>
         <div class="coin-label">1 Peso</div>
     </div>
-    <div class="coin-item animate-fadeIn" style="animation-delay: 450ms">
+    <div class="coin-item animate-fadeIn" style="animation-delay: 650ms">
         <div class="coin-value">₱5</div>
         <div class="coin-label">5 Pesos</div>
     </div>
-    <div class="coin-item animate-fadeIn" style="animation-delay: 500ms">
+    <div class="coin-item animate-fadeIn" style="animation-delay: 700ms">
         <div class="coin-value">₱10</div>
         <div class="coin-label">10 Pesos</div>
     </div>
-    <div class="coin-item animate-fadeIn" style="animation-delay: 550ms">
+    <div class="coin-item animate-fadeIn" style="animation-delay: 750ms">
         <div class="coin-value">₱20</div>
         <div class="coin-label">20 Pesos</div>
     </div>
@@ -66,12 +101,7 @@
 
 <div class="card mb-sm">
     <h4 class="font-semibold mb-xs">Why was I disconnected?</h4>
-    <p class="text-small text-muted mb-0">Your session may have expired. Check the timer on the session page. Insert more coins to continue.</p>
-</div>
-
-<div class="card mb-sm">
-    <h4 class="font-semibold mb-xs">The internet is slow. What should I do?</h4>
-    <p class="text-small text-muted mb-0">Try switching between 2.4GHz and 5GHz WiFi bands. If you're far from the router, 2.4GHz works better. If you're close, 5GHz is faster.</p>
+    <p class="text-small text-muted mb-0">Your session may have expired. Check the timer on the session page. Insert more coins to continue browsing.</p>
 </div>
 
 <div class="card mb-sm">
@@ -84,14 +114,4 @@
     <p class="text-small text-muted mb-0">Currently, iConnect only accepts Philippine coins (₱1, ₱5, ₱10, ₱20). Digital payments are not supported at this time.</p>
 </div>
 
-<!-- Band Recommendation Notice -->
-<div class="band-notice mt-lg">
-    <i class="bi bi-info-circle"></i>
-    <div>
-        <strong>WiFi Tip:</strong> If you're near the router, connect to the <strong>5GHz</strong> network for faster speeds. If you're far away, use <strong>2.4GHz</strong> for better range.
-    </div>
-</div>
-
 {% endblock %}
-
-

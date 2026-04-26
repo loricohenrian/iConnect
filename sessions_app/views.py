@@ -803,6 +803,115 @@ def session_extend(request):
 
 
 @api_view(["POST"])
+@permission_classes([AllowAny])
+def session_extend_paid(request):
+    """
+    Extend an active session using the coin payment flow (no voucher code).
+    POST /api/session/extend-paid/
+    Body: { "mac_address": "...", "plan_id": ... }
+    """
+    mac_address = request.data.get("mac_address", "").upper()
+    plan_id = request.data.get("plan_id")
+
+    if not mac_address or not plan_id:
+        return Response(
+            {"error": "mac_address and plan_id are required"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        plan = Plan.objects.get(id=plan_id, is_active=True)
+    except Plan.DoesNotExist:
+        return Response(
+            {"error": "Invalid plan"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    request_ip = _client_ip(request)
+    active_session = Session.objects.filter(
+        mac_address=mac_address,
+        status="active",
+        ip_address=request_ip,
+    ).select_related("plan").first()
+
+    if not active_session:
+        return Response(
+            {"error": "No active session found for this device"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    # Check coins
+    total_coins = _pending_coin_events_for_mac(mac_address).aggregate(
+        total=Sum("amount")
+    )["total"] or 0
+
+    if total_coins < plan.price:
+        try:
+            coin_request, _ = _get_or_create_start_coin_request(mac_address, request_ip, plan)
+        except ValueError as exc:
+            return Response(
+                {"error": str(exc), "required": plan.price, "received": total_coins},
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+        return Response(
+            {
+                "error": f"Insufficient payment. Need {PESO_SYMBOL}{plan.price}, received {PESO_SYMBOL}{total_coins}",
+                "required": plan.price,
+                "received": total_coins,
+                "coin_request": _coin_request_payload(coin_request),
+            },
+            status=status.HTTP_402_PAYMENT_REQUIRED,
+        )
+
+    # Extend the session
+    try:
+        with transaction.atomic():
+            active_session.extend_session(plan.duration_minutes)
+            active_session.amount_paid += plan.price
+            active_session.save(update_fields=["duration_minutes_purchased", "amount_paid", "status", "time_in"])
+
+            used_amount = 0
+            for event in _pending_coin_events_for_mac(mac_address):
+                if used_amount >= plan.price:
+                    break
+                event.session = active_session
+                event.save(update_fields=["session"])
+                used_amount += event.amount
+
+            CoinInsertRequest.objects.filter(
+                mac_address=mac_address,
+                purpose=CoinInsertRequest.PURPOSE_START,
+                status__in=[CoinInsertRequest.STATUS_PENDING, CoinInsertRequest.STATUS_ACTIVE],
+            ).update(
+                status=CoinInsertRequest.STATUS_CANCELLED,
+                completed_at=timezone.now(),
+            )
+    except Exception as exc:
+        return Response(
+            {"error": str(exc)},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+
+    _activate_next_coin_request()
+
+    audit_logger.info(
+        "event=session_extend_paid mac=%s plan=%s minutes=%s ip=%s",
+        mac_address,
+        plan.name,
+        plan.duration_minutes,
+        request_ip,
+    )
+
+    return Response(
+        {
+            "status": "success",
+            "message": f"Session extended by {plan.duration_minutes} minutes",
+            "session": SessionSerializer(active_session).data,
+        }
+    )
+
+
+@api_view(["POST"])
 def session_end(request):
     """
     Ends session when time expires.

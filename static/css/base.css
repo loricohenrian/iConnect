@@ -9,18 +9,19 @@
    CSS Variables (from brandGuidelines.md)
    ============================================ */
 :root {
-    /* Colors — Refined for a premium minimalist feel */
-    --color-primary:      #2563EB; /* Slightly more vibrant blue */
-    --color-primary-dark:  #1D4ED8;
-    --color-dark:         #0F172A; /* Deeper slate for better contrast */
+    /* Colors — Maroon & Beige palette */
+    --color-primary:      #7B2D3B; /* Rich maroon */
+    --color-primary-dark:  #5C1D2A; /* Deep maroon */
+    --color-primary-light: #F5E6E0; /* Light beige accent */
+    --color-dark:         #2D1F1F; /* Warm dark */
     --color-success:      #10B981;
-    --color-warning:      #F59E0B;
-    --color-danger:       #EF4444;
-    --color-info:         #06B6D4;
-    --color-gray:         #64748B;
-    --color-light:        #F8FAFC; /* Softer light background */
+    --color-warning:      #D97706;
+    --color-danger:       #DC2626;
+    --color-info:         #7B2D3B;
+    --color-gray:         #78716C;
+    --color-light:        #FDF8F4; /* Warm beige background */
     --color-white:        #FFFFFF;
-    --color-border:       #E2E8F0;
+    --color-border:       #E7DDD4; /* Warm border */
 
     /* Typography */
     --font-family:        'Segoe UI', system-ui, -apple-system, sans-serif;

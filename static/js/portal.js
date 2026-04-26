@@ -8,18 +8,22 @@ const MAC_ADDRESS_RE = /^([0-9A-F]{2}:){5}[0-9A-F]{2}$/;
 class SessionTimer {
     constructor(elementId, totalSeconds) {
         this.element = document.getElementById(elementId);
-        this.totalSeconds = totalSeconds;
-        this.remaining = totalSeconds;
+        this.serverSeconds = totalSeconds;
+        this.startedAt = Date.now();
         this.interval = null;
         this.onExpire = null;
         this.onWarning = null;
         this.warningShown = false;
     }
 
+    get remaining() {
+        const elapsed = (Date.now() - this.startedAt) / 1000;
+        return Math.max(0, this.serverSeconds - elapsed);
+    }
+
     start() {
         this.update();
         this.interval = setInterval(() => {
-            this.remaining -= 1;
             this.update();
 
             if (this.remaining <= 300 && !this.warningShown) {
@@ -36,6 +40,17 @@ class SessionTimer {
                 }
             }
         }, 1000);
+
+        // Recalculate immediately when user returns to tab
+        document.addEventListener("visibilitychange", () => {
+            if (!document.hidden) {
+                this.update();
+                if (this.remaining <= 0 && this.onExpire) {
+                    this.stop();
+                    this.onExpire();
+                }
+            }
+        });
     }
 
     stop() {
@@ -50,7 +65,7 @@ class SessionTimer {
             return;
         }
 
-        const safeRemaining = Math.max(0, this.remaining);
+        const safeRemaining = Math.max(0, Math.floor(this.remaining));
         const hours = Math.floor(safeRemaining / 3600);
         const minutes = Math.floor((safeRemaining % 3600) / 60);
         const seconds = safeRemaining % 60;
@@ -69,7 +84,8 @@ class SessionTimer {
     }
 
     setRemaining(seconds) {
-        this.remaining = Math.max(0, seconds);
+        this.serverSeconds = Math.max(0, seconds);
+        this.startedAt = Date.now();
         this.warningShown = this.remaining <= 300;
         this.update();
     }
@@ -581,87 +597,215 @@ function initProductionStartFlow(macAddress) {
 }
 
 function initVoucherInput() {
-    const voucherInput = document.getElementById("voucher-input");
-    const voucherBtn = document.getElementById("voucher-submit");
+    // Legacy — kept for backwards compatibility, no-op now
+}
 
-    if (!voucherInput || !voucherBtn) {
+function initExtendSessionFlow(macAddress) {
+    const extendPlanInput = document.getElementById("extend-plan");
+    const extendRequestBtn = document.getElementById("extend-request-btn");
+    const extendNowBtn = document.getElementById("extend-now-btn");
+    const extendPlanGrid = document.getElementById("extend-plan-grid");
+
+    if (!extendPlanInput || !extendRequestBtn || !extendNowBtn || !extendPlanGrid) {
         return;
     }
 
-    voucherInput.addEventListener("input", (event) => {
-        event.target.value = event.target.value.toUpperCase();
+    const state = {
+        requestId: null,
+        planId: null,
+        readyToStart: false,
+        pollTimer: null,
+        pollInFlight: false,
+    };
+
+    const setExtendMessage = (message, type = "info") => {
+        const el = document.getElementById("extend-flow-message");
+        if (!el) return;
+        if (!message) { el.style.display = "none"; return; }
+        const classMap = { success: "alert-success", warning: "alert-warning", danger: "alert-danger", error: "alert-danger", info: "alert-info" };
+        el.className = `alert ${classMap[type] || "alert-info"} mt-md`;
+        el.textContent = message;
+        el.style.display = "block";
+    };
+
+    const setExtendMeta = (text) => {
+        const el = document.getElementById("extend-flow-meta");
+        if (el) el.textContent = text || "";
+    };
+
+    const clearPolling = () => {
+        if (state.pollTimer) { clearInterval(state.pollTimer); state.pollTimer = null; }
+    };
+
+    const applyCoinRequestState = (coinRequest) => {
+        state.requestId = coinRequest ? coinRequest.id : null;
+        state.readyToStart = Boolean(coinRequest && coinRequest.ready_to_start);
+
+        setExtendMessage(
+            coinRequestStatusMessage(coinRequest),
+            state.readyToStart ? "success" :
+                ["expired", "cancelled"].includes(coinRequest?.status) ? "warning" : "info"
+        );
+        setExtendMeta(formatCoinRequestMeta(coinRequest));
+
+        extendNowBtn.disabled = !state.readyToStart;
+        if (state.readyToStart || ["expired", "cancelled"].includes(coinRequest?.status)) {
+            clearPolling();
+        }
+    };
+
+    const pollRequestStatus = async () => {
+        if (!state.requestId || state.pollInFlight) return;
+        state.pollInFlight = true;
+        try {
+            const response = await fetch(
+                `/api/session/start/request-status/?request_id=${encodeURIComponent(state.requestId)}&mac_address=${encodeURIComponent(macAddress)}`
+            );
+            const data = await parseJsonSafe(response);
+            if (!response.ok) {
+                if (response.status === 404) {
+                    clearPolling();
+                    setExtendMessage("Coin request no longer exists. Please request again.", "warning");
+                    setExtendMeta("");
+                    extendNowBtn.disabled = true;
+                    return;
+                }
+                setExtendMessage(data.error || "Unable to check status.", "warning");
+                return;
+            }
+            applyCoinRequestState(data.coin_request);
+        } catch (error) {
+            setExtendMessage("Connection issue. Retrying...", "warning");
+        } finally {
+            state.pollInFlight = false;
+        }
+    };
+
+    const startPolling = () => {
+        clearPolling();
+        state.pollTimer = setInterval(pollRequestStatus, 3000);
+        pollRequestStatus();
+    };
+
+    // Plan selection in extend grid
+    const extendCards = extendPlanGrid.querySelectorAll(".extend-plan-card");
+    extendCards.forEach((card) => {
+        card.addEventListener("click", () => {
+            extendCards.forEach((c) => c.classList.remove("selected"));
+            card.classList.add("selected");
+            extendPlanInput.value = card.dataset.planId;
+            extendRequestBtn.disabled = false;
+
+            if (state.planId && state.planId !== Number(card.dataset.planId)) {
+                clearPolling();
+                state.requestId = null;
+                state.readyToStart = false;
+                extendNowBtn.disabled = true;
+                setExtendMessage("Plan changed. Request a new coin slot.", "info");
+                setExtendMeta("");
+            }
+            state.planId = Number(card.dataset.planId);
+        });
     });
 
-    voucherBtn.addEventListener("click", async () => {
-        const code = voucherInput.value.trim();
-        if (!code || code.length < 6) {
-            showVoucherMessage("Enter a valid 6-character code", "error");
+    // Request coin slot for extend
+    extendRequestBtn.addEventListener("click", async () => {
+        const planId = Number(extendPlanInput.value);
+        if (!planId) {
+            setExtendMessage("Select a plan first.", "warning");
             return;
         }
 
-        const macAddress = getMacAddress();
-        if (!macAddress) {
-            showVoucherMessage("Device identity missing. Re-open portal from WiFi login.", "error");
-            return;
-        }
-        voucherBtn.disabled = true;
-        voucherBtn.innerHTML = '<span class="spinner"></span>';
+        extendRequestBtn.disabled = true;
+        extendNowBtn.disabled = true;
 
         try {
-            const response = await fetch("/api/session/extend/", {
+            const response = await fetch("/api/session/start/request/", {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-CSRFToken": getCSRFToken(),
-                },
-                body: JSON.stringify({
-                    voucher_code: code,
-                    mac_address: macAddress,
-                }),
+                headers: { "Content-Type": "application/json", "X-CSRFToken": getCSRFToken() },
+                body: JSON.stringify({ mac_address: macAddress, plan_id: planId }),
             });
-            const data = await response.json();
+            const data = await parseJsonSafe(response);
 
             if (!response.ok) {
-                showVoucherMessage(data.error || "Invalid voucher code", "error");
+                setExtendMessage(data.error || "Unable to create coin request.", "danger");
+                setExtendMeta("");
                 return;
             }
 
-            showVoucherMessage(data.message, "success");
-            voucherInput.value = "";
-
-            if (window.sessionTimer && data.session) {
-                window.sessionTimer.setRemaining(
-                    Number(data.session.time_remaining_seconds) || window.sessionTimer.remaining
-                );
+            if (data.coin_request) {
+                applyCoinRequestState(data.coin_request);
+                if (!data.coin_request.ready_to_start) {
+                    startPolling();
+                }
             } else {
-                setTimeout(() => {
-                    window.location.href = buildPortalUrl("/session/", macAddress);
-                }, 1000);
+                setExtendMessage(data.message || "Coin request created.", "info");
             }
         } catch (error) {
-            showVoucherMessage("Connection error. Please try again.", "error");
+            setExtendMessage("Connection error.", "danger");
         } finally {
-            voucherBtn.disabled = false;
-            voucherBtn.textContent = "Apply";
+            extendRequestBtn.disabled = !extendPlanInput.value;
+        }
+    });
+
+    // Extend now button
+    extendNowBtn.addEventListener("click", async () => {
+        const planId = Number(extendPlanInput.value);
+        if (!planId || !state.readyToStart) {
+            setExtendMessage("Insert coins first.", "warning");
+            return;
+        }
+
+        extendRequestBtn.disabled = true;
+        extendNowBtn.disabled = true;
+
+        try {
+            const response = await fetch("/api/session/extend-paid/", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "X-CSRFToken": getCSRFToken() },
+                body: JSON.stringify({ mac_address: macAddress, plan_id: planId }),
+            });
+            const data = await parseJsonSafe(response);
+
+            if (response.ok) {
+                setExtendMessage(data.message || "Session extended!", "success");
+                setExtendMeta("");
+
+                // Update timer with new remaining time
+                if (window.sessionTimer && data.session) {
+                    window.sessionTimer.setRemaining(
+                        Number(data.session.time_remaining_seconds) || window.sessionTimer.remaining
+                    );
+                }
+
+                // Reset extend state
+                state.requestId = null;
+                state.readyToStart = false;
+                extendCards.forEach((c) => c.classList.remove("selected"));
+                extendPlanInput.value = "";
+                extendRequestBtn.disabled = true;
+                extendNowBtn.disabled = true;
+                return;
+            }
+
+            if (response.status === 402 && data.coin_request) {
+                applyCoinRequestState(data.coin_request);
+                if (!data.coin_request.ready_to_start) {
+                    startPolling();
+                }
+            }
+            setExtendMessage(data.error || "Failed to extend session.", "danger");
+        } catch (error) {
+            setExtendMessage("Connection error.", "danger");
+        } finally {
+            extendRequestBtn.disabled = !extendPlanInput.value;
+            if (!state.readyToStart) {
+                extendNowBtn.disabled = true;
+            }
         }
     });
 }
 
-function showVoucherMessage(message, type) {
-    const messageElement = document.getElementById("voucher-message");
-    if (!messageElement) {
-        return;
-    }
-
-    messageElement.textContent = message;
-    messageElement.className =
-        type === "success" ? "alert alert-success mt-sm" : "alert alert-danger mt-sm";
-    messageElement.style.display = "block";
-
-    setTimeout(() => {
-        messageElement.style.display = "none";
-    }, 5000);
-}
 
 function pollSessionStatus(macAddress, intervalMs = 10000) {
     setInterval(async () => {
@@ -763,6 +907,7 @@ document.addEventListener("DOMContentLoaded", () => {
     initPlanSelection();
     initProductionStartFlow(macAddress);
     initVoucherInput();
+    initExtendSessionFlow(macAddress);
     initPortalRealtime();
 
     const timerEl = document.getElementById("session-timer");

@@ -47,9 +47,8 @@ def _get_mac_address(request):
 
 
 def _history_passcode_enabled():
-    configured_passcode = str(getattr(settings, "PISONET_HISTORY_PASSCODE", "")).strip()
-    flag_enabled = bool(getattr(settings, "PISONET_HISTORY_PASSCODE_ENABLED", True))
-    return flag_enabled and bool(configured_passcode)
+    # Passcode disabled — sessions are already scoped to each device's MAC
+    return False
 
 
 def index(request):
@@ -113,6 +112,7 @@ def session_page(request):
         "announcements": announcements,
         "mac_address": mac_address,
         "time_remaining_seconds": int(active_session.time_remaining_seconds),
+        "plans": Plan.objects.filter(is_active=True),
         "active_page": "home",
     }
     return render(request, "portal/session.html", context)
