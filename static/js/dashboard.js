@@ -1,4 +1,4 @@
-﻿/**
+/**
  * iConnect — Admin Dashboard JavaScript
  * Charts, heatmap, real-time stats, sidebar toggle
  */
@@ -384,7 +384,7 @@ function initOverviewLiveMonitoring() {
     }
 
     refreshLiveNetworkPanels();
-    setInterval(refreshLiveNetworkPanels, 15000);
+    setInterval(refreshLiveNetworkPanels, 10000);
 }
 
 // ============================================
@@ -458,17 +458,36 @@ function getCSRFToken() {
 }
 
 // ============================================
+// System Stats (CPU, RAM, Disk, Temp)
+// ============================================
+async function refreshSystemStats() {
+    try {
+        const response = await fetch('/api/dashboard/system/');
+        const data = await response.json();
+
+        updateStatValue('sys-temp', data.cpu_temp || 'N/A');
+        updateStatValue('sys-cpu', data.cpu_load || 'N/A');
+        updateStatValue('sys-ram', data.ram_percent ? data.ram_percent + '%' : 'N/A');
+        updateStatValue('sys-disk', data.disk_percent ? data.disk_percent + '%' : 'N/A');
+    } catch (err) {
+        console.error('Failed to refresh system stats:', err);
+    }
+}
+
+// ============================================
 // Initialize
 // ============================================
 document.addEventListener('DOMContentLoaded', () => {
     initSidebar();
     initOverviewLiveMonitoring();
 
-    // Auto-refresh stats every 30 seconds
+    // Auto-refresh stats every 10 seconds (real-time)
     if (document.querySelector('.stats-grid')) {
         refreshDashboardStats();
-        setInterval(refreshDashboardStats, 30000);
+        setInterval(refreshDashboardStats, 10000);
+
+        // System stats
+        refreshSystemStats();
+        setInterval(refreshSystemStats, 10000);
     }
 });
-
-

@@ -217,6 +217,75 @@ def dashboard_stats_api(request):
 
 
 @api_view(['GET'])
+def system_stats_api(request):
+    """System hardware stats (CPU temp, load, RAM, disk)."""
+    import shutil
+    import os
+
+    stats = {
+        'cpu_temp': 'N/A',
+        'cpu_load': 'N/A',
+        'ram_used': 'N/A',
+        'ram_total': 'N/A',
+        'ram_percent': 0,
+        'disk_used': 'N/A',
+        'disk_total': 'N/A',
+        'disk_percent': 0,
+    }
+
+    # CPU Temperature
+    try:
+        with open('/sys/class/thermal/thermal_zone0/temp', 'r') as f:
+            temp_raw = int(f.read().strip())
+            stats['cpu_temp'] = f"{temp_raw / 1000:.1f}°C"
+    except Exception:
+        pass
+
+    # CPU Load (1-min average)
+    try:
+        with open('/proc/loadavg', 'r') as f:
+            load = f.read().split()[0]
+            stats['cpu_load'] = f"{float(load):.1f}%"
+    except Exception:
+        try:
+            stats['cpu_load'] = f"{os.getloadavg()[0]:.1f}%"
+        except Exception:
+            pass
+
+    # RAM
+    try:
+        with open('/proc/meminfo', 'r') as f:
+            meminfo = {}
+            for line in f:
+                parts = line.split(':')
+                if len(parts) == 2:
+                    key = parts[0].strip()
+                    val = int(parts[1].strip().split()[0])  # kB
+                    meminfo[key] = val
+            total_mb = meminfo.get('MemTotal', 0) / 1024
+            available_mb = meminfo.get('MemAvailable', 0) / 1024
+            used_mb = total_mb - available_mb
+            stats['ram_total'] = f"{total_mb:.0f} MB"
+            stats['ram_used'] = f"{used_mb:.0f} MB"
+            stats['ram_percent'] = round((used_mb / total_mb) * 100) if total_mb > 0 else 0
+    except Exception:
+        pass
+
+    # Disk
+    try:
+        usage = shutil.disk_usage('/')
+        total_gb = usage.total / (1024 ** 3)
+        used_gb = usage.used / (1024 ** 3)
+        stats['disk_total'] = f"{total_gb:.1f} GB"
+        stats['disk_used'] = f"{used_gb:.1f} GB"
+        stats['disk_percent'] = round((usage.used / usage.total) * 100) if usage.total > 0 else 0
+    except Exception:
+        pass
+
+    return Response(stats)
+
+
+@api_view(['GET'])
 def heatmap_data_api(request):
     """
     GET /api/dashboard/heatmap/ — Returns peak hours heatmap data

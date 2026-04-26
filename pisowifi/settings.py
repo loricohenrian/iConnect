@@ -19,6 +19,11 @@ SECRET_KEY = os.getenv('SECRET_KEY', DEFAULT_DEV_SECRET_KEY)
 DEBUG = os.getenv('DEBUG', 'False').lower() in ('true', '1', 'yes')
 ALLOWED_HOSTS = [host.strip() for host in os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1,0.0.0.0').split(',') if host.strip()]
 
+# Session settings (admin dashboard login)
+SESSION_COOKIE_AGE = 28800  # 8 hours in seconds
+SESSION_SAVE_EVERY_REQUEST = True  # Reset timer on each request
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+
 # Application definition
 INSTALLED_APPS = [
     'django.contrib.admin',

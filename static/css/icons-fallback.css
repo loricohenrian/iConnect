@@ -50,3 +50,28 @@
 .bi-check2-circle::before { content: "\2713"; font-size: 1em; }
 .bi-x-circle::before { content: "\2717"; font-size: 1em; }
 .bi-list::before { content: "\2630"; font-size: 1em; }
+
+/* Dashboard Navigation Icons */
+.bi-grid-1x2::before { content: "\25A6"; font-size: 1em; }
+.bi-people::before { content: "\263A"; font-size: 1em; }
+.bi-clock::before { content: "\231A"; font-size: 1em; }
+.bi-bar-chart::before { content: "\2584"; font-size: 1em; }
+.bi-calendar-range::before { content: "\2637"; font-size: 1em; }
+.bi-graph-up::before { content: "\2197"; font-size: 1em; }
+.bi-download::before { content: "\21E9"; font-size: 1em; }
+.bi-bell::before { content: "\266A"; font-size: 1em; }
+.bi-tags::before { content: "\2606"; font-size: 1em; }
+.bi-shield-exclamation::before { content: "\26A0"; font-size: 1em; }
+.bi-person-gear::before { content: "\2699"; font-size: 1em; }
+.bi-box-arrow-right::before { content: "\21E8"; font-size: 1em; }
+.bi-gear::before { content: "\2699"; font-size: 1em; }
+.bi-pencil::before { content: "\270E"; font-size: 1em; }
+.bi-trash::before { content: "\2715"; font-size: 1em; }
+.bi-plus::before,
+.bi-plus-lg::before { content: "+"; font-size: 1.2em; font-weight: 700; }
+.bi-arrow-repeat::before { content: "\21BB"; font-size: 1em; }
+.bi-eye::before { content: "\25C9"; font-size: 1em; }
+.bi-thermometer-half::before { content: "\2103"; font-size: 1em; }
+.bi-cpu::before { content: "\2338"; font-size: 1em; }
+.bi-memory::before { content: "\2593"; font-size: 1em; }
+.bi-hdd::before { content: "\25A3"; font-size: 1em; }

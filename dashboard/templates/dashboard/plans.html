@@ -55,50 +55,44 @@
     <div class="chart-card animate-fadeIn" style="animation-delay: 100ms">
         <h3 class="card-title mb-md"><i class="bi bi-tags"></i> Current Plans</h3>
         {% if plans %}
-        <div class="table-container">
-            <table>
+        <div class="table-container" style="overflow-x: auto;">
+            <table style="min-width: 600px;">
                 <thead>
                     <tr>
-                        <th>Plan</th>
-                        <th>Price</th>
-                        <th>Duration</th>
-                        <th>Speed</th>
-                        <th>Status</th>
-                        <th>Actions</th>
+                        <th style="width: 25%;">Plan</th>
+                        <th style="width: 12%;">Price</th>
+                        <th style="width: 15%;">Duration</th>
+                        <th style="width: 13%;">Speed</th>
+                        <th style="width: 10%;">Status</th>
+                        <th style="width: 25%;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for plan in plans %}
                     <tr>
-                        <td colspan="6">
-                            <form method="POST" action="" class="d-flex gap-sm align-items-center flex-wrap">
-                                {% csrf_token %}
-                                <input type="hidden" name="action" value="update">
-                                <input type="hidden" name="plan_id" value="{{ plan.id }}">
-
-                                <input type="text" name="name" class="form-input" style="max-width: 180px" value="{{ plan.name }}" required>
-                                <input type="number" name="price" min="1" class="form-input" style="max-width: 90px" value="{{ plan.price }}" required>
-                                <input type="number" name="duration_minutes" min="1" class="form-input" style="max-width: 110px" value="{{ plan.duration_minutes }}" required>
-                                <input type="number" name="speed_limit" min="0.1" step="0.1" class="form-input" style="max-width: 110px" value="{% if plan.speed_limit %}{{ plan.speed_limit }}{% endif %}" placeholder="Full">
-
+                        <form method="POST" action="">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="update">
+                            <input type="hidden" name="plan_id" value="{{ plan.id }}">
+                            <td><input type="text" name="name" class="form-input" style="width: 100%; max-width: 140px; padding: 6px 8px; font-size: 13px;" value="{{ plan.name }}" required></td>
+                            <td><input type="number" name="price" min="1" class="form-input" style="width: 70px; padding: 6px 8px; font-size: 13px;" value="{{ plan.price }}" required></td>
+                            <td><input type="number" name="duration_minutes" min="1" class="form-input" style="width: 80px; padding: 6px 8px; font-size: 13px;" value="{{ plan.duration_minutes }}" required></td>
+                            <td><input type="number" name="speed_limit" min="0.1" step="0.1" class="form-input" style="width: 70px; padding: 6px 8px; font-size: 13px;" value="{% if plan.speed_limit %}{{ plan.speed_limit }}{% endif %}" placeholder="Full"></td>
+                            <td>
                                 <label class="d-flex align-items-center gap-xs">
                                     <input type="checkbox" name="is_active" {% if plan.is_active %}checked{% endif %}>
-                                    <span class="text-small">Active</span>
                                 </label>
-
-                                <button type="submit" class="btn btn-sm btn-primary">
-                                    <i class="bi bi-check2"></i> Save
-                                </button>
-                            </form>
-                            <form method="POST" action="" class="mt-xs" onsubmit="return confirm('Delete this plan? This cannot be undone.');">
-                                {% csrf_token %}
-                                <input type="hidden" name="action" value="delete">
-                                <input type="hidden" name="plan_id" value="{{ plan.id }}">
-                                <button type="submit" class="btn btn-sm btn-danger">
-                                    <i class="bi bi-trash"></i> Delete
-                                </button>
-                            </form>
-                        </td>
+                            </td>
+                            <td class="d-flex gap-xs">
+                                <button type="submit" class="btn btn-sm btn-primary" style="padding: 4px 10px; font-size: 12px;">Save</button>
+                        </form>
+                        <form method="POST" action="" onsubmit="return confirm('Delete this plan?');" style="display: inline;">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="delete">
+                            <input type="hidden" name="plan_id" value="{{ plan.id }}">
+                            <button type="submit" class="btn btn-sm btn-danger" style="padding: 4px 10px; font-size: 12px;">Del</button>
+                        </form>
+                            </td>
                     </tr>
                     {% endfor %}
                 </tbody>

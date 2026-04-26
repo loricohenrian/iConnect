@@ -15,7 +15,7 @@
    Sidebar
    ============================================ */
 .sidebar {
-    background: #1E293B;
+    background: var(--color-primary-dark);
     width: 260px;
     height: 100vh;
     position: fixed;
@@ -86,9 +86,9 @@
 }
 
 .nav-item.active {
-    background: rgba(26, 115, 232, 0.15);
-    color: var(--color-primary);
-    border-left: 3px solid var(--color-primary);
+    background: rgba(245, 230, 224, 0.15);
+    color: var(--color-primary-light);
+    border-left: 3px solid var(--color-primary-light);
     padding-left: 13px;
 }
 
@@ -212,25 +212,25 @@
 }
 
 .stat-card.gradient-blue {
-    background: linear-gradient(135deg, #1A73E8, #0EA5E9);
+    background: linear-gradient(135deg, #7B2D3B, #9B4050);
     color: white;
     border: none;
 }
 
 .stat-card.gradient-green {
-    background: linear-gradient(135deg, #10B981, #34D399);
+    background: linear-gradient(135deg, #5C1D2A, #7B2D3B);
     color: white;
     border: none;
 }
 
 .stat-card.gradient-teal {
-    background: linear-gradient(135deg, #06B6D4, #22D3EE);
+    background: linear-gradient(135deg, #8B3A4A, #A85060);
     color: white;
     border: none;
 }
 
 .stat-card.gradient-amber {
-    background: linear-gradient(135deg, #F59E0B, #FBBF24);
+    background: linear-gradient(135deg, #6B2535, #9B4050);
     color: white;
     border: none;
 }

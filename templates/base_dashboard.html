@@ -15,6 +15,7 @@
     <!-- Sidebar Navigation -->
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-brand">
+            <img src="{% static 'img/final_iconnect_logo.png' %}" alt="iConnect" style="width: 40px; height: 40px; border-radius: 50%; margin-bottom: 8px;">
             <div class="brand-name">iConnect</div>
             <div class="brand-subtitle">Admin Dashboard</div>
         </div>
@@ -120,6 +121,7 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="{% static 'js/chart.min.js' %}"></script>
 <script src="{% static 'js/dashboard.js' %}"></script>
 {% block dashboard_js %}{% endblock %}
 {% endblock %}

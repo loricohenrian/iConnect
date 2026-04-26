@@ -507,6 +507,27 @@ def session_start(request):
     ip_address = _client_ip(request)
     device_name = serializer.validated_data.get("device_name")
 
+    # Auto-detect device name from User-Agent if not provided
+    if not device_name:
+        ua = request.META.get("HTTP_USER_AGENT", "")
+        if "iPhone" in ua:
+            device_name = "iPhone"
+        elif "iPad" in ua:
+            device_name = "iPad"
+        elif "Android" in ua:
+            # Try to extract model: "Android X.X; MODEL)"
+            import re
+            m = re.search(r'Android[^;]*;\s*([^)]+)', ua)
+            device_name = m.group(1).strip() if m else "Android"
+        elif "Windows" in ua:
+            device_name = "Windows PC"
+        elif "Macintosh" in ua:
+            device_name = "Mac"
+        elif "Linux" in ua:
+            device_name = "Linux"
+        else:
+            device_name = "Unknown"
+
     try:
         plan = Plan.objects.get(id=plan_id, is_active=True)
     except Plan.DoesNotExist:
