@@ -347,14 +347,16 @@ function formatCoinRequestMeta(coinRequest) {
     return parts.join(" | ");
 }
 
-function coinRequestStatusMessage(coinRequest) {
+function coinRequestStatusMessage(coinRequest, context = "start") {
     if (!coinRequest) {
         return "Unable to read coin request status.";
     }
 
     const status = coinRequest.status;
     if (status === "completed") {
-        return "Payment complete. Tap Connect Now to start your session.";
+        return context === "extend"
+            ? "Payment complete. Tap Extend Now to add more time."
+            : "Payment complete. Tap Connect Now to start your session.";
     }
     if (status === "active") {
         return "Insert coins now. Your device currently owns the coin slot window.";
@@ -641,7 +643,7 @@ function initExtendSessionFlow(macAddress) {
         state.readyToStart = Boolean(coinRequest && coinRequest.ready_to_start);
 
         setExtendMessage(
-            coinRequestStatusMessage(coinRequest),
+            coinRequestStatusMessage(coinRequest, "extend"),
             state.readyToStart ? "success" :
                 ["expired", "cancelled"].includes(coinRequest?.status) ? "warning" : "info"
         );
