@@ -1,6 +1,6 @@
 /*
  * Local fallback for Bootstrap Icons classes.
- * Keeps icon layout stable without external CDN assets.
+ * Uses Unicode/emoji for icons since captive portal has no internet for CDN.
  */
 
 .bi {
@@ -11,29 +11,39 @@
     min-width: 1em;
     line-height: 1;
     vertical-align: -0.125em;
+    font-style: normal;
 }
 
-.bi::before {
-    content: "\25CF";
-    font-size: 0.58em;
-    font-weight: 700;
-}
+/* Navigation icons */
+.bi-house::before { content: "🏠"; font-size: 1em; }
+.bi-clock-history::before { content: "📋"; font-size: 1em; }
+.bi-question-circle::before { content: "❓"; font-size: 1em; }
 
-.bi-list::before {
-    content: "\2630";
-    font-size: 0.86em;
-}
+/* Session/status icons */
+.bi-wifi::before { content: "📶"; font-size: 1em; }
+.bi-hourglass-split::before { content: "⏳"; font-size: 1em; }
+.bi-plus-circle::before { content: "➕"; font-size: 1em; }
+.bi-megaphone-fill::before { content: "📢"; font-size: 1em; }
+.bi-speedometer2::before { content: "⚡"; font-size: 1em; }
+.bi-calculator::before { content: "💰"; font-size: 1em; }
+.bi-coin::before { content: "🪙"; font-size: 1em; }
 
+/* Timer/warning icons */
+.bi-exclamation-triangle-fill::before { content: "⚠️"; font-size: 1em; }
+.bi-exclamation-triangle::before { content: "⚠️"; font-size: 1em; }
+.bi-exclamation-circle::before { content: "⚠️"; font-size: 1em; }
+
+/* Info/help icons */
+.bi-translate::before { content: "🌐"; font-size: 1em; }
+.bi-shield-lock::before { content: "🔒"; font-size: 1em; }
+.bi-lock::before { content: "🔒"; font-size: 1em; }
+.bi-wifi-off::before { content: "📵"; font-size: 1em; }
+
+/* Generic */
 .bi-check2::before,
-.bi-check2-circle::before {
-    content: "\2713";
-    font-size: 0.78em;
-}
-
-.bi-x-circle::before,
-.bi-exclamation-circle::before,
-.bi-exclamation-triangle::before,
-.bi-exclamation-triangle-fill::before {
-    content: "!";
-    font-size: 0.78em;
-}
+.bi-check2-circle::before { content: "✅"; font-size: 1em; }
+.bi-x-circle::before { content: "❌"; font-size: 1em; }
+.bi-list::before { content: "☰"; font-size: 1em; }
+.bi-calendar::before { content: "📅"; font-size: 1em; }
+.bi-clock::before { content: "🕐"; font-size: 1em; }
+.bi-arrow-right::before { content: "→"; font-size: 1em; }

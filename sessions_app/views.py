@@ -410,15 +410,8 @@ def session_start_request(request):
             status=status.HTTP_404_NOT_FOUND,
         )
 
-    existing = Session.objects.filter(mac_address=mac_address, status="active").first()
-    if existing:
-        return Response(
-            {
-                "error": "Device already has an active session",
-                "session": SessionSerializer(existing).data,
-            },
-            status=status.HTTP_409_CONFLICT,
-        )
+    # Note: We allow coin requests even if there's an active session,
+    # because the user may want to extend their session with more coins.
 
     try:
         coin_request, created = _get_or_create_start_coin_request(mac_address, ip_address, plan)

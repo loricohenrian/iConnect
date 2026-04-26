@@ -32,6 +32,23 @@ def _client_ip(request):
     return request.META.get("REMOTE_ADDR", "unknown")
 
 
+def _mac_from_arp(ip_address):
+    """Look up MAC address from Linux ARP table based on client IP."""
+    if not ip_address or ip_address in ("unknown", "127.0.0.1", "::1"):
+        return ""
+    try:
+        with open("/proc/net/arp", "r") as f:
+            for line in f:
+                parts = line.split()
+                if len(parts) >= 4 and parts[0] == ip_address:
+                    mac = _normalize_mac(parts[3])
+                    if mac:
+                        return mac
+    except (OSError, IOError):
+        pass
+    return ""
+
+
 def _get_mac_address(request):
     stored_mac = _normalize_mac(request.session.get(SESSION_MAC_KEY, ""))
     query_mac = _normalize_mac(request.GET.get("mac", ""))
@@ -43,7 +60,17 @@ def _get_mac_address(request):
         request.session[SESSION_MAC_KEY] = query_mac
         return query_mac
 
-    return stored_mac
+    if stored_mac:
+        return stored_mac
+
+    # Auto-detect from ARP table if no MAC available yet
+    client_ip = _client_ip(request)
+    arp_mac = _mac_from_arp(client_ip)
+    if arp_mac:
+        request.session[SESSION_MAC_KEY] = arp_mac
+        return arp_mac
+
+    return ""
 
 
 def _history_passcode_enabled():

@@ -38,16 +38,10 @@
             {% endif %}
             <div class="plan-price">₱{{ plan.price }}</div>
             <div class="plan-duration">{{ plan.duration_display }}</div>
-            <div class="plan-speed"><i class="bi bi-calculator"></i> ₱{{ plan.price_per_minute|floatformat:2 }}/min</div>
-            {% if plan.speed_limit %}
-            <div class="plan-speed"><i class="bi bi-speedometer2"></i> {{ plan.speed_limit }} Mbps</div>
-            {% else %}
-            <div class="plan-speed"><i class="bi bi-speedometer2"></i> Full Speed</div>
-            {% endif %}
         </div>
         {% empty %}
         <div class="empty-state" id="plans-empty-state">
-            <i class="bi bi-wifi-off"></i>
+            <p style="font-size: 32px; margin-bottom: 8px;">📵</p>
             <p>No plans available</p>
             <small>Please contact the administrator</small>
         </div>
@@ -62,14 +56,14 @@
 <div class="mt-md" id="start-session-panel">
     <div class="card">
         <p class="text-small text-muted mb-md">
-            Step 1: Select a plan. Step 2: Tap <strong>Request Coin Slot</strong>. Step 3: Insert coins when prompted. Step 4: Tap <strong>Connect Now</strong>.
+            Select a plan → Tap <strong>Request Coin Slot</strong> → Insert coins → Tap <strong>Connect Now</strong>
         </p>
-        <div class="d-flex gap-sm">
+        <div class="d-flex" style="flex-direction: column; gap: 8px;">
             <button type="button" class="btn btn-secondary w-100" id="request-slot-btn" disabled>
-                <i class="bi bi-hourglass-split"></i> Request Coin Slot
+                ⏳ Request Coin Slot
             </button>
             <button type="button" class="btn btn-primary w-100" id="start-session-btn" disabled>
-                <i class="bi bi-wifi"></i> Connect Now
+                📶 Connect Now
             </button>
         </div>
         <div id="start-flow-message" class="alert alert-info mt-md" style="display:none;"></div>

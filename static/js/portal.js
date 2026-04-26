@@ -193,9 +193,6 @@ function renderPlans(plans) {
 
     planGrid.innerHTML = plans
         .map((plan, index) => {
-            const speedLabel = plan.speed_limit
-                ? `${plan.speed_limit} Mbps`
-                : "Full Speed";
             const popularBadge =
                 index === 1
                     ? '<div class="plan-popular">Popular</div>'
@@ -206,8 +203,6 @@ function renderPlans(plans) {
                     ${popularBadge}
                     <div class="plan-price">₱${plan.price}</div>
                     <div class="plan-duration">${escapeHtml(plan.duration_display)}</div>
-                    <div class="plan-speed"><i class="bi bi-calculator"></i> ₱${Number(plan.price_per_minute).toFixed(2)}/min</div>
-                    <div class="plan-speed"><i class="bi bi-speedometer2"></i> ${speedLabel}</div>
                 </div>
             `;
         })
