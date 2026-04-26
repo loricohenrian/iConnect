@@ -612,6 +612,15 @@ def session_start(request):
                 event.save(update_fields=["session"])
                 used_amount += event.amount
 
+            # Return overpayment as balance (unlinked "change" coin event)
+            overpayment = used_amount - plan.price
+            if overpayment > 0:
+                CoinEvent.objects.create(
+                    mac_address=mac_address,
+                    amount=overpayment,
+                    session=None,
+                )
+
             CoinInsertRequest.objects.filter(
                 mac_address=mac_address,
                 purpose=CoinInsertRequest.PURPOSE_START,
@@ -882,6 +891,15 @@ def session_extend_paid(request):
                 event.session = active_session
                 event.save(update_fields=["session"])
                 used_amount += event.amount
+
+            # Return overpayment as balance
+            overpayment = used_amount - plan.price
+            if overpayment > 0:
+                CoinEvent.objects.create(
+                    mac_address=mac_address,
+                    amount=overpayment,
+                    session=None,
+                )
 
             CoinInsertRequest.objects.filter(
                 mac_address=mac_address,
