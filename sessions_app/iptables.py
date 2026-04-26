@@ -50,8 +50,9 @@ def _run_command(cmd, ignore_errors=False):
 
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
-        if result.returncode != 0 and not ignore_errors:
-            logger.error('iptables error: %s', result.stderr)
+        if result.returncode != 0:
+            if not ignore_errors:
+                logger.error('iptables error: %s', result.stderr)
             return False
         return True
     except subprocess.TimeoutExpired:
@@ -69,13 +70,49 @@ def is_device_allowed(mac_address):
     return _run_command(cmd, ignore_errors=True)
 
 
+def _is_nat_bypass_set(mac_address):
+    """Check if NAT PREROUTING bypass exists for a device."""
+    mac = mac_address.upper()
+    cmd = ['iptables', '-t', 'nat', '-C', 'PREROUTING', '-m', 'mac', '--mac-source', mac, '-j', 'RETURN']
+    return _run_command(cmd, ignore_errors=True)
+
+
+def _add_nat_bypass(mac_address):
+    """Add NAT PREROUTING bypass so authenticated device traffic goes to real internet."""
+    mac = mac_address.upper()
+    if _is_nat_bypass_set(mac):
+        return True
+    cmd = ['iptables', '-t', 'nat', '-I', 'PREROUTING', '1', '-m', 'mac', '--mac-source', mac, '-j', 'RETURN']
+    success = _run_command(cmd)
+    if success:
+        logger.info('NAT bypass added for device: %s', mac)
+    return success
+
+
+def _remove_nat_bypass(mac_address):
+    """Remove NAT PREROUTING bypass so device traffic gets redirected to captive portal."""
+    mac = mac_address.upper()
+    cmd = ['iptables', '-t', 'nat', '-D', 'PREROUTING', '-m', 'mac', '--mac-source', mac, '-j', 'RETURN']
+    removed = False
+    while _is_nat_bypass_set(mac):
+        if _run_command(cmd):
+            removed = True
+        else:
+            break
+    if removed:
+        logger.info('NAT bypass removed for device: %s', mac)
+    return True
+
+
 def allow_device(mac_address):
     """
     Allow a device to access the internet.
     Idempotent: Only adds the rule if it doesn't already exist.
+    Also adds NAT bypass so HTTP/HTTPS traffic reaches the real internet.
     """
     if is_device_allowed(mac_address):
         logger.info('Device %s already allowed', mac_address)
+        _add_nat_bypass(mac_address)
         return True
 
     if getattr(settings, 'PISONET_DNS_ONLY_PREAUTH', False):
@@ -87,13 +124,35 @@ def allow_device(mac_address):
     success = _run_command(cmd)
     if success:
         logger.info('Allowed device: %s', mac)
+        _add_nat_bypass(mac)
     return success
+
+
+def _flush_conntrack(mac_address):
+    """Flush connection tracking entries for a device to kill established connections."""
+    mac = mac_address.upper()
+    # Get device IP from ARP table, then flush conntrack by IP
+    try:
+        with open('/proc/net/arp', 'r') as f:
+            for line in f:
+                parts = line.split()
+                if len(parts) >= 4 and parts[3].upper() == mac:
+                    ip = parts[0]
+                    _run_command(['conntrack', '-D', '-s', ip], ignore_errors=True)
+                    _run_command(['conntrack', '-D', '-d', ip], ignore_errors=True)
+                    logger.info('Flushed conntrack for device: %s (%s)', mac, ip)
+                    return True
+    except (OSError, IOError):
+        pass
+    return False
 
 
 def block_device(mac_address):
     """
     Remove a device's internet access.
     Ensures all duplicate instances of the rule are removed.
+    Also removes NAT bypass so device gets redirected to captive portal.
+    Kills existing connections so apps lose internet immediately.
     """
     mac = mac_address.upper()
     cmd = ['iptables', '-D', 'FORWARD', '-m', 'mac', '--mac-source', mac, '-j', 'ACCEPT']
@@ -108,6 +167,12 @@ def block_device(mac_address):
 
     if deleted:
         logger.info('Blocked device: %s', mac)
+
+    # Remove NAT bypass so traffic gets redirected to captive portal
+    _remove_nat_bypass(mac_address)
+
+    # Kill all established connections for this device
+    _flush_conntrack(mac_address)
 
     if getattr(settings, 'PISONET_DNS_ONLY_PREAUTH', False):
         apply_pre_auth_dns_policy()
