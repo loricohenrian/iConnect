@@ -345,11 +345,14 @@ def coin_inserted(request):
             status="active",
         ).first()
 
+    # When a coin request exists (extend flow), DON'T link coin to the session.
+    # _pending_coin_events_for_mac filters session__isnull=True, so linked
+    # coins would be invisible to the coin request progress tracker.
     coin_event = CoinEvent.objects.create(
         amount=amount,
         denomination=denomination,
         mac_address=mac_address,
-        session=session,
+        session=session if not assigned_request else None,
     )
     audit_logger.info(
         "event=coin_received amount=%s denomination=%s mac=%s request_id=%s ip=%s",

@@ -32,8 +32,8 @@
 
     <div class="plan-grid" id="plan-grid">
         {% for plan in plans %}
-        <div class="plan-card animate-fadeIn" data-plan-id="{{ plan.id }}" id="plan-{{ plan.id }}" style="animation-delay: {{ forloop.counter0 }}00ms">
-            {% if forloop.counter == 2 %}
+        <div class="plan-card" data-plan-id="{{ plan.id }}" id="plan-{{ plan.id }}">
+            {% if plan.id == most_popular_plan_id %}
             <div class="plan-popular">Popular</div>
             {% endif %}
             <div class="plan-price">₱{{ plan.price }}</div>

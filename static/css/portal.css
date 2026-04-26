@@ -23,37 +23,29 @@
 }
 
 /* ============================================
-   Portal Header — Minimalist & Sharp
+   Portal Header — Maroon with Logo
    ============================================ */
 .portal-header {
-    background: var(--color-white);
-    padding: 48px 20px;
+    background: var(--color-primary);
+    padding: 20px 20px 16px;
     text-align: center;
     width: 100%;
-    border-bottom: 3px solid var(--color-primary);
+}
+
+.portal-header .portal-logo {
+    width: 48px;
+    height: 48px;
+    object-fit: contain;
+    display: block;
+    margin: 0 auto 6px;
+    border-radius: 10px;
 }
 
 .portal-header .brand-name {
-    font-size: 28px;
+    font-size: 22px;
     font-weight: 800;
-    letter-spacing: -1.5px;
-    color: var(--color-dark);
-    margin-bottom: 4px;
-}
-
-.portal-header .brand-tagline {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--color-gray);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-}
-
-.portal-header .wifi-icon {
-    font-size: 32px;
-    color: var(--color-primary);
-    margin-bottom: 12px;
-    display: inline-block;
+    letter-spacing: -1px;
+    color: var(--color-white);
 }
 
 /* ============================================
@@ -213,11 +205,11 @@
    ============================================ */
 .portal-nav {
     position: fixed;
-    bottom: 24px;
+    bottom: 16px;
     left: 50%;
     transform: translateX(-50%);
     width: calc(100% - 48px);
-    max-width: 380px;
+    max-width: 280px;
     background: rgba(93, 29, 42, 0.92);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
@@ -225,35 +217,30 @@
     border-radius: 100px;
     display: flex;
     justify-content: space-around;
-    padding: 8px;
+    padding: 6px;
     box-shadow: 0 20px 40px rgba(93, 29, 42, 0.3);
     z-index: 1000;
 }
 
 .portal-nav a {
-    color: #94A3B8;
+    color: rgba(255, 255, 255, 0.5);
     display: flex;
-    flex-direction: column;
     align-items: center;
-    gap: 4px;
+    justify-content: center;
     text-decoration: none;
-    font-size: 10px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
     flex: 1;
-    padding: 8px 0;
+    padding: 10px 0;
     border-radius: 100px;
     transition: var(--transition-base);
 }
 
 .portal-nav a.active {
     color: var(--color-white);
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.15);
 }
 
 .portal-nav a i {
-    font-size: 22px;
+    font-size: 20px;
 }
 
 .portal-footer {

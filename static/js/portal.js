@@ -192,14 +192,14 @@ function renderPlans(plans) {
     }
 
     planGrid.innerHTML = plans
-        .map((plan, index) => {
+        .map((plan) => {
             const popularBadge =
-                index === 1
+                plan.is_most_popular
                     ? '<div class="plan-popular">Popular</div>'
                     : "";
 
             return `
-                <div class="plan-card animate-fadeIn" data-plan-id="${plan.id}" id="plan-${plan.id}" style="animation-delay: ${index}00ms">
+                <div class="plan-card" data-plan-id="${plan.id}" id="plan-${plan.id}">
                     ${popularBadge}
                     <div class="plan-price">₱${plan.price}</div>
                     <div class="plan-duration">${escapeHtml(plan.duration_display)}</div>
@@ -236,21 +236,25 @@ function renderPlans(plans) {
     }
 }
 
+let _lastPlansJson = "";
+
 async function syncPortalLiveData() {
     try {
         const response = await fetch("/api/portal/live-data/", {
-            headers: {
-                "Cache-Control": "no-cache",
-            },
+            headers: { "Cache-Control": "no-cache" },
         });
 
-        if (!response.ok) {
-            return;
-        }
+        if (!response.ok) return;
 
         const data = await response.json();
         renderAnnouncements(data.announcements || []);
-        renderPlans(data.plans || []);
+
+        // Only re-render plans if they actually changed (prevents blinking)
+        const plansJson = JSON.stringify(data.plans || []);
+        if (plansJson !== _lastPlansJson) {
+            _lastPlansJson = plansJson;
+            renderPlans(data.plans || []);
+        }
     } catch (error) {
         console.error("Live data sync error:", error);
     }

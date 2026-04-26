@@ -9,16 +9,14 @@
 <div class="portal-wrapper" data-mac="{{ mac_address|default:'' }}">
     <!-- Header -->
     <header class="portal-header">
-        <i class="bi bi-wifi wifi-icon"></i>
+        <img src="{% static 'img/iconnect_logo.png' %}" alt="iConnect" class="portal-logo">
         <div class="brand-name">iConnect</div>
-        <div class="brand-tagline">Affordable Internet, Smart Monitoring</div>
     </header>
 
     <!-- Announcements -->
     <div class="portal-container" id="portal-announcements" style="padding-bottom: 0;{% if not announcements %} display: none;{% endif %}">
         {% for ann in announcements %}
         <div class="announcement-banner" data-announcement-id="{{ ann.id }}">
-            <i class="bi bi-megaphone-fill"></i>
             <span>{{ ann.message }}</span>
         </div>
         {% endfor %}
@@ -29,25 +27,22 @@
         {% block portal_content %}{% endblock %}
     </main>
 
-    <!-- Bottom Navigation -->
+    <!-- Bottom Navigation (icons only) -->
     <nav class="portal-nav">
         <a href="{% url 'portal:index' %}{% if mac_address %}?mac={{ mac_address|urlencode }}{% endif %}" class="{% if active_page == 'home' %}active{% endif %}" id="nav-home">
             <i class="bi bi-house"></i>
-            <span>Home</span>
         </a>
         <a href="{% url 'portal:history' %}{% if mac_address %}?mac={{ mac_address|urlencode }}{% endif %}" class="{% if active_page == 'history' %}active{% endif %}" id="nav-history">
             <i class="bi bi-clock-history"></i>
-            <span>History</span>
         </a>
         <a href="{% url 'portal:manual' %}{% if mac_address %}?mac={{ mac_address|urlencode }}{% endif %}" class="{% if active_page == 'manual' %}active{% endif %}" id="nav-manual">
             <i class="bi bi-question-circle"></i>
-            <span>Help</span>
         </a>
     </nav>
 
     <!-- Footer -->
     <footer class="portal-footer">
-        <p>iConnect &copy; 2026 — Powered by Solar Energy</p>
+        <p>iConnect &copy; 2026</p>
     </footer>
 </div>
 {% endblock %}
@@ -56,5 +51,3 @@
 <script src="{% static 'js/portal.js' %}"></script>
 {% block portal_js %}{% endblock %}
 {% endblock %}
-
-

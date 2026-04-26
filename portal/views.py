@@ -102,6 +102,16 @@ def index(request):
     if active_session and active_session.time_remaining_seconds > 0:
         return redirect(f"/session/?mac={mac_address}")
 
+    # Find the most picked plan (highest session count)
+    from django.db.models import Count
+    most_popular = (
+        Session.objects.values("plan_id")
+        .annotate(pick_count=Count("id"))
+        .order_by("-pick_count")
+        .first()
+    )
+    most_popular_plan_id = most_popular["plan_id"] if most_popular else None
+
     context = {
         "plans": plans,
         "announcements": announcements,
@@ -110,6 +120,7 @@ def index(request):
         "mac_address": mac_address,
         "mac_required": mac_required,
         "active_page": "home",
+        "most_popular_plan_id": most_popular_plan_id,
     }
     return render(request, "portal/index.html", context)
 
@@ -208,6 +219,15 @@ def live_data(request):
     plans = Plan.objects.filter(is_active=True).order_by("price", "id")
     announcements = Announcement.objects.filter(is_active=True).order_by("-created_at", "-id")
 
+    from django.db.models import Count
+    most_popular = (
+        Session.objects.values("plan_id")
+        .annotate(pick_count=Count("id"))
+        .order_by("-pick_count")
+        .first()
+    )
+    most_popular_plan_id = most_popular["plan_id"] if most_popular else None
+
     plan_payload = [
         {
             "id": plan.id,
@@ -217,6 +237,7 @@ def live_data(request):
             "duration_display": plan.duration_display,
             "price_per_minute": float(plan.price_per_minute),
             "speed_limit": float(plan.speed_limit) if plan.speed_limit is not None else None,
+            "is_most_popular": plan.id == most_popular_plan_id,
         }
         for plan in plans
     ]
