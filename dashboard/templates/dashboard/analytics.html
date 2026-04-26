@@ -5,48 +5,122 @@
 
 {% block dashboard_content %}
 
-<!-- Summary Cards -->
-<div class="stats-grid" style="grid-template-columns: repeat(3, 1fr);">
-    <div class="stat-card animate-fadeIn">
+<!-- Descriptive Stats -->
+<div class="stats-grid" style="grid-template-columns: repeat(4, 1fr);">
+    <div class="stat-card gradient-blue animate-fadeIn">
         <div class="stat-info">
             <div class="stat-label">Avg Session Duration</div>
             <div class="stat-value">{{ avg_duration }} min</div>
         </div>
-        <div class="stat-icon-wrap" style="background: rgba(26,115,232,0.1); color: var(--color-primary);">
+        <div class="stat-icon-wrap">
             <i class="bi bi-clock"></i>
         </div>
     </div>
 
-    <div class="stat-card animate-fadeIn" style="animation-delay: 100ms">
+    <div class="stat-card gradient-green animate-fadeIn" style="animation-delay: 100ms">
         <div class="stat-info">
-            <div class="stat-label">Total Bandwidth (30d)</div>
-            <div class="stat-value">{{ total_bandwidth }} MB</div>
+            <div class="stat-label">Most Popular Plan</div>
+            <div class="stat-value">{{ top_plan }}</div>
         </div>
-        <div class="stat-icon-wrap" style="background: rgba(6,182,212,0.1); color: var(--color-info);">
-            <i class="bi bi-speedometer2"></i>
+        <div class="stat-icon-wrap">
+            <i class="bi bi-tags"></i>
         </div>
     </div>
 
-    <div class="stat-card animate-fadeIn" style="animation-delay: 200ms">
+    <div class="stat-card gradient-teal animate-fadeIn" style="animation-delay: 200ms">
         <div class="stat-info">
-            <div class="stat-label">Most Popular Plan</div>
-            <div class="stat-value">
-                {% if plan_stats %}
-                    {{ plan_stats.0.plan__name }}
-                {% else %}
-                    —
-                {% endif %}
-            </div>
+            <div class="stat-label">Unique Devices (30d)</div>
+            <div class="stat-value">{{ unique_devices }}</div>
         </div>
-        <div class="stat-icon-wrap" style="background: rgba(16,185,129,0.1); color: var(--color-success);">
-            <i class="bi bi-star"></i>
+        <div class="stat-icon-wrap">
+            <i class="bi bi-people"></i>
+        </div>
+    </div>
+
+    <div class="stat-card gradient-amber animate-fadeIn" style="animation-delay: 300ms">
+        <div class="stat-info">
+            <div class="stat-label">Total Sessions (30d)</div>
+            <div class="stat-value">{{ total_sessions_month }}</div>
+        </div>
+        <div class="stat-icon-wrap">
+            <i class="bi bi-graph-up"></i>
         </div>
     </div>
 </div>
 
-<div class="grid-2 mt-lg">
+<!-- Diagnostic Analytics -->
+<div class="stats-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: var(--space-md);">
+    <div class="stat-card animate-fadeIn" style="animation-delay: 350ms">
+        <div class="stat-info">
+            <div class="stat-label">Peak Hour</div>
+            <div class="stat-value">{{ peak_hour }}</div>
+        </div>
+        <div class="stat-icon-wrap" style="background: rgba(26,115,232,0.1); color: #1A73E8;">
+            <i class="bi bi-clock"></i>
+        </div>
+    </div>
+    <div class="stat-card animate-fadeIn" style="animation-delay: 400ms">
+        <div class="stat-info">
+            <div class="stat-label">Peak Day</div>
+            <div class="stat-value">{{ peak_day }}</div>
+        </div>
+        <div class="stat-icon-wrap" style="background: rgba(26,115,232,0.1); color: #1A73E8;">
+            <i class="bi bi-calendar-range"></i>
+        </div>
+    </div>
+    <div class="stat-card animate-fadeIn" style="animation-delay: 450ms">
+        <div class="stat-info">
+            <div class="stat-label">Avg ₱ / Session</div>
+            <div class="stat-value">₱{{ avg_rev_per_session }}</div>
+        </div>
+        <div class="stat-icon-wrap" style="background: rgba(26,115,232,0.1); color: #1A73E8;">
+            <i class="bi bi-coin"></i>
+        </div>
+    </div>
+    <div class="stat-card animate-fadeIn" style="animation-delay: 500ms">
+        <div class="stat-info">
+            <div class="stat-label">Retention Rate</div>
+            <div class="stat-value">{{ retention_rate }}%</div>
+        </div>
+        <div class="stat-icon-wrap" style="background: rgba(26,115,232,0.1); color: #1A73E8;">
+            <i class="bi bi-arrow-repeat"></i>
+        </div>
+    </div>
+</div>
+
+<!-- Revenue Growth Badge -->
+<div class="chart-card animate-fadeIn mb-md" style="animation-delay: 550ms; padding: 16px 20px;">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <span class="text-small text-muted">Weekly Revenue Growth</span>
+            <div class="font-semibold" style="font-size: 20px; color: {% if revenue_growth > 0 %}var(--color-success){% elif revenue_growth < 0 %}var(--color-danger){% else %}var(--color-gray){% endif %};">
+                {% if revenue_growth > 0 %}+{% endif %}{{ revenue_growth }}%
+            </div>
+        </div>
+        <span class="badge {% if revenue_growth > 0 %}badge-active{% elif revenue_growth < 0 %}badge-expired{% else %}badge-paused{% endif %}">
+            {% if revenue_growth > 0 %}Growing{% elif revenue_growth < 0 %}Declining{% else %}Stable{% endif %}
+        </span>
+    </div>
+</div>
+
+<!-- Prescriptive Insights -->
+{% if insights %}
+<div class="chart-card animate-fadeIn mb-md" style="animation-delay: 600ms;">
+    <h3 class="chart-title mb-md"><i class="bi bi-graph-up"></i> AI Insights & Recommendations</h3>
+    {% for insight in insights %}
+    <div class="d-flex gap-md align-items-flex-start mb-md" style="padding: 12px; background: var(--color-light); border-radius: 8px; border-left: 4px solid {% if insight.type == 'warning' %}var(--color-warning){% elif insight.type == 'success' %}var(--color-success){% elif insight.type == 'tip' %}var(--color-info){% else %}var(--color-primary){% endif %};">
+        <div>
+            <div class="font-semibold" style="margin-bottom: 4px;">{{ insight.title }}</div>
+            <div class="text-small text-muted">{{ insight.text }}</div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<div class="grid-2">
     <!-- Plan Popularity Chart -->
-    <div class="chart-card animate-fadeIn" style="animation-delay: 300ms">
+    <div class="chart-card animate-fadeIn" style="animation-delay: 650ms">
         <h3 class="chart-title mb-md">Plan Popularity (Last 30 Days)</h3>
         <div class="chart-wrapper" style="height: 280px;">
             <canvas id="plan-popularity-chart"></canvas>
@@ -54,7 +128,7 @@
     </div>
 
     <!-- Plan Stats Table -->
-    <div class="chart-card animate-fadeIn" style="animation-delay: 400ms">
+    <div class="chart-card animate-fadeIn" style="animation-delay: 700ms">
         <h3 class="chart-title mb-md">Plan Performance</h3>
         {% if plan_stats %}
         <div class="table-container">
@@ -90,7 +164,7 @@
 </div>
 
 <!-- Session Trends -->
-<div class="chart-card mt-lg animate-fadeIn" style="animation-delay: 500ms">
+<div class="chart-card mt-lg animate-fadeIn" style="animation-delay: 750ms">
     <div class="chart-header">
         <h3 class="chart-title">Session Count Trend</h3>
     </div>

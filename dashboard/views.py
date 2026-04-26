@@ -162,7 +162,7 @@ def dashboard_stats_api(request):
 
     # Revenue today
     revenue_today = Session.objects.filter(
-        time_in__date=today, status__in=['active', 'expired']
+        time_in__date=today, status__in=['active', 'expired', 'paused']
     ).aggregate(total=Sum('amount_paid'))['total'] or 0
 
     # Connected users
@@ -177,14 +177,14 @@ def dashboard_stats_api(request):
     # ROI
     total_cost = ProjectCost.total_cost()
     total_revenue = Session.objects.filter(
-        status__in=['active', 'expired']
+        status__in=['active', 'expired', 'paused']
     ).aggregate(total=Sum('amount_paid'))['total'] or 0
     roi_percentage = (total_revenue / total_cost * 100) if total_cost > 0 else 0
 
     # Revenue last 7 days
     daily_revenue = Session.objects.filter(
         time_in__date__gte=week_ago,
-        status__in=['active', 'expired']
+        status__in=['active', 'expired', 'paused']
     ).annotate(
         day=TruncDate('time_in')
     ).values('day').annotate(
@@ -393,7 +393,7 @@ def overview(request):
     today = timezone.now().date()
 
     revenue_today = Session.objects.filter(
-        time_in__date=today, status__in=['active', 'expired']
+        time_in__date=today, status__in=['active', 'expired', 'paused']
     ).aggregate(total=Sum('amount_paid'))['total'] or 0
 
     connected = Session.objects.filter(status='active').count()
@@ -402,7 +402,7 @@ def overview(request):
 
     total_cost = ProjectCost.total_cost()
     total_revenue = Session.objects.filter(
-        status__in=['active', 'expired']
+        status__in=['active', 'expired', 'paused']
     ).aggregate(total=Sum('amount_paid'))['total'] or 0
     roi_pct = (total_revenue / total_cost * 100) if total_cost > 0 else 0
 
@@ -478,8 +478,20 @@ def sessions_view(request):
     """Session logs page."""
     status_filter = request.GET.get('status', '')
     search = request.GET.get('search', '')
+    period = request.GET.get('period', '')
 
     sessions = Session.objects.select_related('plan').all()
+
+    # Time period filter
+    now = timezone.now()
+    if period == 'today':
+        sessions = sessions.filter(time_in__date=now.date())
+    elif period == 'week':
+        sessions = sessions.filter(time_in__gte=now - timedelta(days=7))
+    elif period == 'month':
+        sessions = sessions.filter(time_in__gte=now - timedelta(days=30))
+    elif period == 'year':
+        sessions = sessions.filter(time_in__gte=now - timedelta(days=365))
 
     if status_filter:
         sessions = sessions.filter(status=status_filter)
@@ -494,6 +506,7 @@ def sessions_view(request):
         'sessions': sessions[:100],
         'status_filter': status_filter,
         'search': search,
+        'period': period,
         'active_page': 'sessions',
     }
     return render(request, 'dashboard/sessions.html', context)
@@ -519,14 +532,15 @@ def heatmap(request):
 
 @user_passes_test(_is_dashboard_admin, login_url='dashboard:login')
 def analytics_view(request):
-    """User behavior analytics page."""
+    """User behavior analytics page with diagnostic & prescriptive insights."""
     today = timezone.now().date()
     month_ago = today - timedelta(days=30)
+    week_ago = today - timedelta(days=7)
 
     # Plan popularity
     plan_stats = Session.objects.filter(
         time_in__date__gte=month_ago,
-        status__in=['active', 'expired']
+        status__in=['active', 'expired', 'paused']
     ).values('plan__name').annotate(
         count=Count('id'),
         total_revenue=Sum('amount_paid'),
@@ -536,18 +550,122 @@ def analytics_view(request):
     # Average session duration
     avg_duration = Session.objects.filter(
         time_in__date__gte=month_ago,
-        status__in=['active', 'expired']
+        status__in=['active', 'expired', 'paused']
     ).aggregate(avg=Avg('duration_minutes_purchased'))['avg'] or 0
 
-    # Total bandwidth
-    total_bandwidth = Session.objects.filter(
+    # Most popular plan
+    top_plan = plan_stats[0]['plan__name'] if plan_stats else 'N/A'
+
+    # ── Diagnostic Analytics ──
+    # Peak hour (which hour has most sessions)
+    from django.db.models.functions import ExtractHour, ExtractWeekDay
+    peak_hour_data = Session.objects.filter(
         time_in__date__gte=month_ago
-    ).aggregate(total=Sum('bandwidth_used_mb'))['total'] or 0
+    ).annotate(
+        hour=ExtractHour('time_in')
+    ).values('hour').annotate(
+        count=Count('id')
+    ).order_by('-count').first()
+    peak_hour = f"{peak_hour_data['hour']}:00" if peak_hour_data else 'N/A'
+
+    # Peak day of week
+    day_names = ['', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+    peak_day_data = Session.objects.filter(
+        time_in__date__gte=month_ago
+    ).annotate(
+        weekday=ExtractWeekDay('time_in')
+    ).values('weekday').annotate(
+        count=Count('id')
+    ).order_by('-count').first()
+    peak_day = day_names[peak_day_data['weekday']] if peak_day_data else 'N/A'
+
+    # Avg revenue per session
+    avg_rev_per_session = Session.objects.filter(
+        time_in__date__gte=month_ago,
+        status__in=['active', 'expired', 'paused']
+    ).aggregate(avg=Avg('amount_paid'))['avg'] or 0
+
+    # Revenue growth (this week vs last week)
+    this_week_rev = Session.objects.filter(
+        time_in__date__gte=week_ago,
+        status__in=['active', 'expired', 'paused']
+    ).aggregate(total=Sum('amount_paid'))['total'] or 0
+    last_week_rev = Session.objects.filter(
+        time_in__date__gte=week_ago - timedelta(days=7),
+        time_in__date__lt=week_ago,
+        status__in=['active', 'expired', 'paused']
+    ).aggregate(total=Sum('amount_paid'))['total'] or 0
+    if last_week_rev > 0:
+        revenue_growth = round(((this_week_rev - last_week_rev) / last_week_rev) * 100, 1)
+    else:
+        revenue_growth = 100 if this_week_rev > 0 else 0
+
+    # Sessions this month
+    total_sessions_month = Session.objects.filter(
+        time_in__date__gte=month_ago
+    ).count()
+
+    # Unique devices this month
+    unique_devices = Session.objects.filter(
+        time_in__date__gte=month_ago
+    ).values('mac_address').distinct().count()
+
+    # Retention: devices with >1 session
+    from django.db.models import Count as CountAgg
+    returning_devices = Session.objects.filter(
+        time_in__date__gte=month_ago
+    ).values('mac_address').annotate(
+        sessions=CountAgg('id')
+    ).filter(sessions__gt=1).count()
+    retention_rate = round((returning_devices / unique_devices) * 100, 1) if unique_devices > 0 else 0
+
+    # ── Prescriptive Insights ──
+    insights = []
+    if peak_hour_data:
+        insights.append({
+            'title': 'Optimize for Peak Hours',
+            'text': f"Your busiest hour is {peak_hour}. Consider offering time-limited promotions during off-peak hours to spread demand.",
+            'type': 'tip'
+        })
+    if revenue_growth < 0:
+        insights.append({
+            'title': 'Revenue Declining',
+            'text': f"Revenue dropped {abs(revenue_growth)}% vs last week. Consider adding a new plan or running a coin-back promotion.",
+            'type': 'warning'
+        })
+    elif revenue_growth > 20:
+        insights.append({
+            'title': 'Strong Growth',
+            'text': f"Revenue grew {revenue_growth}% this week — great momentum! Keep current pricing strategy.",
+            'type': 'success'
+        })
+    if retention_rate < 30:
+        insights.append({
+            'title': 'Low Retention',
+            'text': f"Only {retention_rate}% of users return. Consider longer plans or loyalty discounts to increase retention.",
+            'type': 'warning'
+        })
+    if top_plan != 'N/A' and plan_stats and len(plan_stats) > 1:
+        top_pct = round((plan_stats[0]['count'] / total_sessions_month) * 100) if total_sessions_month > 0 else 0
+        if top_pct > 70:
+            insights.append({
+                'title': 'Over-reliance on One Plan',
+                'text': f"{top_plan} accounts for {top_pct}% of sessions. Diversify by promoting other plans.",
+                'type': 'info'
+            })
 
     context = {
         'plan_stats': plan_stats,
         'avg_duration': round(avg_duration, 1),
-        'total_bandwidth': round(total_bandwidth, 1),
+        'top_plan': top_plan,
+        'peak_hour': peak_hour,
+        'peak_day': peak_day,
+        'avg_rev_per_session': round(avg_rev_per_session, 1),
+        'revenue_growth': revenue_growth,
+        'total_sessions_month': total_sessions_month,
+        'unique_devices': unique_devices,
+        'retention_rate': retention_rate,
+        'insights': insights,
         'active_page': 'analytics',
     }
     return render(request, 'dashboard/analytics.html', context)

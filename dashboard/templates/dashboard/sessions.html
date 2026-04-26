@@ -16,6 +16,13 @@
             <option value="expired" {% if status_filter == 'expired' %}selected{% endif %}>Expired</option>
             <option value="paused" {% if status_filter == 'paused' %}selected{% endif %}>Paused</option>
         </select>
+        <select name="period" class="form-input" id="period-filter" onchange="this.form.submit()">
+            <option value="">All Time</option>
+            <option value="today" {% if period == 'today' %}selected{% endif %}>Today</option>
+            <option value="week" {% if period == 'week' %}selected{% endif %}>This Week</option>
+            <option value="month" {% if period == 'month' %}selected{% endif %}>This Month</option>
+            <option value="year" {% if period == 'year' %}selected{% endif %}>This Year</option>
+        </select>
         <button type="submit" class="btn btn-primary btn-sm" id="search-btn">
             <i class="bi bi-search"></i> Search
         </button>
