@@ -1203,27 +1203,40 @@ def connected_users(request):
 @api_view(["GET"])
 def bandwidth_usage(request):
     """
-    Returns bandwidth usage per user.
+    Returns real bandwidth usage per user from iptables byte counters.
     GET /api/bandwidth/
     """
     auth_error = _require_dashboard_admin_response(request)
     if auth_error:
         return auth_error
 
-    active_sessions = Session.objects.filter(status="active").values(
-        "mac_address",
-        "device_name",
-        "bandwidth_used_mb",
-    )
-    active_sessions_list = list(active_sessions)
-    return Response(
-        {
-            "users": active_sessions_list,
-            "total_bandwidth_mb": sum(
-                session["bandwidth_used_mb"] for session in active_sessions_list
-            ),
-        }
-    )
+    from .bandwidth import get_all_device_bandwidth_mb
+
+    # Get real bandwidth from iptables
+    device_bandwidth = get_all_device_bandwidth_mb()
+
+    # Match MACs with active sessions for device names
+    active_sessions = {
+        s.mac_address.upper(): s.device_name or 'Unknown'
+        for s in Session.objects.filter(status="active")
+    }
+
+    users = []
+    total_bandwidth = 0.0
+    for entry in device_bandwidth:
+        mac = entry['mac_address']
+        mb = entry['bandwidth_mb']
+        total_bandwidth += mb
+        users.append({
+            'mac_address': mac,
+            'device_name': active_sessions.get(mac, 'Unknown'),
+            'bandwidth_used_mb': mb,
+        })
+
+    return Response({
+        "users": users,
+        "total_bandwidth_mb": round(total_bandwidth, 2),
+    })
 
 
 @api_view(["POST"])

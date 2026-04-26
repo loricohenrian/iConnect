@@ -157,7 +157,7 @@ def dashboard_stats_api(request):
     if not _is_dashboard_admin(request.user):
         return Response({'detail': 'Authentication required.'}, status=status.HTTP_401_UNAUTHORIZED)
 
-    today = timezone.now().date()
+    today = timezone.localdate()
     week_ago = today - timedelta(days=7)
 
     # Revenue today
@@ -293,7 +293,7 @@ def heatmap_data_api(request):
     if not _is_dashboard_admin(request.user):
         return Response({'detail': 'Authentication required.'}, status=status.HTTP_401_UNAUTHORIZED)
 
-    week_ago = timezone.now().date() - timedelta(days=7)
+    week_ago = timezone.localdate() - timedelta(days=7)
 
     sessions = Session.objects.filter(
         time_in__date__gte=week_ago
@@ -316,7 +316,7 @@ def revenue_data_api(request):
         return Response({'detail': 'Authentication required.'}, status=status.HTTP_401_UNAUTHORIZED)
 
     period = request.query_params.get('period', 'weekly')
-    today = timezone.now().date()
+    today = timezone.localdate()
 
     if period == 'daily':
         start_date = today
@@ -390,7 +390,7 @@ def revenue_data_api(request):
 @user_passes_test(_is_dashboard_admin, login_url='dashboard:login')
 def overview(request):
     """Admin dashboard overview page."""
-    today = timezone.now().date()
+    today = timezone.localdate()
 
     revenue_today = Session.objects.filter(
         time_in__date=today, status__in=['active', 'expired', 'paused']
@@ -533,7 +533,7 @@ def heatmap(request):
 @user_passes_test(_is_dashboard_admin, login_url='dashboard:login')
 def analytics_view(request):
     """User behavior analytics page with diagnostic & prescriptive insights."""
-    today = timezone.now().date()
+    today = timezone.localdate()
     month_ago = today - timedelta(days=30)
     week_ago = today - timedelta(days=7)
 
@@ -688,7 +688,7 @@ def roi(request):
         daily_avg = total_revenue / days_operating
         remaining = max(0, total_cost - total_revenue)
         days_to_breakeven = int(remaining / daily_avg) if daily_avg > 0 else 0
-        projected_date = timezone.now().date() + timedelta(days=days_to_breakeven)
+        projected_date = timezone.localdate() + timedelta(days=days_to_breakeven)
     else:
         daily_avg = 0
         days_to_breakeven = 0

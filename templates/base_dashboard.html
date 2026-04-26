@@ -15,7 +15,6 @@
     <!-- Sidebar Navigation -->
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-brand">
-            <img src="{% static 'img/final_iconnect_logo.png' %}" alt="iConnect" style="width: 40px; height: 40px; border-radius: 50%; margin-bottom: 8px;">
             <div class="brand-name">iConnect</div>
             <div class="brand-subtitle">Admin Dashboard</div>
         </div>
@@ -66,10 +65,6 @@
                 <a href="{% url 'dashboard:plans' %}" class="nav-item {% if active_page == 'plans' %}active{% endif %}" id="nav-plans">
                     <i class="bi bi-tags"></i>
                     <span>WiFi Rates</span>
-                </a>
-                <a href="{% url 'dashboard:security' %}" class="nav-item {% if active_page == 'security' %}active{% endif %}" id="nav-security">
-                    <i class="bi bi-shield-exclamation"></i>
-                    <span>Security</span>
                 </a>
                 <a href="{% url 'dashboard:account' %}" class="nav-item {% if active_page == 'account' %}active{% endif %}" id="nav-account">
                     <i class="bi bi-person-gear"></i>

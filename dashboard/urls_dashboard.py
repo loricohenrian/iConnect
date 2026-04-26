@@ -18,6 +18,5 @@ urlpatterns = [
     path('roi/', views.roi, name='roi'),
     path('announcements/', views.announcements_view, name='announcements'),
     path('plans/', views.plans_view, name='plans'),
-    path('security/', views.security_view, name='security'),
     path('account/', views.account_view, name='account'),
 ]
