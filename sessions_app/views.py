@@ -618,6 +618,7 @@ def session_start(request):
                 CoinEvent.objects.create(
                     mac_address=mac_address,
                     amount=overpayment,
+                    denomination=overpayment if overpayment in (1, 5, 10, 20) else 1,
                     session=None,
                 )
 
@@ -898,6 +899,7 @@ def session_extend_paid(request):
                 CoinEvent.objects.create(
                     mac_address=mac_address,
                     amount=overpayment,
+                    denomination=overpayment if overpayment in (1, 5, 10, 20) else 1,
                     session=None,
                 )
 
