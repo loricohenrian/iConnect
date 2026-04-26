@@ -269,7 +269,13 @@ def _get_or_create_start_coin_request(mac_address, ip_address, plan):
     ).order_by("created_at", "id").first()
 
     if existing_request:
-        return _sync_coin_request_progress(existing_request), False
+        # If same plan, reuse. If different plan, cancel and create new.
+        if existing_request.plan_id == plan.id:
+            return _sync_coin_request_progress(existing_request), False
+        else:
+            existing_request.status = CoinInsertRequest.STATUS_CANCELLED
+            existing_request.completed_at = timezone.now()
+            existing_request.save(update_fields=["status", "completed_at"])
 
     queue_depth = CoinInsertRequest.objects.filter(
         status__in=[CoinInsertRequest.STATUS_PENDING, CoinInsertRequest.STATUS_ACTIVE]

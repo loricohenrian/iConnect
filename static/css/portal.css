@@ -27,25 +27,19 @@
    ============================================ */
 .portal-header {
     background: var(--color-primary);
-    padding: 20px 20px 16px;
+    padding: 16px 20px;
     text-align: center;
     width: 100%;
 }
 
 .portal-header .portal-logo {
-    width: 48px;
-    height: 48px;
-    object-fit: contain;
+    width: 64px;
+    height: 64px;
+    object-fit: cover;
     display: block;
-    margin: 0 auto 6px;
-    border-radius: 10px;
-}
-
-.portal-header .brand-name {
-    font-size: 22px;
-    font-weight: 800;
-    letter-spacing: -1px;
-    color: var(--color-white);
+    margin: 0 auto;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.3);
 }
 
 /* ============================================
