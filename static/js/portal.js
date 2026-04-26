@@ -919,66 +919,18 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
     }
 
-    // Request notification permission for session warnings
-    if ("Notification" in window && Notification.permission === "default") {
-        Notification.requestPermission();
-    }
-
     const totalSeconds = parseInt(timerEl.dataset.seconds, 10) || 0;
     window.sessionTimer = new SessionTimer("session-timer", totalSeconds);
-    window.sessionTimer.onWarning = showFiveMinuteWarning;
+    window.sessionTimer.onWarning = () => {
+        const warningEl = document.getElementById("session-warning");
+        if (warningEl) {
+            warningEl.style.display = "block";
+            warningEl.textContent = "Less than 5 minutes remaining! Extend your session to stay connected.";
+        }
+    };
     window.sessionTimer.onExpire = () => {
-        // Send expiry notification
-        sendBrowserNotification(
-            "iConnect — Session Expired",
-            "Your WiFi session has ended. Insert coins to start a new session."
-        );
         window.location.href = buildPortalUrl("/", macAddress, { expired: 1 });
     };
     window.sessionTimer.start();
     pollSessionStatus(macAddress);
 });
-
-
-function sendBrowserNotification(title, body) {
-    if (!("Notification" in window)) return;
-    if (Notification.permission !== "granted") return;
-
-    try {
-        const notification = new Notification(title, {
-            body: body,
-            icon: "/static/img/final_iconnect_logo.png",
-            badge: "/static/img/final_iconnect_logo.png",
-            tag: "iconnect-session",
-            renotify: true,
-            requireInteraction: true,
-        });
-
-        // Auto-close after 15 seconds
-        setTimeout(() => notification.close(), 15000);
-
-        notification.onclick = () => {
-            window.focus();
-            notification.close();
-        };
-    } catch (e) {
-        // Fallback: some mobile browsers don't support Notification constructor
-        console.warn("Browser notification not supported:", e);
-    }
-}
-
-
-function showFiveMinuteWarning() {
-    // In-page warning banner
-    const warningEl = document.getElementById("session-warning");
-    if (warningEl) {
-        warningEl.style.display = "block";
-        warningEl.textContent = "⚠ Less than 5 minutes remaining! Extend your session to stay connected.";
-    }
-
-    // System-level push notification (works in other tabs/apps)
-    sendBrowserNotification(
-        "iConnect — 5 Minutes Left!",
-        "Your WiFi session is about to expire. Open iConnect to extend your time."
-    );
-}

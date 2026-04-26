@@ -3,6 +3,19 @@
  * Brand Guidelines Compliant
  */
 
+/* Remove blue tap highlight on mobile */
+*, *::before, *::after {
+    -webkit-tap-highlight-color: transparent;
+}
+
+*:focus {
+    outline: none;
+}
+
+button:focus, a:focus, input:focus, select:focus {
+    outline: none;
+    box-shadow: none;
+}
 /* Local-first typography (no external font CDN dependency) */
 
 /* ============================================
