@@ -25,6 +25,14 @@
 </div>
 {% else %}
 
+{% if balance > 0 %}
+<div class="balance-card mt-md">
+    <div class="balance-label">Your Balance</div>
+    <div class="balance-amount">₱{{ balance }}</div>
+    <div class="balance-hint">This will be applied to your next session</div>
+</div>
+{% endif %}
+
 <!-- Plan Selection -->
 <div class="mt-lg">
     <h2 class="text-center mb-sm">Choose Your Plan</h2>

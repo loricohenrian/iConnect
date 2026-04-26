@@ -973,6 +973,57 @@ def session_end(request):
     )
 
 
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def session_pause_toggle(request):
+    """
+    Toggle pause/resume for an active session.
+    POST /api/session/pause/
+    """
+    mac_address = request.data.get("mac_address", "").upper()
+    if not mac_address:
+        return Response(
+            {"error": "mac_address is required"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    session = Session.objects.filter(
+        mac_address=mac_address,
+        status__in=["active", "paused"],
+    ).first()
+
+    if not session:
+        return Response(
+            {"error": "No active or paused session found"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    if session.status == "active":
+        session.pause_session()
+        blocked = iptables.block_device(mac_address)
+        audit_logger.info(
+            "event=session_paused mac=%s blocked=%s ip=%s",
+            mac_address, blocked, _client_ip(request),
+        )
+        return Response({
+            "status": "paused",
+            "message": "Session paused. Internet disconnected.",
+            "time_remaining_seconds": session.time_remaining_seconds,
+        })
+    else:
+        session.resume_session()
+        allowed = iptables.allow_device(mac_address)
+        audit_logger.info(
+            "event=session_resumed mac=%s allowed=%s ip=%s",
+            mac_address, allowed, _client_ip(request),
+        )
+        return Response({
+            "status": "active",
+            "message": "Session resumed. Internet reconnected.",
+            "time_remaining_seconds": session.time_remaining_seconds,
+        })
+
+
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def session_status(request):

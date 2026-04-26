@@ -104,15 +104,17 @@
 
 .plan-card .plan-popular {
     position: absolute;
-    top: 12px;
-    right: 12px;
+    top: 6px;
+    right: 6px;
     background: var(--color-primary);
     color: white;
-    font-size: 10px;
-    font-weight: 800;
-    padding: 4px 10px;
-    border-radius: 20px;
+    font-size: 8px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 10px;
     text-transform: uppercase;
+    letter-spacing: 0.5px;
+    line-height: 1.2;
 }
 
 /* ============================================
@@ -362,4 +364,66 @@
     font-size: 12px;
     color: var(--color-gray);
     margin-top: 2px;
+}
+
+
+/* ============================================
+   Balance Card
+   ============================================ */
+.balance-card {
+    background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
+    color: var(--color-white);
+    border-radius: 16px;
+    padding: 20px;
+    text-align: center;
+}
+
+.balance-card .balance-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    opacity: 0.8;
+    margin-bottom: 4px;
+}
+
+.balance-card .balance-amount {
+    font-size: 32px;
+    font-weight: 800;
+    letter-spacing: -1px;
+}
+
+.balance-card .balance-hint {
+    font-size: 11px;
+    opacity: 0.7;
+    margin-top: 4px;
+}
+
+
+/* ============================================
+   Pause/Resume Button
+   ============================================ */
+.pause-btn {
+    display: block;
+    width: 100%;
+    max-width: 200px;
+    margin: 16px auto 0;
+    padding: 10px 20px;
+    border: 2px solid var(--color-border);
+    border-radius: 12px;
+    background: var(--color-white);
+    color: var(--color-dark);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition-base);
+}
+
+.pause-btn:active {
+    transform: scale(0.97);
+}
+
+.pause-btn.paused {
+    border-color: var(--color-success);
+    color: var(--color-success);
 }

@@ -79,6 +79,8 @@ class Session(models.Model):
     bandwidth_used_mb = models.FloatField(default=0)
     ip_address = models.GenericIPAddressField(null=True, blank=True)
     device_name = models.CharField(max_length=100, null=True, blank=True)
+    paused_at = models.DateTimeField(null=True, blank=True, help_text="When session was paused")
+    total_paused_seconds = models.FloatField(default=0, help_text="Total seconds spent paused")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -96,9 +98,14 @@ class Session(models.Model):
     @property
     def time_remaining_seconds(self):
         """Calculate remaining time in seconds from time_in and purchased minutes."""
+        if self.status == "paused":
+            # When paused, freeze remaining time at point of pause
+            elapsed = (self.paused_at - self.time_in).total_seconds() - self.total_paused_seconds
+            total_seconds = self.duration_minutes_purchased * 60
+            return max(0, total_seconds - elapsed)
         if self.status != "active":
             return 0
-        elapsed = (timezone.now() - self.time_in).total_seconds()
+        elapsed = (timezone.now() - self.time_in).total_seconds() - self.total_paused_seconds
         total_seconds = self.duration_minutes_purchased * 60
         remaining = total_seconds - elapsed
         return max(0, remaining)
@@ -125,7 +132,28 @@ class Session(models.Model):
         """Mark session as expired and set time_out."""
         self.status = "expired"
         self.time_out = timezone.now()
+        self.paused_at = None
         self.save()
+
+    def pause_session(self):
+        """Pause the session — freezes timer."""
+        if self.status != "active":
+            return False
+        self.status = "paused"
+        self.paused_at = timezone.now()
+        self.save(update_fields=["status", "paused_at"])
+        return True
+
+    def resume_session(self):
+        """Resume a paused session — restarts timer."""
+        if self.status != "paused" or not self.paused_at:
+            return False
+        paused_duration = (timezone.now() - self.paused_at).total_seconds()
+        self.total_paused_seconds += paused_duration
+        self.status = "active"
+        self.paused_at = None
+        self.save(update_fields=["status", "paused_at", "total_paused_seconds"])
+        return True
 
     @staticmethod
     def generate_voucher_code():

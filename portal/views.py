@@ -95,7 +95,7 @@ def index(request):
         ).exists()
         active_session = Session.objects.filter(
             mac_address=mac_address,
-            status="active",
+            status__in=["active", "paused"],
             ip_address=request_ip,
         ).select_related("plan").first()
 
@@ -103,7 +103,8 @@ def index(request):
         return redirect(f"/session/?mac={mac_address}")
 
     # Find the most picked plan (highest session count)
-    from django.db.models import Count
+    from django.db.models import Count, Sum
+    from sessions_app.models import CoinEvent
     most_popular = (
         Session.objects.values("plan_id")
         .annotate(pick_count=Count("id"))
@@ -111,6 +112,14 @@ def index(request):
         .first()
     )
     most_popular_plan_id = most_popular["plan_id"] if most_popular else None
+
+    # Calculate balance (unlinked coins for this device)
+    balance = 0
+    if mac_address:
+        balance = CoinEvent.objects.filter(
+            mac_address=mac_address,
+            session__isnull=True,
+        ).aggregate(total=Sum("amount"))["total"] or 0
 
     context = {
         "plans": plans,
@@ -121,6 +130,7 @@ def index(request):
         "mac_required": mac_required,
         "active_page": "home",
         "most_popular_plan_id": most_popular_plan_id,
+        "balance": balance,
     }
     return render(request, "portal/index.html", context)
 
@@ -135,14 +145,17 @@ def session_page(request):
     request_ip = _client_ip(request)
     active_session = Session.objects.filter(
         mac_address=mac_address,
-        status="active",
+        status__in=["active", "paused"],
         ip_address=request_ip,
     ).select_related("plan").first()
 
-    if not active_session or active_session.time_remaining_seconds <= 0:
-        if active_session:
-            active_session.expire_session()
-            iptables.block_device(active_session.mac_address)
+    if not active_session:
+        return redirect(f"/?expired=1&mac={mac_address}")
+
+    # Only expire active sessions (not paused) that ran out of time
+    if active_session.status == "active" and active_session.time_remaining_seconds <= 0:
+        active_session.expire_session()
+        iptables.block_device(active_session.mac_address)
         return redirect(f"/?expired=1&mac={mac_address}")
 
     context = {

@@ -920,17 +920,89 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const totalSeconds = parseInt(timerEl.dataset.seconds, 10) || 0;
+    const initialStatus = timerEl.dataset.status || "active";
     window.sessionTimer = new SessionTimer("session-timer", totalSeconds);
-    window.sessionTimer.onWarning = () => {
-        const warningEl = document.getElementById("session-warning");
-        if (warningEl) {
-            warningEl.style.display = "block";
-            warningEl.textContent = "Less than 5 minutes remaining! Extend your session to stay connected.";
-        }
-    };
     window.sessionTimer.onExpire = () => {
         window.location.href = buildPortalUrl("/", macAddress, { expired: 1 });
     };
-    window.sessionTimer.start();
+
+    // If paused, don't start the countdown
+    if (initialStatus !== "paused") {
+        window.sessionTimer.start();
+    } else {
+        window.sessionTimer.update();
+    }
+
     pollSessionStatus(macAddress);
+    initPauseButton(macAddress);
 });
+
+
+function initPauseButton(macAddress) {
+    const pauseBtn = document.getElementById("pause-btn");
+    if (!pauseBtn) return;
+
+    let isPaused = (document.getElementById("session-timer")?.dataset.status === "paused");
+
+    pauseBtn.addEventListener("click", async () => {
+        pauseBtn.disabled = true;
+
+        try {
+            const response = await fetch("/api/session/pause/", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": getCSRFToken(),
+                },
+                body: JSON.stringify({ mac_address: macAddress }),
+            });
+
+            const data = await response.json();
+            if (!response.ok) {
+                console.error("Pause error:", data.error);
+                return;
+            }
+
+            isPaused = data.status === "paused";
+            const statusEl = document.getElementById("connection-status");
+            const timerEl = document.getElementById("session-timer");
+
+            if (isPaused) {
+                // Paused: stop timer, update UI
+                pauseBtn.textContent = "Resume";
+                pauseBtn.classList.add("paused");
+                if (window.sessionTimer) window.sessionTimer.stop();
+                if (statusEl) {
+                    statusEl.querySelector(".status-dot").style.background = "var(--color-warning)";
+                    statusEl.querySelector("span:last-child").textContent = "Paused";
+                }
+                if (timerEl) {
+                    timerEl.classList.remove("timer-green");
+                    timerEl.classList.add("timer-amber");
+                    timerEl.dataset.status = "paused";
+                }
+            } else {
+                // Resumed: restart timer with remaining seconds
+                pauseBtn.textContent = "Pause";
+                pauseBtn.classList.remove("paused");
+                if (window.sessionTimer && data.time_remaining_seconds != null) {
+                    window.sessionTimer.setRemaining(data.time_remaining_seconds);
+                    window.sessionTimer.start();
+                }
+                if (statusEl) {
+                    statusEl.querySelector(".status-dot").style.background = "";
+                    statusEl.querySelector("span:last-child").textContent = "Connected";
+                }
+                if (timerEl) {
+                    timerEl.classList.remove("timer-amber");
+                    timerEl.classList.add("timer-green");
+                    timerEl.dataset.status = "active";
+                }
+            }
+        } catch (err) {
+            console.error("Pause toggle error:", err);
+        } finally {
+            pauseBtn.disabled = false;
+        }
+    });
+}

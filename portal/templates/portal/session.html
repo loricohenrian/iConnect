@@ -5,22 +5,25 @@
 {% block portal_content %}
 
 <!-- Connection Status -->
-<div class="status-connected mt-md">
-    <span class="status-dot"></span>
-    <span>Connected</span>
+<div class="status-connected mt-md" id="connection-status">
+    <span class="status-dot" {% if session.status == 'paused' %}style="background: var(--color-warning);"{% endif %}></span>
+    <span>{% if session.status == 'paused' %}Paused{% else %}Connected{% endif %}</span>
 </div>
-
-<!-- 5-minute warning banner (hidden until triggered by JS) -->
-<div class="alert alert-warning" id="session-warning" style="display: none; margin-top: 12px; text-align: center; font-weight: 600;"></div>
 
 <!-- Session Timer -->
 <div class="timer-container animate-fadeIn">
     <div class="timer-label">TIME REMAINING</div>
-    <div class="timer-display timer-green" id="session-timer"
+    <div class="timer-display {% if session.status == 'paused' %}timer-amber{% else %}timer-green{% endif %}" id="session-timer"
          data-seconds="{{ time_remaining_seconds }}"
-         data-mac="{{ mac_address }}">
+         data-mac="{{ mac_address }}"
+         data-status="{{ session.status }}">
         {{ session.time_remaining_display }}
     </div>
+
+    <!-- Pause/Resume Button -->
+    <button type="button" class="pause-btn {% if session.status == 'paused' %}paused{% endif %}" id="pause-btn">
+        {% if session.status == 'paused' %}Resume{% else %}Pause{% endif %}
+    </button>
 
     <!-- Plan info -->
     <div class="mt-md">
