@@ -3,6 +3,7 @@ Session management models.
 """
 import secrets
 import string
+from datetime import timedelta
 
 from django.conf import settings
 from django.db import models
@@ -131,7 +132,9 @@ class Session(models.Model):
     def expire_session(self):
         """Mark session as expired and set time_out."""
         self.status = "expired"
-        self.time_out = timezone.now()
+        # Calculate exact end time based on purchased duration + pause time
+        total_seconds = self.duration_minutes_purchased * 60 + self.total_paused_seconds
+        self.time_out = self.time_in + timedelta(seconds=total_seconds)
         self.paused_at = None
         self.save()
 

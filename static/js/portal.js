@@ -14,14 +14,33 @@ class SessionTimer {
         this.onExpire = null;
         this.onWarning = null;
         this.warningShown = false;
+        this.isPaused = false;
     }
 
     get remaining() {
+        if (this.isPaused) {
+            return Math.max(0, this.serverSeconds);
+        }
         const elapsed = (Date.now() - this.startedAt) / 1000;
         return Math.max(0, this.serverSeconds - elapsed);
     }
 
+    setRemaining(seconds) {
+        this.serverSeconds = seconds;
+        this.startedAt = Date.now();
+        this.isPaused = false;
+        this.update();
+    }
+
+    pause() {
+        this.isPaused = true;
+        this.serverSeconds = this.remaining;
+        this.stop();
+        this.update();
+    }
+
     start() {
+        this.isPaused = false;
         this.update();
         this.interval = setInterval(() => {
             this.update();
@@ -43,7 +62,7 @@ class SessionTimer {
 
         // Recalculate immediately when user returns to tab
         document.addEventListener("visibilitychange", () => {
-            if (!document.hidden) {
+            if (!document.hidden && !this.isPaused) {
                 this.update();
                 if (this.remaining <= 0 && this.onExpire) {
                     this.stop();
@@ -329,16 +348,12 @@ function formatCoinRequestMeta(coinRequest) {
     }
 
     const status = (coinRequest.status || "").toUpperCase();
-    const queuePosition = Number(coinRequest.queue_position || 0);
     const credited = Number(coinRequest.credited_amount || 0);
     const expected = Number(coinRequest.expected_amount || 0);
 
     const parts = [];
     if (status) {
         parts.push(`Status: ${status}`);
-    }
-    if (queuePosition > 0) {
-        parts.push(`Queue: #${queuePosition}`);
     }
     if (expected > 0) {
         parts.push(`Payment: ₱${credited} / ₱${expected}`);
@@ -973,7 +988,7 @@ function initPauseButton(macAddress) {
                 // Paused: stop timer, update UI
                 pauseBtn.textContent = "Resume";
                 pauseBtn.classList.add("paused");
-                if (window.sessionTimer) window.sessionTimer.stop();
+                if (window.sessionTimer) window.sessionTimer.pause();
                 if (statusEl) {
                     statusEl.querySelector(".status-dot").style.background = "var(--color-warning)";
                     statusEl.querySelector("span:last-child").textContent = "Paused";

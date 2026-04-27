@@ -38,7 +38,7 @@
         </div>
         <div class="detail-row">
             <span class="detail-label">Duration</span>
-            <span class="detail-value">{{ session.plan.duration_display }}</span>
+            <span class="detail-value">{{ session.duration_minutes_purchased }} mins</span>
         </div>
         <div class="detail-row">
             <span class="detail-label">Started</span>
@@ -54,7 +54,9 @@
 <!-- Extend Session -->
 <div class="extend-section animate-fadeIn" style="animation-delay: 150ms">
     <h3><i class="bi bi-plus-circle"></i> Extend Session</h3>
-    <p class="text-small text-muted mb-md">Select a plan and insert coins to add more time.</p>
+    <p class="text-small text-muted mb-md">
+        Select a plan → Tap <strong>Request Coin Slot</strong> → Insert coins → Tap <strong>Extend Now</strong>
+    </p>
 
     <input type="hidden" id="extend-plan" value="">
     <div class="plan-grid mb-md" id="extend-plan-grid">
