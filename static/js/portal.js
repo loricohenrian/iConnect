@@ -950,7 +950,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const totalSeconds = parseInt(timerEl.dataset.seconds, 10) || 0;
     const initialStatus = timerEl.dataset.status || "active";
     window.sessionTimer = new SessionTimer("session-timer", totalSeconds);
-    window.sessionTimer.onExpire = () => {
+    window.sessionTimer.onExpire = async () => {
+        // Call status API immediately to trigger server-side iptables block
+        try {
+            await fetch(`/api/session/status/?mac_address=${encodeURIComponent(macAddress)}`);
+        } catch (e) { /* ignore */ }
         window.location.href = buildPortalUrl("/", macAddress, { expired: 1 });
     };
 

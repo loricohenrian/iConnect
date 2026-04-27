@@ -54,11 +54,10 @@
 
 {% block dashboard_js %}
 <script>
-document.addEventListener('DOMContentLoaded', async () => {
+async function loadHeatmap() {
     const data = await fetchHeatmapData();
     initHeatmap('heatmap-container', data);
 
-    // Calculate peak summaries
     const morningPeak = document.getElementById('morning-peak');
     const afternoonPeak = document.getElementById('afternoon-peak');
 
@@ -82,6 +81,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         <p class="text-small text-muted mt-xs">12:00 PM — 6:00 PM</p>
         ${afternoonBest ? `<p class="text-small text-muted">Busiest: ${afternoonBest.hour}:00 (${afternoonBest.count} sessions)</p>` : ''}
     `;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadHeatmap();
+    // Auto-refresh every 30 seconds for real-time updates
+    setInterval(loadHeatmap, 30000);
 });
 </script>
 {% endblock %}
+

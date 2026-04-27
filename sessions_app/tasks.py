@@ -1,4 +1,4 @@
-﻿"""
+"""
 iConnect — Celery Tasks
 
 Background tasks for session management and daily summaries.
@@ -10,6 +10,36 @@ from django.db.models.functions import ExtractHour
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+@shared_task
+def restore_iptables_on_boot():
+    """
+    Restore iptables rules after reboot.
+    Active sessions: allow internet. Paused sessions: keep blocked.
+    """
+    from .models import Session
+    from . import iptables
+
+    active = Session.objects.filter(status='active')
+    paused = Session.objects.filter(status='paused')
+
+    allowed = 0
+    for session in active:
+        if session.time_remaining_seconds > 0:
+            iptables.allow_device(session.mac_address)
+            allowed += 1
+        else:
+            session.expire_session()
+            iptables.block_device(session.mac_address)
+
+    blocked = 0
+    for session in paused:
+        iptables.block_device(session.mac_address)
+        blocked += 1
+
+    logger.info(f'Boot: restored {allowed} active, {blocked} paused iptables rules')
+    return f'Restored {allowed} active, {blocked} paused'
 
 
 @shared_task
