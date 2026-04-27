@@ -64,28 +64,32 @@
                 <tbody>
                     {% for plan in plans %}
                     <tr>
-                        <form method="POST" action="">
-                            {% csrf_token %}
-                            <input type="hidden" name="action" value="update">
-                            <input type="hidden" name="plan_id" value="{{ plan.id }}">
-                            <td><input type="text" name="name" class="form-input" style="width: 100%; max-width: 140px; padding: 6px 8px; font-size: 13px;" value="{{ plan.name }}" required></td>
-                            <td><input type="number" name="price" min="1" class="form-input" style="width: 70px; padding: 6px 8px; font-size: 13px;" value="{{ plan.price }}" required></td>
-                            <td><input type="number" name="duration_minutes" min="1" class="form-input" style="width: 80px; padding: 6px 8px; font-size: 13px;" value="{{ plan.duration_minutes }}" required></td>
-                            <td>
-                                <label class="d-flex align-items-center gap-xs">
-                                    <input type="checkbox" name="is_active" {% if plan.is_active %}checked{% endif %}>
-                                </label>
-                            </td>
-                            <td class="d-flex gap-xs">
-                                <button type="submit" class="btn btn-sm btn-primary" style="padding: 4px 10px; font-size: 12px;">Save</button>
-                        </form>
-                        <form method="POST" action="" onsubmit="return confirm('Delete this plan?');" style="display: inline;">
-                            {% csrf_token %}
-                            <input type="hidden" name="action" value="delete">
-                            <input type="hidden" name="plan_id" value="{{ plan.id }}">
-                            <button type="submit" class="btn btn-sm btn-danger" style="padding: 4px 10px; font-size: 12px;">Del</button>
-                        </form>
-                            </td>
+                        <td>
+                            <form method="POST" action="" id="plan-form-{{ plan.id }}">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="update">
+                                <input type="hidden" name="plan_id" value="{{ plan.id }}">
+                                <input type="text" name="name" class="form-input" style="width: 100%; max-width: 140px; padding: 6px 8px; font-size: 13px;" value="{{ plan.name }}" required>
+                        </td>
+                        <td><input type="number" name="price" min="1" class="form-input" style="width: 70px; padding: 6px 8px; font-size: 13px;" value="{{ plan.price }}" required form="plan-form-{{ plan.id }}"></td>
+                        <td><input type="number" name="duration_minutes" min="1" class="form-input" style="width: 80px; padding: 6px 8px; font-size: 13px;" value="{{ plan.duration_minutes }}" required form="plan-form-{{ plan.id }}"></td>
+                        <td>
+                            <label class="d-flex align-items-center gap-xs">
+                                <input type="checkbox" name="is_active" {% if plan.is_active %}checked{% endif %} form="plan-form-{{ plan.id }}">
+                            </label>
+                        </td>
+                        <td>
+                            <div class="d-flex gap-xs" style="align-items: center;">
+                                <button type="submit" form="plan-form-{{ plan.id }}" class="btn btn-sm btn-primary" style="padding: 4px 10px; font-size: 12px;">Save</button>
+                            </form>
+                            <form method="POST" action="" onsubmit="return confirm('Delete this plan?');" style="display: inline;">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="delete">
+                                <input type="hidden" name="plan_id" value="{{ plan.id }}">
+                                <button type="submit" class="btn btn-sm btn-danger" style="padding: 4px 10px; font-size: 12px;">Del</button>
+                            </form>
+                            </div>
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>

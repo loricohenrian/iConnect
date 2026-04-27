@@ -3,6 +3,18 @@
  * Sidebar + main content layout
  */
 
+/* ── Override base maroon palette for dashboard ── */
+.dashboard-wrapper {
+    --color-primary:      #3B82F6;
+    --color-primary-dark:  #1E40AF;
+    --color-primary-light: #EFF6FF;
+    --color-dark:         #1E293B;
+    --color-info:         #0EA5E9;
+    --color-gray:         #64748B;
+    --color-light:        #F8FAFC;
+    --color-border:       #E2E8F0;
+}
+
 /* ============================================
    Dashboard Layout
    ============================================ */

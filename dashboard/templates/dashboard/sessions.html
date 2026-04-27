@@ -7,9 +7,9 @@
 
 <!-- Filter Bar -->
 <div class="filter-bar">
-    <form method="GET" action="" class="d-flex gap-md flex-wrap w-100">
+    <form method="GET" action="" class="d-flex gap-md flex-wrap w-100" id="sessions-filter-form">
         <input type="search" name="search" value="{{ search }}" placeholder="Search MAC, device, IP..."
-               class="form-input search-input" id="session-search">
+               class="form-input search-input" id="session-search" onchange="this.form.submit()">
         <select name="status" class="form-input" id="status-filter" onchange="this.form.submit()">
             <option value="">All Status</option>
             <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
@@ -17,15 +17,12 @@
             <option value="paused" {% if status_filter == 'paused' %}selected{% endif %}>Paused</option>
         </select>
         <select name="period" class="form-input" id="period-filter" onchange="this.form.submit()">
-            <option value="">All Time</option>
-            <option value="today" {% if period == 'today' %}selected{% endif %}>Today</option>
+            <option value="today" {% if period == 'today' or not period %}selected{% endif %}>Today</option>
             <option value="week" {% if period == 'week' %}selected{% endif %}>This Week</option>
             <option value="month" {% if period == 'month' %}selected{% endif %}>This Month</option>
             <option value="year" {% if period == 'year' %}selected{% endif %}>This Year</option>
+            <option value="all" {% if period == 'all' %}selected{% endif %}>All Time</option>
         </select>
-        <button type="submit" class="btn btn-primary btn-sm" id="search-btn">
-            <i class="bi bi-search"></i> Search
-        </button>
         <button type="button" class="btn btn-sm btn-secondary" onclick="exportTableToCSV('sessions-table', 'iconnect_sessions.csv')" id="export-csv-btn">
             <i class="bi bi-download"></i> Export CSV
         </button>

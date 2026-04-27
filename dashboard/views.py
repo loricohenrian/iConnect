@@ -478,20 +478,22 @@ def sessions_view(request):
     """Session logs page."""
     status_filter = request.GET.get('status', '')
     search = request.GET.get('search', '')
-    period = request.GET.get('period', '')
+    period = request.GET.get('period', 'today')
 
     sessions = Session.objects.select_related('plan').all()
 
-    # Time period filter
+    # Time period filter (default: today)
     now = timezone.now()
-    if period == 'today':
-        sessions = sessions.filter(time_in__date=now.date())
+    today = timezone.localdate()
+    if period == 'today' or not period:
+        sessions = sessions.filter(time_in__date=today)
     elif period == 'week':
         sessions = sessions.filter(time_in__gte=now - timedelta(days=7))
     elif period == 'month':
         sessions = sessions.filter(time_in__gte=now - timedelta(days=30))
     elif period == 'year':
         sessions = sessions.filter(time_in__gte=now - timedelta(days=365))
+    # 'all' = no filter
 
     if status_filter:
         sessions = sessions.filter(status=status_filter)
@@ -559,14 +561,23 @@ def analytics_view(request):
     # ── Diagnostic Analytics ──
     # Peak hour (which hour has most sessions)
     from django.db.models.functions import ExtractHour, ExtractWeekDay
+    import zoneinfo
+    tz_info = zoneinfo.ZoneInfo(settings.TIME_ZONE)
     peak_hour_data = Session.objects.filter(
         time_in__date__gte=month_ago
     ).annotate(
-        hour=ExtractHour('time_in')
+        hour=ExtractHour('time_in', tzinfo=tz_info)
     ).values('hour').annotate(
         count=Count('id')
     ).order_by('-count').first()
-    peak_hour = f"{peak_hour_data['hour']}:00" if peak_hour_data else 'N/A'
+    peak_hour_val = peak_hour_data['hour'] if peak_hour_data else None
+    if peak_hour_val is not None:
+        h = int(peak_hour_val)
+        ampm = 'AM' if h < 12 else 'PM'
+        display_h = h % 12 or 12
+        peak_hour = f"{display_h}:00 {ampm}"
+    else:
+        peak_hour = 'N/A'
 
     # Peak day of week
     day_names = ['', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -674,9 +685,20 @@ def analytics_view(request):
 @user_passes_test(_is_dashboard_admin, login_url='dashboard:login')
 def roi(request):
     """ROI tracker page."""
+    # Handle add cost POST
+    if request.method == 'POST' and request.POST.get('action') == 'add_cost':
+        desc = request.POST.get('description', '').strip()
+        amount = request.POST.get('amount', '').strip()
+        if desc and amount:
+            try:
+                ProjectCost.objects.create(description=desc, amount=int(amount))
+            except (ValueError, TypeError):
+                pass
+        return redirect('dashboard:roi')
+
     total_cost = ProjectCost.total_cost()
     total_revenue = Session.objects.filter(
-        status__in=['active', 'expired']
+        status__in=['active', 'expired', 'paused']
     ).aggregate(total=Sum('amount_paid'))['total'] or 0
 
     roi_pct = (total_revenue / total_cost * 100) if total_cost > 0 else 0

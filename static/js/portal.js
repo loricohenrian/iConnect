@@ -794,6 +794,17 @@ function initExtendSessionFlow(macAddress) {
                     );
                 }
 
+                // Update amount paid and duration display in real-time
+                if (data.session) {
+                    const amountEl = document.querySelector('.detail-row .detail-value');
+                    if (amountEl) amountEl.textContent = `₱${data.session.amount_paid}`;
+                    const detailRows = document.querySelectorAll('.detail-row');
+                    if (detailRows.length >= 2) {
+                        const durationEl = detailRows[1].querySelector('.detail-value');
+                        if (durationEl) durationEl.textContent = `${data.session.duration_minutes_purchased} mins`;
+                    }
+                }
+
                 // Reset extend state
                 state.requestId = null;
                 state.readyToStart = false;
@@ -823,7 +834,7 @@ function initExtendSessionFlow(macAddress) {
 }
 
 
-function pollSessionStatus(macAddress, intervalMs = 10000) {
+function pollSessionStatus(macAddress, intervalMs = 3000) {
     setInterval(async () => {
         try {
             const response = await fetch(

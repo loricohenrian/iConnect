@@ -1,77 +1,110 @@
 /*
  * Local fallback for Bootstrap Icons classes.
- * Uses simple Unicode symbols since captive portal has no internet for CDN.
+ * Uses Unicode symbols since captive portal has no internet for CDN.
+ * These match the sidebar navigation and portal bottom nav.
  */
 
 .bi {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 1.1em;
-    min-width: 1.1em;
+    width: 1.2em;
+    min-width: 1.2em;
     line-height: 1;
     vertical-align: -0.125em;
     font-style: normal;
     font-weight: normal;
 }
 
-/* Default dot */
+/* Default fallback dot */
 .bi::before { content: "\2022"; font-size: 1em; }
 
-/* Navigation */
-.bi-house::before { content: "\2302"; font-size: 1.2em; }
-.bi-clock-history::before { content: "\29D6"; font-size: 1em; }
-.bi-question-circle::before { content: "?"; font-size: 1em; font-weight: 700; }
+/* ─── Portal Bottom Nav ─── */
+.bi-house::before { content: "\1F3E0"; font-size: 1em; }
+.bi-clock-history::before { content: "\1F553"; font-size: 1em; }
+.bi-question-circle::before { content: "\2753"; font-size: 1em; }
 
-/* Session */
-.bi-wifi::before { content: "\25E0"; font-size: 1em; }
-.bi-hourglass-split::before { content: "\29D6"; font-size: 1em; }
-.bi-plus-circle::before { content: "+"; font-size: 1.2em; font-weight: 700; }
-.bi-megaphone-fill::before { content: "\25B6"; font-size: 0.8em; }
-.bi-speedometer2::before { content: "\2191"; font-size: 1em; }
-.bi-calculator::before { content: "\20B1"; font-size: 1em; }
-.bi-coin::before { content: "\20B1"; font-size: 1em; }
+/* ─── Session & Payment ─── */
+.bi-wifi::before { content: "\1F4F6"; font-size: 1em; }
+.bi-hourglass-split::before { content: "\231B"; font-size: 1em; }
+.bi-plus-circle::before { content: "\2795"; font-size: 1em; }
+.bi-megaphone::before,
+.bi-megaphone-fill::before { content: "\1F4E2"; font-size: 0.9em; }
+.bi-speedometer2::before { content: "\1F4CA"; font-size: 1em; }
+.bi-calculator::before { content: "\1F5A9"; font-size: 1em; }
+.bi-coin::before { content: "\1FA99"; font-size: 1em; }
+.bi-send::before { content: "\27A4"; font-size: 1em; }
 
-/* Warnings */
+/* ─── Warnings & Info ─── */
 .bi-exclamation-triangle-fill::before,
-.bi-exclamation-triangle::before,
+.bi-exclamation-triangle::before { content: "\26A0"; font-size: 1em; }
 .bi-exclamation-circle::before,
-.bi-exclamation-octagon::before { content: "!"; font-size: 1em; font-weight: 700; }
+.bi-exclamation-octagon::before { content: "\2757"; font-size: 1em; }
+.bi-info-circle::before { content: "\2139"; font-size: 1em; }
 
-/* Info/locks */
-.bi-translate::before { content: "\2637"; font-size: 1em; }
+/* ─── Security & Lock ─── */
+.bi-translate::before { content: "\1F310"; font-size: 1em; }
 .bi-shield-lock::before,
-.bi-shield-check::before,
-.bi-lock::before { content: "\2616"; font-size: 1em; }
-.bi-wifi-off::before { content: "\2298"; font-size: 1em; }
+.bi-shield-check::before { content: "\1F6E1"; font-size: 1em; }
+.bi-shield-exclamation::before { content: "\1F6E1"; font-size: 1em; }
+.bi-lock::before { content: "\1F512"; font-size: 1em; }
+.bi-wifi-off::before { content: "\274C"; font-size: 1em; }
 
-/* Checks/crosses */
+/* ─── Checks, Crosses, Actions ─── */
 .bi-check2::before,
-.bi-check2-circle::before { content: "\2713"; font-size: 1em; }
-.bi-x-circle::before { content: "\2717"; font-size: 1em; }
+.bi-check-circle::before,
+.bi-check2-circle::before { content: "\2705"; font-size: 1em; }
+.bi-x-circle::before { content: "\274C"; font-size: 1em; }
 .bi-list::before { content: "\2630"; font-size: 1em; }
+.bi-search::before { content: "\1F50D"; font-size: 1em; }
 
-/* Dashboard Navigation Icons */
-.bi-grid-1x2::before { content: "\25A6"; font-size: 1em; }
-.bi-people::before { content: "\263A"; font-size: 1em; }
-.bi-clock::before { content: "\231A"; font-size: 1em; }
-.bi-bar-chart::before { content: "\2584"; font-size: 1em; }
-.bi-calendar-range::before { content: "\2637"; font-size: 1em; }
-.bi-graph-up::before { content: "\2197"; font-size: 1em; }
-.bi-download::before { content: "\21E9"; font-size: 1em; }
-.bi-bell::before { content: "\266A"; font-size: 1em; }
-.bi-tags::before { content: "\2606"; font-size: 1em; }
-.bi-shield-exclamation::before { content: "\26A0"; font-size: 1em; }
-.bi-person-gear::before { content: "\2699"; font-size: 1em; }
-.bi-box-arrow-right::before { content: "\21E8"; font-size: 1em; }
+/* ─── Dashboard Sidebar Navigation ─── */
+.bi-grid-1x2::before { content: "\1F4CA"; font-size: 1em; }       /* Overview */
+.bi-people::before { content: "\1F465"; font-size: 1em; }          /* Sessions */
+.bi-clock::before { content: "\1F553"; font-size: 1em; }           /* Time */
+.bi-bar-chart::before { content: "\1F4C8"; font-size: 1em; }       /* ROI */
+.bi-calendar-range::before { content: "\1F4C5"; font-size: 1em; }  /* Peak Hours */
+.bi-graph-up::before,
+.bi-graph-up-arrow::before { content: "\1F4C8"; font-size: 1em; }  /* Analytics */
+.bi-download::before { content: "\1F4E5"; font-size: 1em; }        /* Reports */
+.bi-bell::before,
+.bi-bell-slash::before { content: "\1F514"; font-size: 1em; }      /* Announcements */
+.bi-tags::before { content: "\1F3F7"; font-size: 1em; }            /* WiFi Rates */
+.bi-person-gear::before { content: "\2699"; font-size: 1em; }      /* Account */
+.bi-box-arrow-right::before { content: "\1F6AA"; font-size: 1em; } /* Logout */
 .bi-gear::before { content: "\2699"; font-size: 1em; }
-.bi-pencil::before { content: "\270E"; font-size: 1em; }
-.bi-trash::before { content: "\2715"; font-size: 1em; }
+
+/* ─── CRUD & Edit ─── */
+.bi-pencil::before,
+.bi-pencil-square::before { content: "\270F"; font-size: 1em; }
+.bi-trash::before { content: "\1F5D1"; font-size: 1em; }
 .bi-plus::before,
-.bi-plus-lg::before { content: "+"; font-size: 1.2em; font-weight: 700; }
-.bi-arrow-repeat::before { content: "\21BB"; font-size: 1em; }
-.bi-eye::before { content: "\25C9"; font-size: 1em; }
-.bi-thermometer-half::before { content: "\2103"; font-size: 1em; }
-.bi-cpu::before { content: "\2338"; font-size: 1em; }
-.bi-memory::before { content: "\2593"; font-size: 1em; }
-.bi-hdd::before { content: "\25A3"; font-size: 1em; }
+.bi-plus-lg::before { content: "\2795"; font-size: 1em; }
+.bi-arrow-repeat::before { content: "\1F504"; font-size: 1em; }
+.bi-eye::before { content: "\1F441"; font-size: 1em; }
+
+/* ─── System Stats ─── */
+.bi-thermometer-half::before { content: "\1F321"; font-size: 1em; }
+.bi-cpu::before { content: "\1F4BB"; font-size: 1em; }
+.bi-memory::before { content: "\1F4BE"; font-size: 1em; }
+.bi-hdd::before { content: "\1F4BD"; font-size: 1em; }
+
+/* ─── File & Report Types ─── */
+.bi-file-earmark-text::before { content: "\1F4C4"; font-size: 1em; }
+.bi-file-earmark-bar-graph::before { content: "\1F4CA"; font-size: 1em; }
+.bi-file-earmark-spreadsheet::before { content: "\1F4CB"; font-size: 1em; }
+.bi-filetype-pdf::before { content: "\1F4C4"; font-size: 1em; }
+.bi-filetype-csv::before { content: "\1F4CB"; font-size: 1em; }
+.bi-table::before { content: "\1F4CB"; font-size: 1em; }
+.bi-receipt::before { content: "\1F4DC"; font-size: 1em; }
+.bi-calendar-check::before { content: "\1F4C5"; font-size: 1em; }
+
+/* ─── Toggle ─── */
+.bi-toggle-on::before { content: "\2705"; font-size: 1em; }
+.bi-toggle-off::before { content: "\2B55"; font-size: 1em; }
+
+/* ─── Lightbulb for AI insights ─── */
+.bi-lightbulb::before { content: "\1F4A1"; font-size: 1em; }
+.bi-activity::before { content: "\1F4C9"; font-size: 1em; }
+.bi-trophy::before { content: "\1F3C6"; font-size: 1em; }
+.bi-person-check::before { content: "\2705"; font-size: 1em; }

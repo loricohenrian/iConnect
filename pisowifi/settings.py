@@ -193,9 +193,9 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_BEAT_SCHEDULE = {
-    'check-expired-sessions-every-minute': {
+    'check-expired-sessions-every-10s': {
         'task': 'sessions_app.tasks.check_expired_sessions',
-        'schedule': crontab(minute='*'),
+        'schedule': 10.0,  # Every 10 seconds for near-instant internet removal
     },
     'expire-voucher-codes-every-minute': {
         'task': 'sessions_app.tasks.expire_voucher_codes',

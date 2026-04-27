@@ -60,9 +60,9 @@
 <div class="chart-card mt-lg animate-fadeIn" style="animation-delay: 400ms">
     <div class="chart-header">
         <h3 class="chart-title">Project Costs Breakdown</h3>
-        <a href="/admin/dashboard/projectcost/add/" class="btn btn-sm btn-primary" id="add-cost-btn">
+        <button type="button" class="btn btn-sm btn-primary" id="add-cost-btn" onclick="document.getElementById('add-cost-modal').style.display='flex'">
             <i class="bi bi-plus"></i> Add Cost
-        </a>
+        </button>
     </div>
 
     {% if costs %}
@@ -88,6 +88,29 @@
         <small>Add your project costs to track ROI accurately</small>
     </div>
     {% endif %}
+</div>
+
+<!-- Add Cost Modal -->
+<div id="add-cost-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
+    <div style="background:white; border-radius:12px; padding:24px; width:90%; max-width:400px; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
+        <h3 style="margin:0 0 16px;">Add Project Cost</h3>
+        <form method="POST" action="">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_cost">
+            <div class="form-group">
+                <label class="form-label">Description</label>
+                <input type="text" name="description" class="form-input" placeholder="e.g., Orange Pi Board" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Amount (₱)</label>
+                <input type="number" name="amount" min="1" class="form-input" placeholder="e.g., 2500" required>
+            </div>
+            <div class="d-flex gap-sm" style="margin-top: 16px;">
+                <button type="submit" class="btn btn-primary w-100">Add Cost</button>
+                <button type="button" class="btn btn-secondary w-100" onclick="document.getElementById('add-cost-modal').style.display='none'">Cancel</button>
+            </div>
+        </form>
+    </div>
 </div>
 
 {% endblock %}

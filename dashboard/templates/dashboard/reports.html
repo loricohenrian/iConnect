@@ -61,7 +61,7 @@
 <!-- Quick Export -->
 <div class="chart-card mt-lg">
     <h3 class="chart-title mb-md">Quick Data Export</h3>
-    <p class="text-small text-muted mb-md">Export raw data in CSV format for use in Power BI or Excel</p>
+    <p class="text-small text-muted mb-md">Export raw data in CSV format for analysis in Excel</p>
 
     <div class="d-flex gap-md flex-wrap">
         <a href="{% url 'dashboard:sessions' %}" class="btn btn-secondary btn-sm" id="export-sessions-link">
@@ -76,10 +76,5 @@
     </div>
 </div>
 
-<!-- Info about Power BI -->
-<div class="alert alert-info mt-lg">
-    <i class="bi bi-info-circle"></i>
-    <strong>Power BI Integration:</strong> Connect Power BI directly to the PostgreSQL database for advanced analytics and automated reporting.
-</div>
-
 {% endblock %}
+

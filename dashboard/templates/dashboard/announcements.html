@@ -22,17 +22,8 @@
     </form>
 </div>
 
-<!-- Preview -->
-<div class="chart-card mt-lg animate-fadeIn" style="animation-delay: 100ms">
-    <h3 class="card-title mb-md"><i class="bi bi-eye"></i> Preview (How students see it)</h3>
-    <div class="announcement-banner" id="preview-banner">
-        <i class="bi bi-megaphone-fill"></i>
-        <span id="preview-text">Your announcement will appear like this</span>
-    </div>
-</div>
-
 <!-- Announcements List -->
-<div class="chart-card mt-lg animate-fadeIn" style="animation-delay: 200ms">
+<div class="chart-card mt-lg animate-fadeIn" style="animation-delay: 100ms">
     <div class="chart-header">
         <h3 class="chart-title">All Announcements</h3>
         <span class="badge badge-info">{{ announcements.count }} total</span>
@@ -95,18 +86,4 @@
     {% endif %}
 </div>
 
-{% endblock %}
-
-{% block dashboard_js %}
-<script>
-// Live preview
-const msgInput = document.getElementById('announcement-message');
-const previewText = document.getElementById('preview-text');
-
-if (msgInput && previewText) {
-    msgInput.addEventListener('input', () => {
-        previewText.textContent = msgInput.value || 'Your announcement will appear like this';
-    });
-}
-</script>
 {% endblock %}
