@@ -104,15 +104,17 @@ def _remove_nat_bypass(mac_address):
     return True
 
 
-def allow_device(mac_address):
+def allow_device(mac_address, rate_kbps=None):
     """
     Allow a device to access the internet.
     Idempotent: Only adds the rule if it doesn't already exist.
     Also adds NAT bypass so HTTP/HTTPS traffic reaches the real internet.
+    rate_kbps: optional per-device bandwidth limit (from plan's speed_limit).
     """
     if is_device_allowed(mac_address):
         logger.info('Device %s already allowed', mac_address)
         _add_nat_bypass(mac_address)
+        apply_bandwidth_limit(mac_address, rate_kbps=rate_kbps)
         return True
 
     if getattr(settings, 'PISONET_DNS_ONLY_PREAUTH', False):
@@ -125,6 +127,7 @@ def allow_device(mac_address):
     if success:
         logger.info('Allowed device: %s', mac)
         _add_nat_bypass(mac)
+        apply_bandwidth_limit(mac, rate_kbps=rate_kbps)
     return success
 
 
@@ -170,6 +173,9 @@ def block_device(mac_address):
 
     # Remove NAT bypass so traffic gets redirected to captive portal
     _remove_nat_bypass(mac_address)
+
+    # Remove bandwidth limit
+    remove_bandwidth_limit(mac_address)
 
     # Kill all established connections for this device
     _flush_conntrack(mac_address)
@@ -276,6 +282,97 @@ def apply_pre_auth_dns_policy():
     else:
         logger.warning('Failed to fully apply DNS-only pre-auth policy')
     return applied
+
+
+def _get_device_ip(mac_address):
+    """Resolve MAC address to IP from ARP table."""
+    mac = mac_address.upper()
+    try:
+        with open('/proc/net/arp', 'r') as f:
+            for line in f:
+                parts = line.split()
+                if len(parts) >= 4 and parts[3].upper() == mac:
+                    return parts[0]
+    except (OSError, IOError):
+        pass
+    return None
+
+
+def _get_wan_interface():
+    """Detect the WAN (internet-facing) interface."""
+    wan = getattr(settings, 'PISONET_WAN_INTERFACE', '').strip()
+    if wan:
+        return wan
+    # Auto-detect: interface with default route
+    try:
+        result = subprocess.run(
+            ['ip', 'route', 'show', 'default'],
+            capture_output=True, text=True, timeout=5
+        )
+        if result.returncode == 0:
+            parts = result.stdout.strip().split()
+            if 'dev' in parts:
+                return parts[parts.index('dev') + 1]
+    except Exception:
+        pass
+    return 'eth0'
+
+
+def apply_bandwidth_limit(mac_address, rate_kbps=None):
+    """
+    Apply per-device bandwidth limit using iptables + tc (traffic control).
+    Uses hashlimit to cap each device's throughput.
+    rate_kbps: max speed in kilobits/sec (default from settings, fallback 2048 = 2Mbps)
+    """
+    if _is_simulation():
+        logger.info('[SIM] Would apply bandwidth limit for %s', mac_address)
+        return True
+
+    if rate_kbps is None:
+        rate_kbps = getattr(settings, 'PISONET_BANDWIDTH_LIMIT_KBPS', 2048)
+
+    mac = mac_address.upper()
+    ip = _get_device_ip(mac)
+    if not ip:
+        logger.warning('Cannot apply bandwidth limit: no IP for %s', mac)
+        return False
+
+    wan = _get_wan_interface()
+
+    # Use iptables mark + tc to limit bandwidth
+    # Mark packets from this device
+    mark_rule = ['-m', 'mac', '--mac-source', mac, '-j', 'MARK', '--set-mark', '0x1']
+    _run_command(['iptables', '-t', 'mangle', '-C', 'FORWARD'] + mark_rule, ignore_errors=True)
+    if not _run_command(['iptables', '-t', 'mangle', '-C', 'FORWARD'] + mark_rule, ignore_errors=True):
+        _run_command(['iptables', '-t', 'mangle', '-A', 'FORWARD'] + mark_rule)
+
+    # Setup tc qdisc if not already present
+    _run_command(['tc', 'qdisc', 'add', 'dev', wan, 'root', 'handle', '1:', 'htb', 'default', '99'], ignore_errors=True)
+    # Default class (unlimited for system traffic)
+    _run_command(['tc', 'class', 'add', 'dev', wan, 'parent', '1:', 'classid', '1:99', 'htb',
+                  'rate', '100mbit'], ignore_errors=True)
+    # Throttled class for marked packets
+    rate_str = f'{rate_kbps}kbit'
+    _run_command(['tc', 'class', 'replace', 'dev', wan, 'parent', '1:', 'classid', '1:1', 'htb',
+                  'rate', rate_str, 'ceil', rate_str])
+    # Filter: marked packets go to throttled class
+    _run_command(['tc', 'filter', 'add', 'dev', wan, 'parent', '1:', 'protocol', 'ip',
+                  'handle', '0x1', 'fw', 'classid', '1:1'], ignore_errors=True)
+
+    logger.info('Bandwidth limit applied for %s: %s kbps', mac, rate_kbps)
+    return True
+
+
+def remove_bandwidth_limit(mac_address):
+    """Remove iptables mangle mark for a device (bandwidth limit cleanup)."""
+    if _is_simulation():
+        return True
+    mac = mac_address.upper()
+    mark_rule = ['-m', 'mac', '--mac-source', mac, '-j', 'MARK', '--set-mark', '0x1']
+    cmd = ['iptables', '-t', 'mangle', '-D', 'FORWARD'] + mark_rule
+    _run_command(cmd, ignore_errors=True)
+    logger.info('Bandwidth limit removed for %s', mac)
+    return True
 
 
 def whitelist_device(mac_address):

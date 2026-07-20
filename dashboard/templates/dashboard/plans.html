@@ -35,6 +35,12 @@
             </div>
 
             <div class="form-group">
+                <label class="form-label" for="plan-speed">Speed Limit (Mbps)</label>
+                <input id="plan-speed" type="number" step="0.1" min="0.5" class="form-input" name="speed_limit" placeholder="e.g., 2.0 (leave blank for default)">
+                <small style="color: var(--text-secondary); font-size: 0.75rem;">Higher price = higher bandwidth. Leave blank to use system default.</small>
+            </div>
+
+            <div class="form-group">
                 <label class="d-flex align-items-center gap-sm">
                     <input type="checkbox" name="is_active" checked>
                     <span>Active</span>
@@ -54,10 +60,11 @@
             <table style="min-width: 500px;">
                 <thead>
                     <tr>
-                        <th style="width: 30%;">Plan</th>
-                        <th style="width: 15%;">Price</th>
-                        <th style="width: 20%;">Duration</th>
-                        <th style="width: 10%;">Status</th>
+                        <th style="width: 25%;">Plan</th>
+                        <th style="width: 12%;">Price</th>
+                        <th style="width: 15%;">Duration</th>
+                        <th style="width: 15%;">Speed (Mbps)</th>
+                        <th style="width: 8%;">Status</th>
                         <th style="width: 25%;">Actions</th>
                     </tr>
                 </thead>
@@ -73,6 +80,7 @@
                         </td>
                         <td><input type="number" name="price" min="1" class="form-input" style="width: 70px; padding: 6px 8px; font-size: 13px;" value="{{ plan.price }}" required form="plan-form-{{ plan.id }}"></td>
                         <td><input type="number" name="duration_minutes" min="1" class="form-input" style="width: 80px; padding: 6px 8px; font-size: 13px;" value="{{ plan.duration_minutes }}" required form="plan-form-{{ plan.id }}"></td>
+                        <td><input type="number" name="speed_limit" step="0.1" min="0.5" class="form-input" style="width: 75px; padding: 6px 8px; font-size: 13px;" value="{{ plan.speed_limit|default_if_none:'' }}" placeholder="Default" form="plan-form-{{ plan.id }}"></td>
                         <td>
                             <label class="d-flex align-items-center gap-xs">
                                 <input type="checkbox" name="is_active" {% if plan.is_active %}checked{% endif %} form="plan-form-{{ plan.id }}">

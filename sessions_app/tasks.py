@@ -16,7 +16,9 @@ logger = logging.getLogger(__name__)
 def restore_iptables_on_boot():
     """
     Restore iptables rules after reboot.
-    Active sessions: allow internet. Paused sessions: keep blocked.
+    - Active sessions: AUTO-PAUSE them (Pi was off, so timer should not have been running).
+      The downtime is added to total_paused_seconds so no time is lost.
+    - Already-paused sessions: keep blocked.
     """
     from .models import Session
     from . import iptables
@@ -24,22 +26,29 @@ def restore_iptables_on_boot():
     active = Session.objects.filter(status='active')
     paused = Session.objects.filter(status='paused')
 
-    allowed = 0
+    auto_paused = 0
+    expired = 0
     for session in active:
         if session.time_remaining_seconds > 0:
-            iptables.allow_device(session.mac_address)
-            allowed += 1
+            # Auto-pause: freeze the timer so downtime doesn't count
+            session.status = 'paused'
+            session.paused_at = timezone.now()
+            session.save(update_fields=['status', 'paused_at'])
+            iptables.block_device(session.mac_address)
+            auto_paused += 1
+            logger.info(f'Boot: auto-paused session {session.id} for {session.mac_address}')
         else:
             session.expire_session()
             iptables.block_device(session.mac_address)
+            expired += 1
 
     blocked = 0
     for session in paused:
         iptables.block_device(session.mac_address)
         blocked += 1
 
-    logger.info(f'Boot: restored {allowed} active, {blocked} paused iptables rules')
-    return f'Restored {allowed} active, {blocked} paused'
+    logger.info(f'Boot: auto-paused {auto_paused}, expired {expired}, kept-paused {blocked}')
+    return f'Auto-paused {auto_paused}, expired {expired}, kept-paused {blocked}'
 
 
 @shared_task

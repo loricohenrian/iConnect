@@ -225,11 +225,15 @@ def system_stats_api(request):
     stats = {
         'cpu_temp': 'N/A',
         'cpu_load': 'N/A',
+        'cpu_load_raw': 0,
+        'cpu_count': 1,
         'ram_used': 'N/A',
         'ram_total': 'N/A',
+        'ram_remaining': 'N/A',
         'ram_percent': 0,
         'disk_used': 'N/A',
         'disk_total': 'N/A',
+        'disk_remaining': 'N/A',
         'disk_percent': 0,
     }
 
@@ -241,14 +245,23 @@ def system_stats_api(request):
     except Exception:
         pass
 
+    # CPU Count
+    try:
+        stats['cpu_count'] = os.cpu_count() or 1
+    except Exception:
+        pass
+
     # CPU Load (1-min average)
     try:
         with open('/proc/loadavg', 'r') as f:
-            load = f.read().split()[0]
-            stats['cpu_load'] = f"{float(load):.1f}%"
+            load = float(f.read().split()[0])
+            stats['cpu_load'] = f"{load:.2f}"
+            stats['cpu_load_raw'] = round(min((load / stats['cpu_count']) * 100, 100), 1)
     except Exception:
         try:
-            stats['cpu_load'] = f"{os.getloadavg()[0]:.1f}%"
+            load = os.getloadavg()[0]
+            stats['cpu_load'] = f"{load:.2f}"
+            stats['cpu_load_raw'] = round(min((load / stats['cpu_count']) * 100, 100), 1)
         except Exception:
             pass
 
@@ -265,8 +278,10 @@ def system_stats_api(request):
             total_mb = meminfo.get('MemTotal', 0) / 1024
             available_mb = meminfo.get('MemAvailable', 0) / 1024
             used_mb = total_mb - available_mb
-            stats['ram_total'] = f"{total_mb:.0f} MB"
-            stats['ram_used'] = f"{used_mb:.0f} MB"
+            remaining_mb = available_mb
+            stats['ram_total'] = f"{total_mb:.0f}Mb"
+            stats['ram_used'] = f"{used_mb:.0f}Mb"
+            stats['ram_remaining'] = f"{remaining_mb:.0f}Mb"
             stats['ram_percent'] = round((used_mb / total_mb) * 100) if total_mb > 0 else 0
     except Exception:
         pass
@@ -276,8 +291,10 @@ def system_stats_api(request):
         usage = shutil.disk_usage('/')
         total_gb = usage.total / (1024 ** 3)
         used_gb = usage.used / (1024 ** 3)
-        stats['disk_total'] = f"{total_gb:.1f} GB"
-        stats['disk_used'] = f"{used_gb:.1f} GB"
+        free_gb = usage.free / (1024 ** 3)
+        stats['disk_total'] = f"{total_gb:.2f}GB"
+        stats['disk_used'] = f"{used_gb:.2f}GB"
+        stats['disk_remaining'] = f"{free_gb:.2f}GB"
         stats['disk_percent'] = round((usage.used / usage.total) * 100) if usage.total > 0 else 0
     except Exception:
         pass
@@ -392,18 +409,18 @@ def overview(request):
     """Admin dashboard overview page."""
     today = timezone.localdate()
 
-    revenue_today = Session.objects.filter(
-        time_in__date=today, status__in=['active', 'expired', 'paused']
-    ).aggregate(total=Sum('amount_paid'))['total'] or 0
+    # Revenue = all coins inserted (coins are physically in the box)
+    revenue_today = CoinEvent.objects.filter(
+        created_at__date=today
+    ).aggregate(total=Sum('amount'))['total'] or 0
 
     connected = Session.objects.filter(status='active').count()
     whitelisted = WhitelistedDevice.objects.count()
     sessions_today = Session.objects.filter(time_in__date=today).count()
 
     total_cost = ProjectCost.total_cost()
-    total_revenue = Session.objects.filter(
-        status__in=['active', 'expired', 'paused']
-    ).aggregate(total=Sum('amount_paid'))['total'] or 0
+    # Total revenue = all coins ever inserted
+    total_revenue = CoinEvent.objects.aggregate(total=Sum('amount'))['total'] or 0
     roi_pct = (total_revenue / total_cost * 100) if total_cost > 0 else 0
 
     recent_sessions = Session.objects.select_related('plan').all()[:10]

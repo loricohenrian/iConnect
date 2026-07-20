@@ -582,6 +582,19 @@ def session_start(request):
             status=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
 
+    # Check max concurrent sessions limit
+    max_sessions = getattr(settings, 'PISONET_MAX_CONCURRENT_SESSIONS', 20)
+    active_count = Session.objects.filter(status__in=["active", "paused"]).count()
+    if active_count >= max_sessions:
+        audit_logger.warning(
+            "event=session_start_max_concurrent mac=%s active=%d max=%d",
+            mac_address, active_count, max_sessions,
+        )
+        return Response(
+            {"error": f"Maximum concurrent users ({max_sessions}) reached. Please try again later."},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+
     total_coins = _pending_coin_events_for_mac(mac_address).aggregate(
         total=Sum("amount")
     )["total"] or 0
@@ -652,7 +665,9 @@ def session_start(request):
                 completed_at=timezone.now(),
             )
 
-            if not iptables.allow_device(mac_address):
+            # Apply bandwidth limit based on plan's speed_limit (Mbps → kbps)
+            plan_rate_kbps = int(plan.speed_limit * 1024) if plan.speed_limit else None
+            if not iptables.allow_device(mac_address, rate_kbps=plan_rate_kbps):
                 raise RuntimeError("Failed to allow internet access for this device")
     except RuntimeError as exc:
         return Response(
@@ -813,7 +828,8 @@ def session_extend(request):
                 ]
             )
 
-            if not iptables.allow_device(mac_address):
+            plan_rate = int(voucher_session.plan.speed_limit * 1024) if voucher_session.plan and voucher_session.plan.speed_limit else None
+            if not iptables.allow_device(mac_address, rate_kbps=plan_rate):
                 raise RuntimeError("Failed to restore internet access for this device")
     except RuntimeError as exc:
         return Response(
@@ -1053,7 +1069,8 @@ def session_pause_toggle(request):
         })
     else:
         session.resume_session()
-        allowed = iptables.allow_device(mac_address)
+        plan_rate = int(session.plan.speed_limit * 1024) if session.plan and session.plan.speed_limit else None
+        allowed = iptables.allow_device(mac_address, rate_kbps=plan_rate)
         audit_logger.info(
             "event=session_resumed mac=%s allowed=%s ip=%s",
             mac_address, allowed, _client_ip(request),

@@ -465,13 +465,52 @@ async function refreshSystemStats() {
         const response = await fetch('/api/dashboard/system/');
         const data = await response.json();
 
-        updateStatValue('sys-temp', data.cpu_temp || 'N/A');
-        updateStatValue('sys-cpu', data.cpu_load || 'N/A');
-        updateStatValue('sys-ram', data.ram_percent ? data.ram_percent + '%' : 'N/A');
-        updateStatValue('sys-disk', data.disk_percent ? data.disk_percent + '%' : 'N/A');
+        // --- Disk ---
+        const diskPct = data.disk_percent || 0;
+        const diskRemPct = 100 - diskPct;
+        setText('sys-disk-total', data.disk_total || '—');
+        setText('sys-disk-used', data.disk_used || '—');
+        setText('sys-disk-pct', diskPct + '%');
+        setText('sys-disk-remaining', data.disk_remaining || '—');
+        setText('sys-disk-remaining-pct', diskRemPct + '%');
+        setBar('sys-disk-bar', diskPct);
+        setBar('sys-disk-bar-remaining', diskRemPct);
+
+        // --- CPU ---
+        const cpuPct = data.cpu_load_raw || 0;
+        const cpuRemPct = Math.max(0, 100 - cpuPct);
+        setText('sys-cpu-count', data.cpu_count || '—');
+        setText('sys-cpu-used', data.cpu_load || '—');
+        setText('sys-cpu-pct', cpuPct.toFixed(1) + '%');
+        setText('sys-cpu-remaining-pct-label', cpuRemPct.toFixed(1) + '%');
+        setText('sys-cpu-remaining-pct', cpuRemPct.toFixed(1) + '%');
+        setBar('sys-cpu-bar', cpuPct);
+        setBar('sys-cpu-bar-remaining', cpuRemPct);
+
+        // --- RAM ---
+        const ramPct = data.ram_percent || 0;
+        const ramRemPct = 100 - ramPct;
+        setText('sys-ram-total', data.ram_total || '—');
+        setText('sys-ram-used', data.ram_used || '—');
+        setText('sys-ram-pct', ramPct + '%');
+        setText('sys-ram-remaining', data.ram_remaining || '—');
+        setText('sys-ram-remaining-pct', ramRemPct + '%');
+        setBar('sys-ram-bar', ramPct);
+        setBar('sys-ram-bar-remaining', ramRemPct);
+
     } catch (err) {
         console.error('Failed to refresh system stats:', err);
     }
+}
+
+function setText(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value;
+}
+
+function setBar(id, pct) {
+    const el = document.getElementById(id);
+    if (el) el.style.width = Math.min(100, Math.max(0, pct)) + '%';
 }
 
 // ============================================
