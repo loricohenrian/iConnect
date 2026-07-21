@@ -411,7 +411,7 @@ def overview(request):
 
     # Revenue = all coins inserted (coins are physically in the box)
     revenue_today = CoinEvent.objects.filter(
-        created_at__date=today
+        timestamp__date=today
     ).aggregate(total=Sum('amount'))['total'] or 0
 
     connected = Session.objects.filter(status='active').count()
