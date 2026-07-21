@@ -701,7 +701,7 @@ def analytics_view(request):
 
 @user_passes_test(_is_dashboard_admin, login_url='dashboard:login')
 def roi(request):
-    """ROI tracker page."""
+    """ROI tracker page with accurate financial computation."""
     # Handle add cost POST
     if request.method == 'POST' and request.POST.get('action') == 'add_cost':
         desc = request.POST.get('description', '').strip()
@@ -713,36 +713,100 @@ def roi(request):
                 pass
         return redirect('dashboard:roi')
 
-    total_cost = ProjectCost.total_cost()
-    total_revenue = Session.objects.filter(
-        status__in=['active', 'expired', 'paused']
-    ).aggregate(total=Sum('amount_paid'))['total'] or 0
+    # === INVESTMENT (one-time project costs) ===
+    total_investment = ProjectCost.total_cost()
+    costs = ProjectCost.objects.all()
 
-    roi_pct = (total_revenue / total_cost * 100) if total_cost > 0 else 0
+    # === GROSS REVENUE (all coins ever inserted) ===
+    gross_revenue = CoinEvent.objects.aggregate(
+        total=Sum('amount')
+    )['total'] or 0
 
-    # Calculate projected breakeven
+    # === OPERATING EXPENSES ===
     first_session = Session.objects.order_by('time_in').first()
-    if first_session and total_revenue > 0:
-        days_operating = (timezone.now() - first_session.time_in).days or 1
-        daily_avg = total_revenue / days_operating
-        remaining = max(0, total_cost - total_revenue)
-        days_to_breakeven = int(remaining / daily_avg) if daily_avg > 0 else 0
-        projected_date = timezone.localdate() + timedelta(days=days_to_breakeven)
+    if first_session:
+        days_operating = max((timezone.now() - first_session.time_in).days, 1)
     else:
-        daily_avg = 0
+        days_operating = 0
+
+    # Electricity cost: watts × hours/day × days × rate per kWh
+    system_watts = getattr(settings, 'PISONET_SYSTEM_WATTAGE', 18)
+    elec_rate = getattr(settings, 'PISONET_ELECTRICITY_RATE', 11.0)
+    # System runs 24/7
+    electricity_cost = round((system_watts / 1000) * 24 * days_operating * elec_rate, 2)
+
+    # ISP cost: prorated monthly cost over operating period
+    isp_monthly = getattr(settings, 'PISONET_ISP_MONTHLY_COST', 1500.0)
+    isp_cost = round((isp_monthly / 30) * days_operating, 2)
+
+    # Total operating expenses
+    total_expenses = round(electricity_cost + isp_cost, 2)
+
+    # === NET PROFIT ===
+    net_profit = round(gross_revenue - total_expenses, 2)
+
+    # === ROI COMPUTATION ===
+    # ROI = (Net Profit / Total Investment) × 100
+    roi_pct = round((net_profit / total_investment * 100), 1) if total_investment > 0 else 0
+
+    # === DAILY AVERAGES ===
+    if days_operating > 0 and gross_revenue > 0:
+        daily_avg_revenue = round(gross_revenue / days_operating, 2)
+        daily_avg_expense = round(total_expenses / days_operating, 2)
+        daily_avg_profit = round(net_profit / days_operating, 2)
+
+        # Breakeven: based on NET daily profit (not gross revenue)
+        if daily_avg_profit > 0:
+            remaining_to_recover = max(0, total_investment - net_profit)
+            days_to_breakeven = int(remaining_to_recover / daily_avg_profit) if daily_avg_profit > 0 else 0
+            projected_date = timezone.localdate() + timedelta(days=days_to_breakeven)
+        else:
+            days_to_breakeven = 0
+            projected_date = None
+    else:
+        daily_avg_revenue = 0
+        daily_avg_expense = 0
+        daily_avg_profit = 0
         days_to_breakeven = 0
         projected_date = None
 
-    costs = ProjectCost.objects.all()
+    # Monthly projections
+    monthly_revenue = round(daily_avg_revenue * 30, 2)
+    monthly_expenses = round(daily_avg_expense * 30, 2)
+    monthly_profit = round(daily_avg_profit * 30, 2)
 
     context = {
-        'total_cost': total_cost,
-        'total_revenue': total_revenue,
-        'roi_percentage': round(roi_pct, 1),
-        'daily_avg_revenue': round(daily_avg, 0),
+        # Investment
+        'total_investment': total_investment,
+        'costs': costs,
+        # Revenue
+        'gross_revenue': gross_revenue,
+        'total_revenue': gross_revenue,  # backward compat
+        # Operating Expenses
+        'total_expenses': total_expenses,
+        'electricity_cost': electricity_cost,
+        'isp_cost': isp_cost,
+        # Profit
+        'net_profit': net_profit,
+        # ROI
+        'roi_percentage': roi_pct,
+        'total_cost': total_investment,  # backward compat
+        # Daily Averages
+        'daily_avg_revenue': daily_avg_revenue,
+        'daily_avg_expense': daily_avg_expense,
+        'daily_avg_profit': daily_avg_profit,
+        'days_operating': days_operating,
+        # Monthly Projections
+        'monthly_revenue': monthly_revenue,
+        'monthly_expenses': monthly_expenses,
+        'monthly_profit': monthly_profit,
+        # Breakeven
         'days_to_breakeven': days_to_breakeven,
         'projected_breakeven': projected_date,
-        'costs': costs,
+        # Settings (for display)
+        'system_wattage': system_watts,
+        'electricity_rate': elec_rate,
+        'isp_monthly_cost': isp_monthly,
         'active_page': 'roi',
     }
     return render(request, 'dashboard/roi.html', context)

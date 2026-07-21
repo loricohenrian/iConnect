@@ -1,93 +1,210 @@
 {% extends "base_dashboard.html" %}
 
 {% block page_title %}ROI Tracker{% endblock %}
-{% block topbar_title %}ROI Tracker{% endblock %}
+{% block topbar_title %}ROI & Financial Report{% endblock %}
 
 {% block dashboard_content %}
 
 <!-- Main ROI Card -->
 <div class="roi-card animate-fadeIn">
     <div class="roi-percentage">{{ roi_percentage }}%</div>
-    <div class="roi-label">ROI Recovered</div>
+    <div class="roi-label">Return on Investment</div>
 
     <div class="progress-bar" style="max-width: 400px; margin: 0 auto; height: 16px;">
-        <div class="progress-fill" style="width: {{ roi_percentage }}%"></div>
+        <div class="progress-fill" style="width: {% if roi_percentage > 100 %}100{% else %}{{ roi_percentage }}{% endif %}%"></div>
     </div>
+    <p class="text-small text-muted mt-sm" style="text-align: center;">
+        ROI = (Net Profit ÷ Total Investment) × 100
+    </p>
+</div>
 
-    <div class="roi-details mt-xl">
-        <div class="roi-detail-item">
-            <div class="detail-value" style="color: var(--color-danger);">₱{{ total_cost|default:"0" }}</div>
-            <div class="detail-label">Total Project Cost</div>
+<!-- Financial Summary Cards -->
+<div class="stats-grid mt-lg" style="grid-template-columns: repeat(4, 1fr);">
+    <div class="stat-card gradient-blue animate-fadeIn" style="animation-delay: 100ms">
+        <div class="stat-info">
+            <div class="stat-label">Gross Revenue</div>
+            <div class="stat-value">₱{{ gross_revenue|default:"0" }}</div>
         </div>
-        <div class="roi-detail-item">
-            <div class="detail-value" style="color: var(--color-success);">₱{{ total_revenue|default:"0" }}</div>
-            <div class="detail-label">Total Revenue</div>
+        <div class="stat-icon-wrap">
+            <i class="bi bi-coin"></i>
         </div>
-        <div class="roi-detail-item">
-            <div class="detail-value">₱{{ daily_avg_revenue|default:"0" }}</div>
-            <div class="detail-label">Daily Average Revenue</div>
+    </div>
+    <div class="stat-card animate-fadeIn" style="animation-delay: 150ms; border-left: 4px solid #EF4444;">
+        <div class="stat-info">
+            <div class="stat-label">Operating Expenses</div>
+            <div class="stat-value" style="color: #EF4444;">₱{{ total_expenses|default:"0" }}</div>
+        </div>
+        <div class="stat-icon-wrap" style="background: rgba(239,68,68,0.1); color: #EF4444;">
+            <i class="bi bi-receipt"></i>
+        </div>
+    </div>
+    <div class="stat-card gradient-green animate-fadeIn" style="animation-delay: 200ms">
+        <div class="stat-info">
+            <div class="stat-label">Net Profit</div>
+            <div class="stat-value">₱{{ net_profit|default:"0" }}</div>
+        </div>
+        <div class="stat-icon-wrap">
+            <i class="bi bi-graph-up-arrow"></i>
+        </div>
+    </div>
+    <div class="stat-card animate-fadeIn" style="animation-delay: 250ms; border-left: 4px solid #F59E0B;">
+        <div class="stat-info">
+            <div class="stat-label">Total Investment</div>
+            <div class="stat-value" style="color: #F59E0B;">₱{{ total_investment|default:"0" }}</div>
+        </div>
+        <div class="stat-icon-wrap" style="background: rgba(245,158,11,0.1); color: #F59E0B;">
+            <i class="bi bi-piggy-bank"></i>
         </div>
     </div>
 </div>
 
 <div class="grid-2 mt-lg">
-    <!-- Breakeven Projection -->
-    <div class="chart-card animate-fadeIn" style="animation-delay: 200ms">
-        <h3 class="card-title mb-md"><i class="bi bi-calendar-check"></i> Breakeven Projection</h3>
-        {% if projected_breakeven %}
-        <div class="stat-value mb-sm">{{ projected_breakeven|date:"M d, Y" }}</div>
-        <p class="text-small text-muted">Estimated {{ days_to_breakeven }} days remaining</p>
-        <p class="text-small text-muted mt-xs">Based on current daily average of ₱{{ daily_avg_revenue }}</p>
-        {% else %}
-        <div class="empty-state" style="padding: var(--space-lg);">
-            <i class="bi bi-calculator"></i>
-            <p>Not enough data</p>
-            <small>Breakeven projection requires at least 1 day of revenue data</small>
+    <!-- Financial Breakdown -->
+    <div class="chart-card animate-fadeIn" style="animation-delay: 300ms">
+        <h3 class="card-title mb-md"><i class="bi bi-clipboard-data"></i> Financial Breakdown</h3>
+
+        <!-- Revenue Section -->
+        <div style="margin-bottom: 16px;">
+            <div style="font-weight: 600; font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Revenue</div>
+            <div class="cost-item" style="background: rgba(16,185,129,0.06);">
+                <div>
+                    <div class="cost-desc">Gross Revenue (All Coins Inserted)</div>
+                    <div class="text-xs text-muted">{{ days_operating }} days of operation</div>
+                </div>
+                <div class="cost-amount" style="color: #10B981;">+₱{{ gross_revenue }}</div>
+            </div>
         </div>
-        {% endif %}
+
+        <!-- Expenses Section -->
+        <div style="margin-bottom: 16px;">
+            <div style="font-weight: 600; font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Operating Expenses</div>
+            <div class="cost-item">
+                <div>
+                    <div class="cost-desc">Electricity</div>
+                    <div class="text-xs text-muted">{{ system_wattage }}W × 24h × {{ days_operating }} days × ₱{{ electricity_rate }}/kWh</div>
+                </div>
+                <div class="cost-amount" style="color: #EF4444;">-₱{{ electricity_cost }}</div>
+            </div>
+            <div class="cost-item">
+                <div>
+                    <div class="cost-desc">Internet Subscription (ISP)</div>
+                    <div class="text-xs text-muted">₱{{ isp_monthly_cost }}/month × {{ days_operating }} days</div>
+                </div>
+                <div class="cost-amount" style="color: #EF4444;">-₱{{ isp_cost }}</div>
+            </div>
+            <div class="cost-item" style="background: rgba(239,68,68,0.06); border-radius: var(--radius-sm);">
+                <div class="font-semibold">Total Expenses</div>
+                <div class="cost-amount font-bold" style="color: #EF4444;">-₱{{ total_expenses }}</div>
+            </div>
+        </div>
+
+        <!-- Net Profit -->
+        <div class="cost-item" style="background: {% if net_profit >= 0 %}rgba(16,185,129,0.1){% else %}rgba(239,68,68,0.1){% endif %}; border-radius: var(--radius-sm); border: 2px solid {% if net_profit >= 0 %}#10B981{% else %}#EF4444{% endif %};">
+            <div class="font-bold" style="font-size: 1rem;">Net Profit</div>
+            <div class="cost-amount font-bold" style="font-size: 1.1rem; color: {% if net_profit >= 0 %}#10B981{% else %}#EF4444{% endif %};">₱{{ net_profit }}</div>
+        </div>
     </div>
 
-    <!-- ROI Chart -->
-    <div class="chart-card animate-fadeIn" style="animation-delay: 300ms">
-        <h3 class="card-title mb-md"><i class="bi bi-graph-up-arrow"></i> Revenue vs Cost</h3>
-        <div class="chart-wrapper" style="height: 250px;">
-            <canvas id="roi-chart"></canvas>
+    <!-- Daily & Monthly Averages -->
+    <div class="chart-card animate-fadeIn" style="animation-delay: 350ms">
+        <h3 class="card-title mb-md"><i class="bi bi-calendar3"></i> Averages & Projections</h3>
+
+        <!-- Daily Averages -->
+        <div style="margin-bottom: 20px;">
+            <div style="font-weight: 600; font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Daily Averages</div>
+            <div class="cost-item">
+                <div class="cost-desc">Revenue / Day</div>
+                <div class="cost-amount" style="color: #3B82F6;">₱{{ daily_avg_revenue }}</div>
+            </div>
+            <div class="cost-item">
+                <div class="cost-desc">Expenses / Day</div>
+                <div class="cost-amount" style="color: #EF4444;">₱{{ daily_avg_expense }}</div>
+            </div>
+            <div class="cost-item" style="background: var(--color-light); border-radius: var(--radius-sm);">
+                <div class="font-semibold">Profit / Day</div>
+                <div class="cost-amount font-bold" style="color: {% if daily_avg_profit >= 0 %}#10B981{% else %}#EF4444{% endif %};">₱{{ daily_avg_profit }}</div>
+            </div>
+        </div>
+
+        <!-- Monthly Projections -->
+        <div style="margin-bottom: 20px;">
+            <div style="font-weight: 600; font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Monthly Projections (30 Days)</div>
+            <div class="cost-item">
+                <div class="cost-desc">Projected Revenue</div>
+                <div class="cost-amount" style="color: #3B82F6;">₱{{ monthly_revenue }}</div>
+            </div>
+            <div class="cost-item">
+                <div class="cost-desc">Projected Expenses</div>
+                <div class="cost-amount" style="color: #EF4444;">₱{{ monthly_expenses }}</div>
+            </div>
+            <div class="cost-item" style="background: var(--color-light); border-radius: var(--radius-sm);">
+                <div class="font-semibold">Projected Profit</div>
+                <div class="cost-amount font-bold" style="color: {% if monthly_profit >= 0 %}#10B981{% else %}#EF4444{% endif %};">₱{{ monthly_profit }}</div>
+            </div>
+        </div>
+
+        <!-- Breakeven -->
+        <div style="padding: 16px; background: linear-gradient(135deg, rgba(99,102,241,0.08), rgba(139,92,246,0.08)); border-radius: var(--radius-md); border: 1px solid rgba(99,102,241,0.15);">
+            <div style="font-weight: 600; font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Breakeven Projection</div>
+            {% if projected_breakeven %}
+            <div class="stat-value mb-xs" style="font-size: 1.5rem;">{{ projected_breakeven|date:"M d, Y" }}</div>
+            <p class="text-small text-muted" style="margin: 0;">Est. {{ days_to_breakeven }} days remaining (based on ₱{{ daily_avg_profit }}/day net profit)</p>
+            {% else %}
+            <p class="text-small text-muted" style="margin: 0;">
+                {% if daily_avg_profit <= 0 %}
+                <i class="bi bi-exclamation-triangle" style="color: #F59E0B;"></i>
+                Currently operating at a loss. Increase revenue or reduce expenses to reach breakeven.
+                {% else %}
+                Not enough data yet. Start earning revenue to see projections.
+                {% endif %}
+            </p>
+            {% endif %}
         </div>
     </div>
 </div>
 
-<!-- Project Costs Breakdown -->
-<div class="chart-card mt-lg animate-fadeIn" style="animation-delay: 400ms">
-    <div class="chart-header">
-        <h3 class="chart-title">Project Costs Breakdown</h3>
-        <button type="button" class="btn btn-sm btn-primary" id="add-cost-btn" onclick="document.getElementById('add-cost-modal').style.display='flex'">
-            <i class="bi bi-plus"></i> Add Cost
-        </button>
+<div class="grid-2 mt-lg">
+    <!-- Revenue vs Cost vs Expenses Chart -->
+    <div class="chart-card animate-fadeIn" style="animation-delay: 400ms">
+        <h3 class="card-title mb-md"><i class="bi bi-graph-up-arrow"></i> Financial Overview</h3>
+        <div class="chart-wrapper" style="height: 280px;">
+            <canvas id="roi-chart"></canvas>
+        </div>
     </div>
 
-    {% if costs %}
-    <div>
-        {% for cost in costs %}
-        <div class="cost-item">
-            <div>
-                <div class="cost-desc">{{ cost.description }}</div>
-                <div class="text-xs text-muted">{{ cost.date_added|date:"M d, Y" }}</div>
+    <!-- Project Costs Breakdown -->
+    <div class="chart-card animate-fadeIn" style="animation-delay: 450ms">
+        <div class="chart-header">
+            <h3 class="chart-title">Investment Costs Breakdown</h3>
+            <button type="button" class="btn btn-sm btn-primary" id="add-cost-btn" onclick="document.getElementById('add-cost-modal').style.display='flex'">
+                <i class="bi bi-plus"></i> Add Cost
+            </button>
+        </div>
+
+        {% if costs %}
+        <div>
+            {% for cost in costs %}
+            <div class="cost-item">
+                <div>
+                    <div class="cost-desc">{{ cost.description }}</div>
+                    <div class="text-xs text-muted">{{ cost.date_added|date:"M d, Y" }}</div>
+                </div>
+                <div class="cost-amount">₱{{ cost.amount }}</div>
             </div>
-            <div class="cost-amount">₱{{ cost.amount }}</div>
+            {% endfor %}
+            <div class="cost-item" style="background: var(--color-light); border-radius: var(--radius-sm);">
+                <div class="font-semibold">Total Investment</div>
+                <div class="cost-amount font-bold">₱{{ total_investment }}</div>
+            </div>
         </div>
-        {% endfor %}
-        <div class="cost-item" style="background: var(--color-light); border-radius: var(--radius-sm);">
-            <div class="font-semibold">Total</div>
-            <div class="cost-amount font-bold">₱{{ total_cost }}</div>
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-receipt"></i>
+            <p>No costs entered yet</p>
+            <small>Add your project costs to track ROI accurately</small>
         </div>
+        {% endif %}
     </div>
-    {% else %}
-    <div class="empty-state">
-        <i class="bi bi-receipt"></i>
-        <p>No costs entered yet</p>
-        <small>Add your project costs to track ROI accurately</small>
-    </div>
-    {% endif %}
 </div>
 
 <!-- Add Cost Modal -->
@@ -124,12 +241,17 @@ document.addEventListener('DOMContentLoaded', () => {
     new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: ['Total Cost', 'Total Revenue'],
+            labels: ['Investment', 'Gross Revenue', 'Expenses', 'Net Profit'],
             datasets: [{
-                data: [{{ total_cost|default:"0" }}, {{ total_revenue|default:"0" }}],
-                backgroundColor: ['#EF4444', '#10B981'],
+                data: [
+                    {{ total_investment|default:"0" }},
+                    {{ gross_revenue|default:"0" }},
+                    {{ total_expenses|default:"0" }},
+                    {{ net_profit|default:"0" }}
+                ],
+                backgroundColor: ['#F59E0B', '#3B82F6', '#EF4444', '{{ net_profit|default:"0" }}' >= 0 ? '#10B981' : '#EF4444'],
                 borderRadius: 8,
-                barPercentage: 0.5,
+                barPercentage: 0.6,
             }]
         },
         options: {
@@ -139,7 +261,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 legend: { display: false },
                 tooltip: {
                     callbacks: {
-                        label: (ctx) => '₱' + ctx.parsed.y.toLocaleString()
+                        label: (ctx) => '₱' + Math.abs(ctx.parsed.y).toLocaleString()
                     }
                 }
             },

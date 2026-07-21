@@ -243,6 +243,7 @@ DEFAULT_DEVICE_API_KEY = 'iconnect-local-device-key-change-me'
 PISONET_DEVICE_API_KEY = os.getenv('DEVICE_API_KEY', DEFAULT_DEVICE_API_KEY)
 PISONET_ELECTRICITY_RATE = float(os.getenv('ELECTRICITY_RATE', '11.0'))
 PISONET_SYSTEM_WATTAGE = 18  # ALLAN H3 (5W) + Router (10W) + Coinslot (3W)
+PISONET_ISP_MONTHLY_COST = float(os.getenv('ISP_MONTHLY_COST', '1500.0'))  # Monthly internet subscription
 PISONET_ESTIMATED_UTILIZATION_RATIO = float(os.getenv('ESTIMATED_UTILIZATION_RATIO', '0.35'))
 PISONET_DNS_ONLY_PREAUTH = os.getenv('DNS_ONLY_PREAUTH', 'False').lower() in ('true', '1', 'yes')
 PISONET_DNS_RESOLVER = os.getenv('DNS_RESOLVER', '').strip()
