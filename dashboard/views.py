@@ -533,8 +533,98 @@ def sessions_view(request):
 
 @user_passes_test(_is_dashboard_admin, login_url='dashboard:login')
 def reports(request):
-    """Reports page."""
+    """Reports page with financial summary and analytics."""
+    today = timezone.localdate()
+    week_ago = today - timedelta(days=7)
+    month_ago = today - timedelta(days=30)
+
+    # === Period Revenue (CoinEvent-based) ===
+    revenue_today = CoinEvent.objects.filter(
+        timestamp__date=today
+    ).aggregate(total=Sum('amount'))['total'] or 0
+
+    revenue_week = CoinEvent.objects.filter(
+        timestamp__date__gte=week_ago
+    ).aggregate(total=Sum('amount'))['total'] or 0
+
+    revenue_month = CoinEvent.objects.filter(
+        timestamp__date__gte=month_ago
+    ).aggregate(total=Sum('amount'))['total'] or 0
+
+    revenue_all_time = CoinEvent.objects.aggregate(
+        total=Sum('amount')
+    )['total'] or 0
+
+    # === Sessions counts ===
+    sessions_today = Session.objects.filter(time_in__date=today).count()
+    sessions_week = Session.objects.filter(time_in__date__gte=week_ago).count()
+    sessions_month = Session.objects.filter(time_in__date__gte=month_ago).count()
+    sessions_total = Session.objects.count()
+
+    # === Operating Expenses ===
+    first_session = Session.objects.order_by('time_in').first()
+    days_operating = max((timezone.now() - first_session.time_in).days, 1) if first_session else 0
+
+    system_watts = getattr(settings, 'PISONET_SYSTEM_WATTAGE', 18)
+    elec_rate = getattr(settings, 'PISONET_ELECTRICITY_RATE', 11.0)
+    isp_monthly = getattr(settings, 'PISONET_ISP_MONTHLY_COST', 1500.0)
+
+    electricity_cost = round((system_watts / 1000) * 24 * days_operating * elec_rate, 2)
+    isp_cost = round((isp_monthly / 30) * days_operating, 2)
+    total_expenses = round(electricity_cost + isp_cost, 2)
+
+    # === Financial Summary ===
+    from dashboard.models import ProjectCost
+    total_investment = ProjectCost.total_cost()
+    net_profit = round(revenue_all_time - total_expenses, 2)
+    roi_pct = round((net_profit / total_investment * 100), 1) if total_investment > 0 else 0
+
+    # === Top Plans ===
+    top_plans = Session.objects.filter(
+        time_in__date__gte=month_ago,
+        status__in=['active', 'expired', 'paused']
+    ).values('plan__name', 'plan__price').annotate(
+        count=Count('id'),
+        total=Sum('amount_paid'),
+    ).order_by('-count')[:5]
+
+    # === Recent Sessions ===
+    recent_sessions = Session.objects.select_related('plan').order_by('-time_in')[:10]
+
+    # === Daily revenue for last 7 days (for chart) ===
+    daily_revenue = []
+    for i in range(6, -1, -1):
+        day = today - timedelta(days=i)
+        day_rev = CoinEvent.objects.filter(
+            timestamp__date=day
+        ).aggregate(total=Sum('amount'))['total'] or 0
+        daily_revenue.append({
+            'date': day.strftime('%b %d'),
+            'revenue': day_rev,
+        })
+
     context = {
+        # Period stats
+        'revenue_today': revenue_today,
+        'revenue_week': revenue_week,
+        'revenue_month': revenue_month,
+        'revenue_all_time': revenue_all_time,
+        'sessions_today': sessions_today,
+        'sessions_week': sessions_week,
+        'sessions_month': sessions_month,
+        'sessions_total': sessions_total,
+        # Financial
+        'total_expenses': total_expenses,
+        'electricity_cost': electricity_cost,
+        'isp_cost': isp_cost,
+        'net_profit': net_profit,
+        'total_investment': total_investment,
+        'roi_percentage': roi_pct,
+        'days_operating': days_operating,
+        # Data
+        'top_plans': top_plans,
+        'recent_sessions': recent_sessions,
+        'daily_revenue': daily_revenue,
         'active_page': 'reports',
     }
     return render(request, 'dashboard/reports.html', context)
