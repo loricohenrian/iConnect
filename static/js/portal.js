@@ -14,6 +14,8 @@ class SessionTimer {
         this.onExpire = null;
         this.onWarning = null;
         this.warningShown = false;
+        this.oneMinWarningShown = false;
+        this.expiredNotified = false;
         this.isPaused = false;
     }
 
@@ -37,6 +39,7 @@ class SessionTimer {
         this.serverSeconds = this.remaining;
         this.stop();
         this.update();
+        _hideTimerBanner();
     }
 
     start() {
@@ -45,15 +48,34 @@ class SessionTimer {
         this.interval = setInterval(() => {
             this.update();
 
-            if (this.remaining <= 300 && !this.warningShown) {
+            // 5-minute warning
+            if (this.remaining <= 300 && this.remaining > 60 && !this.warningShown) {
                 this.warningShown = true;
+                _playAlertSound('warning');
+                _showTimerBanner('⚠️ 5 minutes remaining! Your session will end soon.', 'warning');
+                _sendBrowserNotification('iConnect - 5 Minutes Left', 'Your WiFi session will end in 5 minutes. Consider extending your session.');
                 if (this.onWarning) {
                     this.onWarning();
                 }
             }
 
+            // 1-minute warning
+            if (this.remaining <= 60 && this.remaining > 0 && !this.oneMinWarningShown) {
+                this.oneMinWarningShown = true;
+                _playAlertSound('urgent');
+                _showTimerBanner('🔴 1 minute remaining! Extend now to stay connected.', 'danger');
+                _sendBrowserNotification('iConnect - 1 Minute Left!', 'Your WiFi session ends in 1 minute! Insert coins to extend.');
+            }
+
+            // Expired
             if (this.remaining <= 0) {
                 this.stop();
+                if (!this.expiredNotified) {
+                    this.expiredNotified = true;
+                    _playAlertSound('expired');
+                    _showTimerBanner('❌ Session expired. You have been disconnected.', 'expired');
+                    _sendBrowserNotification('iConnect - Session Expired', 'Your WiFi session has ended. Insert coins to start a new session.');
+                }
                 if (this.onExpire) {
                     this.onExpire();
                 }
@@ -99,6 +121,10 @@ class SessionTimer {
             this.element.classList.add("timer-amber");
         } else {
             this.element.classList.add("timer-red");
+            // Pulse effect when under 1 minute
+            if (safeRemaining <= 60 && safeRemaining > 0) {
+                this.element.style.animation = 'pulse-urgent 1s ease-in-out infinite';
+            }
         }
     }
 
@@ -106,7 +132,126 @@ class SessionTimer {
         this.serverSeconds = Math.max(0, seconds);
         this.startedAt = Date.now();
         this.warningShown = this.remaining <= 300;
+        this.oneMinWarningShown = this.remaining <= 60;
         this.update();
+    }
+}
+
+// === Timer Notification Helpers ===
+
+function _playAlertSound(type) {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = ctx.createOscillator();
+        const gainNode = ctx.createGain();
+        oscillator.connect(gainNode);
+        gainNode.connect(ctx.destination);
+        gainNode.gain.value = 0.3;
+
+        if (type === 'warning') {
+            // Two gentle beeps
+            oscillator.frequency.value = 660;
+            oscillator.type = 'sine';
+            oscillator.start();
+            gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
+            gainNode.gain.setValueAtTime(0, ctx.currentTime + 0.15);
+            gainNode.gain.setValueAtTime(0.3, ctx.currentTime + 0.3);
+            gainNode.gain.setValueAtTime(0, ctx.currentTime + 0.45);
+            oscillator.stop(ctx.currentTime + 0.5);
+        } else if (type === 'urgent') {
+            // Three rapid beeps
+            oscillator.frequency.value = 880;
+            oscillator.type = 'sine';
+            oscillator.start();
+            gainNode.gain.setValueAtTime(0.4, ctx.currentTime);
+            gainNode.gain.setValueAtTime(0, ctx.currentTime + 0.12);
+            gainNode.gain.setValueAtTime(0.4, ctx.currentTime + 0.2);
+            gainNode.gain.setValueAtTime(0, ctx.currentTime + 0.32);
+            gainNode.gain.setValueAtTime(0.4, ctx.currentTime + 0.4);
+            gainNode.gain.setValueAtTime(0, ctx.currentTime + 0.52);
+            oscillator.stop(ctx.currentTime + 0.6);
+        } else if (type === 'expired') {
+            // Descending tone
+            oscillator.frequency.setValueAtTime(880, ctx.currentTime);
+            oscillator.frequency.linearRampToValueAtTime(220, ctx.currentTime + 0.8);
+            oscillator.type = 'sine';
+            gainNode.gain.setValueAtTime(0.4, ctx.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0, ctx.currentTime + 1);
+            oscillator.start();
+            oscillator.stop(ctx.currentTime + 1);
+        }
+    } catch (e) {
+        // Web Audio not supported — fail silently
+    }
+}
+
+function _showTimerBanner(message, type) {
+    // Remove existing banner if any
+    const existing = document.getElementById('timer-alert-banner');
+    if (existing) existing.remove();
+
+    const banner = document.createElement('div');
+    banner.id = 'timer-alert-banner';
+    banner.innerHTML = `<span>${message}</span><button onclick="this.parentElement.remove()" style="background:none;border:none;color:inherit;font-size:18px;cursor:pointer;padding:0 0 0 12px;">✕</button>`;
+
+    let bgColor, textColor, borderColor;
+    if (type === 'warning') {
+        bgColor = 'linear-gradient(135deg, #F59E0B, #D97706)';
+        textColor = '#fff';
+    } else if (type === 'danger') {
+        bgColor = 'linear-gradient(135deg, #EF4444, #DC2626)';
+        textColor = '#fff';
+    } else {
+        bgColor = 'linear-gradient(135deg, #6B7280, #4B5563)';
+        textColor = '#fff';
+    }
+
+    banner.style.cssText = `
+        position: fixed; top: 0; left: 0; right: 0; z-index: 9999;
+        background: ${bgColor}; color: ${textColor};
+        padding: 12px 16px; font-size: 14px; font-weight: 600;
+        text-align: center; display: flex; align-items: center;
+        justify-content: center; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        animation: slideDown 0.4s ease-out;
+    `;
+
+    // Add animation keyframes if not already present
+    if (!document.getElementById('timer-alert-styles')) {
+        const style = document.createElement('style');
+        style.id = 'timer-alert-styles';
+        style.textContent = `
+            @keyframes slideDown {
+                from { transform: translateY(-100%); opacity: 0; }
+                to { transform: translateY(0); opacity: 1; }
+            }
+            @keyframes pulse-urgent {
+                0%, 100% { transform: scale(1); }
+                50% { transform: scale(1.05); }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    document.body.prepend(banner);
+}
+
+function _hideTimerBanner() {
+    const existing = document.getElementById('timer-alert-banner');
+    if (existing) existing.remove();
+}
+
+function _sendBrowserNotification(title, body) {
+    // Request permission and send browser notification
+    if (!('Notification' in window)) return;
+
+    if (Notification.permission === 'granted') {
+        new Notification(title, { body, icon: '/static/images/favicon.png' });
+    } else if (Notification.permission !== 'denied') {
+        Notification.requestPermission().then(permission => {
+            if (permission === 'granted') {
+                new Notification(title, { body, icon: '/static/images/favicon.png' });
+            }
+        });
     }
 }
 
@@ -949,6 +1094,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const totalSeconds = parseInt(timerEl.dataset.seconds, 10) || 0;
     const initialStatus = timerEl.dataset.status || "active";
+
+    // Request browser notification permission early
+    if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+    }
+
     window.sessionTimer = new SessionTimer("session-timer", totalSeconds);
     window.sessionTimer.onExpire = async () => {
         // Call status API immediately to trigger server-side iptables block
