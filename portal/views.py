@@ -121,6 +121,11 @@ def index(request):
             session__isnull=True,
         ).aggregate(total=Sum("amount"))["total"] or 0
 
+    # Connection slots
+    max_slots = getattr(settings, 'PISONET_MAX_CONCURRENT_SESSIONS', 20)
+    active_count = Session.objects.filter(status__in=['active', 'paused']).count()
+    available_slots = max(0, max_slots - active_count)
+
     context = {
         "plans": plans,
         "announcements": announcements,
@@ -131,6 +136,9 @@ def index(request):
         "active_page": "home",
         "most_popular_plan_id": most_popular_plan_id,
         "balance": balance,
+        "slots_active": active_count,
+        "slots_max": max_slots,
+        "slots_available": available_slots,
     }
     return render(request, "portal/index.html", context)
 
@@ -228,7 +236,7 @@ def manual(request):
 
 
 def live_data(request):
-    """Public portal API for realtime announcements and plan updates."""
+    """Public portal API for realtime announcements, plan updates, and connection slots."""
     plans = Plan.objects.filter(is_active=True).order_by("price", "id")
     announcements = Announcement.objects.filter(is_active=True).order_by("-created_at", "-id")
 
@@ -240,6 +248,12 @@ def live_data(request):
         .first()
     )
     most_popular_plan_id = most_popular["plan_id"] if most_popular else None
+
+    # Connection slots
+    from django.conf import settings
+    max_slots = getattr(settings, 'PISONET_MAX_CONCURRENT_SESSIONS', 20)
+    active_count = Session.objects.filter(status__in=['active', 'paused']).count()
+    available_slots = max(0, max_slots - active_count)
 
     plan_payload = [
         {
@@ -267,6 +281,11 @@ def live_data(request):
         {
             "plans": plan_payload,
             "announcements": announcement_payload,
+            "slots": {
+                "active": active_count,
+                "max": max_slots,
+                "available": available_slots,
+            },
             "meta": {
                 "plan_count": len(plan_payload),
                 "announcement_count": len(announcement_payload),

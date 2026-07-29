@@ -419,9 +419,54 @@ async function syncPortalLiveData() {
             _lastPlansJson = plansJson;
             renderPlans(data.plans || []);
         }
+
+        // Update connection slots in real-time
+        if (data.slots) {
+            _updateSlotsIndicator(data.slots);
+        }
     } catch (error) {
         console.error("Live data sync error:", error);
     }
+}
+
+function _updateSlotsIndicator(slots) {
+    const badge = document.getElementById('slots-badge');
+    const dot = document.getElementById('slots-dot');
+    const text = document.getElementById('slots-text');
+    if (!badge || !dot || !text) return;
+
+    const { active, max: maxSlots, available } = slots;
+
+    // Update text
+    if (available > 0) {
+        text.textContent = `${available} / ${maxSlots} slots available`;
+    } else {
+        text.textContent = 'Full — please try again shortly';
+    }
+
+    // Update colors based on availability
+    let bgColor, textColor, dotColor, borderColor;
+    if (available > 5) {
+        bgColor = 'rgba(16,185,129,0.1)';
+        textColor = '#059669';
+        dotColor = '#10B981';
+        borderColor = 'rgba(16,185,129,0.2)';
+    } else if (available > 0) {
+        bgColor = 'rgba(245,158,11,0.1)';
+        textColor = '#D97706';
+        dotColor = '#F59E0B';
+        borderColor = 'rgba(245,158,11,0.2)';
+    } else {
+        bgColor = 'rgba(239,68,68,0.1)';
+        textColor = '#DC2626';
+        dotColor = '#EF4444';
+        borderColor = 'rgba(239,68,68,0.2)';
+    }
+
+    badge.style.background = bgColor;
+    badge.style.color = textColor;
+    badge.style.borderColor = borderColor;
+    dot.style.background = dotColor;
 }
 
 function initPortalRealtime() {
