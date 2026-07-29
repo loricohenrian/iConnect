@@ -104,17 +104,18 @@ def _remove_nat_bypass(mac_address):
     return True
 
 
-def allow_device(mac_address, rate_kbps=None):
+def allow_device(mac_address, rate_kbps=None, upload_kbps=None):
     """
     Allow a device to access the internet.
     Idempotent: Only adds the rule if it doesn't already exist.
     Also adds NAT bypass so HTTP/HTTPS traffic reaches the real internet.
-    rate_kbps: optional per-device bandwidth limit (from plan's speed_limit).
+    rate_kbps: download speed limit in kbps.
+    upload_kbps: upload speed limit in kbps.
     """
     if is_device_allowed(mac_address):
         logger.info('Device %s already allowed', mac_address)
         _add_nat_bypass(mac_address)
-        apply_bandwidth_limit(mac_address, rate_kbps=rate_kbps)
+        apply_bandwidth_limit(mac_address, rate_kbps=rate_kbps, upload_kbps=upload_kbps)
         return True
 
     if getattr(settings, 'PISONET_DNS_ONLY_PREAUTH', False):
@@ -127,7 +128,7 @@ def allow_device(mac_address, rate_kbps=None):
     if success:
         logger.info('Allowed device: %s', mac)
         _add_nat_bypass(mac)
-        apply_bandwidth_limit(mac, rate_kbps=rate_kbps)
+        apply_bandwidth_limit(mac, rate_kbps=rate_kbps, upload_kbps=upload_kbps)
     return success
 
 
@@ -318,6 +319,34 @@ def _get_wan_interface():
     return 'eth0'
 
 
+def _get_lan_interface():
+    """Detect the LAN (client-facing) interface."""
+    lan = getattr(settings, 'PISONET_LAN_INTERFACE', '').strip()
+    if lan:
+        return lan
+    # Auto-detect: interface with the portal IP (10.10.10.1)
+    portal_ip = getattr(settings, 'PISONET_PORTAL_IP', '10.10.10.1').strip()
+    try:
+        result = subprocess.run(
+            ['ip', 'addr'],
+            capture_output=True, text=True, timeout=5
+        )
+        lines = result.stdout.split('\n')
+        current_iface = None
+        for line in lines:
+            # Match interface lines like "2: br0: <BROADCAST..."
+            if ': ' in line and not line.startswith(' '):
+                parts = line.split(': ')
+                if len(parts) >= 2:
+                    current_iface = parts[1].split('@')[0]
+            # Match IP lines like "    inet 10.10.10.1/24..."
+            if portal_ip in line and 'inet ' in line and current_iface:
+                return current_iface
+    except Exception:
+        pass
+    return 'br0'
+
+
 def _ip_to_mark(ip):
     """Convert device IP to a unique mark/class ID (10-254) using last octet."""
     try:
@@ -328,30 +357,82 @@ def _ip_to_mark(ip):
         return None
 
 
-def _ensure_root_qdisc(wan):
-    """Ensure the root HTB qdisc exists on the WAN interface. Idempotent."""
-    # Check if root qdisc already exists
-    result = subprocess.run(
-        ['tc', 'qdisc', 'show', 'dev', wan],
-        capture_output=True, text=True, timeout=5
-    )
-    if 'htb 1:' in result.stdout:
-        return True
+def _ensure_root_qdisc(iface):
+    """Ensure the root HTB qdisc exists on an interface. Idempotent."""
+    try:
+        result = subprocess.run(
+            ['tc', 'qdisc', 'show', 'dev', iface],
+            capture_output=True, text=True, timeout=5
+        )
+        if 'htb 1:' in result.stdout:
+            return True
+    except Exception:
+        pass
 
     # Create root qdisc
-    ok = _run_command(['tc', 'qdisc', 'add', 'dev', wan, 'root', 'handle', '1:', 'htb', 'default', '9999'])
+    ok = _run_command(['tc', 'qdisc', 'add', 'dev', iface, 'root', 'handle', '1:', 'htb', 'default', '9999'])
     if ok:
-        # Default class for unthrottled traffic (system, whitelisted, etc.)
-        _run_command(['tc', 'class', 'add', 'dev', wan, 'parent', '1:', 'classid', '1:9999', 'htb',
+        # Default class for unthrottled traffic
+        _run_command(['tc', 'class', 'add', 'dev', iface, 'parent', '1:', 'classid', '1:9999', 'htb',
                       'rate', '100mbit', 'ceil', '100mbit'])
     return ok
 
 
-def apply_bandwidth_limit(mac_address, rate_kbps=None):
+def _clean_mangle_rules(mac):
+    """Remove all mangle FORWARD rules for a given MAC address."""
+    try:
+        result = subprocess.run(
+            ['iptables', '-t', 'mangle', '-S', 'FORWARD'],
+            capture_output=True, text=True, timeout=5
+        )
+        for line in result.stdout.strip().split('\n'):
+            if mac in line and 'MARK' in line:
+                parts = line.replace('-A ', '-D ').split()
+                _run_command(['iptables', '-t', 'mangle'] + parts, ignore_errors=True)
+    except Exception:
+        pass
+
+    # Also clean POSTROUTING rules (used for download marking by IP)
+    try:
+        result = subprocess.run(
+            ['iptables', '-t', 'mangle', '-S', 'POSTROUTING'],
+            capture_output=True, text=True, timeout=5
+        )
+        for line in result.stdout.strip().split('\n'):
+            if 'MARK' in line:
+                # We can't match by MAC here, need to match by mark value
+                # This will be cleaned by IP-based removal below
+                pass
+    except Exception:
+        pass
+
+
+def _clean_ip_mangle_rules(ip):
+    """Remove mangle rules that match a specific destination IP."""
+    try:
+        result = subprocess.run(
+            ['iptables', '-t', 'mangle', '-S', 'FORWARD'],
+            capture_output=True, text=True, timeout=5
+        )
+        for line in result.stdout.strip().split('\n'):
+            if ip in line and 'MARK' in line:
+                parts = line.replace('-A ', '-D ').split()
+                _run_command(['iptables', '-t', 'mangle'] + parts, ignore_errors=True)
+    except Exception:
+        pass
+
+
+def apply_bandwidth_limit(mac_address, rate_kbps=None, upload_kbps=None):
     """
-    Apply per-device bandwidth limit using iptables mark + tc class.
-    Each device gets a UNIQUE mark and its own tc class, so speeds are independent.
-    rate_kbps: max speed in kilobits/sec (default from settings, fallback 2048 = 2Mbps)
+    Apply per-device bandwidth limit with separate download and upload speeds.
+
+    Download: tc on LAN interface (shapes what goes TO the user)
+              iptables marks packets by destination IP
+    Upload:   tc on WAN interface (shapes what goes FROM the user)
+              iptables marks packets by source MAC
+
+    rate_kbps:   download speed in kbps (default from settings)
+    upload_kbps: upload speed in kbps (defaults to rate_kbps if not set)
     """
     if _is_simulation():
         logger.info('[SIM] Would apply bandwidth limit for %s', mac_address)
@@ -359,6 +440,9 @@ def apply_bandwidth_limit(mac_address, rate_kbps=None):
 
     if rate_kbps is None:
         rate_kbps = getattr(settings, 'PISONET_BANDWIDTH_LIMIT_KBPS', 2048)
+
+    if upload_kbps is None:
+        upload_kbps = rate_kbps  # default: same as download
 
     mac = mac_address.upper()
     ip = _get_device_ip(mac)
@@ -372,79 +456,85 @@ def apply_bandwidth_limit(mac_address, rate_kbps=None):
         return False
 
     wan = _get_wan_interface()
+    lan = _get_lan_interface()
     hex_mark = hex(mark)
     class_id = f'1:{mark}'
-    rate_str = f'{rate_kbps}kbit'
+    dl_rate = f'{rate_kbps}kbit'
+    ul_rate = f'{upload_kbps}kbit'
 
-    # 1. Ensure root HTB qdisc exists
+    # === CLEANUP old rules for this device ===
+    _clean_mangle_rules(mac)
+    _clean_ip_mangle_rules(ip)
+
+    # === UPLOAD SHAPING (WAN egress — user → internet) ===
     _ensure_root_qdisc(wan)
 
-    # 2. Remove old mangle mark for this device (if any) to avoid duplicates
-    old_mark_rule = ['-m', 'mac', '--mac-source', mac, '-j', 'MARK', '--set-mark']
-    try:
-        result = subprocess.run(
-            ['iptables', '-t', 'mangle', '-S', 'FORWARD'],
-            capture_output=True, text=True, timeout=5
-        )
-        for line in result.stdout.strip().split('\n'):
-            if mac in line and 'MARK' in line:
-                # Extract the full rule and delete it
-                parts = line.replace('-A ', '-D ').split()
-                _run_command(['iptables', '-t', 'mangle'] + parts, ignore_errors=True)
-    except Exception:
-        pass
+    # Mark packets FROM this device (by MAC) for upload
+    _run_command(['iptables', '-t', 'mangle', '-A', 'FORWARD',
+                  '-m', 'mac', '--mac-source', mac, '-j', 'MARK', '--set-mark', hex_mark])
 
-    # 3. Add iptables mangle rule: mark this device's packets with unique mark
-    mark_rule = ['-m', 'mac', '--mac-source', mac, '-j', 'MARK', '--set-mark', hex_mark]
-    _run_command(['iptables', '-t', 'mangle', '-A', 'FORWARD'] + mark_rule)
-
-    # 4. Create/replace tc class for this device with its plan speed
-    #    'replace' creates if missing, updates if exists
+    # Create tc class on WAN with upload speed
     _run_command(['tc', 'class', 'replace', 'dev', wan, 'parent', '1:', 'classid', class_id, 'htb',
-                  'rate', rate_str, 'ceil', rate_str])
+                  'rate', ul_rate, 'ceil', ul_rate])
 
-    # 5. Add tc filter: route packets with this mark to this device's class
-    #    Delete old filter first (ignore error if doesn't exist)
+    # Filter: marked packets → upload class
     _run_command(['tc', 'filter', 'del', 'dev', wan, 'parent', '1:', 'protocol', 'ip',
                   'handle', hex_mark, 'fw'], ignore_errors=True)
     _run_command(['tc', 'filter', 'add', 'dev', wan, 'parent', '1:', 'protocol', 'ip',
                   'handle', hex_mark, 'fw', 'classid', class_id])
 
-    logger.info('Bandwidth limit applied for %s (IP=%s mark=%s): %s kbps', mac, ip, hex_mark, rate_kbps)
+    # === DOWNLOAD SHAPING (LAN egress — internet → user) ===
+    _ensure_root_qdisc(lan)
+
+    # Mark packets TO this device (by dest IP) for download
+    _run_command(['iptables', '-t', 'mangle', '-A', 'FORWARD',
+                  '-d', ip, '-j', 'MARK', '--set-mark', hex_mark])
+
+    # Create tc class on LAN with download speed
+    _run_command(['tc', 'class', 'replace', 'dev', lan, 'parent', '1:', 'classid', class_id, 'htb',
+                  'rate', dl_rate, 'ceil', dl_rate])
+
+    # Filter: marked packets → download class
+    _run_command(['tc', 'filter', 'del', 'dev', lan, 'parent', '1:', 'protocol', 'ip',
+                  'handle', hex_mark, 'fw'], ignore_errors=True)
+    _run_command(['tc', 'filter', 'add', 'dev', lan, 'parent', '1:', 'protocol', 'ip',
+                  'handle', hex_mark, 'fw', 'classid', class_id])
+
+    logger.info('Bandwidth limit applied for %s (IP=%s): DL=%s UL=%s', mac, ip, dl_rate, ul_rate)
     return True
 
 
 def remove_bandwidth_limit(mac_address):
-    """Remove per-device bandwidth limit: iptables mark + tc class + tc filter."""
+    """Remove per-device bandwidth limit from both WAN and LAN interfaces."""
     if _is_simulation():
         return True
 
     mac = mac_address.upper()
     ip = _get_device_ip(mac)
     wan = _get_wan_interface()
+    lan = _get_lan_interface()
 
-    # Remove ALL mangle rules for this MAC (handles any mark value)
-    try:
-        result = subprocess.run(
-            ['iptables', '-t', 'mangle', '-S', 'FORWARD'],
-            capture_output=True, text=True, timeout=5
-        )
-        for line in result.stdout.strip().split('\n'):
-            if mac in line and 'MARK' in line:
-                parts = line.replace('-A ', '-D ').split()
-                _run_command(['iptables', '-t', 'mangle'] + parts, ignore_errors=True)
-    except Exception:
-        pass
+    # Remove ALL mangle rules for this MAC
+    _clean_mangle_rules(mac)
 
-    # Remove tc class and filter for this device if we know the IP
+    # Remove IP-based rules and tc classes/filters on both interfaces
     if ip:
+        _clean_ip_mangle_rules(ip)
         mark = _ip_to_mark(ip)
         if mark:
             hex_mark = hex(mark)
             class_id = f'1:{mark}'
+
+            # Clean WAN (upload)
             _run_command(['tc', 'filter', 'del', 'dev', wan, 'parent', '1:', 'protocol', 'ip',
                           'handle', hex_mark, 'fw'], ignore_errors=True)
             _run_command(['tc', 'class', 'del', 'dev', wan, 'parent', '1:', 'classid', class_id],
+                         ignore_errors=True)
+
+            # Clean LAN (download)
+            _run_command(['tc', 'filter', 'del', 'dev', lan, 'parent', '1:', 'protocol', 'ip',
+                          'handle', hex_mark, 'fw'], ignore_errors=True)
+            _run_command(['tc', 'class', 'del', 'dev', lan, 'parent', '1:', 'classid', class_id],
                          ignore_errors=True)
 
     logger.info('Bandwidth limit removed for %s', mac)

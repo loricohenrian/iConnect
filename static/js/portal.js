@@ -362,11 +362,19 @@ function renderPlans(plans) {
                     ? '<div class="plan-popular">Popular</div>'
                     : "";
 
+            const speedHtml = plan.speed_limit
+                ? `<div class="plan-speed" style="font-size:12px;color:var(--text-secondary);margin-top:4px;">
+                       <i class="bi bi-speedometer2"></i>
+                       ↓${plan.speed_limit}${plan.speed_limit_upload ? ' / ↑' + plan.speed_limit_upload : ''} Mbps
+                   </div>`
+                : '';
+
             return `
                 <div class="plan-card" data-plan-id="${plan.id}" id="plan-${plan.id}">
                     ${popularBadge}
                     <div class="plan-price">₱${plan.price}</div>
                     <div class="plan-duration">${escapeHtml(plan.duration_display)}</div>
+                    ${speedHtml}
                 </div>
             `;
         })

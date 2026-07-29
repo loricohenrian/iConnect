@@ -264,6 +264,7 @@ def live_data(request):
             "duration_display": plan.duration_display,
             "price_per_minute": float(plan.price_per_minute),
             "speed_limit": float(plan.speed_limit) if plan.speed_limit is not None else None,
+            "speed_limit_upload": float(plan.speed_limit_upload) if plan.speed_limit_upload is not None else None,
             "is_most_popular": plan.id == most_popular_plan_id,
         }
         for plan in plans

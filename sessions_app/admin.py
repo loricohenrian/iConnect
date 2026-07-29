@@ -4,7 +4,7 @@ from .models import Plan, Session, CoinEvent, CoinInsertRequest, WhitelistedDevi
 
 @admin.register(Plan)
 class PlanAdmin(admin.ModelAdmin):
-    list_display = ('name', 'price', 'duration_minutes', 'speed_limit', 'is_active', 'created_at')
+    list_display = ('name', 'price', 'duration_minutes', 'speed_limit', 'speed_limit_upload', 'is_active', 'created_at')
     list_filter = ('is_active',)
     search_fields = ('name',)
 

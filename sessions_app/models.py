@@ -21,7 +21,14 @@ class Plan(models.Model):
         decimal_places=1,
         null=True,
         blank=True,
-        help_text="Optional speed cap in Mbps",
+        help_text="Download speed cap in Mbps",
+    )
+    speed_limit_upload = models.DecimalField(
+        max_digits=5,
+        decimal_places=1,
+        null=True,
+        blank=True,
+        help_text="Upload speed cap in Mbps (defaults to download speed if blank)",
     )
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)

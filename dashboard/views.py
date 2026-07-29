@@ -952,6 +952,7 @@ def plans_view(request):
             price_raw = request.POST.get('price', '').strip()
             duration_raw = request.POST.get('duration_minutes', '').strip()
             speed_limit_raw = request.POST.get('speed_limit', '').strip()
+            speed_limit_upload_raw = request.POST.get('speed_limit_upload', '').strip()
             is_active = request.POST.get('is_active') in ('on', 'true', '1')
 
             try:
@@ -968,12 +969,19 @@ def plans_view(request):
                     if speed_limit <= 0:
                         raise ValueError('Speed limit must be positive when provided.')
 
+                speed_limit_upload = None
+                if speed_limit_upload_raw:
+                    speed_limit_upload = Decimal(speed_limit_upload_raw)
+                    if speed_limit_upload <= 0:
+                        raise ValueError('Upload speed limit must be positive when provided.')
+
                 if action == 'create':
                     Plan.objects.create(
                         name=name,
                         price=price,
                         duration_minutes=duration_minutes,
                         speed_limit=speed_limit,
+                        speed_limit_upload=speed_limit_upload,
                         is_active=is_active,
                     )
                 else:
@@ -983,6 +991,7 @@ def plans_view(request):
                         plan.price = price
                         plan.duration_minutes = duration_minutes
                         plan.speed_limit = speed_limit
+                        plan.speed_limit_upload = speed_limit_upload
                         plan.is_active = is_active
                         plan.save()
             except (ValueError, InvalidOperation) as exc:

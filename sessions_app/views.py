@@ -666,8 +666,9 @@ def session_start(request):
             )
 
             # Apply bandwidth limit based on plan's speed_limit (Mbps → kbps)
-            plan_rate_kbps = int(plan.speed_limit * 1024) if plan.speed_limit else None
-            if not iptables.allow_device(mac_address, rate_kbps=plan_rate_kbps):
+            dl_kbps = int(plan.speed_limit * 1024) if plan.speed_limit else None
+            ul_kbps = int(plan.speed_limit_upload * 1024) if plan.speed_limit_upload else dl_kbps
+            if not iptables.allow_device(mac_address, rate_kbps=dl_kbps, upload_kbps=ul_kbps):
                 raise RuntimeError("Failed to allow internet access for this device")
     except RuntimeError as exc:
         return Response(
@@ -828,8 +829,9 @@ def session_extend(request):
                 ]
             )
 
-            plan_rate = int(voucher_session.plan.speed_limit * 1024) if voucher_session.plan and voucher_session.plan.speed_limit else None
-            if not iptables.allow_device(mac_address, rate_kbps=plan_rate):
+            dl_kbps = int(voucher_session.plan.speed_limit * 1024) if voucher_session.plan and voucher_session.plan.speed_limit else None
+            ul_kbps = int(voucher_session.plan.speed_limit_upload * 1024) if voucher_session.plan and voucher_session.plan.speed_limit_upload else dl_kbps
+            if not iptables.allow_device(mac_address, rate_kbps=dl_kbps, upload_kbps=ul_kbps):
                 raise RuntimeError("Failed to restore internet access for this device")
     except RuntimeError as exc:
         return Response(
@@ -1069,8 +1071,9 @@ def session_pause_toggle(request):
         })
     else:
         session.resume_session()
-        plan_rate = int(session.plan.speed_limit * 1024) if session.plan and session.plan.speed_limit else None
-        allowed = iptables.allow_device(mac_address, rate_kbps=plan_rate)
+        dl_kbps = int(session.plan.speed_limit * 1024) if session.plan and session.plan.speed_limit else None
+        ul_kbps = int(session.plan.speed_limit_upload * 1024) if session.plan and session.plan.speed_limit_upload else dl_kbps
+        allowed = iptables.allow_device(mac_address, rate_kbps=dl_kbps, upload_kbps=ul_kbps)
         audit_logger.info(
             "event=session_resumed mac=%s allowed=%s ip=%s",
             mac_address, allowed, _client_ip(request),
