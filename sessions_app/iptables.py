@@ -409,9 +409,23 @@ def _clean_mangle_rules(mac):
 
 def _clean_ip_mangle_rules(ip):
     """Remove mangle rules that match a specific destination IP."""
+    # Clean FORWARD rules
     try:
         result = subprocess.run(
             ['iptables', '-t', 'mangle', '-S', 'FORWARD'],
+            capture_output=True, text=True, timeout=5
+        )
+        for line in result.stdout.strip().split('\n'):
+            if ip in line and 'MARK' in line:
+                parts = line.replace('-A ', '-D ').split()
+                _run_command(['iptables', '-t', 'mangle'] + parts, ignore_errors=True)
+    except Exception:
+        pass
+
+    # Clean POSTROUTING rules
+    try:
+        result = subprocess.run(
+            ['iptables', '-t', 'mangle', '-S', 'POSTROUTING'],
             capture_output=True, text=True, timeout=5
         )
         for line in result.stdout.strip().split('\n'):
@@ -487,7 +501,8 @@ def apply_bandwidth_limit(mac_address, rate_kbps=None, upload_kbps=None):
     _ensure_root_qdisc(lan)
 
     # Mark packets TO this device (by dest IP) for download
-    _run_command(['iptables', '-t', 'mangle', '-A', 'FORWARD',
+    # We use POSTROUTING so it catches both forwarded traffic and router-generated traffic
+    _run_command(['iptables', '-t', 'mangle', '-A', 'POSTROUTING', '-o', lan,
                   '-d', ip, '-j', 'MARK', '--set-mark', hex_mark])
 
     # Create tc class on LAN with download speed
