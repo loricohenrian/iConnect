@@ -160,10 +160,10 @@ def dashboard_stats_api(request):
     today = timezone.localdate()
     week_ago = today - timedelta(days=7)
 
-    # Revenue today
-    revenue_today = Session.objects.filter(
-        time_in__date=today, status__in=['active', 'expired', 'paused']
-    ).aggregate(total=Sum('amount_paid'))['total'] or 0
+    # Revenue today (all physical coins inserted today)
+    revenue_today = CoinEvent.objects.filter(
+        timestamp__date=today
+    ).aggregate(total=Sum('amount'))['total'] or 0
 
     # Connected users
     connected_count = Session.objects.filter(status='active').count()
@@ -176,9 +176,8 @@ def dashboard_stats_api(request):
 
     # ROI
     total_cost = ProjectCost.total_cost()
-    total_revenue = Session.objects.filter(
-        status__in=['active', 'expired', 'paused']
-    ).aggregate(total=Sum('amount_paid'))['total'] or 0
+    # Total revenue (all physical coins ever inserted)
+    total_revenue = CoinEvent.objects.aggregate(total=Sum('amount'))['total'] or 0
     roi_percentage = (total_revenue / total_cost * 100) if total_cost > 0 else 0
 
     # Revenue last 7 days
