@@ -325,7 +325,7 @@ def _get_lan_interface():
     if lan:
         return lan
     # Auto-detect: interface with the portal IP (10.10.10.1)
-    portal_ip = getattr(settings, 'PISONET_PORTAL_IP', '10.10.10.1').strip()
+    portal_ip = getattr(settings, 'PISONET_PORTAL_IP', '').strip() or '10.10.10.1'
     try:
         result = subprocess.run(
             ['ip', 'addr'],
