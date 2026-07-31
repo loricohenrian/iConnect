@@ -332,16 +332,12 @@ def _get_lan_interface():
             capture_output=True, text=True, timeout=5
         )
         lines = result.stdout.split('\n')
-        current_iface = None
         for line in lines:
-            # Match interface lines like "2: br0: <BROADCAST..."
-            if ': ' in line and not line.startswith(' '):
-                parts = line.split(': ')
+            if portal_ip in line and 'inet ' in line:
+                # e.g., "    inet 10.10.10.1/24 brd 10.10.10.255 scope global usblan0"
+                parts = line.strip().split()
                 if len(parts) >= 2:
-                    current_iface = parts[1].split('@')[0]
-            # Match IP lines like "    inet 10.10.10.1/24..."
-            if portal_ip in line and 'inet ' in line and current_iface:
-                return current_iface
+                    return parts[-1]  # The interface name is usually the last word
     except Exception:
         pass
     return 'br0'
