@@ -12,7 +12,7 @@
     {% for session in sessions %}
     <div class="history-item animate-fadeIn" style="animation-delay: {{ forloop.counter0 }}50ms">
         <div>
-            <div class="history-plan">{{ session.plan.name }}</div>
+            <div class="history-plan">₱{{ session.plan.price }} - {{ session.plan.duration_display }}</div>
             <div class="history-times">
                 Start: {{ session.time_in|date:"M d, Y h:i A" }}<br>
                 {% if session.time_out %}
