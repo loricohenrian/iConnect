@@ -792,15 +792,21 @@ def analytics_view(request):
 @user_passes_test(_is_dashboard_admin, login_url='dashboard:login')
 def roi(request):
     """ROI tracker page with accurate financial computation."""
-    # Handle add cost POST
-    if request.method == 'POST' and request.POST.get('action') == 'add_cost':
-        desc = request.POST.get('description', '').strip()
-        amount = request.POST.get('amount', '').strip()
-        if desc and amount:
-            try:
-                ProjectCost.objects.create(description=desc, amount=int(amount))
-            except (ValueError, TypeError):
-                pass
+    # Handle POST actions (add_cost, delete_cost)
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if action == 'add_cost':
+            desc = request.POST.get('description', '').strip()
+            amount = request.POST.get('amount', '').strip()
+            if desc and amount:
+                try:
+                    ProjectCost.objects.create(description=desc, amount=int(amount))
+                except (ValueError, TypeError):
+                    pass
+        elif action == 'delete_cost':
+            cost_id = request.POST.get('cost_id')
+            if cost_id:
+                ProjectCost.objects.filter(id=cost_id).delete()
         return redirect('dashboard:roi')
 
     # === INVESTMENT (one-time project costs) ===
