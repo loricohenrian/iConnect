@@ -427,9 +427,18 @@ def overview(request):
     sessions_today = Session.objects.filter(time_in__date=today).count()
 
     total_cost = ProjectCost.total_cost()
-    # Total revenue = all coins ever inserted
     total_revenue = CoinEvent.objects.aggregate(total=Sum('amount'))['total'] or 0
-    roi_pct = (total_revenue / total_cost * 100) if total_cost > 0 else 0
+    
+    first_session = Session.objects.order_by('time_in').first()
+    days_operating = max((timezone.now() - first_session.time_in).days, 1) if first_session else 0
+    sys_watts = getattr(settings, 'PISONET_SYSTEM_WATTAGE', 18)
+    e_rate = getattr(settings, 'PISONET_ELECTRICITY_RATE', 11.0)
+    electricity_cost = (sys_watts / 1000) * 24 * days_operating * e_rate
+    isp_monthly = getattr(settings, 'PISONET_ISP_MONTHLY_COST', 1500.0)
+    isp_cost = (isp_monthly / 30) * days_operating
+    
+    net_profit = total_revenue - (electricity_cost + isp_cost)
+    roi_pct = (net_profit / total_cost * 100) if total_cost > 0 else 0
 
     recent_sessions = Session.objects.select_related('plan').all()[:10]
     announcements = Announcement.objects.filter(is_active=True)
