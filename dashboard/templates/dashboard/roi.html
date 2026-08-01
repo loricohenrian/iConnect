@@ -80,13 +80,6 @@
             <div style="font-weight: 600; font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Operating Expenses</div>
             <div class="cost-item">
                 <div>
-                    <div class="cost-desc">Electricity</div>
-                    <div class="text-xs text-muted">{{ system_wattage }}W × 24h × {{ days_operating }} days × ₱{{ electricity_rate }}/kWh</div>
-                </div>
-                <div class="cost-amount" style="color: #EF4444;">-₱{{ electricity_cost }}</div>
-            </div>
-            <div class="cost-item">
-                <div>
                     <div class="cost-desc">Internet Subscription (ISP)</div>
                     <div class="text-xs text-muted">₱{{ isp_monthly_cost }}/month × {{ days_operating }} days</div>
                 </div>
