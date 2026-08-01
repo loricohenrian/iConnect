@@ -1,4 +1,4 @@
-﻿"""
+"""
 iConnect — PDF Report Generator using ReportLab
 """
 import io
@@ -230,8 +230,9 @@ def generate_csv_report(report_type='daily', period='today'):
     data = get_report_data(report_type, period)
     sessions = data['sessions']
 
-    response = HttpResponse(content_type='text/csv')
+    response = HttpResponse(content_type='text/csv; charset=utf-8')
     response['Content-Disposition'] = f'attachment; filename="iconnect_{report_type}_report.csv"'
+    response.write('\ufeff') # UTF-8 BOM for Excel
 
     writer = csv.writer(response)
     writer.writerow(['iConnect Report'])
@@ -269,8 +270,8 @@ def generate_csv_report(report_type='daily', period='today'):
             session.amount_paid,
             session.duration_minutes_purchased,
             session.status,
-            session.time_in.strftime('%Y-%m-%d %H:%M:%S') if session.time_in else '',
-            session.time_out.strftime('%Y-%m-%d %H:%M:%S') if session.time_out else '',
+            session.time_in.strftime('%m/%d/%Y %H:%M') if session.time_in else '',
+            session.time_out.strftime('%m/%d/%Y %H:%M') if session.time_out else '',
             session.bandwidth_used_mb,
         ])
 

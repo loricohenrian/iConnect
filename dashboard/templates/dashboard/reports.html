@@ -83,13 +83,7 @@
     <!-- Expense Breakdown -->
     <div class="chart-card animate-fadeIn" style="animation-delay: 400ms">
         <h3 class="card-title mb-md"><i class="bi bi-cash-stack"></i> Expense Breakdown</h3>
-        <div class="cost-item">
-            <div>
-                <div class="cost-desc">Electricity Cost</div>
-                <div class="text-xs text-muted">{{ days_operating }} days of operation</div>
-            </div>
-            <div class="cost-amount" style="color: #EF4444;">₱{{ electricity_cost }}</div>
-        </div>
+
         <div class="cost-item">
             <div>
                 <div class="cost-desc">Internet Subscription (ISP)</div>
@@ -227,9 +221,7 @@
                 <button class="btn btn-secondary btn-sm" onclick="window.open('/api/connected-users/')" id="export-connected-btn">
                     <i class="bi bi-people"></i> Connected Users
                 </button>
-                <button class="btn btn-secondary btn-sm" onclick="window.open('/api/dashboard/stats/')" id="export-stats-btn">
-                    <i class="bi bi-bar-chart"></i> Stats API
-                </button>
+
             </div>
         </div>
     </div>
