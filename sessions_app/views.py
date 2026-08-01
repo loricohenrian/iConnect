@@ -201,7 +201,10 @@ def _coin_request_payload(coin_request):
         "credited_amount": coin_request.credited_amount,
         "queue_position": _coin_request_queue_position(coin_request),
         "expires_at": coin_request.expires_at,
-        "ready_to_start": coin_request.status == CoinInsertRequest.STATUS_COMPLETED,
+        "ready_to_start": (
+            coin_request.expected_amount > 0 and 
+            coin_request.credited_amount >= coin_request.expected_amount
+        ),
     }
 
 
@@ -226,15 +229,6 @@ def _sync_coin_request_progress(coin_request):
     ):
         coin_request.status = CoinInsertRequest.STATUS_EXPIRED
         update_fields.append("status")
-        transitioned = True
-    elif (
-        coin_request.status in (CoinInsertRequest.STATUS_PENDING, CoinInsertRequest.STATUS_ACTIVE)
-        and coin_request.expected_amount > 0
-        and credited_amount >= coin_request.expected_amount
-    ):
-        coin_request.status = CoinInsertRequest.STATUS_COMPLETED
-        coin_request.completed_at = now
-        update_fields.extend(["status", "completed_at"])
         transitioned = True
 
     if update_fields:
@@ -627,12 +621,16 @@ def session_start(request):
 
     try:
         with transaction.atomic():
+            multiplier = total_coins // plan.price
+            amount_paid = plan.price * multiplier
+            duration_minutes = plan.duration_minutes * multiplier
+
             session = Session.objects.create(
                 mac_address=mac_address,
                 plan=plan,
                 time_in=timezone.now(),
-                duration_minutes_purchased=plan.duration_minutes,
-                amount_paid=plan.price,
+                duration_minutes_purchased=duration_minutes,
+                amount_paid=amount_paid,
                 ip_address=ip_address,
                 device_name=device_name,
                 status="active",
@@ -640,14 +638,14 @@ def session_start(request):
 
             used_amount = 0
             for event in _pending_coin_events_for_mac(mac_address):
-                if used_amount >= plan.price:
+                if used_amount >= amount_paid:
                     break
                 event.session = session
                 event.save(update_fields=["session"])
                 used_amount += event.amount
 
             # Return overpayment as balance (unlinked "change" coin event)
-            overpayment = used_amount - plan.price
+            overpayment = used_amount - amount_paid
             if overpayment > 0:
                 CoinEvent.objects.create(
                     mac_address=mac_address,
@@ -942,8 +940,12 @@ def session_extend_paid(request):
     # Extend the session
     try:
         with transaction.atomic():
-            active_session.extend_session(plan.duration_minutes)
-            active_session.amount_paid += plan.price
+            multiplier = total_coins // plan.price
+            amount_paid = plan.price * multiplier
+            duration_minutes = plan.duration_minutes * multiplier
+
+            active_session.extend_session(duration_minutes)
+            active_session.amount_paid += amount_paid
             
             # Speed Always Wins logic
             speed_changed = False
@@ -970,14 +972,14 @@ def session_extend_paid(request):
 
             used_amount = 0
             for event in _pending_coin_events_for_mac(mac_address):
-                if used_amount >= plan.price:
+                if used_amount >= amount_paid:
                     break
                 event.session = active_session
                 event.save(update_fields=["session"])
                 used_amount += event.amount
 
             # Return overpayment as balance
-            overpayment = used_amount - plan.price
+            overpayment = used_amount - amount_paid
             if overpayment > 0:
                 CoinEvent.objects.create(
                     mac_address=mac_address,

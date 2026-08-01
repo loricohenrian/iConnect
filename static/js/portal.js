@@ -572,6 +572,9 @@ function coinRequestStatusMessage(coinRequest, context = "start") {
             : "Payment complete. Tap Connect Now to start your session.";
     }
     if (status === "active") {
+        if (coinRequest.ready_to_start) {
+            return "Minimum reached! Insert more coins for more time, or tap Connect Now.";
+        }
         return "Insert coins now. Your device currently owns the coin slot window.";
     }
     if (status === "pending") {
@@ -629,7 +632,15 @@ function initProductionStartFlow(macAddress) {
         startBtn.disabled = !state.readyToStart;
         startBtn.dataset.readyToStart = state.readyToStart ? "1" : "0";
 
-        if (state.readyToStart || ["expired", "cancelled"].includes(coinRequest?.status)) {
+        if (coinRequest?.status === "expired") {
+            if (state.readyToStart) {
+                setStartFlowMessage("Time expired. Auto-connecting with inserted coins...", "success");
+                clearPolling();
+                startBtn.click();
+            } else {
+                clearPolling();
+            }
+        } else if (coinRequest?.status === "cancelled") {
             clearPolling();
         }
     };
@@ -863,7 +874,16 @@ function initExtendSessionFlow(macAddress) {
         setExtendMeta(formatCoinRequestMeta(coinRequest));
 
         extendNowBtn.disabled = !state.readyToStart;
-        if (state.readyToStart || ["expired", "cancelled"].includes(coinRequest?.status)) {
+        
+        if (coinRequest?.status === "expired") {
+            if (state.readyToStart) {
+                setExtendMessage("Time expired. Auto-extending with inserted coins...", "success");
+                clearPolling();
+                extendNowBtn.click();
+            } else {
+                clearPolling();
+            }
+        } else if (coinRequest?.status === "cancelled") {
             clearPolling();
         }
     };
