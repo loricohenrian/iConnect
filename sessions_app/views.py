@@ -577,8 +577,8 @@ def session_start(request):
         )
 
     # Check max concurrent sessions limit
-    max_sessions = getattr(settings, 'PISONET_MAX_CONCURRENT_SESSIONS', 20)
-    active_count = Session.objects.filter(status__in=["active", "paused"]).count()
+    max_sessions = getattr(settings, "PISONET_MAX_CONCURRENT_SESSIONS", 20)
+    active_count = Session.objects.filter(status="active").count()
     if active_count >= max_sessions:
         audit_logger.warning(
             "event=session_start_max_concurrent mac=%s active=%d max=%d",
@@ -1116,6 +1116,16 @@ def session_pause_toggle(request):
             "time_remaining_seconds": session.time_remaining_seconds,
         })
     else:
+        # Check if network is full before allowing resume
+        from django.conf import settings
+        max_sessions = getattr(settings, "PISONET_MAX_CONCURRENT_SESSIONS", 20)
+        active_count = Session.objects.filter(status="active").count()
+        if active_count >= max_sessions:
+            return Response(
+                {"error": f"Network is full ({max_sessions} active users). Please try resuming later."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
         session.resume_session()
         dl_kbps = int(session.plan.speed_limit * 1024) if session.plan and session.plan.speed_limit else None
         ul_kbps = int(session.plan.speed_limit_upload * 1024) if session.plan and session.plan.speed_limit_upload else dl_kbps

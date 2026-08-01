@@ -26,17 +26,16 @@ def restore_iptables_on_boot():
     active = Session.objects.filter(status='active')
     paused = Session.objects.filter(status='paused')
 
-    auto_paused = 0
+    reallowed = 0
     expired = 0
     for session in active:
         if session.time_remaining_seconds > 0:
-            # Auto-pause: freeze the timer so downtime doesn't count
-            session.status = 'paused'
-            session.paused_at = timezone.now()
-            session.save(update_fields=['status', 'paused_at'])
-            iptables.block_device(session.mac_address)
-            auto_paused += 1
-            logger.info(f'Boot: auto-paused session {session.id} for {session.mac_address}')
+            # Restore internet access for the active session
+            dl_kbps = int(session.plan.speed_limit * 1024) if session.plan and session.plan.speed_limit else None
+            ul_kbps = int(session.plan.speed_limit_upload * 1024) if session.plan and session.plan.speed_limit_upload else dl_kbps
+            iptables.allow_device(session.mac_address, rate_kbps=dl_kbps, upload_kbps=ul_kbps)
+            reallowed += 1
+            logger.info(f'Boot: restored active session {session.id} for {session.mac_address}')
         else:
             session.expire_session()
             iptables.block_device(session.mac_address)
@@ -47,8 +46,8 @@ def restore_iptables_on_boot():
         iptables.block_device(session.mac_address)
         blocked += 1
 
-    logger.info(f'Boot: auto-paused {auto_paused}, expired {expired}, kept-paused {blocked}')
-    return f'Auto-paused {auto_paused}, expired {expired}, kept-paused {blocked}'
+    logger.info(f'Boot: restored {reallowed}, expired {expired}, kept-paused {blocked}')
+    return f'Restored {reallowed}, expired {expired}, kept-paused {blocked}'
 
 
 @shared_task
