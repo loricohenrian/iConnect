@@ -364,7 +364,6 @@ function renderPlans(plans) {
 
             const speedHtml = plan.speed_limit
                 ? `<div class="plan-speed" style="font-size:12px;color:var(--text-secondary);margin-top:4px;">
-                       <i class="bi bi-speedometer2"></i>
                        ↓${plan.speed_limit}${plan.speed_limit_upload ? ' / ↑' + plan.speed_limit_upload : ''} Mbps
                    </div>`
                 : '';
