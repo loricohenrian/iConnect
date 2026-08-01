@@ -412,7 +412,7 @@ let _lastPlansJson = "";
 
 async function syncPortalLiveData() {
     try {
-        const response = await fetch("/api/portal/live-data/", {
+        const response = await fetch(`/api/portal/live-data/?t=${Date.now()}`, {
             headers: { "Cache-Control": "no-cache" },
         });
 
