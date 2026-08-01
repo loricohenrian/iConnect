@@ -250,7 +250,7 @@ PISONET_DNS_RESOLVER = os.getenv('DNS_RESOLVER', '').strip()
 PISONET_PORTAL_IP = os.getenv('PORTAL_IP', '').strip()
 PISONET_ENFORCE_FIREWALL_BASELINE_ON_STARTUP = os.getenv('ENFORCE_FIREWALL_BASELINE_ON_STARTUP', 'True').lower() in ('true', '1', 'yes')
 PISONET_REQUIRE_FORWARD_DROP_BEFORE_SESSION = os.getenv('REQUIRE_FORWARD_DROP_BEFORE_SESSION', 'True').lower() in ('true', '1', 'yes')
-PISONET_MAX_CONCURRENT_SESSIONS = int(os.getenv('MAX_CONCURRENT_SESSIONS', '20'))
+PISONET_MAX_CONCURRENT_SESSIONS = int(os.getenv('MAX_CONCURRENT_SESSIONS', '50'))
 PISONET_BANDWIDTH_LIMIT_KBPS = int(os.getenv('BANDWIDTH_LIMIT_KBPS', '2048'))  # 2 Mbps default
 PISONET_WAN_INTERFACE = os.getenv('WAN_INTERFACE', '').strip()
 # Dev portal flow removed — production only.
