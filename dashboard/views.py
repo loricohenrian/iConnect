@@ -817,25 +817,17 @@ def roi(request):
         total=Sum('amount')
     )['total'] or 0
 
-    # === OPERATING EXPENSES ===
+    # === OPERATING EXPENSES (Removed per user request) ===
+    # User will manually add ISP bills to Investment Costs Breakdown
+    electricity_cost = 0
+    isp_cost = 0
+    total_expenses = 0
+
     first_session = Session.objects.order_by('time_in').first()
     if first_session:
         days_operating = max((timezone.now() - first_session.time_in).days, 1)
     else:
         days_operating = 0
-
-    # Electricity cost: watts × hours/day × days × rate per kWh
-    system_watts = getattr(settings, 'PISONET_SYSTEM_WATTAGE', 18)
-    elec_rate = getattr(settings, 'PISONET_ELECTRICITY_RATE', 11.0)
-    # System runs 24/7
-    electricity_cost = round((system_watts / 1000) * 24 * days_operating * elec_rate, 2)
-
-    # ISP cost: prorated monthly cost over operating period
-    isp_monthly = getattr(settings, 'PISONET_ISP_MONTHLY_COST', 1500.0)
-    isp_cost = round((isp_monthly / 30) * days_operating, 2)
-
-    # Total operating expenses
-    total_expenses = round(electricity_cost + isp_cost, 2)
 
     # === NET PROFIT ===
     net_profit = round(gross_revenue - total_expenses, 2)
@@ -847,7 +839,7 @@ def roi(request):
     # === DAILY AVERAGES ===
     if days_operating > 0 and gross_revenue > 0:
         daily_avg_revenue = round(gross_revenue / days_operating, 2)
-        daily_avg_expense = round(total_expenses / days_operating, 2)
+        daily_avg_expense = 0
         daily_avg_profit = round(net_profit / days_operating, 2)
 
         # Breakeven: based on NET daily profit (not gross revenue)
