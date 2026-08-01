@@ -782,7 +782,29 @@ def session_extend(request):
     if active_session:
         active_session.extend_session(voucher_session.duration_minutes_purchased)
         active_session.amount_paid += voucher_session.amount_paid
-        active_session.save(update_fields=["duration_minutes_purchased", "amount_paid", "status", "time_in"])
+        
+        # Speed Always Wins logic
+        speed_changed = False
+        if voucher_session.plan and active_session.plan:
+            new_dl = voucher_session.plan.speed_limit or 0
+            old_dl = active_session.plan.speed_limit or 0
+            if new_dl > old_dl:
+                active_session.plan = voucher_session.plan
+                speed_changed = True
+        elif voucher_session.plan and not active_session.plan:
+            active_session.plan = voucher_session.plan
+            speed_changed = True
+            
+        update_fields = ["duration_minutes_purchased", "amount_paid", "status", "time_in"]
+        if speed_changed:
+            update_fields.append("plan")
+
+        active_session.save(update_fields=update_fields)
+
+        if speed_changed and active_session.plan:
+            dl_kbps = int(active_session.plan.speed_limit * 1024) if active_session.plan.speed_limit else None
+            ul_kbps = int(active_session.plan.speed_limit_upload * 1024) if active_session.plan.speed_limit_upload else dl_kbps
+            iptables.apply_bandwidth_limit(mac_address, rate_kbps=dl_kbps, upload_kbps=ul_kbps)
 
         voucher_session.status = "expired"
         voucher_session.save(update_fields=["status"])
@@ -922,7 +944,29 @@ def session_extend_paid(request):
         with transaction.atomic():
             active_session.extend_session(plan.duration_minutes)
             active_session.amount_paid += plan.price
-            active_session.save(update_fields=["duration_minutes_purchased", "amount_paid", "status", "time_in"])
+            
+            # Speed Always Wins logic
+            speed_changed = False
+            if active_session.plan:
+                new_dl = plan.speed_limit or 0
+                old_dl = active_session.plan.speed_limit or 0
+                if new_dl > old_dl:
+                    active_session.plan = plan
+                    speed_changed = True
+            else:
+                active_session.plan = plan
+                speed_changed = True
+
+            update_fields = ["duration_minutes_purchased", "amount_paid", "status", "time_in"]
+            if speed_changed:
+                update_fields.append("plan")
+                
+            active_session.save(update_fields=update_fields)
+            
+            if speed_changed:
+                dl_kbps = int(plan.speed_limit * 1024) if plan.speed_limit else None
+                ul_kbps = int(plan.speed_limit_upload * 1024) if plan.speed_limit_upload else dl_kbps
+                iptables.apply_bandwidth_limit(mac_address, rate_kbps=dl_kbps, upload_kbps=ul_kbps)
 
             used_amount = 0
             for event in _pending_coin_events_for_mac(mac_address):
