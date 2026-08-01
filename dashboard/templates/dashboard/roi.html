@@ -29,7 +29,15 @@
             <i class="bi bi-coin"></i>
         </div>
     </div>
-
+    <div class="stat-card animate-fadeIn" style="animation-delay: 150ms; border-left: 4px solid #EF4444;">
+        <div class="stat-info">
+            <div class="stat-label">Operating Expenses</div>
+            <div class="stat-value" style="color: #EF4444;">₱{{ total_expenses|default:"0" }}</div>
+        </div>
+        <div class="stat-icon-wrap" style="background: rgba(239,68,68,0.1); color: #EF4444;">
+            <i class="bi bi-receipt"></i>
+        </div>
+    </div>
     <div class="stat-card gradient-green animate-fadeIn" style="animation-delay: 200ms">
         <div class="stat-info">
             <div class="stat-label">Net Profit</div>
@@ -67,7 +75,28 @@
             </div>
         </div>
 
-
+        <!-- Expenses Section -->
+        <div style="margin-bottom: 16px;">
+            <div style="font-weight: 600; font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Operating Expenses</div>
+            <div class="cost-item">
+                <div>
+                    <div class="cost-desc">Electricity</div>
+                    <div class="text-xs text-muted">{{ system_wattage }}W × 24h × {{ days_operating }} days × ₱{{ electricity_rate }}/kWh</div>
+                </div>
+                <div class="cost-amount" style="color: #EF4444;">-₱{{ electricity_cost }}</div>
+            </div>
+            <div class="cost-item">
+                <div>
+                    <div class="cost-desc">Internet Subscription (ISP)</div>
+                    <div class="text-xs text-muted">₱{{ isp_monthly_cost }}/month × {{ days_operating }} days</div>
+                </div>
+                <div class="cost-amount" style="color: #EF4444;">-₱{{ isp_cost }}</div>
+            </div>
+            <div class="cost-item" style="background: rgba(239,68,68,0.06); border-radius: var(--radius-sm);">
+                <div class="font-semibold">Total Expenses</div>
+                <div class="cost-amount font-bold" style="color: #EF4444;">-₱{{ total_expenses }}</div>
+            </div>
+        </div>
 
         <!-- Net Profit -->
         <div class="cost-item" style="background: {% if net_profit >= 0 %}rgba(16,185,129,0.1){% else %}rgba(239,68,68,0.1){% endif %}; border-radius: var(--radius-sm); border: 2px solid {% if net_profit >= 0 %}#10B981{% else %}#EF4444{% endif %};">
@@ -83,18 +112,34 @@
         <!-- Daily Averages -->
         <div style="margin-bottom: 20px;">
             <div style="font-weight: 600; font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Daily Averages</div>
+            <div class="cost-item">
+                <div class="cost-desc">Revenue / Day</div>
+                <div class="cost-amount" style="color: #3B82F6;">₱{{ daily_avg_revenue }}</div>
+            </div>
+            <div class="cost-item">
+                <div class="cost-desc">Expenses / Day</div>
+                <div class="cost-amount" style="color: #EF4444;">₱{{ daily_avg_expense }}</div>
+            </div>
             <div class="cost-item" style="background: var(--color-light); border-radius: var(--radius-sm);">
-                <div class="font-semibold">Revenue / Day</div>
-                <div class="cost-amount font-bold" style="color: #3B82F6;">₱{{ daily_avg_revenue }}</div>
+                <div class="font-semibold">Profit / Day</div>
+                <div class="cost-amount font-bold" style="color: {% if daily_avg_profit >= 0 %}#10B981{% else %}#EF4444{% endif %};">₱{{ daily_avg_profit }}</div>
             </div>
         </div>
 
         <!-- Monthly Projections -->
         <div style="margin-bottom: 20px;">
             <div style="font-weight: 600; font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Monthly Projections (30 Days)</div>
+            <div class="cost-item">
+                <div class="cost-desc">Projected Revenue</div>
+                <div class="cost-amount" style="color: #3B82F6;">₱{{ monthly_revenue }}</div>
+            </div>
+            <div class="cost-item">
+                <div class="cost-desc">Projected Expenses</div>
+                <div class="cost-amount" style="color: #EF4444;">₱{{ monthly_expenses }}</div>
+            </div>
             <div class="cost-item" style="background: var(--color-light); border-radius: var(--radius-sm);">
-                <div class="font-semibold">Projected Revenue</div>
-                <div class="cost-amount font-bold" style="color: #3B82F6;">₱{{ monthly_revenue }}</div>
+                <div class="font-semibold">Projected Profit</div>
+                <div class="cost-amount font-bold" style="color: {% if monthly_profit >= 0 %}#10B981{% else %}#EF4444{% endif %};">₱{{ monthly_profit }}</div>
             </div>
         </div>
 
