@@ -424,25 +424,15 @@ async function generateReport(button, type, period, format = 'pdf') {
     btn.innerHTML = '<span class="spinner"></span> Generating...';
     btn.disabled = true;
 
-    try {
-        const response = await fetch(`/reports/generate/?type=${type}&period=${period}&format=${format}`);
-        if (response.ok) {
-            const blob = await response.blob();
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `iconnect_${type}_report_${period}.${format}`;
-            link.click();
-            URL.revokeObjectURL(url);
-        } else {
-            alert('Failed to generate report. Please try again.');
-        }
-    } catch (err) {
-        alert('Connection error. Please try again.');
-    }
+    // Use native browser download instead of fetch/blob to avoid some browser security warnings
+    const url = `/reports/generate/?type=${type}&period=${period}&format=${format}`;
+    window.location.href = url;
 
-    btn.textContent = origText;
-    btn.disabled = false;
+    // Reset button after a short delay assuming download started
+    setTimeout(() => {
+        btn.textContent = origText;
+        btn.disabled = false;
+    }, 2000);
 }
 
 // ============================================
