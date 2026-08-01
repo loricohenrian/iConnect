@@ -123,7 +123,7 @@ def index(request):
 
     # Connection slots
     max_slots = getattr(settings, 'PISONET_MAX_CONCURRENT_SESSIONS', 20)
-    active_count = Session.objects.filter(status__in=['active', 'paused']).count()
+    active_count = Session.objects.filter(status='active').count()
     available_slots = max(0, max_slots - active_count)
 
     context = {
