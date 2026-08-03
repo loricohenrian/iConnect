@@ -84,13 +84,19 @@
     <div class="chart-card animate-fadeIn" style="animation-delay: 400ms">
         <h3 class="card-title mb-md"><i class="bi bi-cash-stack"></i> Expense Breakdown</h3>
 
-        <div class="cost-item">
-            <div>
-                <div class="cost-desc">Internet Subscription (ISP)</div>
-                <div class="text-xs text-muted">Prorated over {{ days_operating }} days</div>
+        {% if operating_expenses %}
+            {% for exp in operating_expenses %}
+            <div class="cost-item">
+                <div>
+                    <div class="cost-desc">{{ exp.name }}</div>
+                    <div class="text-xs text-muted">{{ exp.get_period_display }} (Prorated over {{ days_operating }} days)</div>
+                </div>
+                <div class="cost-amount" style="color: #EF4444;">₱{{ exp.amount }}</div>
             </div>
-            <div class="cost-amount" style="color: #EF4444;">₱{{ isp_cost }}</div>
-        </div>
+            {% endfor %}
+        {% else %}
+            <div class="text-muted text-small mb-sm">No operating expenses recorded.</div>
+        {% endif %}
         <div class="cost-item" style="background: rgba(239,68,68,0.06); border-radius: var(--radius-sm);">
             <div class="font-semibold">Total Operating Expenses</div>
             <div class="cost-amount font-bold" style="color: #EF4444;">₱{{ total_expenses }}</div>

@@ -81,3 +81,48 @@ class DailyRevenueSummary(models.Model):
 
     def __str__(self):
         return f'{self.date} — ₱{self.total_revenue} ({self.total_sessions} sessions)'
+
+
+class OperatingExpense(models.Model):
+    """Recurring operating expenses (e.g. ISP, Maintenance, Electricity)."""
+    PERIOD_CHOICES = [
+        ('daily', 'Daily'),
+        ('weekly', 'Weekly'),
+        ('monthly', 'Monthly'),
+        ('yearly', 'Yearly'),
+    ]
+
+    name = models.CharField(max_length=255, help_text='e.g., "Internet (Converge)"')
+    amount = models.PositiveIntegerField(help_text='Cost in ₱')
+    period = models.CharField(max_length=10, choices=PERIOD_CHOICES, default='monthly')
+    date_added = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ['-date_added']
+        verbose_name = 'Operating Expense'
+        verbose_name_plural = 'Operating Expenses'
+
+    def __str__(self):
+        return f'{self.name} — ₱{self.amount}/{self.period}'
+
+    @classmethod
+    def calculate_total_expenses(cls, days_operating):
+        """
+        Calculate total historical expense incurred over the days operating.
+        Converts each expense's period into a daily cost and multiplies by days.
+        """
+        total = 0.0
+        for exp in cls.objects.all():
+            if exp.period == 'daily':
+                daily_cost = exp.amount
+            elif exp.period == 'weekly':
+                daily_cost = exp.amount / 7.0
+            elif exp.period == 'monthly':
+                daily_cost = exp.amount / 30.0
+            elif exp.period == 'yearly':
+                daily_cost = exp.amount / 365.0
+            else:
+                daily_cost = 0
+            
+            total += daily_cost * days_operating
+        return round(total, 2)

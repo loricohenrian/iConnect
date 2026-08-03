@@ -180,13 +180,11 @@ def dashboard_stats_api(request):
 
     first_session = Session.objects.order_by('time_in').first()
     days_operating = max((timezone.now() - first_session.time_in).days, 1) if first_session else 0
-    system_watts = getattr(settings, 'PISONET_SYSTEM_WATTAGE', 18)
-    elec_rate = getattr(settings, 'PISONET_ELECTRICITY_RATE', 11.0)
-    electricity_cost = (system_watts / 1000) * 24 * days_operating * elec_rate
-    isp_monthly = getattr(settings, 'PISONET_ISP_MONTHLY_COST', 1500.0)
-    isp_cost = (isp_monthly / 30) * days_operating
     
-    net_profit = total_revenue - (electricity_cost + isp_cost)
+    from dashboard.models import OperatingExpense
+    total_expenses = OperatingExpense.calculate_total_expenses(days_operating)
+    
+    net_profit = total_revenue - total_expenses
     roi_percentage = (net_profit / total_cost * 100) if total_cost > 0 else 0
 
     # Revenue last 7 days
@@ -431,13 +429,11 @@ def overview(request):
     
     first_session = Session.objects.order_by('time_in').first()
     days_operating = max((timezone.now() - first_session.time_in).days, 1) if first_session else 0
-    sys_watts = getattr(settings, 'PISONET_SYSTEM_WATTAGE', 18)
-    e_rate = getattr(settings, 'PISONET_ELECTRICITY_RATE', 11.0)
-    electricity_cost = (sys_watts / 1000) * 24 * days_operating * e_rate
-    isp_monthly = getattr(settings, 'PISONET_ISP_MONTHLY_COST', 1500.0)
-    isp_cost = (isp_monthly / 30) * days_operating
     
-    net_profit = total_revenue - (electricity_cost + isp_cost)
+    from dashboard.models import OperatingExpense
+    total_expenses = OperatingExpense.calculate_total_expenses(days_operating)
+    
+    net_profit = total_revenue - total_expenses
     roi_pct = (net_profit / total_cost * 100) if total_cost > 0 else 0
 
     recent_sessions = Session.objects.select_related('plan').all()[:10]
@@ -582,13 +578,11 @@ def reports(request):
     first_session = Session.objects.order_by('time_in').first()
     days_operating = max((timezone.now() - first_session.time_in).days, 1) if first_session else 0
 
-    system_watts = getattr(settings, 'PISONET_SYSTEM_WATTAGE', 18)
-    elec_rate = getattr(settings, 'PISONET_ELECTRICITY_RATE', 11.0)
-    isp_monthly = getattr(settings, 'PISONET_ISP_MONTHLY_COST', 1500.0)
-
-    electricity_cost = round((system_watts / 1000) * 24 * days_operating * elec_rate, 2)
-    isp_cost = round((isp_monthly / 30) * days_operating, 2)
-    total_expenses = round(electricity_cost + isp_cost, 2)
+    from dashboard.models import OperatingExpense
+    total_expenses = OperatingExpense.calculate_total_expenses(days_operating)
+    
+    # We still need to pass operating_expenses to the template
+    operating_expenses = OperatingExpense.objects.all()
 
     # === Financial Summary ===
     from dashboard.models import ProjectCost
@@ -632,8 +626,7 @@ def reports(request):
         'sessions_total': sessions_total,
         # Financial
         'total_expenses': total_expenses,
-        'electricity_cost': electricity_cost,
-        'isp_cost': isp_cost,
+        'operating_expenses': operating_expenses,
         'net_profit': net_profit,
         'total_investment': total_investment,
         'roi_percentage': roi_pct,
@@ -809,7 +802,9 @@ def analytics_view(request):
 @user_passes_test(_is_dashboard_admin, login_url='dashboard:login')
 def roi(request):
     """ROI tracker page with accurate financial computation."""
-    # Handle POST actions (add_cost, delete_cost)
+    from dashboard.models import OperatingExpense
+    
+    # Handle POST actions (add_cost, delete_cost, add_expense, delete_expense)
     if request.method == 'POST':
         action = request.POST.get('action')
         if action == 'add_cost':
@@ -824,6 +819,19 @@ def roi(request):
             cost_id = request.POST.get('cost_id')
             if cost_id:
                 ProjectCost.objects.filter(id=cost_id).delete()
+        elif action == 'add_expense':
+            name = request.POST.get('name', '').strip()
+            amount = request.POST.get('amount', '').strip()
+            period = request.POST.get('period', 'monthly').strip()
+            if name and amount:
+                try:
+                    OperatingExpense.objects.create(name=name, amount=int(amount), period=period)
+                except (ValueError, TypeError):
+                    pass
+        elif action == 'delete_expense':
+            expense_id = request.POST.get('expense_id')
+            if expense_id:
+                OperatingExpense.objects.filter(id=expense_id).delete()
         return redirect('dashboard:roi')
 
     # === INVESTMENT (one-time project costs) ===
@@ -842,18 +850,8 @@ def roi(request):
     else:
         days_operating = 0
 
-    # Electricity cost: watts × hours/day × days × rate per kWh
-    system_watts = getattr(settings, 'PISONET_SYSTEM_WATTAGE', 18)
-    elec_rate = getattr(settings, 'PISONET_ELECTRICITY_RATE', 11.0)
-    # System runs 24/7
-    electricity_cost = round((system_watts / 1000) * 24 * days_operating * elec_rate, 2)
-
-    # ISP cost: prorated monthly cost over operating period
-    isp_monthly = getattr(settings, 'PISONET_ISP_MONTHLY_COST', 1500.0)
-    isp_cost = round((isp_monthly / 30) * days_operating, 2)
-
-    # Total operating expenses
-    total_expenses = round(electricity_cost + isp_cost, 2)
+    operating_expenses = OperatingExpense.objects.all()
+    total_expenses = OperatingExpense.calculate_total_expenses(days_operating)
 
     # === NET PROFIT ===
     net_profit = round(gross_revenue - total_expenses, 2)
@@ -897,8 +895,7 @@ def roi(request):
         'total_revenue': gross_revenue,  # backward compat
         # Operating Expenses
         'total_expenses': total_expenses,
-        'electricity_cost': electricity_cost,
-        'isp_cost': isp_cost,
+        'operating_expenses': operating_expenses,
         # Profit
         'net_profit': net_profit,
         # ROI
