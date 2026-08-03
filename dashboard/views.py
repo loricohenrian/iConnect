@@ -919,9 +919,6 @@ def roi(request):
         'days_to_breakeven': days_to_breakeven,
         'projected_breakeven': projected_date,
         # Settings (for display)
-        'system_wattage': system_watts,
-        'electricity_rate': elec_rate,
-        'isp_monthly_cost': isp_monthly,
         'active_page': 'roi',
     }
     return render(request, 'dashboard/roi.html', context)
