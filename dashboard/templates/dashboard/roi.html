@@ -75,22 +75,6 @@
             </div>
         </div>
 
-        <!-- Expenses Section -->
-        <div style="margin-bottom: 16px;">
-            <div style="font-weight: 600; font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Operating Expenses</div>
-            <div class="cost-item">
-                <div>
-                    <div class="cost-desc">Internet Subscription (ISP)</div>
-                    <div class="text-xs text-muted">₱{{ isp_monthly_cost }}/month × {{ days_operating }} days</div>
-                </div>
-                <div class="cost-amount" style="color: #EF4444;">-₱{{ isp_cost }}</div>
-            </div>
-            <div class="cost-item" style="background: rgba(239,68,68,0.06); border-radius: var(--radius-sm);">
-                <div class="font-semibold">Total Expenses</div>
-                <div class="cost-amount font-bold" style="color: #EF4444;">-₱{{ total_expenses }}</div>
-            </div>
-        </div>
-
         <!-- Net Profit -->
         <div class="cost-item" style="background: {% if net_profit >= 0 %}rgba(16,185,129,0.1){% else %}rgba(239,68,68,0.1){% endif %}; border-radius: var(--radius-sm); border: 2px solid {% if net_profit >= 0 %}#10B981{% else %}#EF4444{% endif %};">
             <div class="font-bold" style="font-size: 1rem;">Net Profit</div>
