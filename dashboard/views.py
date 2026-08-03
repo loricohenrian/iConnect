@@ -870,6 +870,11 @@ def roi(request):
         if daily_avg_profit > 0:
             remaining_to_recover = max(0, total_investment - net_profit)
             days_to_breakeven = int(remaining_to_recover / daily_avg_profit) if daily_avg_profit > 0 else 0
+            
+            # Cap breakeven days to 100 years to prevent OverflowError
+            if days_to_breakeven > 36500:
+                days_to_breakeven = 36500
+                
             projected_date = timezone.localdate() + timedelta(days=days_to_breakeven)
         else:
             days_to_breakeven = 0
