@@ -166,6 +166,11 @@ def session_page(request):
         iptables.block_device(active_session.mac_address)
         return redirect(f"/?expired=1&mac={mac_address}")
 
+    # Connection slots
+    max_slots = getattr(settings, 'PISONET_MAX_CONCURRENT_SESSIONS', 20)
+    active_count = Session.objects.filter(status='active').count()
+    available_slots = max(0, max_slots - active_count)
+
     context = {
         "session": active_session,
         "announcements": announcements,
@@ -173,6 +178,9 @@ def session_page(request):
         "time_remaining_seconds": int(active_session.time_remaining_seconds),
         "plans": Plan.objects.filter(is_active=True),
         "active_page": "home",
+        "slots_active": active_count,
+        "slots_max": max_slots,
+        "slots_available": available_slots,
     }
     return render(request, "portal/session.html", context)
 
