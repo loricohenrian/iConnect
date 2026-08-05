@@ -4,6 +4,43 @@
 
 {% block portal_content %}
 
+<!-- Connection Slots Indicator -->
+<div class="mb-md" id="slots-indicator" style="text-align: center;">
+    <div id="slots-badge" style="
+        display: inline-flex; align-items: center; gap: 8px;
+        padding: 8px 18px; border-radius: 50px;
+        font-size: 13px; font-weight: 600;
+        {% if slots_available > 5 %}
+        background: rgba(16,185,129,0.1); color: #059669; border: 1px solid rgba(16,185,129,0.2);
+        {% elif slots_available > 0 %}
+        background: rgba(245,158,11,0.1); color: #D97706; border: 1px solid rgba(245,158,11,0.2);
+        {% else %}
+        background: rgba(239,68,68,0.1); color: #DC2626; border: 1px solid rgba(239,68,68,0.2);
+        {% endif %}
+    ">
+        <span id="slots-dot" style="
+            width: 8px; height: 8px; border-radius: 50%;
+            {% if slots_available > 5 %}background: #10B981;{% elif slots_available > 0 %}background: #F59E0B;{% else %}background: #EF4444;{% endif %}
+            display: inline-block;
+            animation: pulse-dot 2s ease-in-out infinite;
+        "></span>
+        <span id="slots-text">
+            {% if slots_available > 0 %}
+                {{ slots_available }} / {{ slots_max }} slots available
+            {% else %}
+                Full — please try again shortly
+            {% endif %}
+        </span>
+    </div>
+</div>
+
+<style>
+    @keyframes pulse-dot {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.4; }
+    }
+</style>
+
 <!-- Session Timer -->
 <div class="timer-container animate-fadeIn">
     <!-- Status (inside timer container) -->
@@ -51,42 +88,7 @@
     </div>
 </div>
 
-<!-- Connection Slots Indicator -->
-<div class="mt-md" id="slots-indicator" style="text-align: center;">
-    <div id="slots-badge" style="
-        display: inline-flex; align-items: center; gap: 8px;
-        padding: 8px 18px; border-radius: 50px;
-        font-size: 13px; font-weight: 600;
-        {% if slots_available > 5 %}
-        background: rgba(16,185,129,0.1); color: #059669; border: 1px solid rgba(16,185,129,0.2);
-        {% elif slots_available > 0 %}
-        background: rgba(245,158,11,0.1); color: #D97706; border: 1px solid rgba(245,158,11,0.2);
-        {% else %}
-        background: rgba(239,68,68,0.1); color: #DC2626; border: 1px solid rgba(239,68,68,0.2);
-        {% endif %}
-    ">
-        <span id="slots-dot" style="
-            width: 8px; height: 8px; border-radius: 50%;
-            {% if slots_available > 5 %}background: #10B981;{% elif slots_available > 0 %}background: #F59E0B;{% else %}background: #EF4444;{% endif %}
-            display: inline-block;
-            animation: pulse-dot 2s ease-in-out infinite;
-        "></span>
-        <span id="slots-text">
-            {% if slots_available > 0 %}
-                {{ slots_available }} / {{ slots_max }} slots available
-            {% else %}
-                Full — please try again shortly
-            {% endif %}
-        </span>
-    </div>
-</div>
 
-<style>
-    @keyframes pulse-dot {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.4; }
-    }
-</style>
 
 <!-- Extend Session -->
 <div class="extend-section animate-fadeIn" style="animation-delay: 150ms">
