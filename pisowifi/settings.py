@@ -223,6 +223,10 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'sessions_app.tasks.enforce_pre_auth_dns_policy',
         'schedule': crontab(minute='*'),
     },
+    'auto-pause-disconnected-sessions-every-30s': {
+        'task': 'sessions_app.tasks.auto_pause_disconnected_sessions',
+        'schedule': 30.0,
+    },
 }
 
 # Email / report delivery settings
@@ -259,6 +263,8 @@ PISONET_REQUIRE_FORWARD_DROP_BEFORE_SESSION = os.getenv('REQUIRE_FORWARD_DROP_BE
 PISONET_MAX_CONCURRENT_SESSIONS = int(os.getenv('MAX_CONCURRENT_SESSIONS', '50'))
 PISONET_BANDWIDTH_LIMIT_KBPS = int(os.getenv('BANDWIDTH_LIMIT_KBPS', '2048'))  # 2 Mbps default
 PISONET_WAN_INTERFACE = os.getenv('WAN_INTERFACE', '').strip()
+PISONET_AUTO_PAUSE_ENABLED = os.getenv('AUTO_PAUSE_ENABLED', 'True').lower() in ('true', '1', 'yes')
+PISONET_AUTO_PAUSE_TIMEOUT_SECONDS = int(os.getenv('AUTO_PAUSE_TIMEOUT_SECONDS', '120'))  # 2 minutes
 # Dev portal flow removed — production only.
 
 # Portal history passcode security

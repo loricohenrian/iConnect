@@ -125,6 +125,85 @@ def enforce_pre_auth_dns_policy():
 
 
 @shared_task
+def auto_pause_disconnected_sessions():
+    """
+    Auto-pause sessions whose devices have disconnected from WiFi.
+
+    Pings each active session's IP address. If a device is unreachable for
+    longer than AUTO_PAUSE_TIMEOUT_SECONDS (default 120s / 2 minutes),
+    the session is automatically paused to save the user's remaining time.
+
+    Uses Django cache to track when each device was first seen as unreachable.
+    """
+    from django.conf import settings
+    from django.core.cache import cache
+    from .models import Session
+    from . import iptables
+    import subprocess
+
+    if not getattr(settings, 'PISONET_AUTO_PAUSE_ENABLED', True):
+        return 'Auto-pause disabled'
+
+    if getattr(settings, 'PISONET_GPIO_SIMULATION', False):
+        return 'Skipped in simulation mode'
+
+    timeout_seconds = getattr(settings, 'PISONET_AUTO_PAUSE_TIMEOUT_SECONDS', 120)
+    active_sessions = Session.objects.filter(status='active').exclude(ip_address__isnull=True)
+
+    paused_count = 0
+    cleared_count = 0
+
+    for session in active_sessions:
+        ip = session.ip_address
+        cache_key = f'auto_pause_unreachable_{session.mac_address}'
+
+        # Ping the device: 1 ping, 1 second timeout
+        try:
+            result = subprocess.run(
+                ['ping', '-c', '1', '-W', '1', ip],
+                capture_output=True, timeout=3,
+            )
+            is_reachable = result.returncode == 0
+        except Exception:
+            is_reachable = False
+
+        if is_reachable:
+            # Device is online — clear any unreachable tracking
+            if cache.get(cache_key):
+                cache.delete(cache_key)
+                cleared_count += 1
+        else:
+            # Device is unreachable — track how long
+            first_unreachable = cache.get(cache_key)
+            now = timezone.now()
+
+            if first_unreachable is None:
+                # First time we noticed this device is gone
+                cache.set(cache_key, now.isoformat(), timeout=timeout_seconds + 120)
+            else:
+                # Check if unreachable long enough to auto-pause
+                from datetime import datetime, timezone as dt_tz
+                if isinstance(first_unreachable, str):
+                    first_unreachable = datetime.fromisoformat(first_unreachable)
+                elapsed = (now - first_unreachable).total_seconds()
+
+                if elapsed >= timeout_seconds:
+                    session.pause_session()
+                    iptables.block_device(session.mac_address)
+                    cache.delete(cache_key)
+                    paused_count += 1
+                    logger.info(
+                        f'Auto-paused session {session.id} for {session.mac_address} '
+                        f'(unreachable for {int(elapsed)}s at IP {ip})'
+                    )
+
+    if paused_count or cleared_count:
+        logger.info(f'Auto-pause check: paused={paused_count}, reconnected={cleared_count}')
+
+    return f'Checked {active_sessions.count()} sessions, auto-paused {paused_count}, reconnected {cleared_count}'
+
+
+@shared_task
 def generate_daily_summary():
     """
     Generate daily revenue summary. Should be called at end of each day.
