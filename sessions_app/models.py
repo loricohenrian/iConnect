@@ -107,6 +107,10 @@ class Session(models.Model):
     def time_remaining_seconds(self):
         """Calculate remaining time in seconds from time_in and purchased minutes."""
         if self.status == "paused":
+            max_pause_hours = getattr(settings, "PISONET_MAX_PAUSE_HOURS", 24)
+            if max_pause_hours > 0 and self.paused_at:
+                if (timezone.now() - self.paused_at).total_seconds() > max_pause_hours * 3600:
+                    return 0
             # When paused, freeze remaining time at point of pause
             elapsed = (self.paused_at - self.time_in).total_seconds() - self.total_paused_seconds
             total_seconds = self.duration_minutes_purchased * 60

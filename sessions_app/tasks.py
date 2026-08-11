@@ -67,12 +67,24 @@ def check_expired_sessions():
             session.expire_session()
             iptables.block_device(session.mac_address)
             expired_count += 1
-            logger.info(f'Expired session {session.id} for {session.mac_address}')
+            logger.info(f'Expired active session {session.id} for {session.mac_address}')
+
+    from django.conf import settings
+    from datetime import timedelta
+    max_pause_hours = getattr(settings, 'PISONET_MAX_PAUSE_HOURS', 24)
+    if max_pause_hours > 0:
+        pause_cutoff = timezone.now() - timedelta(hours=max_pause_hours)
+        paused_sessions = Session.objects.filter(status='paused', paused_at__lt=pause_cutoff)
+        for session in paused_sessions:
+            session.expire_session()
+            iptables.block_device(session.mac_address)
+            expired_count += 1
+            logger.info(f'Expired paused session {session.id} for {session.mac_address} (exceeded {max_pause_hours}h pause limit)')
 
     if expired_count:
-        logger.info(f'Expired {expired_count} sessions')
+        logger.info(f'Expired {expired_count} total sessions')
 
-    return f'Checked {active_sessions.count()} sessions, expired {expired_count}'
+    return f'Checked {active_sessions.count()} active sessions, expired {expired_count} total sessions'
 
 
 @shared_task

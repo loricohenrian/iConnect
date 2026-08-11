@@ -498,3 +498,25 @@ class SessionApiTests(TestCase):
         self.assertTrue(body.get("suspected_clone"))
         self.assertTrue(SuspiciousDevice.objects.filter(mac_address=self.mac_one).exists())
 
+    @override_settings(PISONET_MAX_PAUSE_HOURS=24)
+    def test_session_resume_expires_when_max_pause_hours_exceeded(self):
+        session = Session.objects.create(
+            mac_address=self.mac_one,
+            plan=self.plan,
+            duration_minutes_purchased=30,
+            amount_paid=5,
+            status="paused",
+            paused_at=timezone.now() - timezone.timedelta(hours=25),
+            ip_address="127.0.0.1",
+        )
+
+        response = self.client.post(
+            reverse("sessions_app:session-pause"),
+            {"mac_address": self.mac_one},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 410)
+        session.refresh_from_db()
+        self.assertEqual(session.status, "expired")
+
