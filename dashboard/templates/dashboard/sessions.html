@@ -23,9 +23,9 @@
             <option value="year" {% if period == 'year' %}selected{% endif %}>This Year</option>
             <option value="all" {% if period == 'all' %}selected{% endif %}>All Time</option>
         </select>
-        <button type="button" class="btn btn-sm btn-secondary" onclick="exportTableToCSV('sessions-table', 'iconnect_sessions.csv')" id="export-csv-btn">
+        <a href="{% url 'dashboard:export_sessions_csv' %}?status={{ status_filter }}&search={{ search }}&period={{ period }}" class="btn btn-sm btn-secondary" id="export-csv-btn">
             <i class="bi bi-download"></i> Export CSV
-        </button>
+        </a>
     </form>
 </div>
 

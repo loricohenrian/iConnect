@@ -176,3 +176,35 @@ class DashboardSecurityTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Cannot delete this plan because it is already used by existing sessions")
         self.assertTrue(Plan.objects.filter(id=plan.id).exists())
+
+    def test_export_sessions_csv_requires_admin(self):
+        response = self.client.get("/dashboard/sessions/export/")
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/dashboard/login/", response.url)
+
+    def test_export_sessions_csv_returns_csv_file(self):
+        User = get_user_model()
+        user = User.objects.create_user(
+            username="export_admin",
+            password="admin123",
+            is_staff=True,
+            is_superuser=True,
+        )
+        self.client.login(username=user.username, password="admin123")
+
+        plan = Plan.objects.create(name="P5", price=5, duration_minutes=30, is_active=True)
+        Session.objects.create(
+            mac_address="AA:BB:CC:DD:EE:99",
+            plan=plan,
+            duration_minutes_purchased=30,
+            amount_paid=5,
+            status="active",
+        )
+
+        response = self.client.get("/dashboard/sessions/export/?period=all")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "text/csv")
+        self.assertIn("attachment; filename=", response["Content-Disposition"])
+        content = response.content.decode("utf-8")
+        self.assertIn("Session ID,MAC Address,IP Address", content)
+        self.assertIn("AA:BB:CC:DD:EE:99", content)

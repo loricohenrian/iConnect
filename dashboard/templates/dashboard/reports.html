@@ -5,6 +5,13 @@
 
 {% block dashboard_content %}
 
+<div class="d-flex justify-between align-center mb-md">
+    <div></div>
+    <a href="{% url 'dashboard:export_revenue_csv' %}" class="btn btn-sm btn-secondary">
+        <i class="bi bi-download"></i> Export Revenue CSV
+    </a>
+</div>
+
 <!-- Financial Summary Cards -->
 <div class="stats-grid" style="grid-template-columns: repeat(4, 1fr);">
     <div class="stat-card gradient-blue animate-fadeIn">

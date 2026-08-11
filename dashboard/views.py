@@ -1,6 +1,7 @@
 """
 Dashboard Views — API endpoints and template views for admin dashboard
 """
+import csv
 from datetime import timedelta, date
 from decimal import Decimal, InvalidOperation
 import logging
@@ -11,7 +12,7 @@ from django.views.decorators.http import require_POST
 from django.db.models import Sum, Count, Avg, F, Q
 from django.db.models.deletion import ProtectedError
 from django.db.models.functions import TruncDate, TruncHour, ExtractHour, ExtractWeekDay
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.core.cache import cache
 from django.contrib.auth import update_session_auth_hash, authenticate, login, logout
 from django.contrib.auth.decorators import user_passes_test
@@ -542,6 +543,105 @@ def sessions_view(request):
         'active_page': 'sessions',
     }
     return render(request, 'dashboard/sessions.html', context)
+
+
+@user_passes_test(_is_dashboard_admin, login_url='dashboard:login')
+def export_sessions_csv(request):
+    """Export session logs as CSV file."""
+    status_filter = request.GET.get('status', '')
+    search = request.GET.get('search', '')
+    period = request.GET.get('period', 'today')
+
+    sessions = Session.objects.select_related('plan').all()
+
+    now = timezone.now()
+    today = timezone.localdate()
+    if period == 'today' or not period:
+        sessions = sessions.filter(time_in__date=today)
+    elif period == 'week':
+        sessions = sessions.filter(time_in__gte=now - timedelta(days=7))
+    elif period == 'month':
+        sessions = sessions.filter(time_in__gte=now - timedelta(days=30))
+    elif period == 'year':
+        sessions = sessions.filter(time_in__gte=now - timedelta(days=365))
+
+    if status_filter:
+        sessions = sessions.filter(status=status_filter)
+    if search:
+        sessions = sessions.filter(
+            Q(mac_address__icontains=search) |
+            Q(device_name__icontains=search) |
+            Q(ip_address__icontains=search)
+        )
+
+    response = HttpResponse(content_type='text/csv')
+    filename = f"iconnect_sessions_{today.strftime('%Y%m%d')}.csv"
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+    writer = csv.writer(response)
+    writer.writerow([
+        'Session ID', 'MAC Address', 'IP Address', 'Device Name',
+        'Plan Name', 'Amount Paid (PHP)', 'Duration (Mins)',
+        'Status', 'Time In', 'Time Out', 'Bandwidth Used (MB)'
+    ])
+
+    for session in sessions:
+        time_in_str = timezone.localtime(session.time_in).strftime('%Y-%m-%d %H:%M:%S') if session.time_in else ''
+        time_out_str = timezone.localtime(session.time_out).strftime('%Y-%m-%d %H:%M:%S') if session.time_out else ''
+        writer.writerow([
+            session.id,
+            session.mac_address,
+            session.ip_address or 'N/A',
+            session.device_name or 'Unknown',
+            session.plan.name if session.plan else 'Custom',
+            session.amount_paid,
+            session.duration_minutes_purchased,
+            session.get_status_display(),
+            time_in_str,
+            time_out_str,
+            round(session.bandwidth_used_mb, 2),
+        ])
+
+    audit_logger.info(
+        "event=export_sessions_csv user=%s count=%d period=%s status=%s ip=%s",
+        request.user.username, sessions.count(), period, status_filter, _client_ip(request)
+    )
+
+    return response
+
+
+@user_passes_test(_is_dashboard_admin, login_url='dashboard:login')
+def export_revenue_csv(request):
+    """Export daily revenue summary logs as CSV file."""
+    summaries = DailyRevenueSummary.objects.all().order_by('-date')
+    today = timezone.localdate()
+
+    response = HttpResponse(content_type='text/csv')
+    filename = f"iconnect_revenue_summary_{today.strftime('%Y%m%d')}.csv"
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+    writer = csv.writer(response)
+    writer.writerow([
+        'Date', 'Total Revenue (PHP)', 'Total Sessions',
+        'Avg Session Duration (Mins)', 'Peak Hour'
+    ])
+
+    for summary in summaries:
+        peak_str = f"{summary.peak_hour:02d}:00" if summary.peak_hour is not None else 'N/A'
+        writer.writerow([
+            summary.date.strftime('%Y-%m-%d'),
+            summary.total_revenue,
+            summary.total_sessions,
+            summary.avg_session_minutes,
+            peak_str,
+        ])
+
+    audit_logger.info(
+        "event=export_revenue_csv user=%s count=%d ip=%s",
+        request.user.username, summaries.count(), _client_ip(request)
+    )
+
+    return response
 
 
 @user_passes_test(_is_dashboard_admin, login_url='dashboard:login')
