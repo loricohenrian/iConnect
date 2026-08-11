@@ -124,13 +124,67 @@ def enforce_pre_auth_dns_policy():
     return 'DNS pre-auth policy enforcement failed'
 
 
+def _is_device_reachable(mac_address, ip_address):
+    """
+    Check if a device is reachable on the local LAN/WiFi.
+
+    Windows Firewall, iPhones, and Android devices often block ICMP pings (ping -c 1).
+    Therefore we check Layer 2 ARP table first (/proc/net/arp and arping),
+    falling back to ICMP ping only if needed.
+    """
+    if not ip_address:
+        return False
+
+    mac_upper = (mac_address or "").upper().strip()
+
+    # Method 1: Check Linux ARP table (/proc/net/arp)
+    try:
+        with open("/proc/net/arp", "r") as f:
+            for line in f:
+                parts = line.split()
+                # Format: IP HW_type Flags HW_address Mask Device
+                # Flags 0x2 = COMPLETED (0x0 = INCOMPLETE / EXPIRED)
+                if len(parts) >= 4:
+                    line_ip = parts[0]
+                    flags = parts[2]
+                    line_mac = parts[3].upper()
+                    if (line_ip == ip_address or line_mac == mac_upper) and flags != "0x0":
+                        return True
+    except (OSError, IOError):
+        pass
+
+    # Method 2: Try arping (Layer 2 ARP ping — works even when OS firewall blocks ICMP)
+    try:
+        res = subprocess.run(
+            ["arping", "-c", "1", "-w", "1", ip_address],
+            capture_output=True, timeout=2,
+        )
+        if res.returncode == 0:
+            return True
+    except Exception:
+        pass
+
+    # Method 3: ICMP ping fallback
+    try:
+        res = subprocess.run(
+            ["ping", "-c", "1", "-W", "1", ip_address],
+            capture_output=True, timeout=2,
+        )
+        if res.returncode == 0:
+            return True
+    except Exception:
+        pass
+
+    return False
+
+
 @shared_task
 def auto_pause_disconnected_sessions():
     """
     Auto-pause sessions whose devices have disconnected from WiFi.
 
-    Pings each active session's IP address. If a device is unreachable for
-    longer than AUTO_PAUSE_TIMEOUT_SECONDS (default 120s / 2 minutes),
+    Checks device reachability on the local network. If a device is unreachable
+    longer than AUTO_PAUSE_TIMEOUT_SECONDS (default 300s / 5 minutes),
     the session is automatically paused to save the user's remaining time.
 
     Uses Django cache to track when each device was first seen as unreachable.
@@ -139,15 +193,14 @@ def auto_pause_disconnected_sessions():
     from django.core.cache import cache
     from .models import Session
     from . import iptables
-    import subprocess
 
-    if not getattr(settings, 'PISONET_AUTO_PAUSE_ENABLED', True):
+    if not getattr(settings, 'PISONET_AUTO_PAUSE_ENABLED', False):
         return 'Auto-pause disabled'
 
     if getattr(settings, 'PISONET_GPIO_SIMULATION', False):
         return 'Skipped in simulation mode'
 
-    timeout_seconds = getattr(settings, 'PISONET_AUTO_PAUSE_TIMEOUT_SECONDS', 120)
+    timeout_seconds = getattr(settings, 'PISONET_AUTO_PAUSE_TIMEOUT_SECONDS', 300)
     active_sessions = Session.objects.filter(status='active').exclude(ip_address__isnull=True)
 
     paused_count = 0
@@ -157,15 +210,7 @@ def auto_pause_disconnected_sessions():
         ip = session.ip_address
         cache_key = f'auto_pause_unreachable_{session.mac_address}'
 
-        # Ping the device: 1 ping, 1 second timeout
-        try:
-            result = subprocess.run(
-                ['ping', '-c', '1', '-W', '1', ip],
-                capture_output=True, timeout=3,
-            )
-            is_reachable = result.returncode == 0
-        except Exception:
-            is_reachable = False
+        is_reachable = _is_device_reachable(session.mac_address, ip)
 
         if is_reachable:
             # Device is online — clear any unreachable tracking

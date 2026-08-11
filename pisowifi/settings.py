@@ -263,8 +263,8 @@ PISONET_REQUIRE_FORWARD_DROP_BEFORE_SESSION = os.getenv('REQUIRE_FORWARD_DROP_BE
 PISONET_MAX_CONCURRENT_SESSIONS = int(os.getenv('MAX_CONCURRENT_SESSIONS', '50'))
 PISONET_BANDWIDTH_LIMIT_KBPS = int(os.getenv('BANDWIDTH_LIMIT_KBPS', '2048'))  # 2 Mbps default
 PISONET_WAN_INTERFACE = os.getenv('WAN_INTERFACE', '').strip()
-PISONET_AUTO_PAUSE_ENABLED = os.getenv('AUTO_PAUSE_ENABLED', 'True').lower() in ('true', '1', 'yes')
-PISONET_AUTO_PAUSE_TIMEOUT_SECONDS = int(os.getenv('AUTO_PAUSE_TIMEOUT_SECONDS', '120'))  # 2 minutes
+PISONET_AUTO_PAUSE_ENABLED = os.getenv('AUTO_PAUSE_ENABLED', 'False').lower() in ('true', '1', 'yes')
+PISONET_AUTO_PAUSE_TIMEOUT_SECONDS = int(os.getenv('AUTO_PAUSE_TIMEOUT_SECONDS', '300'))  # 5 minutes default
 # Dev portal flow removed — production only.
 
 # Portal history passcode security
