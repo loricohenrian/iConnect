@@ -21,6 +21,7 @@ db.sqlite3
 staticfiles/
 media/
 logs/
+cache/
 server.out.log
 server.err.log
 

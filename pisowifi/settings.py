@@ -178,10 +178,16 @@ if cache_location.startswith('redis://') or cache_location.startswith('rediss://
         }
     }
 else:
+    CACHE_DIR = BASE_DIR / 'cache'
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
     CACHES = {
         'default': {
-            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-            'LOCATION': 'pisowifi-local-cache',
+            'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
+            'LOCATION': str(CACHE_DIR),
+            'TIMEOUT': 300,
+            'OPTIONS': {
+                'MAX_ENTRIES': 2000,
+            },
         }
     }
 
