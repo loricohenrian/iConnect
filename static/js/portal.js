@@ -255,6 +255,49 @@ function _sendBrowserNotification(title, body) {
     }
 }
 
+function _showExpiredModal(macAddress) {
+    if (document.getElementById('expired-modal-overlay')) return;
+
+    const modal = document.createElement('div');
+    modal.id = 'expired-modal-overlay';
+    modal.style.cssText = `
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(6px);
+        z-index: 10000; display: flex; align-items: center; justify-content: center;
+        padding: 20px; animation: slideDown 0.3s ease-out;
+    `;
+
+    modal.innerHTML = `
+        <div style="
+            background: #ffffff; border-radius: 20px; padding: 32px 24px;
+            max-width: 380px; width: 100%; text-align: center;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.35);
+        ">
+            <div style="
+                width: 68px; height: 68px; background: rgba(239, 68, 68, 0.12);
+                color: #EF4444; border-radius: 50%; display: flex;
+                align-items: center; justify-content: center; font-size: 34px;
+                margin: 0 auto 18px; border: 1px solid rgba(239, 68, 68, 0.2);
+            ">
+                <i class="bi bi-wifi-off"></i>
+            </div>
+            <h3 style="margin: 0 0 10px; font-size: 22px; font-weight: 700; color: #0F172A;">Session Expired</h3>
+            <p style="margin: 0 0 24px; color: #64748B; font-size: 14px; line-height: 1.5;">
+                Your WiFi time has run out. Insert coins to start a new session and stay connected.
+            </p>
+            <button onclick="window.location.href = buildPortalUrl('/', '${macAddress}', { expired: 1 })" style="
+                width: 100%; padding: 14px 20px; background: linear-gradient(135deg, #2563EB, #1D4ED8);
+                color: #ffffff; border: none; border-radius: 12px; font-size: 15px;
+                font-weight: 600; cursor: pointer; transition: all 0.2s;
+                box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+            ">
+                Start New Session
+            </button>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
 function initPlanSelection() {
     const planCards = document.querySelectorAll(".plan-card");
     const selectedPlanInput = document.getElementById("selected-plan");
@@ -1178,7 +1221,10 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             await fetch(`/api/session/status/?mac_address=${encodeURIComponent(macAddress)}`);
         } catch (e) { /* ignore */ }
-        window.location.href = buildPortalUrl("/", macAddress, { expired: 1 });
+        _showExpiredModal(macAddress);
+        setTimeout(() => {
+            window.location.href = buildPortalUrl("/", macAddress, { expired: 1 });
+        }, 2500);
     };
 
     // If paused, don't start the countdown
