@@ -520,3 +520,38 @@ class SessionApiTests(TestCase):
         session.refresh_from_db()
         self.assertEqual(session.status, "expired")
 
+    def test_session_start_rejects_blocked_device(self):
+        SuspiciousDevice.objects.create(
+            mac_address=self.mac_one,
+            reason="cheating",
+            status=SuspiciousDevice.STATUS_BLOCKED,
+            is_blocked=True,
+        )
+        CoinEvent.objects.create(amount=5, denomination=5, mac_address=self.mac_one)
+
+        response = self.client.post(
+            reverse("sessions_app:session-start"),
+            {"mac_address": self.mac_one, "plan_id": self.plan.id},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertIn("blocked", response.json()["error"].lower())
+
+    def test_session_start_request_rejects_blocked_device(self):
+        SuspiciousDevice.objects.create(
+            mac_address=self.mac_one,
+            reason="cheating",
+            status=SuspiciousDevice.STATUS_BLOCKED,
+            is_blocked=True,
+        )
+
+        response = self.client.post(
+            reverse("sessions_app:session-start-request"),
+            {"mac_address": self.mac_one, "plan_id": self.plan.id},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertIn("blocked", response.json()["error"].lower())
+

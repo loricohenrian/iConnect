@@ -408,6 +408,16 @@ def session_start_request(request):
     plan_id = serializer.validated_data["plan_id"]
     ip_address = _client_ip(request)
 
+    if SuspiciousDevice.objects.filter(mac_address=mac_address, is_blocked=True).exists():
+        audit_logger.warning(
+            "event=session_request_blocked_device mac=%s ip=%s",
+            mac_address, ip_address,
+        )
+        return Response(
+            {"error": "Your device has been blocked by the administrator."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
     try:
         plan = Plan.objects.get(id=plan_id, is_active=True)
     except Plan.DoesNotExist:
@@ -500,6 +510,16 @@ def session_start(request):
     plan_id = serializer.validated_data["plan_id"]
     ip_address = _client_ip(request)
     device_name = serializer.validated_data.get("device_name")
+
+    if SuspiciousDevice.objects.filter(mac_address=mac_address, is_blocked=True).exists():
+        audit_logger.warning(
+            "event=session_start_blocked_device mac=%s ip=%s",
+            mac_address, ip_address,
+        )
+        return Response(
+            {"error": "Your device has been blocked by the administrator."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
 
     # Auto-detect device name from User-Agent if not provided
     if not device_name:
