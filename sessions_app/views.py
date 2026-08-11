@@ -1103,6 +1103,31 @@ def session_pause_toggle(request):
             status=status.HTTP_404_NOT_FOUND,
         )
 
+    if not session.ip_address:
+        session.ip_address = _client_ip(request)
+        session.save(update_fields=["ip_address"])
+    elif not _session_ip_matches_request(session, request):
+        request_ip = _client_ip(request)
+        SuspiciousDevice.record_incident(
+            mac_address=mac_address,
+            ip_address=request_ip,
+            reason="mac_ip_conflict_pause",
+            evidence=f"Session pause request IP {request_ip} differs from active session IP {session.ip_address}",
+        )
+        audit_logger.warning(
+            "event=session_pause_ip_mismatch mac=%s request_ip=%s session_ip=%s",
+            mac_address,
+            request_ip,
+            session.ip_address,
+        )
+        return Response(
+            {
+                "error": "Session is bound to a different IP address. Possible MAC cloning detected.",
+                "suspected_clone": True,
+            },
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
     if session.status == "active":
         session.pause_session()
         blocked = iptables.block_device(mac_address)

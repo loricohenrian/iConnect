@@ -74,7 +74,7 @@ class SessionApiTests(TestCase):
 
         self.assertEqual(matching_event.session_id, session.id)
         self.assertIsNone(other_event.session_id)
-        allow_device_mock.assert_called_once_with(self.mac_one)
+        allow_device_mock.assert_called_once_with(self.mac_one, rate_kbps=None, upload_kbps=None)
 
     @patch("sessions_app.views.iptables.enforce_firewall_baseline", return_value=True)
     @patch("sessions_app.views.iptables.allow_device", return_value=True)
@@ -475,3 +475,26 @@ class SessionApiTests(TestCase):
 
         coin_event = CoinEvent.objects.get(id=coin_body["coin_event_id"])
         self.assertEqual(coin_event.mac_address, self.mac_one)
+
+    def test_session_pause_rejects_ip_mismatch(self):
+        Session.objects.create(
+            mac_address=self.mac_one,
+            plan=self.plan,
+            duration_minutes_purchased=self.plan.duration_minutes,
+            remaining_minutes=self.plan.duration_minutes,
+            amount_paid=self.plan.price,
+            status="active",
+            ip_address="10.0.0.99",
+        )
+
+        response = self.client.post(
+            reverse("sessions_app:session-pause"),
+            {"mac_address": self.mac_one},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 403)
+        body = response.json()
+        self.assertTrue(body.get("suspected_clone"))
+        self.assertTrue(SuspiciousDevice.objects.filter(mac_address=self.mac_one).exists())
+
