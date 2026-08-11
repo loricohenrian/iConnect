@@ -1499,6 +1499,14 @@ def signal_strength(request):
     except Exception as exc:
         logger.warning("signal_strength read error: %s", exc)
 
+    # Anonymize MAC addresses for non-admin users
+    is_admin = request.user and request.user.is_authenticated and request.user.is_staff
+    if not is_admin:
+        for device in devices:
+            mac = device.get("mac_address", "")
+            if len(mac) == 17:
+                device["mac_address"] = mac[:8] + ":XX:XX:XX"
+
     return Response({"devices": devices})
 
 
