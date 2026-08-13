@@ -103,6 +103,11 @@
         <div class="plan-card extend-plan-card" data-plan-id="{{ plan.id }}" data-plan-minutes="{{ plan.duration_minutes }}" style="padding: 16px 12px;">
             <div class="plan-price" style="font-size: 24px;">₱{{ plan.price }}</div>
             <div class="plan-duration" style="font-size: 13px;">+{{ plan.duration_display }}</div>
+            {% if plan.speed_limit %}
+            <div class="plan-speed" style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">
+                ↓{{ plan.speed_limit }} / ↑{{ plan.speed_limit_upload }} Mbps
+            </div>
+            {% endif %}
         </div>
         {% endfor %}
     </div>
