@@ -115,32 +115,51 @@
 </div>
 
 <div class="grid-2">
-    <!-- Revenue Chart -->
+    <!-- Revenue This Week Card -->
     <div class="chart-card animate-fadeIn" style="animation-delay: 400ms">
-        <div class="chart-header">
-            <h3 class="chart-title">Revenue (Last 7 Days)</h3>
+        <div class="chart-header" style="margin-bottom: 1.25rem;">
+            <div>
+                <h3 class="chart-title" style="margin-bottom: 2px;">Revenue This Week</h3>
+                <span class="text-xs text-muted">Since {{ start_of_week_date }}</span>
+            </div>
+            <span class="badge badge-info" style="font-size: 0.75rem; padding: 4px 10px;">
+                <i class="bi bi-calendar-week" style="margin-right: 4px;"></i>Weekly
+            </span>
         </div>
-        <div class="chart-wrapper">
-            <canvas id="revenue-chart"></canvas>
+        <div class="d-flex align-items-center justify-content-between">
+            <div>
+                <div style="font-size: 2.25rem; font-weight: 800; color: #1A73E8; line-height: 1.1;">
+                    ₱{{ revenue_this_week|default:"0" }}
+                </div>
+                <div class="text-small text-muted mt-xs">Total coin collection for current week</div>
+            </div>
+            <div style="width: 54px; height: 54px; border-radius: 14px; background: rgba(26, 115, 232, 0.1); color: #1A73E8; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0;">
+                <i class="bi bi-graph-up-arrow"></i>
+            </div>
         </div>
     </div>
 
-    <!-- ROI Summary -->
+    <!-- Revenue This Month Card -->
     <div class="chart-card animate-fadeIn" style="animation-delay: 500ms">
-        <div class="chart-header">
-            <h3 class="chart-title">ROI Tracker</h3>
-            <span class="badge badge-info">{{ roi_percentage }}%</span>
+        <div class="chart-header" style="margin-bottom: 1.25rem;">
+            <div>
+                <h3 class="chart-title" style="margin-bottom: 2px;">Revenue This Month</h3>
+                <span class="text-xs text-muted">{{ current_month_name }}</span>
+            </div>
+            <span class="badge badge-success" style="font-size: 0.75rem; padding: 4px 10px;">
+                <i class="bi bi-calendar-month" style="margin-right: 4px;"></i>Monthly
+            </span>
         </div>
-        <div class="d-flex justify-content-between text-small mb-sm">
-            <span class="text-muted">₱{{ total_revenue }} earned</span>
-            <span class="text-muted">₱{{ total_cost }} total cost</span>
-        </div>
-        <div class="progress-bar mb-md">
-            <div class="progress-fill" style="width: {{ roi_percentage }}%"></div>
-        </div>
-        <div class="d-flex justify-content-between align-items-center">
-            <span class="text-small text-muted">Recovery Status</span>
-            <span class="font-semibold">{{ roi_percentage }}% complete</span>
+        <div class="d-flex align-items-center justify-content-between">
+            <div>
+                <div style="font-size: 2.25rem; font-weight: 800; color: #10B981; line-height: 1.1;">
+                    ₱{{ revenue_this_month|default:"0" }}
+                </div>
+                <div class="text-small text-muted mt-xs">Total coin collection for {{ current_month_name }}</div>
+            </div>
+            <div style="width: 54px; height: 54px; border-radius: 14px; background: rgba(16, 185, 129, 0.1); color: #10B981; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0;">
+                <i class="bi bi-wallet2"></i>
+            </div>
         </div>
     </div>
 </div>
@@ -243,31 +262,4 @@
 {% endblock %}
 
 {% block dashboard_js %}
-<script>
-document.addEventListener('DOMContentLoaded', async () => {
-    // Fetch revenue data for chart
-    try {
-        const data = await fetchRevenueData('weekly');
-        if (data && data.revenue_data) {
-            const labels = data.revenue_data.map(d => {
-                const date = new Date(d.day);
-                return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-            });
-            const values = data.revenue_data.map(d => d.revenue);
-            initRevenueChart('revenue-chart', { labels, values });
-        } else {
-            // Mock data if no real data
-            initRevenueChart('revenue-chart', {
-                labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-                values: [0, 0, 0, 0, 0, 0, 0]
-            });
-        }
-    } catch (err) {
-        initRevenueChart('revenue-chart', {
-            labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-            values: [0, 0, 0, 0, 0, 0, 0]
-        });
-    }
-});
-</script>
 {% endblock %}

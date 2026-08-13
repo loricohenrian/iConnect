@@ -421,6 +421,16 @@ def overview(request):
         timestamp__date=today
     ).aggregate(total=Sum('amount'))['total'] or 0
 
+    start_of_week = today - timedelta(days=today.weekday())
+    revenue_this_week = CoinEvent.objects.filter(
+        timestamp__date__gte=start_of_week
+    ).aggregate(total=Sum('amount'))['total'] or 0
+
+    start_of_month = today.replace(day=1)
+    revenue_this_month = CoinEvent.objects.filter(
+        timestamp__date__gte=start_of_month
+    ).aggregate(total=Sum('amount'))['total'] or 0
+
     connected = Session.objects.filter(status='active').count()
     whitelisted = WhitelistedDevice.objects.count()
     sessions_today = Session.objects.filter(time_in__date=today).count()
@@ -447,6 +457,10 @@ def overview(request):
 
     context = {
         'revenue_today': revenue_today,
+        'revenue_this_week': revenue_this_week,
+        'revenue_this_month': revenue_this_month,
+        'start_of_week_date': start_of_week.strftime('%b %d'),
+        'current_month_name': today.strftime('%B %Y'),
         'connected_users': connected,
         'whitelisted_count': whitelisted,
         'total_connected': connected + whitelisted,
