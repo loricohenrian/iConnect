@@ -5,277 +5,262 @@
 
 {% block dashboard_content %}
 <style>
-/* Dashboard Narrative Layout */
-.section-title {
-    font-size: 0.85rem;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    font-weight: 700;
-    color: var(--color-gray);
-    margin-bottom: 0.75rem;
-    margin-top: 2rem;
-}
-.section-title:first-child {
-    margin-top: 0;
-}
-
-/* 1. Right Now - Compact Strip */
-.right-now-strip {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: var(--color-dark);
-    color: white;
-    border-radius: 12px;
-    padding: var(--space-md) var(--space-lg);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+/* Bento Box Layout */
+.bento-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-auto-rows: minmax(130px, auto);
+    gap: var(--space-lg);
     margin-bottom: var(--space-xl);
 }
-@media (max-width: 768px) {
-    .right-now-strip {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: var(--space-md);
-    }
-}
-.right-now-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-.right-now-label {
-    font-size: 0.85rem;
-    color: rgba(255,255,255,0.7);
-    font-weight: 600;
-}
-.right-now-value {
-    font-size: 1.5rem;
-    font-weight: 700;
-    line-height: 1;
+
+@media (max-width: 1024px) {
+    .bento-grid { grid-template-columns: repeat(3, 1fr); }
 }
 
-/* 2. Money - Large Modular Group */
-.money-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: var(--space-lg);
+@media (max-width: 768px) {
+    .bento-grid { grid-template-columns: repeat(2, 1fr); }
 }
-.money-card {
-    background: white;
-    border-radius: 16px;
+
+@media (max-width: 480px) {
+    .bento-grid { grid-template-columns: 1fr; }
+}
+
+.bento-card {
+    background: #ffffff;
+    border-radius: 24px;
     padding: var(--space-xl);
-    box-shadow: var(--shadow-sm);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
     border: 1px solid var(--color-border);
+    display: flex;
+    flex-direction: column;
     position: relative;
     overflow: hidden;
 }
-.money-card-today {
-    grid-column: span 3;
+
+.bento-hero {
+    grid-column: span 2;
+    grid-row: span 2;
     background: linear-gradient(135deg, #7b2d3b 0%, #5a212b 100%);
     color: white;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
     border: none;
 }
-.money-card-today .stat-label { color: rgba(255,255,255,0.8); }
-.money-card-today .stat-value { color: white; font-size: 4rem; }
-.money-card-today .hero-icon-bg { color: rgba(255,255,255,0.1); }
-@media (min-width: 1024px) {
-    .money-card-today {
-        grid-column: span 1;
-    }
+.bento-hero .stat-label { color: rgba(255, 255, 255, 0.8); font-size: 1.1rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
+.bento-hero .stat-value { color: white; font-size: 5rem; font-weight: 800; line-height: 1; margin: 10px 0; }
+.bento-hero .hero-bg-icon { position: absolute; top: -10%; left: -10%; font-size: 14rem; opacity: 0.05; pointer-events: none; }
+
+.bento-tall {
+    grid-column: span 1;
+    grid-row: span 2;
+    justify-content: center;
 }
-.money-card .stat-label {
-    font-size: 1rem;
+@media (max-width: 768px) {
+    .bento-tall { grid-column: span 2; grid-row: span 1; }
+}
+
+.bento-wide {
+    grid-column: span 2;
+    grid-row: span 1;
+    justify-content: center;
+}
+
+.bento-square {
+    grid-column: span 1;
+    grid-row: span 1;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+}
+
+/* Card Internals */
+.bento-label {
+    font-size: 0.85rem;
     font-weight: 600;
     color: var(--color-gray);
     margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
-.money-card .stat-value {
-    font-size: 2.5rem;
+.bento-value {
+    font-size: 2.25rem;
     font-weight: 800;
+    color: var(--color-dark);
     line-height: 1;
-    color: var(--color-dark);
 }
-.money-card .text-xs { font-size: 0.75rem; margin-top: 0.5rem; color: var(--color-gray); }
-.money-card-today .text-xs { color: rgba(255,255,255,0.7); }
-
-/* 3. System Health - Compact Panel */
-.system-health-panel {
-    background: #f8fafc;
-    border-radius: 12px;
-    padding: var(--space-lg);
-    border: 1px solid var(--color-border);
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: var(--space-lg);
+.bento-square .bento-value {
+    font-size: 2rem;
 }
-@media (max-width: 1024px) {
-    .system-health-panel { grid-template-columns: repeat(3, 1fr); }
-}
-@media (max-width: 768px) {
-    .system-health-panel { grid-template-columns: repeat(2, 1fr); }
-}
-.health-item {
+.bento-icon-badge {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
     display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-.health-header {
-    display: flex;
-    justify-content: space-between;
     align-items: center;
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--color-gray);
+    justify-content: center;
+    font-size: 24px;
+    margin-bottom: 12px;
 }
-.health-value {
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: var(--color-dark);
+.bento-square .bento-icon-badge {
+    margin: 0 auto 12px auto;
 }
+
+/* System Health Strip inside Wide */
+.sys-health-bento {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-lg);
+    width: 100%;
+}
+.health-mini-label { font-size: 0.75rem; font-weight: 600; color: var(--color-gray); margin-bottom: 4px; display: flex; justify-content: space-between; }
 </style>
 
-<!-- 1. RIGHT NOW -->
-<div class="section-title">Right Now</div>
-<div class="right-now-strip animate-fadeIn">
-    <div class="right-now-item">
-        <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; font-size: 20px;">
-            <i class="bi bi-people"></i>
-        </div>
-        <div>
-            <div class="right-now-label">Active Users</div>
-            <div class="right-now-value" id="live-active-users">{{ total_connected|default:"0" }}</div>
-        </div>
+<div class="bento-grid animate-fadeIn">
+    
+    <!-- Hero (2x2) -->
+    <div class="bento-card bento-hero">
+        <i class="bi bi-cash-stack hero-bg-icon"></i>
+        <div class="stat-label">Revenue Today</div>
+        <div class="stat-value" id="revenue-today"><span style="font-size: 2.5rem; vertical-align: super;">₱</span>{{ revenue_today|default:"0" }}</div>
+        <div style="font-size: 0.85rem; color: rgba(255,255,255,0.7); font-weight: 500;">Based on latest drops</div>
     </div>
-    <div class="right-now-item">
-        <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; font-size: 20px;">
-            <i class="bi bi-clock"></i>
-        </div>
-        <div>
-            <div class="right-now-label">Sessions Today</div>
-            <div class="right-now-value" id="sessions-today">{{ sessions_today|default:"0" }}</div>
-        </div>
-    </div>
-    <div class="right-now-item">
-        <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; font-size: 20px;">
+
+    <!-- Live Network Usage (1x2 Tall) -->
+    <div class="bento-card bento-tall">
+        <div class="bento-icon-badge" style="background: rgba(16, 185, 129, 0.1); color: #10B981;">
             <i class="bi bi-activity"></i>
         </div>
-        <div>
-            <div class="right-now-label">Live Bandwidth</div>
-            <div class="right-now-value" id="live-total-bandwidth">0 MB</div>
-            <div id="live-network-meta" style="display:none;"></div>
+        <div class="bento-label">Live Network</div>
+        <div style="margin-top: 1rem; display: flex; flex-direction: column; gap: 1.5rem;">
+            <div>
+                <div style="font-size: 0.75rem; color: var(--color-gray); font-weight: 600; text-transform: uppercase;">Active Users</div>
+                <div class="bento-value" id="live-active-users" style="color: #10B981;">{{ total_connected|default:"0" }}</div>
+            </div>
+            <div>
+                <div style="font-size: 0.75rem; color: var(--color-gray); font-weight: 600; text-transform: uppercase;">Bandwidth In Use</div>
+                <div class="bento-value" id="live-total-bandwidth" style="font-size: 1.5rem;">0 MB</div>
+            </div>
         </div>
-    </div>
-</div>
-
-<!-- 2. MONEY -->
-<div class="section-title">Money</div>
-<div class="money-grid mb-xl">
-    <!-- Today -->
-    <div class="money-card money-card-today animate-fadeIn" style="animation-delay: 100ms">
-        <i class="bi bi-cash-stack hero-icon-bg" style="position:absolute; top:-10%; right:-5%; font-size: 8rem; opacity: 0.15; pointer-events:none;"></i>
-        <div class="stat-label">Collected Today</div>
-        <div class="stat-value" id="revenue-today"><span style="font-size: 2rem; vertical-align: top;">₱</span>{{ revenue_today|default:"0" }}</div>
-        <div class="text-xs">Based on latest drops</div>
+        <div id="live-network-meta" style="display:none;"></div>
     </div>
 
-    <!-- Week -->
-    <div class="money-card animate-fadeIn" style="animation-delay: 150ms">
-        <div class="stat-label">This Week</div>
-        <div class="stat-value" style="color: var(--color-dark);"><span style="font-size: 1.5rem; vertical-align: top;">₱</span>{{ revenue_this_week|default:"0" }}</div>
-        <div class="text-xs">Since {{ start_of_week_date }}</div>
-    </div>
-
-    <!-- Month -->
-    <div class="money-card animate-fadeIn" style="animation-delay: 200ms">
-        <div class="stat-label">This Month</div>
-        <div class="stat-value" style="color: var(--color-dark);"><span style="font-size: 1.5rem; vertical-align: top;">₱</span>{{ revenue_this_month|default:"0" }}</div>
-        <div class="text-xs">{{ current_month_name }}</div>
-    </div>
-</div>
-
-<!-- 3. SYSTEM HEALTH -->
-<div class="section-title">System Health</div>
-<div class="system-health-panel mb-xl animate-fadeIn" style="animation-delay: 300ms">
-    <!-- Disk -->
-    <div class="health-item">
-        <div class="health-header">
-            <span>Disk</span>
-            <span id="sys-disk-pct">0%</span>
-        </div>
-        <div class="progress-bar-bg" style="height: 4px;">
-            <div id="sys-disk-bar" class="progress-bar-fill progress-success"></div>
-        </div>
-        <div class="text-xs text-muted"><span id="sys-disk-used">—</span> / <span id="sys-disk-total">—</span></div>
-    </div>
-    <!-- CPU -->
-    <div class="health-item">
-        <div class="health-header">
-            <span>CPU</span>
-            <span id="sys-cpu-pct">0%</span>
-        </div>
-        <div class="progress-bar-bg" style="height: 4px;">
-            <div id="sys-cpu-bar" class="progress-bar-fill progress-success"></div>
-        </div>
-        <div class="text-xs text-muted"><span id="sys-cpu-count">—</span> cores</div>
-    </div>
-    <!-- RAM -->
-    <div class="health-item">
-        <div class="health-header">
-            <span>RAM</span>
-            <span id="sys-ram-pct">0%</span>
-        </div>
-        <div class="progress-bar-bg" style="height: 4px;">
-            <div id="sys-ram-bar" class="progress-bar-fill progress-success"></div>
-        </div>
-        <div class="text-xs text-muted"><span id="sys-ram-used">—</span> / <span id="sys-ram-total">—</span></div>
-    </div>
-    <!-- Temp -->
-    <div class="health-item">
-        <div class="health-header">
-            <span>Temp</span>
+    <!-- Temp (1x1 Square) -->
+    <div class="bento-card bento-square">
+        <div class="bento-icon-badge" style="background: rgba(245, 158, 11, 0.1); color: #F59E0B;">
             <i class="bi bi-thermometer-half"></i>
         </div>
-        <div class="health-value" id="sys-cpu-temp">—</div>
+        <div class="bento-label">Temp</div>
+        <div class="bento-value" id="sys-cpu-temp" style="font-size: 1.5rem;">—</div>
     </div>
-    <!-- Internet -->
-    <div class="health-item">
-        <div class="health-header">
-            <span>Internet</span>
-            <div id="sys-internet-dot" style="width: 8px; height: 8px; border-radius: 50%; background: #94A3B8;"></div>
+
+    <!-- Internet (1x1 Square) -->
+    <div class="bento-card bento-square">
+        <div class="bento-icon-badge" style="background: rgba(59, 130, 246, 0.1); color: #3B82F6;">
+            <i class="bi bi-globe"></i>
         </div>
-        <div class="health-value" id="sys-internet-text" style="font-size: 0.9rem;">Checking...</div>
+        <div class="bento-label">Internet</div>
+        <div style="display: flex; align-items: center; justify-content: center; gap: 6px;">
+            <div id="sys-internet-dot" style="width: 10px; height: 10px; border-radius: 50%; background: #94A3B8;"></div>
+            <div class="bento-value" id="sys-internet-text" style="font-size: 1.25rem;">Checking</div>
+        </div>
     </div>
+
+    <!-- Revenue This Week (2x1 Wide) -->
+    <div class="bento-card bento-wide">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <div class="bento-label">This Week</div>
+                <div class="bento-value" style="color: #1A73E8;"><span style="font-size: 1.25rem; vertical-align: super;">₱</span>{{ revenue_this_week|default:"0" }}</div>
+                <div style="font-size: 0.75rem; color: var(--color-gray); margin-top: 4px;">Since {{ start_of_week_date }}</div>
+            </div>
+            <div class="bento-icon-badge" style="background: rgba(26, 115, 232, 0.1); color: #1A73E8; width: 64px; height: 64px; font-size: 32px; margin: 0;">
+                <i class="bi bi-calendar-week"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sessions Today (1x1 Square) -->
+    <div class="bento-card bento-square">
+        <div class="bento-label">Sessions</div>
+        <div class="bento-value" id="sessions-today">{{ sessions_today|default:"0" }}</div>
+        <div style="font-size: 0.75rem; color: var(--color-gray); margin-top: 4px;">Today</div>
+    </div>
+
+    <!-- ROI Progress (1x1 Square) -->
+    <div class="bento-card bento-square">
+        <div class="bento-label">ROI</div>
+        <div class="bento-value" id="roi-progress">{{ roi_percentage|default:"0" }}%</div>
+        <div style="font-size: 0.75rem; color: var(--color-gray); margin-top: 4px;">Progress</div>
+    </div>
+
+    <!-- Revenue This Month (2x1 Wide) -->
+    <div class="bento-card bento-wide">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <div class="bento-label">This Month</div>
+                <div class="bento-value" style="color: #10B981;"><span style="font-size: 1.25rem; vertical-align: super;">₱</span>{{ revenue_this_month|default:"0" }}</div>
+                <div style="font-size: 0.75rem; color: var(--color-gray); margin-top: 4px;">{{ current_month_name }}</div>
+            </div>
+            <div class="bento-icon-badge" style="background: rgba(16, 185, 129, 0.1); color: #10B981; width: 64px; height: 64px; font-size: 32px; margin: 0;">
+                <i class="bi bi-calendar-month"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Health (2x1 Wide) -->
+    <div class="bento-card bento-wide">
+        <div class="bento-label" style="margin-bottom: 1.25rem;">System Hardware</div>
+        <div class="sys-health-bento">
+            <div>
+                <div class="health-mini-label"><span>Disk</span> <span id="sys-disk-pct">0%</span></div>
+                <div class="progress-bar-bg" style="height: 6px;"><div id="sys-disk-bar" class="progress-bar-fill progress-success"></div></div>
+                <div style="font-size: 0.65rem; color: var(--color-gray); margin-top: 4px;"><span id="sys-disk-used">—</span> / <span id="sys-disk-total">—</span></div>
+            </div>
+            <div>
+                <div class="health-mini-label"><span>CPU</span> <span id="sys-cpu-pct">0%</span></div>
+                <div class="progress-bar-bg" style="height: 6px;"><div id="sys-cpu-bar" class="progress-bar-fill progress-success"></div></div>
+                <div style="font-size: 0.65rem; color: var(--color-gray); margin-top: 4px;"><span id="sys-cpu-count">—</span> cores</div>
+            </div>
+            <div>
+                <div class="health-mini-label"><span>RAM</span> <span id="sys-ram-pct">0%</span></div>
+                <div class="progress-bar-bg" style="height: 6px;"><div id="sys-ram-bar" class="progress-bar-fill progress-success"></div></div>
+                <div style="font-size: 0.65rem; color: var(--color-gray); margin-top: 4px;"><span id="sys-ram-used">—</span> / <span id="sys-ram-total">—</span></div>
+            </div>
+        </div>
+    </div>
+
 </div>
 
-<!-- 4. ACTIVITY -->
-<div class="section-title">Activity</div>
-<div class="chart-card animate-fadeIn" style="animation-delay: 400ms">
-    <div class="chart-header">
-        <h3 class="chart-title">Recent Sessions</h3>
+<!-- Recent Sessions Table -->
+<div class="bento-card animate-fadeIn" style="padding: 0; margin-bottom: var(--space-xl);">
+    <div class="chart-header" style="padding: var(--space-lg) var(--space-xl); border-bottom: 1px solid var(--color-border); margin: 0;">
+        <h3 class="chart-title" style="margin: 0;">Recent Sessions</h3>
         <a href="{% url 'dashboard:sessions' %}" class="btn btn-sm btn-secondary">View All</a>
     </div>
 
     {% if recent_sessions %}
-    <div class="table-container">
-        <table id="recent-sessions-table">
+    <div class="table-container" style="border-radius: 0 0 24px 24px;">
+        <table id="recent-sessions-table" style="margin-bottom: 0;">
             <thead>
                 <tr>
-                    <th>Device</th>
+                    <th style="padding-left: var(--space-xl);">Device</th>
                     <th>Amount</th>
                     <th>Time In</th>
-                    <th>Status</th>
+                    <th style="padding-right: var(--space-xl);">Status</th>
                 </tr>
             </thead>
             <tbody>
                 {% for session in recent_sessions %}
                 <tr>
-                    <td>
+                    <td style="padding-left: var(--space-xl);">
                         <div class="font-semibold">{{ session.device_name|default:"Unknown" }}</div>
                         <div class="text-xs text-muted">{{ session.mac_address }}</div>
                     </td>
                     <td class="font-semibold">₱{{ session.amount_paid }}</td>
                     <td>{{ session.time_in|date:"M d, h:i A" }}</td>
-                    <td>
+                    <td style="padding-right: var(--space-xl);">
                         {% if session.status == 'active' %}
                             <span class="badge badge-active">Active</span>
                         {% elif session.status == 'expired' %}
@@ -290,7 +275,7 @@
         </table>
     </div>
     {% else %}
-    <div class="empty-state">
+    <div class="empty-state" style="padding: 4rem 2rem;">
         <i class="bi bi-clock-history"></i>
         <p>No sessions yet</p>
         <small>Data will appear here once students start using the system</small>
