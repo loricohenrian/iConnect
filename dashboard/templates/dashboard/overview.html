@@ -112,28 +112,28 @@
     <div class="hero-main-group">
         <!-- Revenue Today (Huge) -->
         <div class="hero-card-xl animate-fadeIn">
-            <i class="bi bi-cash-stack hero-icon-bg" style="color: #1A73E8;"></i>
+            <i class="bi bi-cash-stack hero-icon-bg" style="color: var(--color-dark);"></i>
             <div style="display: flex; justify-content: space-between; align-items: flex-start; position: relative;">
-                <div class="stat-label" style="font-weight: 800;">Revenue Today</div>
-                <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(26, 115, 232, 0.1); color: #1A73E8; display: flex; align-items: center; justify-content: center; font-size: 24px;">
+                <div class="stat-label" style="font-weight: 800; color: var(--color-dark);">Revenue Today</div>
+                <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(0, 0, 0, 0.05); color: var(--color-dark); display: flex; align-items: center; justify-content: center; font-size: 24px;">
                     <i class="bi bi-cash-coin"></i>
                 </div>
             </div>
-            <div class="stat-value" id="revenue-today" style="color: #1A73E8;">
+            <div class="stat-value" id="revenue-today" style="color: var(--color-dark);">
                 <span style="font-size: 1.5rem; vertical-align: top;">₱</span>{{ revenue_today|default:"0" }}
             </div>
         </div>
 
         <!-- Connected Users (Huge) -->
         <div class="hero-card-xl animate-fadeIn" style="animation-delay: 100ms">
-            <i class="bi bi-people-fill hero-icon-bg" style="color: #10B981;"></i>
+            <i class="bi bi-people-fill hero-icon-bg" style="color: var(--color-dark);"></i>
             <div style="display: flex; justify-content: space-between; align-items: flex-start; position: relative;">
-                <div class="stat-label" style="font-weight: 800;">Active Users</div>
-                <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(16, 185, 129, 0.1); color: #10B981; display: flex; align-items: center; justify-content: center; font-size: 24px;">
+                <div class="stat-label" style="font-weight: 800; color: var(--color-dark);">Active Users</div>
+                <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(0, 0, 0, 0.05); color: var(--color-dark); display: flex; align-items: center; justify-content: center; font-size: 24px;">
                     <i class="bi bi-people"></i>
                 </div>
             </div>
-            <div class="stat-value" id="connected-users" style="color: #10B981;">
+            <div class="stat-value" id="connected-users" style="color: var(--color-dark);">
                 {{ total_connected|default:"0" }}
             </div>
         </div>
@@ -143,38 +143,38 @@
     <div class="hero-side-group">
         <!-- Sessions Today -->
         <div class="stat-card-compact animate-fadeIn" style="animation-delay: 200ms">
-            <div class="stat-card-compact-header">
+            <div class="stat-card-compact-header" style="color: var(--color-dark);">
                 <span>Sessions Today</span>
-                <i class="bi bi-clock text-muted"></i>
+                <i class="bi bi-clock" style="color: #000;"></i>
             </div>
-            <div class="stat-card-compact-value" id="sessions-today">{{ sessions_today|default:"0" }}</div>
+            <div class="stat-card-compact-value" id="sessions-today" style="color: var(--color-dark);">{{ sessions_today|default:"0" }}</div>
         </div>
 
         <!-- ROI Progress -->
         <div class="stat-card-compact animate-fadeIn" style="animation-delay: 250ms">
-            <div class="stat-card-compact-header">
+            <div class="stat-card-compact-header" style="color: var(--color-dark);">
                 <span>ROI Progress</span>
-                <i class="bi bi-pie-chart text-muted"></i>
+                <i class="bi bi-pie-chart" style="color: #000;"></i>
             </div>
-            <div class="stat-card-compact-value" id="roi-progress">{{ roi_percentage|default:"0" }}%</div>
+            <div class="stat-card-compact-value" id="roi-progress" style="color: var(--color-dark);">{{ roi_percentage|default:"0" }}%</div>
         </div>
 
         <!-- Temperature -->
         <div class="stat-card-compact animate-fadeIn" style="animation-delay: 300ms">
-            <div class="stat-card-compact-header">
+            <div class="stat-card-compact-header" style="color: var(--color-dark);">
                 <span>Temperature</span>
-                <i class="bi bi-thermometer-half text-muted"></i>
+                <i class="bi bi-thermometer-half" style="color: #000;"></i>
             </div>
-            <div class="stat-card-compact-value" id="sys-cpu-temp">—</div>
+            <div class="stat-card-compact-value" id="sys-cpu-temp" style="color: var(--color-dark);">—</div>
         </div>
 
         <!-- Internet Status -->
         <div class="stat-card-compact animate-fadeIn" style="animation-delay: 350ms">
-            <div class="stat-card-compact-header">
+            <div class="stat-card-compact-header" style="color: var(--color-dark);">
                 <span>Internet</span>
                 <div id="sys-internet-dot" style="width: 10px; height: 10px; border-radius: 50%; background: #94A3B8;"></div>
             </div>
-            <div class="stat-card-compact-value" id="sys-internet-text" style="font-size: 1.1rem; line-height: 1.25rem;">Checking...</div>
+            <div class="stat-card-compact-value" id="sys-internet-text" style="font-size: 1.1rem; line-height: 1.25rem; color: var(--color-dark);">Checking...</div>
         </div>
     </div>
 
@@ -223,21 +223,21 @@
     <div class="chart-card animate-fadeIn" style="animation-delay: 400ms; margin-bottom: 0;">
         <div class="chart-header" style="margin-bottom: 1.25rem;">
             <div>
-                <h3 class="chart-title" style="margin-bottom: 2px;">Revenue This Week</h3>
-                <span class="text-xs text-muted">Since {{ start_of_week_date }}</span>
+                <h3 class="chart-title" style="margin-bottom: 2px; color: var(--color-dark);">Revenue This Week</h3>
+                <span class="text-xs text-muted" style="color: var(--color-dark) !important;">Since {{ start_of_week_date }}</span>
             </div>
-            <span class="badge badge-info" style="font-size: 0.75rem; padding: 4px 10px;">
+            <span class="badge" style="background: rgba(0,0,0,0.05); color: var(--color-dark); font-size: 0.75rem; padding: 4px 10px;">
                 <i class="bi bi-calendar-week" style="margin-right: 4px;"></i>Weekly
             </span>
         </div>
         <div class="d-flex align-items-center justify-content-between">
             <div>
-                <div style="font-size: 2.25rem; font-weight: 800; color: #1A73E8; line-height: 1.1; font-variant-numeric: tabular-nums;">
+                <div style="font-size: 2.25rem; font-weight: 800; color: var(--color-dark); line-height: 1.1; font-variant-numeric: tabular-nums;">
                     <span style="font-size: 0.6em; vertical-align: baseline;">₱</span>{{ revenue_this_week|default:"0" }}
                 </div>
-                <div class="text-small text-muted mt-xs">Total coin collection for current week</div>
+                <div class="text-small text-muted mt-xs" style="color: var(--color-dark) !important;">Total coin collection for current week</div>
             </div>
-            <div style="width: 54px; height: 54px; border-radius: 14px; background: rgba(26, 115, 232, 0.1); color: #1A73E8; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0;">
+            <div style="width: 54px; height: 54px; border-radius: 14px; background: rgba(0, 0, 0, 0.05); color: var(--color-dark); display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0;">
                 <i class="bi bi-graph-up-arrow"></i>
             </div>
         </div>
@@ -247,21 +247,21 @@
     <div class="chart-card animate-fadeIn" style="animation-delay: 500ms; margin-bottom: 0;">
         <div class="chart-header" style="margin-bottom: 1.25rem;">
             <div>
-                <h3 class="chart-title" style="margin-bottom: 2px;">Revenue This Month</h3>
-                <span class="text-xs text-muted">{{ current_month_name }}</span>
+                <h3 class="chart-title" style="margin-bottom: 2px; color: var(--color-dark);">Revenue This Month</h3>
+                <span class="text-xs text-muted" style="color: var(--color-dark) !important;">{{ current_month_name }}</span>
             </div>
-            <span class="badge badge-success" style="font-size: 0.75rem; padding: 4px 10px;">
+            <span class="badge" style="background: rgba(0,0,0,0.05); color: var(--color-dark); font-size: 0.75rem; padding: 4px 10px;">
                 <i class="bi bi-calendar-month" style="margin-right: 4px;"></i>Monthly
             </span>
         </div>
         <div class="d-flex align-items-center justify-content-between">
             <div>
-                <div style="font-size: 2.25rem; font-weight: 800; color: #10B981; line-height: 1.1; font-variant-numeric: tabular-nums;">
+                <div style="font-size: 2.25rem; font-weight: 800; color: var(--color-dark); line-height: 1.1; font-variant-numeric: tabular-nums;">
                     <span style="font-size: 0.6em; vertical-align: baseline;">₱</span>{{ revenue_this_month|default:"0" }}
                 </div>
-                <div class="text-small text-muted mt-xs">Total coin collection for {{ current_month_name }}</div>
+                <div class="text-small text-muted mt-xs" style="color: var(--color-dark) !important;">Total coin collection for {{ current_month_name }}</div>
             </div>
-            <div style="width: 54px; height: 54px; border-radius: 14px; background: rgba(16, 185, 129, 0.1); color: #10B981; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0;">
+            <div style="width: 54px; height: 54px; border-radius: 14px; background: rgba(0, 0, 0, 0.05); color: var(--color-dark); display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0;">
                 <i class="bi bi-wallet2"></i>
             </div>
         </div>
@@ -271,21 +271,21 @@
     <div class="chart-card animate-fadeIn" style="animation-delay: 650ms; margin-bottom: 0;">
         <div class="chart-header" style="margin-bottom: 1.25rem;">
             <div>
-                <h3 class="chart-title" style="margin-bottom: 2px;">Live Network Usage</h3>
-                <span class="text-xs text-muted" id="live-network-meta">Waiting for live update...</span>
+                <h3 class="chart-title" style="margin-bottom: 2px; color: var(--color-dark);">Live Network Usage</h3>
+                <span class="text-xs text-muted" id="live-network-meta" style="color: var(--color-dark) !important;">Waiting for live update...</span>
             </div>
-            <span class="badge badge-info" style="font-size: 0.75rem; padding: 4px 10px;">
+            <span class="badge" style="background: rgba(0,0,0,0.05); color: var(--color-dark); font-size: 0.75rem; padding: 4px 10px;">
                 <i class="bi bi-arrow-repeat" style="margin-right: 4px;"></i>Auto
             </span>
         </div>
         <div class="d-flex flex-column gap-md">
             <div class="d-flex justify-content-between align-items-center">
-                <span class="text-small text-muted font-medium">Active Users Right Now</span>
+                <span class="text-small text-muted font-medium" style="color: var(--color-dark) !important;">Active Users Right Now</span>
                 <span class="font-bold text-lg" style="color: var(--color-dark);" id="live-active-users">0</span>
             </div>
             <div style="width: 100%; height: 1px; background: var(--color-border); margin: 4px 0;"></div>
             <div class="d-flex justify-content-between align-items-center">
-                <span class="text-small text-muted font-medium">Total Bandwidth In Use</span>
+                <span class="text-small text-muted font-medium" style="color: var(--color-dark) !important;">Total Bandwidth In Use</span>
                 <span class="font-bold text-lg" style="color: var(--color-dark);" id="live-total-bandwidth">0 MB</span>
             </div>
         </div>
@@ -295,8 +295,8 @@
 <!-- Recent Sessions Table -->
 <div class="chart-card mt-lg animate-fadeIn" style="animation-delay: 700ms">
     <div class="chart-header">
-        <h3 class="chart-title">Recent Sessions</h3>
-        <a href="{% url 'dashboard:sessions' %}" class="btn btn-sm btn-secondary">View All</a>
+        <h3 class="chart-title" style="color: var(--color-dark);">Recent Sessions</h3>
+        <a href="{% url 'dashboard:sessions' %}" class="btn btn-sm" style="background: rgba(0,0,0,0.05); color: var(--color-dark); border: none;">View All</a>
     </div>
 
     {% if recent_sessions %}
