@@ -1,117 +1,219 @@
 {% extends "base_dashboard.html" %}
 
-{% block page_title %}Overview{% endblock %}
-{% block topbar_title %}Overview{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block topbar_title %}Dashboard{% endblock %}
 
 {% block dashboard_content %}
 
-<!-- Stat Cards Row -->
-<div class="stats-grid">
-    <div class="stat-card animate-fadeIn">
-        <div class="stat-info">
-            <div class="stat-label">Revenue Today</div>
-            <div class="stat-value" id="revenue-today">₱{{ revenue_today|default:"0" }}</div>
+<style>
+/* Modern Layout Overrides */
+.dashboard-hero-layout {
+    display: grid;
+    grid-template-columns: 1.6fr 1fr;
+    gap: var(--space-xl);
+    margin-bottom: var(--space-xl);
+}
+@media (max-width: 1024px) {
+    .dashboard-hero-layout {
+        grid-template-columns: 1fr;
+    }
+}
+.hero-main-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-lg);
+}
+.hero-card-xl {
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 2rem;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--color-border);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+}
+.hero-card-xl .stat-label {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--color-gray);
+    margin-bottom: 0.5rem;
+}
+.hero-card-xl .stat-value {
+    font-size: 3.5rem;
+    font-weight: 800;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+}
+.hero-icon-bg {
+    position: absolute;
+    top: -10%;
+    right: -10%;
+    font-size: 8rem;
+    opacity: 0.04;
+    pointer-events: none;
+}
+.hero-side-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-md);
+    align-content: start;
+}
+.stat-card-compact {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: var(--space-md) var(--space-lg);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--color-border);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.stat-card-compact-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.85rem;
+    color: var(--color-gray);
+    font-weight: 600;
+}
+.stat-card-compact-value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--color-dark);
+}
+.sys-strip-container {
+    background: #ffffff;
+    border-radius: 16px;
+    padding: var(--space-lg) var(--space-xl);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--color-border);
+    margin-bottom: var(--space-xl);
+}
+.sys-strip-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-xl);
+}
+@media (max-width: 768px) {
+    .sys-strip-grid {
+        grid-template-columns: 1fr;
+        gap: var(--space-lg);
+    }
+}
+</style>
+
+<!-- Hero Section (60/40 Split) -->
+<div class="dashboard-hero-layout">
+    
+    <!-- Left: 60% Hero Metrics -->
+    <div class="hero-main-group">
+        <!-- Revenue Today (Huge) -->
+        <div class="hero-card-xl animate-fadeIn">
+            <i class="bi bi-cash-stack hero-icon-bg" style="color: #1A73E8;"></i>
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; position: relative;">
+                <div class="stat-label">Revenue Today</div>
+                <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(26, 115, 232, 0.1); color: #1A73E8; display: flex; align-items: center; justify-content: center; font-size: 24px;">
+                    <i class="bi bi-cash-coin"></i>
+                </div>
+            </div>
+            <div class="stat-value" id="revenue-today" style="color: #1A73E8;">
+                <span style="font-size: 1.5rem; vertical-align: top;">₱</span>{{ revenue_today|default:"0" }}
+            </div>
         </div>
-        <div class="stat-icon-wrap">
-            <i class="bi bi-cash-coin"></i>
+
+        <!-- Connected Users (Huge) -->
+        <div class="hero-card-xl animate-fadeIn" style="animation-delay: 100ms">
+            <i class="bi bi-people-fill hero-icon-bg" style="color: #10B981;"></i>
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; position: relative;">
+                <div class="stat-label">Active Users</div>
+                <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(16, 185, 129, 0.1); color: #10B981; display: flex; align-items: center; justify-content: center; font-size: 24px;">
+                    <i class="bi bi-people"></i>
+                </div>
+            </div>
+            <div class="stat-value" id="connected-users" style="color: #10B981;">
+                {{ total_connected|default:"0" }}
+            </div>
         </div>
     </div>
 
-    <div class="stat-card animate-fadeIn" style="animation-delay: 100ms">
-        <div class="stat-info">
-            <div class="stat-label">Connected Users</div>
-            <div class="stat-value" id="connected-users">{{ total_connected|default:"0" }}</div>
+    <!-- Right: 40% Secondary Metrics Grid (2x2) -->
+    <div class="hero-side-group">
+        <!-- Sessions Today -->
+        <div class="stat-card-compact animate-fadeIn" style="animation-delay: 200ms">
+            <div class="stat-card-compact-header">
+                <span>Sessions Today</span>
+                <i class="bi bi-clock text-muted"></i>
+            </div>
+            <div class="stat-card-compact-value" id="sessions-today">{{ sessions_today|default:"0" }}</div>
         </div>
-        <div class="stat-icon-wrap">
-            <i class="bi bi-people"></i>
+
+        <!-- ROI Progress -->
+        <div class="stat-card-compact animate-fadeIn" style="animation-delay: 250ms">
+            <div class="stat-card-compact-header">
+                <span>ROI Progress</span>
+                <i class="bi bi-pie-chart text-muted"></i>
+            </div>
+            <div class="stat-card-compact-value" id="roi-progress">{{ roi_percentage|default:"0" }}%</div>
+        </div>
+
+        <!-- Temperature -->
+        <div class="stat-card-compact animate-fadeIn" style="animation-delay: 300ms">
+            <div class="stat-card-compact-header">
+                <span>Temperature</span>
+                <i class="bi bi-thermometer-half text-muted"></i>
+            </div>
+            <div class="stat-card-compact-value" id="sys-cpu-temp">—</div>
+        </div>
+
+        <!-- Internet Status -->
+        <div class="stat-card-compact animate-fadeIn" style="animation-delay: 350ms">
+            <div class="stat-card-compact-header">
+                <span>Internet</span>
+                <div id="sys-internet-dot" style="width: 10px; height: 10px; border-radius: 50%; background: #94A3B8;"></div>
+            </div>
+            <div class="stat-card-compact-value" id="sys-internet-text" style="font-size: 1.1rem; line-height: 1.25rem;">Checking...</div>
         </div>
     </div>
 
-    <div class="stat-card animate-fadeIn" style="animation-delay: 200ms">
-        <div class="stat-info">
-            <div class="stat-label">Sessions Today</div>
-            <div class="stat-value" id="sessions-today">{{ sessions_today|default:"0" }}</div>
-        </div>
-        <div class="stat-icon-wrap">
-            <i class="bi bi-clock"></i>
-        </div>
-    </div>
-
-    <div class="stat-card animate-fadeIn" style="animation-delay: 300ms">
-        <div class="stat-info">
-            <div class="stat-label">ROI Progress</div>
-            <div class="stat-value" id="roi-progress">{{ roi_percentage|default:"0" }}%</div>
-        </div>
-        <div class="stat-icon-wrap">
-            <i class="bi bi-pie-chart"></i>
-        </div>
-    </div>
 </div>
 
-<!-- Charts Row -->
+<!-- System Resources Strip -->
+<div class="sys-strip-container animate-fadeIn" style="animation-delay: 400ms;">
+    <div class="sys-strip-grid">
+        <!-- Disk Card -->
+        <div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <div style="font-weight: 600; font-size: 13px; color: var(--color-dark);">Disk Usage</div>
+                <div style="font-size: 12px; color: var(--color-gray);"><span id="sys-disk-used">—</span> / <span id="sys-disk-total">—</span> (<span id="sys-disk-pct">0%</span>)</div>
+            </div>
+            <div class="progress-bar-bg" style="height: 6px;">
+                <div id="sys-disk-bar" class="progress-bar-fill progress-success"></div>
+            </div>
+        </div>
 
-<!-- System Resource Cards (Progress Bars) -->
-<div class="stats-grid" style="grid-template-columns: repeat(5, 1fr);">
-    <!-- Disk Card -->
-    <div class="stat-card animate-fadeIn" style="animation-delay: 350ms; display: block;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-sm);">
-            <div style="font-weight: 600; font-size: 14px; color: var(--color-dark);">Disk</div>
-            <div style="font-size: 12px; color: var(--color-gray);"><span id="sys-disk-used">—</span> / <span id="sys-disk-total">—</span></div>
+        <!-- CPU Card -->
+        <div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <div style="font-weight: 600; font-size: 13px; color: var(--color-dark);">CPU Load</div>
+                <div style="font-size: 12px; color: var(--color-gray);"><span id="sys-cpu-count">—</span> cores (<span id="sys-cpu-pct">0%</span>)</div>
+            </div>
+            <div class="progress-bar-bg" style="height: 6px;">
+                <div id="sys-cpu-bar" class="progress-bar-fill progress-success"></div>
+            </div>
         </div>
-        <div class="progress-bar-bg">
-            <div id="sys-disk-bar" class="progress-bar-fill progress-success"></div>
-        </div>
-        <div style="display: flex; justify-content: space-between; margin-top: var(--space-xs); font-size: 12px; font-weight: 500;">
-            <span style="color: var(--color-gray);">Used</span>
-            <span id="sys-disk-pct" style="color: var(--color-dark);">0%</span>
-        </div>
-    </div>
-    <!-- CPU Card -->
-    <div class="stat-card animate-fadeIn" style="animation-delay: 400ms; display: block;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-sm);">
-            <div style="font-weight: 600; font-size: 14px; color: var(--color-dark);">CPU Load</div>
-            <div style="font-size: 12px; color: var(--color-gray);"><span id="sys-cpu-count">—</span></div>
-        </div>
-        <div class="progress-bar-bg">
-            <div id="sys-cpu-bar" class="progress-bar-fill progress-success"></div>
-        </div>
-        <div style="display: flex; justify-content: space-between; margin-top: var(--space-xs); font-size: 12px; font-weight: 500;">
-            <span style="color: var(--color-gray);">Load</span>
-            <span id="sys-cpu-pct" style="color: var(--color-dark);">0%</span>
-        </div>
-    </div>
-    <!-- RAM Card -->
-    <div class="stat-card animate-fadeIn" style="animation-delay: 450ms; display: block;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-sm);">
-            <div style="font-weight: 600; font-size: 14px; color: var(--color-dark);">RAM Usage</div>
-            <div style="font-size: 12px; color: var(--color-gray);"><span id="sys-ram-used">—</span> / <span id="sys-ram-total">—</span></div>
-        </div>
-        <div class="progress-bar-bg">
-            <div id="sys-ram-bar" class="progress-bar-fill progress-success"></div>
-        </div>
-        <div style="display: flex; justify-content: space-between; margin-top: var(--space-xs); font-size: 12px; font-weight: 500;">
-            <span style="color: var(--color-gray);">Used</span>
-            <span id="sys-ram-pct" style="color: var(--color-dark);">0%</span>
-        </div>
-    </div>
-    <!-- Temp Card -->
-    <div class="stat-card animate-fadeIn" style="animation-delay: 500ms; display: block;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-sm);">
-            <div style="font-weight: 600; font-size: 14px; color: var(--color-dark);">Temperature</div>
-            <div style="font-size: 12px; color: var(--color-gray);"><i class="bi bi-thermometer-half"></i></div>
-        </div>
-        <div style="display: flex; align-items: center; height: 38px;">
-            <div id="sys-cpu-temp" style="font-size: 20px; font-weight: 700; color: var(--color-dark);">—</div>
-        </div>
-    </div>
-    <!-- Internet Status Card -->
-    <div class="stat-card animate-fadeIn" style="animation-delay: 550ms; display: block;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-sm);">
-            <div style="font-weight: 600; font-size: 14px; color: var(--color-dark);">Internet</div>
-            <div id="sys-internet-dot" style="width: 10px; height: 10px; border-radius: 50%; background: #94A3B8;"></div>
-        </div>
-        <div style="display: flex; align-items: center; height: 38px;">
-            <div id="sys-internet-text" style="font-size: 14px; font-weight: 600; color: var(--color-gray);">Checking...</div>
+
+        <!-- RAM Card -->
+        <div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <div style="font-weight: 600; font-size: 13px; color: var(--color-dark);">RAM Usage</div>
+                <div style="font-size: 12px; color: var(--color-gray);"><span id="sys-ram-used">—</span> / <span id="sys-ram-total">—</span> (<span id="sys-ram-pct">0%</span>)</div>
+            </div>
+            <div class="progress-bar-bg" style="height: 6px;">
+                <div id="sys-ram-bar" class="progress-bar-fill progress-success"></div>
+            </div>
         </div>
     </div>
 </div>
