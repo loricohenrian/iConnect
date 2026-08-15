@@ -59,18 +59,25 @@
 .bi-search::before { content: "\2315"; font-size: 1em; }
 
 /* ─── Dashboard Sidebar Navigation ─── */
+.bi-grid::before,
 .bi-grid-1x2::before { content: "\25A6"; font-size: 1em; }       /* Overview */
+.bi-cash-coin::before,
+.bi-coin::before { content: "\20B1"; font-size: 1em; }            /* Revenue */
 .bi-people::before { content: "\263A"; font-size: 1em; }          /* Sessions */
 .bi-clock::before { content: "\231A"; font-size: 1em; }           /* Time */
-.bi-bar-chart::before { content: "\2584"; font-size: 1em; }       /* ROI */
+.bi-bar-chart::before,
+.bi-pie-chart::before { content: "\25D4"; font-size: 1em; }       /* ROI Tracker */
 .bi-calendar-range::before { content: "\2637"; font-size: 1em; }  /* Peak Hours */
 .bi-graph-up::before,
 .bi-graph-up-arrow::before { content: "\2197"; font-size: 1em; }  /* Analytics */
-.bi-download::before { content: "\21E9"; font-size: 1em; }        /* Reports */
-.bi-bell::before { content: "\266A"; font-size: 1em; }            /* Announcements */
+.bi-download::before,
+.bi-file-earmark-arrow-down::before { content: "\21E9"; font-size: 1em; } /* Reports */
+.bi-bell::before,
+.bi-megaphone::before { content: "\25B6"; font-size: 1em; }       /* Announcements */
 .bi-bell-slash::before { content: "\266A"; font-size: 1em; }
 .bi-tags::before { content: "\2606"; font-size: 1em; }            /* WiFi Rates */
-.bi-person-gear::before { content: "\2699"; font-size: 1em; }     /* Account */
+.bi-person-gear::before,
+.bi-person-circle::before { content: "\263B"; font-size: 1em; }   /* Account */
 .bi-box-arrow-right::before { content: "\21E8"; font-size: 1em; } /* Logout */
 .bi-gear::before { content: "\2699"; font-size: 1em; }
 
