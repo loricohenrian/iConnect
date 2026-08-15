@@ -116,7 +116,8 @@ class Session(models.Model):
     def time_remaining_seconds(self):
         """Calculate remaining time in seconds from time_in and purchased minutes."""
         if self.status == "paused":
-            global_max_pause = getattr(settings, "PISONET_MAX_PAUSE_HOURS", 24)
+            from dashboard.models import SystemSettings
+            global_max_pause = SystemSettings.get_settings().global_pause_limit_hours
             max_pause_hours = self.plan.pause_duration_limit if self.plan and self.plan.pause_duration_limit > 0 else global_max_pause
             
             if max_pause_hours > 0 and self.paused_at:
