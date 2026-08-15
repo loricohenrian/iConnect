@@ -1,168 +1,313 @@
 {% extends "base_dashboard.html" %}
 
 {% block page_title %}Revenue{% endblock %}
-{% block topbar_title %}Revenue Monitoring{% endblock %}
+{% block topbar_title %}Revenue Overview{% endblock %}
+
+{% block topbar_actions %}
+<div class="d-flex align-items-center gap-sm">
+    <a href="{% url 'dashboard:export_sessions_csv' %}?period={{ period }}&start_date={{ start_date }}&end_date={{ end_date }}&status={{ status_filter }}" class="btn btn-secondary btn-sm">
+        <i class="bi bi-download"></i> Export CSV
+    </a>
+    <button type="button" class="btn btn-danger btn-sm" onclick="showResetModal()">
+        <i class="bi bi-trash"></i> Reset Sales
+    </button>
+</div>
+{% endblock %}
 
 {% block dashboard_content %}
 
-{% if goal_message %}
-<div class="alert alert-success">
-    <i class="bi bi-check-circle"></i> {{ goal_message }}
+<!-- Row 1: Metrics -->
+<div class="stats-grid" style="grid-template-columns: repeat(3, 1fr);">
+    <!-- Total Sales -->
+    <div class="chart-card animate-fadeIn" style="animation-delay: 100ms; margin-bottom: 0;">
+        <div class="d-flex align-items-center justify-content-between mb-sm">
+            <span class="text-xs text-muted font-semibold text-uppercase tracking-wider">Total Sales</span>
+            <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(0,0,0,0.05); color: var(--color-dark); display: flex; align-items: center; justify-content: center; font-size: 20px;">
+                <i class="bi bi-cash-coin"></i>
+            </div>
+        </div>
+        <div style="font-size: 2.5rem; color: var(--color-dark); line-height: 1.1; font-variant-numeric: tabular-nums;">
+            <span style="font-size: 0.6em; vertical-align: baseline;">₱</span>{{ total_sales|default:"0" }}
+        </div>
+    </div>
+    
+    <!-- Sessions -->
+    <div class="chart-card animate-fadeIn" style="animation-delay: 200ms; margin-bottom: 0;">
+        <div class="d-flex align-items-center justify-content-between mb-sm">
+            <span class="text-xs text-muted font-semibold text-uppercase tracking-wider">Sessions</span>
+            <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(0,0,0,0.05); color: var(--color-dark); display: flex; align-items: center; justify-content: center; font-size: 20px;">
+                <i class="bi bi-wifi"></i>
+            </div>
+        </div>
+        <div style="font-size: 2.5rem; color: var(--color-dark); line-height: 1.1; font-variant-numeric: tabular-nums;">
+            {{ total_sessions|default:"0" }}
+        </div>
+    </div>
+    
+    <!-- Avg Transaction -->
+    <div class="chart-card animate-fadeIn" style="animation-delay: 300ms; margin-bottom: 0;">
+        <div class="d-flex align-items-center justify-content-between mb-sm">
+            <span class="text-xs text-muted font-semibold text-uppercase tracking-wider">Avg. Transaction</span>
+            <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(0,0,0,0.05); color: var(--color-dark); display: flex; align-items: center; justify-content: center; font-size: 20px;">
+                <i class="bi bi-calculator"></i>
+            </div>
+        </div>
+        <div style="font-size: 2.5rem; color: var(--color-dark); line-height: 1.1; font-variant-numeric: tabular-nums;">
+            <span style="font-size: 0.6em; vertical-align: baseline;">₱</span>{{ avg_transaction|default:"0" }}
+        </div>
+    </div>
 </div>
-{% endif %}
-{% if goal_error %}
-<div class="alert alert-danger">
-    <i class="bi bi-exclamation-triangle"></i> {{ goal_error }}
-</div>
-{% endif %}
 
-<!-- Period Selector -->
-<div class="chart-card">
+<!-- Row 2: Chart & Filters -->
+<div class="dashboard-hero-layout mt-lg">
+    <!-- Left: 60% Chart -->
+    <div class="hero-main-group" style="height: 100%;">
+        <div class="chart-card animate-fadeIn" style="height: 100%; margin-bottom: 0; display: flex; flex-direction: column;">
+            <h3 class="chart-title mb-md" style="color: var(--color-dark);">Sales Breakdown by Plan</h3>
+            <div class="chart-wrapper" style="flex: 1; min-height: 250px;">
+                <canvas id="plan-sales-chart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right: 40% Filters -->
+    <div class="sys-strip-grid">
+        <div class="chart-card animate-fadeIn" style="margin-bottom: 0;">
+            <h3 class="chart-title mb-md" style="color: var(--color-dark);">Date Range Filter</h3>
+            
+            <form method="GET" action="{% url 'dashboard:revenue' %}">
+                <!-- Quick Ranges -->
+                <div class="d-flex flex-wrap gap-sm mb-md">
+                    <button type="submit" name="period" value="today" class="btn btn-sm {% if period == 'today' %}btn-primary{% else %}btn-secondary{% endif %}">Today</button>
+                    <button type="submit" name="period" value="week" class="btn btn-sm {% if period == 'week' %}btn-primary{% else %}btn-secondary{% endif %}">This Week</button>
+                    <button type="submit" name="period" value="month" class="btn btn-sm {% if period == 'month' %}btn-primary{% else %}btn-secondary{% endif %}">This Month</button>
+                    <button type="submit" name="period" value="year" class="btn btn-sm {% if period == 'year' %}btn-primary{% else %}btn-secondary{% endif %}">This Year</button>
+                    <button type="submit" name="period" value="all" class="btn btn-sm {% if period == 'all' %}btn-primary{% else %}btn-secondary{% endif %}">All Time</button>
+                </div>
+                
+                <div style="width: 100%; height: 1px; background: var(--color-border); margin: 16px 0;"></div>
+                
+                <!-- Custom Range -->
+                <div class="text-xs text-muted mb-sm font-semibold">CUSTOM RANGE</div>
+                <input type="hidden" name="period" value="custom" id="custom-period-input" {% if period != 'custom' %}disabled{% endif %}>
+                
+                <div class="form-group mb-sm">
+                    <label class="form-label" style="color: var(--color-dark);">From Date</label>
+                    <input type="date" name="start_date" class="form-input" value="{{ start_date }}" onchange="enableCustomPeriod()">
+                </div>
+                <div class="form-group mb-md">
+                    <label class="form-label" style="color: var(--color-dark);">To Date</label>
+                    <input type="date" name="end_date" class="form-input" value="{{ end_date }}" onchange="enableCustomPeriod()">
+                </div>
+                
+                <button type="submit" class="btn btn-primary" style="width: 100%;">
+                    <i class="bi bi-funnel"></i> Apply Filter
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Row 3: Sessions List -->
+<div class="chart-card mt-lg animate-fadeIn" style="animation-delay: 400ms">
     <div class="chart-header">
-        <h3 class="chart-title">Revenue Trends</h3>
-        <div class="chart-controls">
-            <button class="active" onclick="loadRevenue('weekly')" id="btn-weekly">Weekly</button>
-            <button onclick="loadRevenue('monthly')" id="btn-monthly">Monthly</button>
-            <button onclick="loadRevenue('yearly')" id="btn-yearly">Yearly</button>
-        </div>
-    </div>
-    <div class="chart-wrapper">
-        <canvas id="revenue-trend-chart"></canvas>
-    </div>
-</div>
-
-<div class="grid-2 mt-lg">
-    <!-- Revenue Goal Progress -->
-    <div class="chart-card">
-        <h3 class="chart-title mb-md">Revenue Goal</h3>
-        <div id="goal-container">
-            <div class="text-center">
-                <div class="spinner"></div>
-                <p class="text-small text-muted mt-sm">Loading...</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- Plan Breakdown -->
-    <div class="chart-card">
-        <h3 class="chart-title mb-md">Revenue by Plan</h3>
-        <div class="chart-wrapper" style="height: 250px;">
-            <canvas id="plan-revenue-chart"></canvas>
-        </div>
-    </div>
-</div>
-
-<!-- Revenue Goal Settings -->
-<div class="chart-card mt-lg">
-    <h3 class="chart-title mb-md">Set Revenue Goals</h3>
-    <div class="grid-2">
-        <form method="POST" action="" class="d-flex gap-sm align-items-end flex-wrap">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="update_goal">
-            <input type="hidden" name="period" value="daily">
-            <div class="form-group" style="min-width: 220px;">
-                <label class="form-label" for="daily-goal">Daily Goal (₱)</label>
-                <input id="daily-goal" class="form-input" type="number" min="1" name="target_amount" value="{{ goals.daily|default:'' }}" required>
-            </div>
-            <button type="submit" class="btn btn-primary btn-sm">
-                <i class="bi bi-save"></i> Save Daily Goal
-            </button>
-        </form>
-
-        <form method="POST" action="" class="d-flex gap-sm align-items-end flex-wrap">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="update_goal">
-            <input type="hidden" name="period" value="weekly">
-            <div class="form-group" style="min-width: 220px;">
-                <label class="form-label" for="weekly-goal">Weekly Goal (₱)</label>
-                <input id="weekly-goal" class="form-input" type="number" min="1" name="target_amount" value="{{ goals.weekly|default:'' }}" required>
-            </div>
-            <button type="submit" class="btn btn-primary btn-sm">
-                <i class="bi bi-save"></i> Save Weekly Goal
-            </button>
+        <h3 class="chart-title" style="color: var(--color-dark);">Filtered Sessions</h3>
+        <form method="GET" action="" class="d-flex gap-sm">
+            <input type="hidden" name="period" value="{{ period }}">
+            <input type="hidden" name="start_date" value="{{ start_date }}">
+            <input type="hidden" name="end_date" value="{{ end_date }}">
+            
+            <select name="status" class="form-input" style="width: 140px; padding: 4px 8px; height: 32px; font-size: 13px;" onchange="this.form.submit()">
+                <option value="">All Statuses</option>
+                <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+                <option value="expired" {% if status_filter == 'expired' %}selected{% endif %}>Expired</option>
+                <option value="paused" {% if status_filter == 'paused' %}selected{% endif %}>Paused</option>
+            </select>
         </form>
     </div>
+
+    {% if sessions %}
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Date & Time</th>
+                    <th>IP Address</th>
+                    <th>MAC Address</th>
+                    <th>Duration</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for session in sessions %}
+                <tr>
+                    <td class="text-muted">#{{ session.id }}</td>
+                    <td>
+                        <div class="font-medium" style="color: var(--color-dark);">{{ session.time_in|date:"M d, Y" }}</div>
+                        <div class="text-xs text-muted">{{ session.time_in|date:"h:i A" }}</div>
+                    </td>
+                    <td class="font-mono text-sm">{{ session.ip_address|default:"-" }}</td>
+                    <td class="font-mono text-sm">{{ session.mac_address }}</td>
+                    <td>{{ session.duration_minutes_purchased }}m</td>
+                    <td class="font-bold" style="color: var(--color-dark);">₱{{ session.amount_paid }}</td>
+                    <td>
+                        {% if session.status == 'active' %}
+                            <span class="badge badge-active">Active</span>
+                        {% elif session.status == 'expired' %}
+                            <span class="badge badge-expired">Expired</span>
+                        {% else %}
+                            <span class="badge badge-paused">{{ session.get_status_display }}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="d-flex justify-content-between align-items-center mt-md" style="padding-top: var(--space-md); border-top: 1px solid var(--color-border);">
+        <div class="text-small text-muted">
+            Showing {{ sessions.start_index }} to {{ sessions.end_index }} of {{ sessions.paginator.count }} sessions
+        </div>
+        <div class="d-flex gap-xs">
+            {% if sessions.has_previous %}
+                <a href="?page=1&period={{ period }}&start_date={{ start_date }}&end_date={{ end_date }}&status={{ status_filter }}" class="btn btn-sm btn-secondary">&laquo;</a>
+                <a href="?page={{ sessions.previous_page_number }}&period={{ period }}&start_date={{ start_date }}&end_date={{ end_date }}&status={{ status_filter }}" class="btn btn-sm btn-secondary">Prev</a>
+            {% endif %}
+            
+            <span class="btn btn-sm btn-primary" style="pointer-events: none;">{{ sessions.number }}</span>
+            
+            {% if sessions.has_next %}
+                <a href="?page={{ sessions.next_page_number }}&period={{ period }}&start_date={{ start_date }}&end_date={{ end_date }}&status={{ status_filter }}" class="btn btn-sm btn-secondary">Next</a>
+                <a href="?page={{ sessions.paginator.num_pages }}&period={{ period }}&start_date={{ start_date }}&end_date={{ end_date }}&status={{ status_filter }}" class="btn btn-sm btn-secondary">&raquo;</a>
+            {% endif %}
+        </div>
+    </div>
+
+    {% else %}
+    <div class="empty-state">
+        <i class="bi bi-clock-history"></i>
+        <p>No sessions found for this date range.</p>
+    </div>
+    {% endif %}
 </div>
 
-<!-- Low Revenue Alert -->
-<div id="low-revenue-alert-container" class="mt-lg"></div>
+<!-- Reset Sales Modal -->
+<div id="resetModal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5);">
+    <div class="modal-content" style="background-color: #fff; margin: 15% auto; padding: 24px; border-radius: 12px; max-width: 500px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+        <h2 style="color: var(--color-danger); margin-top: 0;"><i class="bi bi-exclamation-triangle-fill"></i> Reset Sales Data</h2>
+        
+        <p style="margin: 16px 0; color: var(--color-dark); font-size: 15px;">
+            You are about to permanently delete all sales and session records for the currently selected date range (<strong>{% if period == 'all' %}All Time{% elif start_date %}{{ start_date }}{% else %}Beginning{% endif %} to {% if end_date %}{{ end_date }}{% else %}Now{% endif %}</strong>).
+        </p>
+
+        <div style="background: rgba(245,158,11,0.1); border-left: 4px solid var(--color-warning); padding: 12px; margin-bottom: 20px; border-radius: 4px;">
+            <strong style="color: var(--color-dark);"><i class="bi bi-shield-exclamation"></i> IMPORTANT: Did you back up your data?</strong><br>
+            <span style="font-size: 13px; color: var(--color-dark);">We strongly recommend exporting a CSV backup before resetting. You cannot undo this action.</span>
+        </div>
+
+        <form method="POST" action="{% url 'dashboard:revenue' %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="reset_sales">
+            <input type="hidden" name="start_date" value="{{ start_date }}">
+            <input type="hidden" name="end_date" value="{{ end_date }}">
+            
+            <div class="form-group" style="margin-bottom: 24px;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--color-dark);">
+                    <input type="checkbox" id="backup-confirm" required>
+                    <span style="font-weight: 500;">Yes, I have backed up my data and understand this is permanent.</span>
+                </label>
+            </div>
+
+            <div class="d-flex justify-content-end gap-sm">
+                <button type="button" class="btn btn-secondary" onclick="hideResetModal()">Cancel</button>
+                <button type="submit" class="btn btn-danger">Confirm Reset</button>
+            </div>
+        </form>
+    </div>
+</div>
 
 {% endblock %}
 
 {% block dashboard_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-let revenueChart = null;
-let planChart = null;
+    function enableCustomPeriod() {
+        document.getElementById('custom-period-input').disabled = false;
+    }
 
-async function loadRevenue(period) {
-    // Update active button
-    document.querySelectorAll('.chart-controls button').forEach(b => b.classList.remove('active'));
-    document.getElementById('btn-' + period).classList.add('active');
+    function showResetModal() {
+        document.getElementById('resetModal').style.display = 'block';
+    }
 
-    const data = await fetchRevenueData(period);
-    if (!data) return;
+    function hideResetModal() {
+        document.getElementById('resetModal').style.display = 'none';
+        document.getElementById('backup-confirm').checked = false;
+    }
 
-    // Update revenue chart
-    const labels = data.revenue_data.map(d => {
-        const date = new Date(d.day);
-        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    });
-    const values = data.revenue_data.map(d => d.revenue);
-
-    if (revenueChart) revenueChart.destroy();
-    revenueChart = initRevenueChart('revenue-trend-chart', { labels, values });
-
-    // Update goal
-    const goalContainer = document.getElementById('goal-container');
-    const totalRevenue = values.reduce((a, b) => a + b, 0);
-    const goalAmount = data.goal_amount || 0;
-    const goalPct = goalAmount > 0 ? Math.min(100, (totalRevenue / goalAmount * 100)) : 0;
-    const goalClass = goalPct >= 100 ? 'exceeded' : goalPct >= 70 ? 'on-track' : 'under-target';
-
-    goalContainer.innerHTML = `
-        <div class="stat-value mb-sm">₱${totalRevenue.toLocaleString()}</div>
-        ${goalAmount > 0 ? `
-            <div class="goal-progress">
-                <div class="goal-status">
-                    <span class="text-muted">₱${totalRevenue.toLocaleString()}</span>
-                    <span class="font-semibold">₱${goalAmount.toLocaleString()} goal</span>
-                </div>
-                <div class="goal-bar">
-                    <div class="goal-fill ${goalClass}" style="width: ${goalPct}%"></div>
-                </div>
-                <div class="text-xs text-muted mt-xs text-center">${goalPct.toFixed(1)}% of target</div>
-            </div>
-        ` : `
-            <p class="text-small text-muted">No revenue goal set. Set one in Django Admin.</p>
-        `}
-    `;
-
-    const alertContainer = document.getElementById('low-revenue-alert-container');
-    if (alertContainer) {
-        if (data.low_revenue_alert && data.low_revenue_alert.triggered) {
-            alertContainer.innerHTML = `
-                <div class="alert alert-warning">
-                    <i class="bi bi-bell-fill"></i>
-                    <strong>Low Revenue Alert:</strong>
-                    ${data.low_revenue_alert.message}
-                </div>
-            `;
-        } else {
-            alertContainer.innerHTML = '';
+    // Close modal if clicking outside of it
+    window.onclick = function(event) {
+        var modal = document.getElementById('resetModal');
+        if (event.target == modal) {
+            hideResetModal();
         }
     }
 
-    // Update plan chart
-    if (data.plan_breakdown && data.plan_breakdown.length > 0) {
-        const planLabels = data.plan_breakdown.map(p => p.plan__name);
-        const planValues = data.plan_breakdown.map(p => p.total);
-        if (planChart) planChart.destroy();
-        planChart = initPlanChart('plan-revenue-chart', { labels: planLabels, values: planValues });
-    }
-}
+    document.addEventListener('DOMContentLoaded', () => {
+        // Initialize Bar Chart for Plan Sales Breakdown
+        const ctx = document.getElementById('plan-sales-chart').getContext('2d');
+        const planLabels = JSON.parse('{{ plan_labels|safe }}');
+        const planData = JSON.parse('{{ plan_data|safe }}');
+        
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: planLabels,
+                datasets: [{
+                    label: 'Revenue (₱)',
+                    data: planData,
+                    backgroundColor: '#1e293b',
+                    borderRadius: 4,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return '₱' + context.raw;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: '#e2e8f0', drawBorder: false }
+                    },
+                    x: {
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
 
-document.addEventListener('DOMContentLoaded', () => {
-    loadRevenue('weekly');
-});
+        // Show toast notification if reset was successful
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('reset') === 'success') {
+            const deleted = urlParams.get('deleted');
+            alert(`Success! Permanently deleted ${deleted} session records in the selected date range.`);
+            // Clean up URL parameters without refreshing
+            urlParams.delete('reset');
+            urlParams.delete('deleted');
+            window.history.replaceState({}, '', `${window.location.pathname}?${urlParams.toString()}`);
+        }
+    });
 </script>
 {% endblock %}

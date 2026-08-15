@@ -12,6 +12,8 @@ from django.views.decorators.http import require_POST
 from django.db.models import Sum, Count, Avg, F, Q
 from django.db.models.deletion import ProtectedError
 from django.db.models.functions import TruncDate, TruncHour, ExtractHour, ExtractWeekDay
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+from django.utils.dateparse import parse_date
 from django.http import HttpResponse, JsonResponse
 from django.core.cache import cache
 from django.contrib.auth import update_session_auth_hash, authenticate, login, logout
@@ -492,41 +494,124 @@ def overview(request):
 @user_passes_test(_is_dashboard_admin, login_url='dashboard:login')
 def revenue(request):
     """Revenue monitoring page."""
-    goal_message = ''
-    goal_error = ''
-
+    import json
+    
+    # Handle POST for resetting sales
     if request.method == 'POST':
         action = request.POST.get('action')
-        if action == 'update_goal':
-            period = request.POST.get('period', '').strip()
-            target_amount_raw = request.POST.get('target_amount', '').strip()
+        if action == 'reset_sales':
+            start_date_str = request.POST.get('start_date')
+            end_date_str = request.POST.get('end_date')
+            
+            # If dates provided, filter. Else, all time.
+            sess_qs = Session.objects.all()
+            coin_qs = CoinEvent.objects.all()
+            
+            if start_date_str:
+                s_date = parse_date(start_date_str)
+                if s_date:
+                    sess_qs = sess_qs.filter(time_in__date__gte=s_date)
+                    coin_qs = coin_qs.filter(timestamp__date__gte=s_date)
+            if end_date_str:
+                e_date = parse_date(end_date_str)
+                if e_date:
+                    sess_qs = sess_qs.filter(time_in__date__lte=e_date)
+                    coin_qs = coin_qs.filter(timestamp__date__lte=e_date)
+                    
+            deleted_sessions = sess_qs.count()
+            sess_qs.delete()
+            coin_qs.delete()
+            # Redirect to avoid form resubmission
+            return redirect(f"{request.path}?reset=success&deleted={deleted_sessions}")
 
-            if period not in ('daily', 'weekly'):
-                goal_error = 'Invalid goal period.'
-            else:
-                try:
-                    target_amount = int(target_amount_raw)
-                    if target_amount <= 0:
-                        raise ValueError('Target amount must be greater than zero.')
+    # Process GET parameters for date filtering
+    period = request.GET.get('period', 'today')
+    custom_start = request.GET.get('start_date')
+    custom_end = request.GET.get('end_date')
+    
+    today = timezone.localdate()
+    now = timezone.now()
+    
+    start_date = None
+    end_date = None
+    
+    if period == 'custom':
+        if custom_start:
+            start_date = parse_date(custom_start)
+        if custom_end:
+            end_date = parse_date(custom_end)
+    elif period == 'today':
+        start_date = today
+        end_date = today
+    elif period == 'week':
+        start_date = today - timedelta(days=today.weekday())
+        end_date = today
+    elif period == 'month':
+        start_date = today.replace(day=1)
+        end_date = today
+    elif period == 'year':
+        start_date = today.replace(month=1, day=1)
+        end_date = today
+    elif period == 'all':
+        pass
+    else:
+        # fallback to today
+        period = 'today'
+        start_date = today
+        end_date = today
 
-                    RevenueGoal.objects.update_or_create(
-                        period=period,
-                        defaults={'target_amount': target_amount}
-                    )
-                    goal_message = f'{period.title()} revenue goal saved.'
-                except ValueError as exc:
-                    goal_error = str(exc)
+    # Base querysets
+    sessions_qs = Session.objects.select_related('plan').all().order_by('-time_in')
+    coins_qs = CoinEvent.objects.all()
 
-    goals = {
-        item['period']: item['target_amount']
-        for item in RevenueGoal.objects.values('period', 'target_amount')
-    }
+    # Apply date filters
+    if start_date:
+        sessions_qs = sessions_qs.filter(time_in__date__gte=start_date)
+        coins_qs = coins_qs.filter(timestamp__date__gte=start_date)
+    if end_date:
+        sessions_qs = sessions_qs.filter(time_in__date__lte=end_date)
+        coins_qs = coins_qs.filter(timestamp__date__lte=end_date)
+
+    # 1. Top Row Metrics
+    total_sales = coins_qs.aggregate(total=Sum('amount'))['total'] or 0
+    total_sessions = sessions_qs.count()
+    avg_transaction = round(total_sales / total_sessions, 2) if total_sessions > 0 else 0
+
+    # 2. Plan Breakdown (Bar Chart Data)
+    plan_stats = sessions_qs.values('plan__name').annotate(
+        revenue=Sum('amount_paid')
+    ).order_by('-revenue')
+    
+    plan_labels = [p['plan__name'] for p in plan_stats]
+    plan_data = [p['revenue'] for p in plan_stats]
+
+    # 3. Sessions List & Pagination
+    # Support status filtering
+    status_filter = request.GET.get('status', '')
+    if status_filter:
+        sessions_qs = sessions_qs.filter(status=status_filter)
+        
+    page = request.GET.get('page', 1)
+    paginator = Paginator(sessions_qs, 20) # 20 items per page
+    try:
+        sessions_page = paginator.page(page)
+    except PageNotAnInteger:
+        sessions_page = paginator.page(1)
+    except EmptyPage:
+        sessions_page = paginator.page(paginator.num_pages)
 
     context = {
         'active_page': 'revenue',
-        'goals': goals,
-        'goal_message': goal_message,
-        'goal_error': goal_error,
+        'period': period,
+        'start_date': start_date.strftime('%Y-%m-%d') if start_date else '',
+        'end_date': end_date.strftime('%Y-%m-%d') if end_date else '',
+        'total_sales': total_sales,
+        'total_sessions': total_sessions,
+        'avg_transaction': avg_transaction,
+        'plan_labels': json.dumps(plan_labels),
+        'plan_data': json.dumps(plan_data),
+        'sessions': sessions_page,
+        'status_filter': status_filter,
     }
     return render(request, 'dashboard/revenue.html', context)
 
@@ -578,12 +663,24 @@ def export_sessions_csv(request):
     status_filter = request.GET.get('status', '')
     search = request.GET.get('search', '')
     period = request.GET.get('period', 'today')
+    custom_start = request.GET.get('start_date')
+    custom_end = request.GET.get('end_date')
 
     sessions = Session.objects.select_related('plan').all()
 
     now = timezone.now()
     today = timezone.localdate()
-    if period == 'today' or not period:
+    
+    if period == 'custom':
+        if custom_start:
+            s_date = parse_date(custom_start)
+            if s_date:
+                sessions = sessions.filter(time_in__date__gte=s_date)
+        if custom_end:
+            e_date = parse_date(custom_end)
+            if e_date:
+                sessions = sessions.filter(time_in__date__lte=e_date)
+    elif period == 'today' or not period:
         sessions = sessions.filter(time_in__date=today)
     elif period == 'week':
         sessions = sessions.filter(time_in__gte=now - timedelta(days=7))
