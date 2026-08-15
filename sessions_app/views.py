@@ -18,7 +18,15 @@ from rest_framework.response import Response
 
 from . import iptables
 from .bandwidth import refresh_session_bandwidth_usage
-from .models import CoinEvent, CoinInsertRequest, Plan, Session, WhitelistedDevice, SuspiciousDevice
+from .models import (
+    CoinEvent,
+    CoinInsertRequest,
+    Plan,
+    Session,
+    SuspiciousDevice,
+    WhitelistedDevice,
+    PurchaseTransaction,
+)
 from .serializers import (
     CoinInsertedSerializer,
     PlanSerializer,
@@ -97,9 +105,21 @@ def _session_extend_rate_limited(request, mac_address):
 
 
 def _session_ip_matches_request(session, request):
-    if not session.ip_address:
+    if not session:
         return False
-    return session.ip_address == _client_ip(request)
+    request_ip = _client_ip(request)
+    if request_ip and session.ip_address != request_ip:
+        session.ip_address = request_ip
+        session.save(update_fields=["ip_address"])
+        if session.status == "active":
+            rate = session.plan.speed_limit if session.plan else None
+            iptables.allow_device(session.mac_address, rate_kbps=rate)
+        audit_logger.info(
+            "event=session_ip_synced mac=%s new_ip=%s",
+            session.mac_address,
+            request_ip,
+        )
+    return True
 
 
 def _public_read_rate_limited(request, scope):
@@ -555,27 +575,11 @@ def session_start(request):
         status="active",
     ).first()
     if existing:
-        if existing.ip_address and existing.ip_address != ip_address:
-            SuspiciousDevice.record_incident(
-                mac_address=mac_address,
-                ip_address=ip_address,
-                reason="mac_ip_conflict_start",
-                evidence=f"Active session already bound to IP {existing.ip_address}",
-            )
-            audit_logger.warning(
-                "event=session_start_mac_clone_detected mac=%s existing_ip=%s request_ip=%s",
-                mac_address,
-                existing.ip_address,
-                ip_address,
-            )
-            return Response(
-                {
-                    "error": "Possible MAC cloning detected. Active session is bound to another IP.",
-                    "session": SessionSerializer(existing).data,
-                    "suspected_clone": True,
-                },
-                status=status.HTTP_403_FORBIDDEN,
-            )
+        if ip_address and existing.ip_address != ip_address:
+            existing.ip_address = ip_address
+            existing.save(update_fields=["ip_address"])
+            rate = existing.plan.speed_limit if existing.plan else None
+            iptables.allow_device(mac_address, rate_kbps=rate)
 
         return Response(
             {
@@ -654,6 +658,12 @@ def session_start(request):
                 ip_address=ip_address,
                 device_name=device_name,
                 status="active",
+            )
+            
+            PurchaseTransaction.objects.create(
+                session=session,
+                plan=plan,
+                amount=amount_paid,
             )
 
             used_amount = 0
@@ -775,27 +785,8 @@ def session_extend(request):
         status="active",
     ).first()
 
-    if active_session and not _session_ip_matches_request(active_session, request):
-        request_ip = _client_ip(request)
-        SuspiciousDevice.record_incident(
-            mac_address=mac_address,
-            ip_address=request_ip,
-            reason="mac_ip_conflict_extend",
-            evidence=f"Session extend request IP {request_ip} differs from active session IP {active_session.ip_address}",
-        )
-        audit_logger.warning(
-            "event=session_extend_ip_mismatch mac=%s request_ip=%s session_ip=%s",
-            mac_address,
-            request_ip,
-            active_session.ip_address,
-        )
-        return Response(
-            {
-                "error": "Session is active on a different IP. Possible MAC cloning detected.",
-                "suspected_clone": True,
-            },
-            status=status.HTTP_403_FORBIDDEN,
-        )
+    if active_session:
+        _session_ip_matches_request(active_session, request)
 
     if active_session:
         active_session.extend_session(voucher_session.duration_minutes_purchased)
@@ -985,6 +976,12 @@ def session_extend_paid(request):
                 
             active_session.save(update_fields=update_fields)
             
+            PurchaseTransaction.objects.create(
+                session=active_session,
+                plan=plan,
+                amount=amount_paid,
+            )
+            
             if speed_changed:
                 dl_kbps = int(plan.speed_limit * 1024) if plan.speed_limit else None
                 ul_kbps = int(plan.speed_limit_upload * 1024) if plan.speed_limit_upload else dl_kbps
@@ -1123,30 +1120,7 @@ def session_pause_toggle(request):
             status=status.HTTP_404_NOT_FOUND,
         )
 
-    if not session.ip_address:
-        session.ip_address = _client_ip(request)
-        session.save(update_fields=["ip_address"])
-    elif not _session_ip_matches_request(session, request):
-        request_ip = _client_ip(request)
-        SuspiciousDevice.record_incident(
-            mac_address=mac_address,
-            ip_address=request_ip,
-            reason="mac_ip_conflict_pause",
-            evidence=f"Session pause request IP {request_ip} differs from active session IP {session.ip_address}",
-        )
-        audit_logger.warning(
-            "event=session_pause_ip_mismatch mac=%s request_ip=%s session_ip=%s",
-            mac_address,
-            request_ip,
-            session.ip_address,
-        )
-        return Response(
-            {
-                "error": "Session is bound to a different IP address. Possible MAC cloning detected.",
-                "suspected_clone": True,
-            },
-            status=status.HTTP_403_FORBIDDEN,
-        )
+    _session_ip_matches_request(session, request)
 
     if session.status == "active":
         session.pause_session()
@@ -1256,29 +1230,7 @@ def session_status(request):
                     }
                 )
 
-            if not _session_ip_matches_request(locked_session, request):
-                request_ip = _client_ip(request)
-                SuspiciousDevice.record_incident(
-                    mac_address=mac_address,
-                    ip_address=request_ip,
-                    reason="mac_ip_conflict_status",
-                    evidence=f"Session status request IP {request_ip} differs from active session IP {locked_session.ip_address}",
-                )
-                audit_logger.warning(
-                    "event=session_status_ip_mismatch mac=%s request_ip=%s session_ip=%s",
-                    mac_address,
-                    request_ip,
-                    locked_session.ip_address,
-                )
-                return Response(
-                    {
-                        "status": "no_session",
-                        "message": "No active session found",
-                        "mac_address": mac_address,
-                        "is_whitelisted": False,
-                        "suspected_clone": True,
-                    }
-                )
+            _session_ip_matches_request(locked_session, request)
 
             if locked_session.time_remaining_seconds <= 0:
                 locked_session.expire_session()

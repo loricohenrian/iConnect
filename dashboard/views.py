@@ -506,21 +506,25 @@ def revenue(request):
             # If dates provided, filter. Else, all time.
             sess_qs = Session.objects.all()
             coin_qs = CoinEvent.objects.all()
+            purch_qs = PurchaseTransaction.objects.all()
             
             if start_date_str:
                 s_date = parse_date(start_date_str)
                 if s_date:
                     sess_qs = sess_qs.filter(time_in__date__gte=s_date)
                     coin_qs = coin_qs.filter(timestamp__date__gte=s_date)
+                    purch_qs = purch_qs.filter(timestamp__date__gte=s_date)
             if end_date_str:
                 e_date = parse_date(end_date_str)
                 if e_date:
                     sess_qs = sess_qs.filter(time_in__date__lte=e_date)
                     coin_qs = coin_qs.filter(timestamp__date__lte=e_date)
+                    purch_qs = purch_qs.filter(timestamp__date__lte=e_date)
                     
             deleted_sessions = sess_qs.count()
             sess_qs.delete()
             coin_qs.delete()
+            purch_qs.delete()
             # Redirect to avoid form resubmission
             return redirect(f"{request.path}?reset=success&deleted={deleted_sessions}")
 
@@ -563,14 +567,17 @@ def revenue(request):
     # Base querysets
     sessions_qs = Session.objects.select_related('plan').all().order_by('-time_in')
     coins_qs = CoinEvent.objects.all()
+    purchases_qs = PurchaseTransaction.objects.all()
 
     # Apply date filters
     if start_date:
         sessions_qs = sessions_qs.filter(time_in__date__gte=start_date)
         coins_qs = coins_qs.filter(timestamp__date__gte=start_date)
+        purchases_qs = purchases_qs.filter(timestamp__date__gte=start_date)
     if end_date:
         sessions_qs = sessions_qs.filter(time_in__date__lte=end_date)
         coins_qs = coins_qs.filter(timestamp__date__lte=end_date)
+        purchases_qs = purchases_qs.filter(timestamp__date__lte=end_date)
 
     # 1. Top Row Metrics
     total_sales = coins_qs.aggregate(total=Sum('amount'))['total'] or 0
@@ -578,8 +585,8 @@ def revenue(request):
     avg_transaction = round(total_sales / total_sessions, 2) if total_sessions > 0 else 0
 
     # 2. Plan Breakdown (Bar Chart Data)
-    plan_stats = sessions_qs.values('plan__name').annotate(
-        revenue=Sum('amount_paid')
+    plan_stats = purchases_qs.values('plan__name').annotate(
+        revenue=Sum('amount')
     ).order_by('-revenue')
     
     plan_labels = [p['plan__name'] for p in plan_stats]

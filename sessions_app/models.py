@@ -221,6 +221,37 @@ class CoinEvent(models.Model):
         return f"Coin {self.amount} at {self.timestamp.strftime('%b %d, %Y %H:%M')}"
 
 
+class PurchaseTransaction(models.Model):
+    """
+    Immutable record of a purchase. Used to accurately attribute revenue 
+    to the specific plan that was bought at the time of transaction,
+    regardless of whether the session is later extended with a different plan.
+    """
+    session = models.ForeignKey(
+        Session,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="purchases",
+    )
+    plan = models.ForeignKey(
+        Plan,
+        on_delete=models.SET_NULL,
+        null=True,
+    )
+    amount = models.PositiveIntegerField(help_text="Amount paid in this transaction")
+    timestamp = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ["-timestamp"]
+        verbose_name = "Purchase Transaction"
+        verbose_name_plural = "Purchase Transactions"
+
+    def __str__(self):
+        plan_name = self.plan.name if self.plan else "Unknown Plan"
+        return f"{plan_name} - ₱{self.amount} at {self.timestamp.strftime('%b %d, %Y %H:%M')}"
+
+
 class CoinInsertRequest(models.Model):
     """Queue entry for assigning shared-slot coin inserts to one device at a time."""
 
