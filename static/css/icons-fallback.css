@@ -63,6 +63,9 @@
 .bi-grid-1x2::before { content: "\25A6"; font-size: 1em; }       /* Overview */
 .bi-cash-coin::before,
 .bi-coin::before { content: "\20B1"; font-size: 1em; }            /* Revenue */
+.bi-wallet2::before { content: "\20B1"; font-size: 1em; }         /* Wallet/Revenue */
+.bi-calendar-week::before,
+.bi-calendar-month::before { content: "\2637"; font-size: 1em; }  /* Calendar */
 .bi-people::before { content: "\263A"; font-size: 1em; }          /* Sessions */
 .bi-clock::before { content: "\231A"; font-size: 1em; }           /* Time */
 .bi-bar-chart::before,

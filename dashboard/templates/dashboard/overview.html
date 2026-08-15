@@ -96,9 +96,9 @@
     </div>
 </div>
 
-<div class="grid-2">
+<div class="stats-grid" style="grid-template-columns: repeat(3, 1fr);">
     <!-- Revenue This Week Card -->
-    <div class="chart-card animate-fadeIn" style="animation-delay: 400ms">
+    <div class="chart-card animate-fadeIn" style="animation-delay: 400ms; margin-bottom: 0;">
         <div class="chart-header" style="margin-bottom: 1.25rem;">
             <div>
                 <h3 class="chart-title" style="margin-bottom: 2px;">Revenue This Week</h3>
@@ -110,8 +110,8 @@
         </div>
         <div class="d-flex align-items-center justify-content-between">
             <div>
-                <div style="font-size: 2.25rem; font-weight: 800; color: #1A73E8; line-height: 1.1;">
-                    ₱{{ revenue_this_week|default:"0" }}
+                <div style="font-size: 2.25rem; font-weight: 800; color: #1A73E8; line-height: 1.1; font-variant-numeric: tabular-nums;">
+                    <span style="font-size: 0.6em; vertical-align: baseline;">₱</span>{{ revenue_this_week|default:"0" }}
                 </div>
                 <div class="text-small text-muted mt-xs">Total coin collection for current week</div>
             </div>
@@ -122,7 +122,7 @@
     </div>
 
     <!-- Revenue This Month Card -->
-    <div class="chart-card animate-fadeIn" style="animation-delay: 500ms">
+    <div class="chart-card animate-fadeIn" style="animation-delay: 500ms; margin-bottom: 0;">
         <div class="chart-header" style="margin-bottom: 1.25rem;">
             <div>
                 <h3 class="chart-title" style="margin-bottom: 2px;">Revenue This Month</h3>
@@ -134,8 +134,8 @@
         </div>
         <div class="d-flex align-items-center justify-content-between">
             <div>
-                <div style="font-size: 2.25rem; font-weight: 800; color: #10B981; line-height: 1.1;">
-                    ₱{{ revenue_this_month|default:"0" }}
+                <div style="font-size: 2.25rem; font-weight: 800; color: #10B981; line-height: 1.1; font-variant-numeric: tabular-nums;">
+                    <span style="font-size: 0.6em; vertical-align: baseline;">₱</span>{{ revenue_this_month|default:"0" }}
                 </div>
                 <div class="text-small text-muted mt-xs">Total coin collection for {{ current_month_name }}</div>
             </div>
@@ -144,47 +144,28 @@
             </div>
         </div>
     </div>
-</div>
 
-<!-- Live Network Visibility -->
-<div class="grid-2 mt-lg">
-    <div class="chart-card animate-fadeIn" style="animation-delay: 650ms">
-        <div class="chart-header">
-            <h3 class="chart-title">Live Network Usage</h3>
-            <span class="badge badge-info">Auto-refresh</span>
+    <!-- Live Network Usage -->
+    <div class="chart-card animate-fadeIn" style="animation-delay: 650ms; margin-bottom: 0;">
+        <div class="chart-header" style="margin-bottom: 1.25rem;">
+            <div>
+                <h3 class="chart-title" style="margin-bottom: 2px;">Live Network Usage</h3>
+                <span class="text-xs text-muted" id="live-network-meta">Waiting for live update...</span>
+            </div>
+            <span class="badge badge-info" style="font-size: 0.75rem; padding: 4px 10px;">
+                <i class="bi bi-arrow-repeat" style="margin-right: 4px;"></i>Auto
+            </span>
         </div>
         <div class="d-flex flex-column gap-md">
             <div class="d-flex justify-content-between align-items-center">
-                <span class="text-small text-muted">Active Users Right Now</span>
-                <span class="font-semibold" id="live-active-users">0</span>
+                <span class="text-small text-muted font-medium">Active Users Right Now</span>
+                <span class="font-bold text-lg" style="color: var(--color-dark);" id="live-active-users">0</span>
             </div>
+            <div style="width: 100%; height: 1px; background: var(--color-border); margin: 4px 0;"></div>
             <div class="d-flex justify-content-between align-items-center">
-                <span class="text-small text-muted">Total Bandwidth In Use</span>
-                <span class="font-semibold" id="live-total-bandwidth">0 MB</span>
+                <span class="text-small text-muted font-medium">Total Bandwidth In Use</span>
+                <span class="font-bold text-lg" style="color: var(--color-dark);" id="live-total-bandwidth">0 MB</span>
             </div>
-            <div class="text-xs text-muted" id="live-network-meta">Waiting for live update...</div>
-        </div>
-    </div>
-
-    <div class="chart-card animate-fadeIn" style="animation-delay: 700ms">
-        <div class="chart-header">
-            <h3 class="chart-title">Bandwidth Per User</h3>
-        </div>
-        <div class="table-container">
-            <table id="live-bandwidth-table">
-                <thead>
-                    <tr>
-                        <th>Device</th>
-                        <th>MAC Address</th>
-                        <th>Bandwidth Used</th>
-                    </tr>
-                </thead>
-                <tbody id="bandwidth-users-body">
-                    <tr>
-                        <td colspan="3" class="text-center text-muted">No active users</td>
-                    </tr>
-                </tbody>
-            </table>
         </div>
     </div>
 </div>

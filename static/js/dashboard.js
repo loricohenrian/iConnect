@@ -333,28 +333,6 @@ async function fetchConnectedUsersData() {
     }
 }
 
-function renderBandwidthUsersTable(users) {
-    const tbody = document.getElementById('bandwidth-users-body');
-    if (!tbody) return;
-
-    if (!users || users.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="3"><div class="empty-state"><i class="bi bi-inbox"></i><p>No active users</p><small>Waiting for connections...</small></div></td></tr>';
-        return;
-    }
-
-    tbody.innerHTML = users.map((u) => {
-        const device = u.device_name || 'Unknown';
-        const mac = u.mac_address || 'N/A';
-        const used = Number(u.bandwidth_used_mb || 0).toFixed(1);
-        return `
-            <tr>
-                <td>${device}</td>
-                <td class="text-xs text-muted">${mac}</td>
-                <td class="font-semibold">${used} MB</td>
-            </tr>
-        `;
-    }).join('');
-}
 
 async function refreshLiveNetworkPanels() {
     const totalBandwidthEl = document.getElementById('live-total-bandwidth');
@@ -374,7 +352,6 @@ async function refreshLiveNetworkPanels() {
 
     totalBandwidthEl.textContent = `${Number(bandwidthData.total_bandwidth_mb || 0).toFixed(1)} MB`;
     activeUsersEl.textContent = connectedData.total_connected || 0;
-    renderBandwidthUsersTable(bandwidthData.users || []);
     metaEl.textContent = `Updated ${new Date().toLocaleTimeString()}`;
 }
 
