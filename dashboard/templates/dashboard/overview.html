@@ -5,282 +5,263 @@
 
 {% block dashboard_content %}
 <style>
-/* Bento Box Layout */
-.bento-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    grid-auto-rows: minmax(130px, auto);
-    gap: var(--space-lg);
-    margin-bottom: var(--space-xl);
-}
-
-@media (max-width: 1024px) {
-    .bento-grid { grid-template-columns: repeat(3, 1fr); }
-}
-
-@media (max-width: 768px) {
-    .bento-grid { grid-template-columns: repeat(2, 1fr); }
-}
-
-@media (max-width: 480px) {
-    .bento-grid { grid-template-columns: 1fr; }
-}
-
-.bento-card {
-    background: #ffffff;
-    border-radius: 24px;
-    padding: var(--space-xl);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
-    border: 1px solid var(--color-border);
+/* Consolidated Layout */
+.main-dashboard-layout {
     display: flex;
     flex-direction: column;
+    gap: var(--space-xl);
+}
+
+.dashboard-top-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: var(--space-xl);
+}
+@media (max-width: 1024px) {
+    .dashboard-top-row { grid-template-columns: 1fr; }
+}
+
+.unified-card {
+    background: #ffffff;
+    border-radius: 20px;
+    padding: var(--space-xl);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--color-border);
+}
+.unified-card-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--color-dark);
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+/* Revenue Module */
+.revenue-module {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-lg);
+}
+.revenue-hero {
+    grid-column: span 2;
+    background: linear-gradient(135deg, #7b2d3b 0%, #5a212b 100%);
+    border-radius: 16px;
+    padding: 2rem;
+    color: white;
     position: relative;
     overflow: hidden;
 }
-
-.bento-hero {
-    grid-column: span 2;
-    grid-row: span 2;
-    background: linear-gradient(135deg, #7b2d3b 0%, #5a212b 100%);
-    color: white;
-    justify-content: center;
-    align-items: center;
-    text-align: center;
-    border: none;
-}
-.bento-hero .stat-label { color: rgba(255, 255, 255, 0.8); font-size: 1.1rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
-.bento-hero .stat-value { color: white; font-size: 5rem; font-weight: 800; line-height: 1; margin: 10px 0; }
-.bento-hero .hero-bg-icon { position: absolute; top: -10%; left: -10%; font-size: 14rem; opacity: 0.05; pointer-events: none; }
-
-.bento-tall {
-    grid-column: span 1;
-    grid-row: span 2;
-    justify-content: center;
-}
-@media (max-width: 768px) {
-    .bento-tall { grid-column: span 2; grid-row: span 1; }
-}
-
-.bento-wide {
-    grid-column: span 2;
-    grid-row: span 1;
-    justify-content: center;
-}
-
-.bento-square {
-    grid-column: span 1;
-    grid-row: span 1;
-    justify-content: center;
-    align-items: center;
-    text-align: center;
-}
-
-/* Card Internals */
-.bento-label {
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: var(--color-gray);
-    margin-bottom: 0.5rem;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-.bento-value {
-    font-size: 2.25rem;
+.revenue-hero .stat-value {
+    font-size: 4rem;
     font-weight: 800;
-    color: var(--color-dark);
-    line-height: 1;
+    line-height: 1.1;
+    margin: 1rem 0;
 }
-.bento-square .bento-value {
-    font-size: 2rem;
+.revenue-secondary {
+    background: #f8fafc;
+    border-radius: 12px;
+    padding: var(--space-lg);
+    border: 1px solid var(--color-border);
 }
-.bento-icon-badge {
-    width: 48px;
-    height: 48px;
-    border-radius: 14px;
+
+/* System & Network Mini Stats */
+.mini-stat-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+}
+.mini-stat-item {
     display: flex;
     align-items: center;
-    justify-content: center;
-    font-size: 24px;
-    margin-bottom: 12px;
+    justify-content: space-between;
+    padding: var(--space-sm) 0;
+    border-bottom: 1px solid var(--color-border);
 }
-.bento-square .bento-icon-badge {
-    margin: 0 auto 12px auto;
+.mini-stat-item:last-child {
+    border-bottom: none;
 }
-
-/* System Health Strip inside Wide */
-.sys-health-bento {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: var(--space-lg);
-    width: 100%;
+.mini-stat-label {
+    font-size: 0.85rem;
+    color: var(--color-gray);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
-.health-mini-label { font-size: 0.75rem; font-weight: 600; color: var(--color-gray); margin-bottom: 4px; display: flex; justify-content: space-between; }
+.mini-stat-value {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--color-dark);
+}
 </style>
 
-<div class="bento-grid animate-fadeIn">
-    
-    <!-- Hero (2x2) -->
-    <div class="bento-card bento-hero">
-        <i class="bi bi-cash-stack hero-bg-icon"></i>
-        <div class="stat-label">Revenue Today</div>
-        <div class="stat-value" id="revenue-today"><span style="font-size: 2.5rem; vertical-align: super;">₱</span>{{ revenue_today|default:"0" }}</div>
-        <div style="font-size: 0.85rem; color: rgba(255,255,255,0.7); font-weight: 500;">Based on latest drops</div>
-    </div>
+<div class="main-dashboard-layout animate-fadeIn">
 
-    <!-- Live Network Usage (1x2 Tall) -->
-    <div class="bento-card bento-tall">
-        <div class="bento-icon-badge" style="background: rgba(16, 185, 129, 0.1); color: #10B981;">
-            <i class="bi bi-activity"></i>
-        </div>
-        <div class="bento-label">Live Network</div>
-        <div style="margin-top: 1rem; display: flex; flex-direction: column; gap: 1.5rem;">
-            <div>
-                <div style="font-size: 0.75rem; color: var(--color-gray); font-weight: 600; text-transform: uppercase;">Active Users</div>
-                <div class="bento-value" id="live-active-users" style="color: #10B981;">{{ total_connected|default:"0" }}</div>
-            </div>
-            <div>
-                <div style="font-size: 0.75rem; color: var(--color-gray); font-weight: 600; text-transform: uppercase;">Bandwidth In Use</div>
-                <div class="bento-value" id="live-total-bandwidth" style="font-size: 1.5rem;">0 MB</div>
-            </div>
-        </div>
-        <div id="live-network-meta" style="display:none;"></div>
-    </div>
+    <!-- Top Row: Revenue (Dominant) + System Health (Compact) -->
+    <div class="dashboard-top-row">
+        
+        <!-- DOMINANT ELEMENT 1: Revenue & Business Core -->
+        <div class="unified-card">
+            <div class="unified-card-title">Business Overview</div>
+            
+            <div class="revenue-module">
+                <div class="revenue-hero animate-fadeIn" style="animation-delay: 100ms">
+                    <i class="bi bi-cash-stack" style="position:absolute; right:-5%; bottom:-20%; font-size:12rem; opacity:0.1;"></i>
+                    <div style="font-size: 1rem; font-weight: 600; color: rgba(255,255,255,0.8); text-transform: uppercase; letter-spacing: 1px;">Revenue Today</div>
+                    <div class="stat-value" id="revenue-today"><span style="font-size: 2rem; vertical-align: top;">₱</span>{{ revenue_today|default:"0" }}</div>
+                    <div style="font-size: 0.85rem; color: rgba(255,255,255,0.7);">Latest drops updated automatically</div>
+                </div>
 
-    <!-- Temp (1x1 Square) -->
-    <div class="bento-card bento-square">
-        <div class="bento-icon-badge" style="background: rgba(245, 158, 11, 0.1); color: #F59E0B;">
-            <i class="bi bi-thermometer-half"></i>
-        </div>
-        <div class="bento-label">Temp</div>
-        <div class="bento-value" id="sys-cpu-temp" style="font-size: 1.5rem;">—</div>
-    </div>
+                <div class="revenue-secondary animate-fadeIn" style="animation-delay: 150ms">
+                    <div style="font-size: 0.75rem; font-weight: 600; color: var(--color-gray); text-transform: uppercase;">This Week</div>
+                    <div style="font-size: 1.75rem; font-weight: 800; color: #1A73E8; margin: 4px 0;"><span style="font-size: 1rem; vertical-align: super;">₱</span>{{ revenue_this_week|default:"0" }}</div>
+                    <div style="font-size: 0.75rem; color: var(--color-gray);">Since {{ start_of_week_date }}</div>
+                </div>
 
-    <!-- Internet (1x1 Square) -->
-    <div class="bento-card bento-square">
-        <div class="bento-icon-badge" style="background: rgba(59, 130, 246, 0.1); color: #3B82F6;">
-            <i class="bi bi-globe"></i>
-        </div>
-        <div class="bento-label">Internet</div>
-        <div style="display: flex; align-items: center; justify-content: center; gap: 6px;">
-            <div id="sys-internet-dot" style="width: 10px; height: 10px; border-radius: 50%; background: #94A3B8;"></div>
-            <div class="bento-value" id="sys-internet-text" style="font-size: 1.25rem;">Checking</div>
-        </div>
-    </div>
-
-    <!-- Revenue This Week (2x1 Wide) -->
-    <div class="bento-card bento-wide">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <div>
-                <div class="bento-label">This Week</div>
-                <div class="bento-value" style="color: #1A73E8;"><span style="font-size: 1.25rem; vertical-align: super;">₱</span>{{ revenue_this_week|default:"0" }}</div>
-                <div style="font-size: 0.75rem; color: var(--color-gray); margin-top: 4px;">Since {{ start_of_week_date }}</div>
-            </div>
-            <div class="bento-icon-badge" style="background: rgba(26, 115, 232, 0.1); color: #1A73E8; width: 64px; height: 64px; font-size: 32px; margin: 0;">
-                <i class="bi bi-calendar-week"></i>
+                <div class="revenue-secondary animate-fadeIn" style="animation-delay: 200ms">
+                    <div style="font-size: 0.75rem; font-weight: 600; color: var(--color-gray); text-transform: uppercase;">This Month</div>
+                    <div style="font-size: 1.75rem; font-weight: 800; color: #10B981; margin: 4px 0;"><span style="font-size: 1rem; vertical-align: super;">₱</span>{{ revenue_this_month|default:"0" }}</div>
+                    <div style="font-size: 0.75rem; color: var(--color-gray);">{{ current_month_name }}</div>
+                </div>
+                
+                <div class="revenue-secondary animate-fadeIn" style="animation-delay: 250ms">
+                    <div style="font-size: 0.75rem; font-weight: 600; color: var(--color-gray); text-transform: uppercase;">Sessions Today</div>
+                    <div style="font-size: 1.75rem; font-weight: 800; color: var(--color-dark); margin: 4px 0;" id="sessions-today">{{ sessions_today|default:"0" }}</div>
+                    <div style="font-size: 0.75rem; color: var(--color-gray);">Active users</div>
+                </div>
+                
+                <div class="revenue-secondary animate-fadeIn" style="animation-delay: 300ms">
+                    <div style="font-size: 0.75rem; font-weight: 600; color: var(--color-gray); text-transform: uppercase;">ROI Progress</div>
+                    <div style="font-size: 1.75rem; font-weight: 800; color: var(--color-dark); margin: 4px 0;" id="roi-progress">{{ roi_percentage|default:"0" }}%</div>
+                    <div style="font-size: 0.75rem; color: var(--color-gray);">Cost recovery</div>
+                </div>
             </div>
         </div>
-    </div>
 
-    <!-- Sessions Today (1x1 Square) -->
-    <div class="bento-card bento-square">
-        <div class="bento-label">Sessions</div>
-        <div class="bento-value" id="sessions-today">{{ sessions_today|default:"0" }}</div>
-        <div style="font-size: 0.75rem; color: var(--color-gray); margin-top: 4px;">Today</div>
-    </div>
-
-    <!-- ROI Progress (1x1 Square) -->
-    <div class="bento-card bento-square">
-        <div class="bento-label">ROI</div>
-        <div class="bento-value" id="roi-progress">{{ roi_percentage|default:"0" }}%</div>
-        <div style="font-size: 0.75rem; color: var(--color-gray); margin-top: 4px;">Progress</div>
-    </div>
-
-    <!-- Revenue This Month (2x1 Wide) -->
-    <div class="bento-card bento-wide">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <div>
-                <div class="bento-label">This Month</div>
-                <div class="bento-value" style="color: #10B981;"><span style="font-size: 1.25rem; vertical-align: super;">₱</span>{{ revenue_this_month|default:"0" }}</div>
-                <div style="font-size: 0.75rem; color: var(--color-gray); margin-top: 4px;">{{ current_month_name }}</div>
+        <!-- COMPACT MODULE: System & Network Health -->
+        <div class="unified-card">
+            <div class="unified-card-title">System & Network</div>
+            
+            <div class="mini-stat-list animate-fadeIn" style="animation-delay: 350ms">
+                <!-- Network: Active Users -->
+                <div class="mini-stat-item">
+                    <div class="mini-stat-label"><i class="bi bi-people text-primary"></i> Active Right Now</div>
+                    <div class="mini-stat-value" id="live-active-users">{{ total_connected|default:"0" }}</div>
+                </div>
+                <!-- Network: Bandwidth -->
+                <div class="mini-stat-item">
+                    <div class="mini-stat-label"><i class="bi bi-activity text-success"></i> Bandwidth In Use</div>
+                    <div class="mini-stat-value" id="live-total-bandwidth">0 MB</div>
+                    <div id="live-network-meta" style="display:none;"></div>
+                </div>
+                <!-- Internet -->
+                <div class="mini-stat-item">
+                    <div class="mini-stat-label"><i class="bi bi-globe text-info"></i> Internet Status</div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <div id="sys-internet-dot" style="width: 8px; height: 8px; border-radius: 50%; background: #94A3B8;"></div>
+                        <div class="mini-stat-value" id="sys-internet-text" style="font-size: 0.9rem;">Checking...</div>
+                    </div>
+                </div>
+                <!-- Temp -->
+                <div class="mini-stat-item">
+                    <div class="mini-stat-label"><i class="bi bi-thermometer-half text-warning"></i> CPU Temperature</div>
+                    <div class="mini-stat-value" id="sys-cpu-temp">—</div>
+                </div>
+                <!-- Disk -->
+                <div class="mini-stat-item">
+                    <div style="flex: 1;">
+                        <div class="mini-stat-label" style="justify-content: space-between; margin-bottom: 6px;">
+                            <span><i class="bi bi-hdd text-secondary"></i> Disk</span>
+                            <span id="sys-disk-pct">0%</span>
+                        </div>
+                        <div class="progress-bar-bg" style="height: 4px;"><div id="sys-disk-bar" class="progress-bar-fill progress-success"></div></div>
+                    </div>
+                </div>
+                <!-- CPU -->
+                <div class="mini-stat-item">
+                    <div style="flex: 1;">
+                        <div class="mini-stat-label" style="justify-content: space-between; margin-bottom: 6px;">
+                            <span><i class="bi bi-cpu text-secondary"></i> CPU</span>
+                            <span id="sys-cpu-pct">0%</span>
+                        </div>
+                        <div class="progress-bar-bg" style="height: 4px;"><div id="sys-cpu-bar" class="progress-bar-fill progress-success"></div></div>
+                    </div>
+                </div>
+                <!-- RAM -->
+                <div class="mini-stat-item">
+                    <div style="flex: 1;">
+                        <div class="mini-stat-label" style="justify-content: space-between; margin-bottom: 6px;">
+                            <span><i class="bi bi-memory text-secondary"></i> RAM</span>
+                            <span id="sys-ram-pct">0%</span>
+                        </div>
+                        <div class="progress-bar-bg" style="height: 4px;"><div id="sys-ram-bar" class="progress-bar-fill progress-success"></div></div>
+                    </div>
+                </div>
+                
             </div>
-            <div class="bento-icon-badge" style="background: rgba(16, 185, 129, 0.1); color: #10B981; width: 64px; height: 64px; font-size: 32px; margin: 0;">
-                <i class="bi bi-calendar-month"></i>
+            
+            <!-- Hide unused IDs to prevent JS errors -->
+            <div style="display:none;">
+                <span id="sys-disk-used"></span><span id="sys-disk-total"></span>
+                <span id="sys-cpu-count"></span>
+                <span id="sys-ram-used"></span><span id="sys-ram-total"></span>
             </div>
         </div>
+
     </div>
 
-    <!-- System Health (2x1 Wide) -->
-    <div class="bento-card bento-wide">
-        <div class="bento-label" style="margin-bottom: 1.25rem;">System Hardware</div>
-        <div class="sys-health-bento">
-            <div>
-                <div class="health-mini-label"><span>Disk</span> <span id="sys-disk-pct">0%</span></div>
-                <div class="progress-bar-bg" style="height: 6px;"><div id="sys-disk-bar" class="progress-bar-fill progress-success"></div></div>
-                <div style="font-size: 0.65rem; color: var(--color-gray); margin-top: 4px;"><span id="sys-disk-used">—</span> / <span id="sys-disk-total">—</span></div>
-            </div>
-            <div>
-                <div class="health-mini-label"><span>CPU</span> <span id="sys-cpu-pct">0%</span></div>
-                <div class="progress-bar-bg" style="height: 6px;"><div id="sys-cpu-bar" class="progress-bar-fill progress-success"></div></div>
-                <div style="font-size: 0.65rem; color: var(--color-gray); margin-top: 4px;"><span id="sys-cpu-count">—</span> cores</div>
-            </div>
-            <div>
-                <div class="health-mini-label"><span>RAM</span> <span id="sys-ram-pct">0%</span></div>
-                <div class="progress-bar-bg" style="height: 6px;"><div id="sys-ram-bar" class="progress-bar-fill progress-success"></div></div>
-                <div style="font-size: 0.65rem; color: var(--color-gray); margin-top: 4px;"><span id="sys-ram-used">—</span> / <span id="sys-ram-total">—</span></div>
-            </div>
+    <!-- DOMINANT ELEMENT 2: Recent Sessions (Full Width) -->
+    <div class="unified-card animate-fadeIn" style="animation-delay: 500ms; padding: 0;">
+        <div class="unified-card-title" style="padding: var(--space-xl) var(--space-xl) 0 var(--space-xl); margin-bottom: var(--space-lg);">
+            Recent Sessions
+            <a href="{% url 'dashboard:sessions' %}" class="btn btn-sm btn-secondary" style="font-size: 0.8rem;">View All</a>
         </div>
+
+        {% if recent_sessions %}
+        <div class="table-container" style="border-radius: 0 0 20px 20px;">
+            <table id="recent-sessions-table" style="margin-bottom: 0;">
+                <thead>
+                    <tr>
+                        <th style="padding-left: var(--space-xl);">Device</th>
+                        <th>Amount</th>
+                        <th>Time In</th>
+                        <th style="padding-right: var(--space-xl);">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for session in recent_sessions %}
+                    <tr>
+                        <td style="padding-left: var(--space-xl);">
+                            <div class="font-semibold">{{ session.device_name|default:"Unknown" }}</div>
+                            <div class="text-xs text-muted">{{ session.mac_address }}</div>
+                        </td>
+                        <td class="font-semibold">₱{{ session.amount_paid }}</td>
+                        <td>{{ session.time_in|date:"M d, h:i A" }}</td>
+                        <td style="padding-right: var(--space-xl);">
+                            {% if session.status == 'active' %}
+                                <span class="badge badge-active">Active</span>
+                            {% elif session.status == 'expired' %}
+                                <span class="badge badge-expired">Expired</span>
+                            {% else %}
+                                <span class="badge badge-paused">{{ session.get_status_display }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state" style="padding: 4rem 2rem;">
+            <i class="bi bi-clock-history"></i>
+            <p>No sessions yet</p>
+            <small>Data will appear here once students start using the system</small>
+        </div>
+        {% endif %}
     </div>
 
-</div>
-
-<!-- Recent Sessions Table -->
-<div class="bento-card animate-fadeIn" style="padding: 0; margin-bottom: var(--space-xl);">
-    <div class="chart-header" style="padding: var(--space-lg) var(--space-xl); border-bottom: 1px solid var(--color-border); margin: 0;">
-        <h3 class="chart-title" style="margin: 0;">Recent Sessions</h3>
-        <a href="{% url 'dashboard:sessions' %}" class="btn btn-sm btn-secondary">View All</a>
-    </div>
-
-    {% if recent_sessions %}
-    <div class="table-container" style="border-radius: 0 0 24px 24px;">
-        <table id="recent-sessions-table" style="margin-bottom: 0;">
-            <thead>
-                <tr>
-                    <th style="padding-left: var(--space-xl);">Device</th>
-                    <th>Amount</th>
-                    <th>Time In</th>
-                    <th style="padding-right: var(--space-xl);">Status</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for session in recent_sessions %}
-                <tr>
-                    <td style="padding-left: var(--space-xl);">
-                        <div class="font-semibold">{{ session.device_name|default:"Unknown" }}</div>
-                        <div class="text-xs text-muted">{{ session.mac_address }}</div>
-                    </td>
-                    <td class="font-semibold">₱{{ session.amount_paid }}</td>
-                    <td>{{ session.time_in|date:"M d, h:i A" }}</td>
-                    <td style="padding-right: var(--space-xl);">
-                        {% if session.status == 'active' %}
-                            <span class="badge badge-active">Active</span>
-                        {% elif session.status == 'expired' %}
-                            <span class="badge badge-expired">Expired</span>
-                        {% else %}
-                            <span class="badge badge-paused">{{ session.get_status_display }}</span>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    {% else %}
-    <div class="empty-state" style="padding: 4rem 2rem;">
-        <i class="bi bi-clock-history"></i>
-        <p>No sessions yet</p>
-        <small>Data will appear here once students start using the system</small>
-    </div>
-    {% endif %}
 </div>
 
 {% endblock %}
