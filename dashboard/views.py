@@ -26,7 +26,7 @@ from rest_framework.response import Response
 from .models import Announcement, RevenueGoal, ProjectCost, DailyRevenueSummary
 from .serializers import AnnouncementSerializer, RevenueGoalSerializer, ProjectCostSerializer
 from sessions_app import iptables
-from sessions_app.models import Session, CoinEvent, Plan, WhitelistedDevice, SuspiciousDevice
+from sessions_app.models import Session, CoinEvent, Plan, WhitelistedDevice, SuspiciousDevice, PurchaseTransaction
 from django.conf import settings
 
 
