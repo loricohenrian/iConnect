@@ -71,18 +71,31 @@ def check_expired_sessions():
 
     from django.conf import settings
     from datetime import timedelta
-    max_pause_hours = getattr(settings, 'PISONET_MAX_PAUSE_HOURS', 24)
-    if max_pause_hours > 0:
-        pause_cutoff = timezone.now() - timedelta(hours=max_pause_hours)
-        paused_sessions = Session.objects.filter(status='paused', paused_at__lt=pause_cutoff)
-        for session in paused_sessions:
-            session.expire_session()
-            iptables.block_device(session.mac_address)
-            expired_count += 1
-            logger.info(f'Expired paused session {session.id} for {session.mac_address} (exceeded {max_pause_hours}h pause limit)')
+    
+    global_max_pause_hours = getattr(settings, 'PISONET_MAX_PAUSE_HOURS', 24)
+    paused_sessions = Session.objects.filter(status='paused').select_related('plan')
+    
+    resumed_count = 0
+    for session in paused_sessions:
+        # Use plan-specific limit if set, otherwise global
+        max_pause_hours = session.plan.pause_duration_limit if session.plan and session.plan.pause_duration_limit > 0 else global_max_pause_hours
+        
+        if max_pause_hours > 0 and session.paused_at:
+            paused_hours = (timezone.now() - session.paused_at).total_seconds() / 3600.0
+            if paused_hours >= max_pause_hours:
+                # Limit exceeded: auto-resume the session so the timer drains
+                session.resume_session()
+                # Do NOT allow iptables here since they might not be connected, 
+                # but if they are, they will need to refresh anyway. 
+                # Better yet, allow them just in case.
+                dl_kbps = int(session.plan.speed_limit * 1024) if session.plan and session.plan.speed_limit else None
+                ul_kbps = int(session.plan.speed_limit_upload * 1024) if session.plan and session.plan.speed_limit_upload else dl_kbps
+                iptables.allow_device(session.mac_address, rate_kbps=dl_kbps, upload_kbps=ul_kbps)
+                resumed_count += 1
+                logger.info(f'Auto-resumed paused session {session.id} for {session.mac_address} (exceeded {max_pause_hours}h pause limit)')
 
-    if expired_count:
-        logger.info(f'Expired {expired_count} total sessions')
+    if expired_count or resumed_count:
+        logger.info(f'Expired {expired_count} total sessions. Auto-resumed {resumed_count} sessions.')
 
     return f'Checked {active_sessions.count()} active sessions, expired {expired_count} total sessions'
 

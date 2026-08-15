@@ -15,10 +15,6 @@ class DashboardSecurityTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn("/dashboard/login/", response.url)
 
-        response_security = self.client.get("/dashboard/security/")
-        self.assertEqual(response_security.status_code, 302)
-        self.assertIn("/dashboard/login/", response_security.url)
-
     def test_dashboard_api_requires_authentication(self):
         endpoints = [
             "/api/announcements/",
@@ -44,38 +40,6 @@ class DashboardSecurityTests(TestCase):
 
         response = self.client.get("/api/dashboard/stats/")
         self.assertEqual(response.status_code, 200)
-
-    @patch("dashboard.views.iptables.block_device", return_value=True)
-    def test_security_page_block_action(self, block_device_mock):
-        User = get_user_model()
-        user = User.objects.create_user(
-            username="security_admin",
-            password="admin123",
-            is_staff=True,
-            is_superuser=True,
-        )
-        logged_in = self.client.login(username=user.username, password="admin123")
-        self.assertTrue(logged_in)
-
-        incident = SuspiciousDevice.objects.create(
-            mac_address="AA:BB:CC:DD:EE:01",
-            last_ip_address="10.0.0.55",
-            reason="mac_ip_conflict_status",
-        )
-
-        response = self.client.post(
-            "/dashboard/security/",
-            {
-                "action": "block",
-                "incident_id": incident.id,
-            },
-        )
-        self.assertEqual(response.status_code, 200)
-
-        incident.refresh_from_db()
-        self.assertEqual(incident.status, SuspiciousDevice.STATUS_BLOCKED)
-        self.assertTrue(incident.is_blocked)
-        block_device_mock.assert_called_once_with(incident.mac_address)
 
     def test_logout_requires_post(self):
         response = self.client.get("/dashboard/logout/")

@@ -30,6 +30,14 @@ class Plan(models.Model):
         blank=True,
         help_text="Upload speed cap in Mbps (defaults to download speed if blank)",
     )
+    pause_limit = models.PositiveIntegerField(
+        default=0,
+        help_text="Maximum number of times this plan can be paused (0 = unlimited)",
+    )
+    pause_duration_limit = models.PositiveIntegerField(
+        default=0,
+        help_text="Maximum total hours a session can remain paused (0 = unlimited)",
+    )
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -89,6 +97,7 @@ class Session(models.Model):
     device_name = models.CharField(max_length=100, null=True, blank=True)
     paused_at = models.DateTimeField(null=True, blank=True, help_text="When session was paused")
     total_paused_seconds = models.FloatField(default=0, help_text="Total seconds spent paused")
+    pause_count = models.PositiveIntegerField(default=0, help_text="Number of times paused")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -107,14 +116,26 @@ class Session(models.Model):
     def time_remaining_seconds(self):
         """Calculate remaining time in seconds from time_in and purchased minutes."""
         if self.status == "paused":
-            max_pause_hours = getattr(settings, "PISONET_MAX_PAUSE_HOURS", 24)
+            global_max_pause = getattr(settings, "PISONET_MAX_PAUSE_HOURS", 24)
+            max_pause_hours = self.plan.pause_duration_limit if self.plan and self.plan.pause_duration_limit > 0 else global_max_pause
+            
             if max_pause_hours > 0 and self.paused_at:
-                if (timezone.now() - self.paused_at).total_seconds() > max_pause_hours * 3600:
-                    return 0
-            # When paused, freeze remaining time at point of pause
+                paused_time = (timezone.now() - self.paused_at).total_seconds()
+                max_pause_seconds = max_pause_hours * 3600
+                if paused_time > max_pause_seconds:
+                    # Treat it as if it automatically resumed exactly when it hit the limit
+                    effective_paused_time_this_pause = max_pause_seconds
+                    time_since_resume = paused_time - max_pause_seconds
+                    
+                    elapsed = (timezone.now() - self.time_in).total_seconds() - self.total_paused_seconds - effective_paused_time_this_pause
+                    total_seconds = self.duration_minutes_purchased * 60
+                    return max(0, total_seconds - elapsed)
+                    
+            # When paused normally, freeze remaining time at point of pause
             elapsed = (self.paused_at - self.time_in).total_seconds() - self.total_paused_seconds
             total_seconds = self.duration_minutes_purchased * 60
             return max(0, total_seconds - elapsed)
+            
         if self.status != "active":
             return 0
         elapsed = (timezone.now() - self.time_in).total_seconds() - self.total_paused_seconds
@@ -155,7 +176,8 @@ class Session(models.Model):
             return False
         self.status = "paused"
         self.paused_at = timezone.now()
-        self.save(update_fields=["status", "paused_at"])
+        self.pause_count += 1
+        self.save(update_fields=["status", "paused_at", "pause_count"])
         return True
 
     def resume_session(self):

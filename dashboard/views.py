@@ -1206,13 +1206,19 @@ def plans_view(request):
             duration_raw = request.POST.get('duration_minutes', '').strip()
             speed_limit_raw = request.POST.get('speed_limit', '').strip()
             speed_limit_upload_raw = request.POST.get('speed_limit_upload', '').strip()
+            pause_limit_raw = request.POST.get('pause_limit', '0').strip()
+            pause_duration_limit_raw = request.POST.get('pause_duration_limit', '0').strip()
             is_active = request.POST.get('is_active') in ('on', 'true', '1')
 
             try:
                 price = int(price_raw)
                 duration_minutes = int(duration_raw)
+                pause_limit = int(pause_limit_raw) if pause_limit_raw else 0
+                pause_duration_limit = int(pause_duration_limit_raw) if pause_duration_limit_raw else 0
+                
                 if not name:
-                    raise ValueError('Plan name is required.')
+                    name = f"₱{price} Plan"
+                    
                 if price <= 0 or duration_minutes <= 0:
                     raise ValueError('Price and duration must be positive.')
 
@@ -1235,6 +1241,8 @@ def plans_view(request):
                         duration_minutes=duration_minutes,
                         speed_limit=speed_limit,
                         speed_limit_upload=speed_limit_upload,
+                        pause_limit=pause_limit,
+                        pause_duration_limit=pause_duration_limit,
                         is_active=is_active,
                     )
                 else:
@@ -1245,6 +1253,8 @@ def plans_view(request):
                         plan.duration_minutes = duration_minutes
                         plan.speed_limit = speed_limit
                         plan.speed_limit_upload = speed_limit_upload
+                        plan.pause_limit = pause_limit
+                        plan.pause_duration_limit = pause_duration_limit
                         plan.is_active = is_active
                         plan.save()
             except (ValueError, InvalidOperation) as exc:

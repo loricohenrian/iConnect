@@ -16,7 +16,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Security
 DEFAULT_DEV_SECRET_KEY = 'django-insecure-iConnect-dev-key-change-in-production'
 SECRET_KEY = os.getenv('SECRET_KEY', DEFAULT_DEV_SECRET_KEY)
-DEBUG = os.getenv('DEBUG', 'False').lower() in ('true', '1', 'yes')
+DEBUG = os.getenv('DEBUG', 'False').lower().strip() in ('true', '1', 'yes')
 ALLOWED_HOSTS = [host.strip() for host in os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1,0.0.0.0').split(',') if host.strip()]
 
 # Session settings (admin dashboard login)
@@ -349,5 +349,7 @@ if not DEBUG:
         SECURE_HSTS_INCLUDE_SUBDOMAINS = False
         SECURE_HSTS_PRELOAD = False
 
-
-
+# Fix for Windows local development static files CSS issue
+import mimetypes
+mimetypes.add_type("text/css", ".css", True)
+mimetypes.add_type("application/javascript", ".js", True)

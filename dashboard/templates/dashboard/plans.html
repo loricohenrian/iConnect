@@ -6,118 +6,213 @@
 {% block dashboard_content %}
 
 {% if error_message %}
-<div class="alert alert-danger">
+<div class="alert alert-danger mb-md">
     <i class="bi bi-exclamation-triangle"></i> {{ error_message }}
 </div>
 {% endif %}
 
-<div class="grid-2">
-    <div class="chart-card animate-fadeIn">
-        <h3 class="card-title mb-md"><i class="bi bi-plus-circle"></i> Add New Plan</h3>
+<div class="chart-card animate-fadeIn">
+    <div class="d-flex" style="justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h3 class="card-title m-0"><i class="bi bi-tags"></i> WiFi Plans</h3>
+        <button type="button" class="btn btn-primary" onclick="openPlanModal('add')">
+            <i class="bi bi-plus-lg"></i> Add New Plan
+        </button>
+    </div>
+
+    {% if plans %}
+    <div class="table-container" style="overflow-x: auto;">
+        <table style="min-width: 800px;">
+            <thead>
+                <tr>
+                    <th>Price</th>
+                    <th>Duration</th>
+                    <th>DL Speed</th>
+                    <th>UL Speed</th>
+                    <th>Pause Limit</th>
+                    <th>Pause Max (hrs)</th>
+                    <th>Status</th>
+                    <th style="text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for plan in plans %}
+                <tr>
+                    <td style="font-weight: 600;">₱{{ plan.price }}</td>
+                    <td>{{ plan.duration_minutes }} mins</td>
+                    <td>{{ plan.speed_limit|default_if_none:"Default" }}{% if plan.speed_limit %} Mbps{% endif %}</td>
+                    <td>{{ plan.speed_limit_upload|default_if_none:"Default" }}{% if plan.speed_limit_upload %} Mbps{% endif %}</td>
+                    <td>{% if plan.pause_limit == 0 %}Unlimited{% else %}{{ plan.pause_limit }}{% endif %}</td>
+                    <td>{% if plan.pause_duration_limit == 0 %}Unlimited{% else %}{{ plan.pause_duration_limit }} hrs{% endif %}</td>
+                    <td>
+                        {% if plan.is_active %}
+                        <span class="badge badge-success">Active</span>
+                        {% else %}
+                        <span class="badge" style="background: var(--text-muted); color: #fff;">Inactive</span>
+                        {% endif %}
+                    </td>
+                    <td style="text-align: right;">
+                        <div class="d-flex gap-xs" style="justify-content: flex-end;">
+                            <button class="btn btn-sm" style="background: var(--surface-hover); color: var(--text-primary); border: 1px solid var(--border-color);" onclick="openPlanModal('edit', {
+                                id: '{{ plan.id }}',
+                                price: '{{ plan.price }}',
+                                duration_minutes: '{{ plan.duration_minutes }}',
+                                speed_limit: '{{ plan.speed_limit|default_if_none:"" }}',
+                                speed_limit_upload: '{{ plan.speed_limit_upload|default_if_none:"" }}',
+                                pause_limit: '{{ plan.pause_limit }}',
+                                pause_duration_limit: '{{ plan.pause_duration_limit }}',
+                                is_active: {% if plan.is_active %}true{% else %}false{% endif %}
+                            })">
+                                <i class="bi bi-pencil"></i> Edit
+                            </button>
+                            <button class="btn btn-sm btn-danger" onclick="openDeleteModal('{{ plan.id }}')">
+                                <i class="bi bi-trash"></i> Delete
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <i class="bi bi-tags"></i>
+        <p>No plans yet</p>
+        <small>Create your first WiFi rate plan</small>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Plan Modal (Add / Edit) -->
+<div id="planModal" class="modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="modal-content chart-card animate-fadeIn" style="width: 100%; max-width: 500px; margin: 1rem; position: relative;">
+        <button type="button" onclick="closePlanModal()" style="position: absolute; top: 1rem; right: 1rem; background: none; border: none; font-size: 1.5rem; color: var(--text-secondary); cursor: pointer;">&times;</button>
+        <h3 id="planModalTitle" class="card-title mb-md">Add New Plan</h3>
+        
         <form method="POST" action="">
             {% csrf_token %}
-            <input type="hidden" name="action" value="create">
+            <input type="hidden" name="action" id="planModalAction" value="create">
+            <input type="hidden" name="plan_id" id="planModalId" value="">
 
-            <div class="form-group">
-                <label class="form-label" for="plan-name">Plan Name</label>
-                <input id="plan-name" type="text" class="form-input" name="name" placeholder="e.g., ₱15 Plan" required>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label class="form-label">Price (₱)</label>
+                    <input type="number" min="1" class="form-input" name="price" id="planModalPrice" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Duration (minutes)</label>
+                    <input type="number" min="1" class="form-input" name="duration_minutes" id="planModalDuration" required>
+                </div>
             </div>
 
             <div class="grid-2">
                 <div class="form-group">
-                    <label class="form-label" for="plan-price">Price (₱)</label>
-                    <input id="plan-price" type="number" min="1" class="form-input" name="price" required>
+                    <label class="form-label">Download Speed (Mbps)</label>
+                    <input type="number" step="0.1" min="0.5" class="form-input" name="speed_limit" id="planModalSpeed" placeholder="Leave blank for default">
                 </div>
                 <div class="form-group">
-                    <label class="form-label" for="plan-duration">Duration (minutes)</label>
-                    <input id="plan-duration" type="number" min="1" class="form-input" name="duration_minutes" required>
+                    <label class="form-label">Upload Speed (Mbps)</label>
+                    <input type="number" step="0.1" min="0.5" class="form-input" name="speed_limit_upload" id="planModalSpeedUp" placeholder="Defaults to download">
                 </div>
             </div>
 
-            <div class="form-group">
-                <label class="form-label" for="plan-speed">Download Speed (Mbps)</label>
-                <input id="plan-speed" type="number" step="0.1" min="0.5" class="form-input" name="speed_limit" placeholder="e.g., 5.0 (leave blank for default)">
+            <div class="grid-2">
+                <div class="form-group">
+                    <label class="form-label">Pause Limit (Count)</label>
+                    <input type="number" min="0" class="form-input" name="pause_limit" id="planModalPauseLimit" value="0" required>
+                    <small style="color: var(--text-secondary); font-size: 0.75rem;">Max times they can pause (0 = unlimited).</small>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Pause Max Duration (Hours)</label>
+                    <input type="number" min="0" class="form-input" name="pause_duration_limit" id="planModalPauseMax" value="0" required>
+                    <small style="color: var(--text-secondary); font-size: 0.75rem;">Max hours they can stay paused (0 = unlimited).</small>
+                </div>
             </div>
 
-            <div class="form-group">
-                <label class="form-label" for="plan-speed-upload">Upload Speed (Mbps)</label>
-                <input id="plan-speed-upload" type="number" step="0.1" min="0.5" class="form-input" name="speed_limit_upload" placeholder="e.g., 2.0 (defaults to download speed)">
-                <small style="color: var(--text-secondary); font-size: 0.75rem;">If blank, upload uses the same speed as download.</small>
-            </div>
-
-            <div class="form-group">
+            <div class="form-group mt-md">
                 <label class="d-flex align-items-center gap-sm">
-                    <input type="checkbox" name="is_active" checked>
-                    <span>Active</span>
+                    <input type="checkbox" name="is_active" id="planModalActive" checked>
+                    <span style="font-weight: 500;">Active (available for purchase)</span>
                 </label>
             </div>
 
-            <button type="submit" class="btn btn-primary">
-                <i class="bi bi-plus-lg"></i> Create Plan
-            </button>
+            <div class="d-flex gap-sm mt-md" style="justify-content: flex-end;">
+                <button type="button" class="btn" style="background: var(--surface-hover); color: var(--text-primary); border: 1px solid var(--border-color);" onclick="closePlanModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary" id="planModalSubmitBtn">Save Plan</button>
+            </div>
         </form>
     </div>
+</div>
 
-    <div class="chart-card animate-fadeIn" style="animation-delay: 100ms">
-        <h3 class="card-title mb-md"><i class="bi bi-tags"></i> Current Plans</h3>
-        {% if plans %}
-        <div class="table-container" style="overflow-x: auto;">
-            <table style="min-width: 500px;">
-                <thead>
-                    <tr>
-                        <th style="width: 20%;">Plan</th>
-                        <th style="width: 10%;">Price</th>
-                        <th style="width: 12%;">Duration</th>
-                        <th style="width: 12%;">DL (Mbps)</th>
-                        <th style="width: 12%;">UL (Mbps)</th>
-                        <th style="width: 8%;">Status</th>
-                        <th style="width: 26%;">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for plan in plans %}
-                    <tr>
-                        <td>
-                            <form method="POST" action="" id="plan-form-{{ plan.id }}">
-                                {% csrf_token %}
-                                <input type="hidden" name="action" value="update">
-                                <input type="hidden" name="plan_id" value="{{ plan.id }}">
-                                <input type="text" name="name" class="form-input" style="width: 100%; max-width: 140px; padding: 6px 8px; font-size: 13px;" value="{{ plan.name }}" required>
-                        </td>
-                        <td><input type="number" name="price" min="1" class="form-input" style="width: 70px; padding: 6px 8px; font-size: 13px;" value="{{ plan.price }}" required form="plan-form-{{ plan.id }}"></td>
-                        <td><input type="number" name="duration_minutes" min="1" class="form-input" style="width: 80px; padding: 6px 8px; font-size: 13px;" value="{{ plan.duration_minutes }}" required form="plan-form-{{ plan.id }}"></td>
-                        <td><input type="number" name="speed_limit" step="0.1" min="0.5" class="form-input" style="width: 65px; padding: 6px 8px; font-size: 13px;" value="{{ plan.speed_limit|default_if_none:'' }}" placeholder="Def" form="plan-form-{{ plan.id }}"></td>
-                        <td><input type="number" name="speed_limit_upload" step="0.1" min="0.5" class="form-input" style="width: 65px; padding: 6px 8px; font-size: 13px;" value="{{ plan.speed_limit_upload|default_if_none:'' }}" placeholder="=DL" form="plan-form-{{ plan.id }}"></td>
-                        <td>
-                            <label class="d-flex align-items-center gap-xs">
-                                <input type="checkbox" name="is_active" {% if plan.is_active %}checked{% endif %} form="plan-form-{{ plan.id }}">
-                            </label>
-                        </td>
-                        <td>
-                            <div class="d-flex gap-xs" style="align-items: center;">
-                                <button type="submit" form="plan-form-{{ plan.id }}" class="btn btn-sm btn-primary" style="padding: 4px 10px; font-size: 12px;">Save</button>
-                            </form>
-                            <form method="POST" action="" onsubmit="return confirm('Delete this plan?');" style="display: inline;">
-                                {% csrf_token %}
-                                <input type="hidden" name="action" value="delete">
-                                <input type="hidden" name="plan_id" value="{{ plan.id }}">
-                                <button type="submit" class="btn btn-sm btn-danger" style="padding: 4px 10px; font-size: 12px;">Del</button>
-                            </form>
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        {% else %}
-        <div class="empty-state">
-            <i class="bi bi-tags"></i>
-            <p>No plans yet</p>
-            <small>Create your first WiFi rate plan</small>
-        </div>
-        {% endif %}
+<!-- Delete Confirmation Modal -->
+<div id="deleteModal" class="modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="modal-content chart-card animate-fadeIn" style="width: 100%; max-width: 400px; margin: 1rem; position: relative;">
+        <h3 class="card-title mb-md text-danger"><i class="bi bi-exclamation-triangle"></i> Delete Plan</h3>
+        <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">Are you sure you want to delete this plan? This action cannot be undone.</p>
+        
+        <form method="POST" action="">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="delete">
+            <input type="hidden" name="plan_id" id="deleteModalId" value="">
+            
+            <div class="d-flex gap-sm" style="justify-content: flex-end;">
+                <button type="button" class="btn" style="background: var(--surface-hover); color: var(--text-primary); border: 1px solid var(--border-color);" onclick="closeDeleteModal()">Cancel</button>
+                <button type="submit" class="btn btn-danger">Confirm Delete</button>
+            </div>
+        </form>
     </div>
 </div>
+
+<script>
+    const planModal = document.getElementById('planModal');
+    const deleteModal = document.getElementById('deleteModal');
+
+    function openPlanModal(mode, data = null) {
+        planModal.style.display = 'flex';
+        
+        if (mode === 'add') {
+            document.getElementById('planModalTitle').innerText = 'Add New Plan';
+            document.getElementById('planModalAction').value = 'create';
+            document.getElementById('planModalId').value = '';
+            document.getElementById('planModalSubmitBtn').innerText = 'Create Plan';
+            
+            // Reset fields
+            document.getElementById('planModalPrice').value = '';
+            document.getElementById('planModalDuration').value = '';
+            document.getElementById('planModalSpeed').value = '';
+            document.getElementById('planModalSpeedUp').value = '';
+            document.getElementById('planModalPauseLimit').value = '0';
+            document.getElementById('planModalPauseMax').value = '0';
+            document.getElementById('planModalActive').checked = true;
+        } else if (mode === 'edit' && data) {
+            document.getElementById('planModalTitle').innerText = 'Edit Plan';
+            document.getElementById('planModalAction').value = 'update';
+            document.getElementById('planModalId').value = data.id;
+            document.getElementById('planModalSubmitBtn').innerText = 'Save Changes';
+            
+            // Populate fields
+            document.getElementById('planModalPrice').value = data.price;
+            document.getElementById('planModalDuration').value = data.duration_minutes;
+            document.getElementById('planModalSpeed').value = data.speed_limit;
+            document.getElementById('planModalSpeedUp').value = data.speed_limit_upload;
+            document.getElementById('planModalPauseLimit').value = data.pause_limit;
+            document.getElementById('planModalPauseMax').value = data.pause_duration_limit;
+            document.getElementById('planModalActive').checked = data.is_active;
+        }
+    }
+
+    function closePlanModal() {
+        planModal.style.display = 'none';
+    }
+
+    function openDeleteModal(planId) {
+        deleteModal.style.display = 'flex';
+        document.getElementById('deleteModalId').value = planId;
+    }
+
+    function closeDeleteModal() {
+        deleteModal.style.display = 'none';
+    }
+</script>
 
 {% endblock %}

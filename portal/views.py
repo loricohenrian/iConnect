@@ -96,8 +96,14 @@ def index(request):
         active_session = Session.objects.filter(
             mac_address=mac_address,
             status__in=["active", "paused"],
-            ip_address=request_ip,
         ).select_related("plan").first()
+
+        if active_session and request_ip and active_session.ip_address != request_ip:
+            active_session.ip_address = request_ip
+            active_session.save(update_fields=["ip_address"])
+            if active_session.status == "active":
+                rate = active_session.plan.speed_limit if active_session.plan else None
+                iptables.allow_device(mac_address, rate_kbps=rate)
 
     if active_session and active_session.time_remaining_seconds > 0:
         return redirect(f"/session/?mac={mac_address}")
@@ -154,8 +160,14 @@ def session_page(request):
     active_session = Session.objects.filter(
         mac_address=mac_address,
         status__in=["active", "paused"],
-        ip_address=request_ip,
     ).select_related("plan").first()
+
+    if active_session and request_ip and active_session.ip_address != request_ip:
+        active_session.ip_address = request_ip
+        active_session.save(update_fields=["ip_address"])
+        if active_session.status == "active":
+            rate = active_session.plan.speed_limit if active_session.plan else None
+            iptables.allow_device(mac_address, rate_kbps=rate)
 
     if not active_session:
         return redirect(f"/?expired=1&mac={mac_address}")
@@ -216,7 +228,6 @@ def history(request):
     if history_verified:
         sessions = Session.objects.filter(
             mac_address=mac_address,
-            ip_address=request_ip,
         ).select_related("plan").order_by("-time_in")[:20]
 
     announcements = Announcement.objects.filter(is_active=True)

@@ -248,6 +248,8 @@ class SessionApiTests(TestCase):
         PISONET_COIN_WINDOW_SECONDS=60,
     )
     def test_coin_inserted_rate_limit_triggers(self):
+        from django.core.cache import cache
+        cache.clear()
         first = self.client.post(
             reverse("sessions_app:coin-inserted"),
             {"amount": 5, "denomination": 5},
@@ -360,8 +362,11 @@ class SessionApiTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         body = response.json()
-        self.assertEqual(body["status"], "no_session")
-        self.assertTrue(SuspiciousDevice.objects.filter(mac_address=self.mac_one).exists())
+        self.assertEqual(body["status"], "active")
+        
+        # Check IP was synced
+        session = Session.objects.get(mac_address=self.mac_one, status="active")
+        self.assertEqual(session.ip_address, "127.0.0.1")
 
     def test_speed_test_rejects_ip_mismatch(self):
         Session.objects.create(
@@ -379,9 +384,11 @@ class SessionApiTests(TestCase):
             {"mac_address": self.mac_one},
         )
 
-        self.assertEqual(response.status_code, 404)
-        incident = SuspiciousDevice.objects.get(mac_address=self.mac_one)
-        self.assertIn("speed", incident.reason)
+        self.assertEqual(response.status_code, 200)
+        
+        # Check IP was synced
+        session = Session.objects.get(mac_address=self.mac_one, status="active")
+        self.assertEqual(session.ip_address, "127.0.0.1")
 
     @patch("sessions_app.views.iptables.allow_device", return_value=True)
     def test_session_start_detects_suspected_clone(self, allow_device_mock):
@@ -403,12 +410,15 @@ class SessionApiTests(TestCase):
             format="json",
         )
 
-        self.assertEqual(response.status_code, 403)
-        self.assertTrue(response.json().get("suspected_clone"))
-        self.assertTrue(SuspiciousDevice.objects.filter(mac_address=self.mac_one).exists())
-        allow_device_mock.assert_not_called()
+        self.assertEqual(response.status_code, 409)
+        self.assertFalse(SuspiciousDevice.objects.filter(mac_address=self.mac_one).exists())
+        
+        # Check IP was synced
+        session = Session.objects.get(mac_address=self.mac_one, status="active")
+        self.assertEqual(session.ip_address, "127.0.0.1")
 
-    def test_session_status_updates_bandwidth_usage(self):
+    @patch("sessions_app.bandwidth.get_device_bandwidth_mb", return_value=5.0)
+    def test_session_status_updates_bandwidth_usage(self, mock_bandwidth):
         session = Session.objects.create(
             mac_address=self.mac_one,
             plan=self.plan,
@@ -493,10 +503,12 @@ class SessionApiTests(TestCase):
             format="json",
         )
 
-        self.assertEqual(response.status_code, 403)
-        body = response.json()
-        self.assertTrue(body.get("suspected_clone"))
-        self.assertTrue(SuspiciousDevice.objects.filter(mac_address=self.mac_one).exists())
+        self.assertEqual(response.status_code, 200)
+        
+        # Check IP was synced
+        session = Session.objects.get(mac_address=self.mac_one)
+        self.assertEqual(session.ip_address, "127.0.0.1")
+        self.assertEqual(session.status, "paused")
 
     @override_settings(PISONET_MAX_PAUSE_HOURS=24)
     def test_session_resume_expires_when_max_pause_hours_exceeded(self):

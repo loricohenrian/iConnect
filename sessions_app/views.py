@@ -1123,6 +1123,12 @@ def session_pause_toggle(request):
     _session_ip_matches_request(session, request)
 
     if session.status == "active":
+        if session.plan.pause_limit > 0 and session.pause_count >= session.plan.pause_limit:
+            return Response(
+                {"error": f"You have reached the maximum number of pauses ({session.plan.pause_limit}) for this plan."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         session.pause_session()
         blocked = iptables.block_device(mac_address)
         audit_logger.info(
@@ -1135,19 +1141,6 @@ def session_pause_toggle(request):
             "time_remaining_seconds": session.time_remaining_seconds,
         })
     else:
-        # Check max pause duration
-        from django.conf import settings
-        max_pause_hours = getattr(settings, "PISONET_MAX_PAUSE_HOURS", 24)
-        if max_pause_hours > 0 and session.paused_at:
-            paused_hours = (timezone.now() - session.paused_at).total_seconds() / 3600.0
-            if paused_hours >= max_pause_hours:
-                session.expire_session()
-                iptables.block_device(mac_address)
-                return Response(
-                    {"error": f"Session pause limit ({max_pause_hours} hours) exceeded. Session has expired."},
-                    status=status.HTTP_410_GONE,
-                )
-
         # Check if network is full before allowing resume
         max_sessions = getattr(settings, "PISONET_MAX_CONCURRENT_SESSIONS", 20)
         active_count = Session.objects.filter(status="active").count()
