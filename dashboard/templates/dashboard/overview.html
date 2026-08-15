@@ -4,296 +4,252 @@
 {% block topbar_title %}Dashboard{% endblock %}
 
 {% block dashboard_content %}
-
 <style>
-/* Modern Layout Overrides */
-.dashboard-hero-layout {
-    display: grid;
-    grid-template-columns: 1.6fr 1fr;
-    gap: var(--space-xl);
+/* Dashboard Narrative Layout */
+.section-title {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 700;
+    color: var(--color-gray);
+    margin-bottom: 0.75rem;
+    margin-top: 2rem;
+}
+.section-title:first-child {
+    margin-top: 0;
+}
+
+/* 1. Right Now - Compact Strip */
+.right-now-strip {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--color-dark);
+    color: white;
+    border-radius: 12px;
+    padding: var(--space-md) var(--space-lg);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     margin-bottom: var(--space-xl);
 }
-@media (max-width: 1024px) {
-    .dashboard-hero-layout {
-        grid-template-columns: 1fr;
+@media (max-width: 768px) {
+    .right-now-strip {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--space-md);
     }
 }
-.hero-main-group {
+.right-now-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.right-now-label {
+    font-size: 0.85rem;
+    color: rgba(255,255,255,0.7);
+    font-weight: 600;
+}
+.right-now-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+/* 2. Money - Large Modular Group */
+.money-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(3, 1fr);
     gap: var(--space-lg);
 }
-.hero-card-xl {
-    background: #ffffff;
+.money-card {
+    background: white;
     border-radius: 16px;
-    padding: 2rem;
+    padding: var(--space-xl);
     box-shadow: var(--shadow-sm);
     border: 1px solid var(--color-border);
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
     position: relative;
     overflow: hidden;
 }
-.hero-card-xl .stat-label {
-    font-size: 1.1rem;
+.money-card-today {
+    grid-column: span 3;
+    background: linear-gradient(135deg, #7b2d3b 0%, #5a212b 100%);
+    color: white;
+    border: none;
+}
+.money-card-today .stat-label { color: rgba(255,255,255,0.8); }
+.money-card-today .stat-value { color: white; font-size: 4rem; }
+.money-card-today .hero-icon-bg { color: rgba(255,255,255,0.1); }
+@media (min-width: 1024px) {
+    .money-card-today {
+        grid-column: span 1;
+    }
+}
+.money-card .stat-label {
+    font-size: 1rem;
     font-weight: 600;
     color: var(--color-gray);
     margin-bottom: 0.5rem;
 }
-.hero-card-xl .stat-value {
-    font-size: 3.5rem;
+.money-card .stat-value {
+    font-size: 2.5rem;
     font-weight: 800;
     line-height: 1;
-    font-variant-numeric: tabular-nums;
+    color: var(--color-dark);
 }
-.hero-icon-bg {
-    position: absolute;
-    top: -10%;
-    right: -10%;
-    font-size: 8rem;
-    opacity: 0.04;
-    pointer-events: none;
-}
-.hero-side-group {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--space-md);
-    align-content: start;
-}
-.stat-card-compact {
-    background: #ffffff;
+.money-card .text-xs { font-size: 0.75rem; margin-top: 0.5rem; color: var(--color-gray); }
+.money-card-today .text-xs { color: rgba(255,255,255,0.7); }
+
+/* 3. System Health - Compact Panel */
+.system-health-panel {
+    background: #f8fafc;
     border-radius: 12px;
-    padding: var(--space-md) var(--space-lg);
-    box-shadow: var(--shadow-sm);
+    padding: var(--space-lg);
     border: 1px solid var(--color-border);
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: var(--space-lg);
+}
+@media (max-width: 1024px) {
+    .system-health-panel { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 768px) {
+    .system-health-panel { grid-template-columns: repeat(2, 1fr); }
+}
+.health-item {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
 }
-.stat-card-compact-header {
+.health-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: 0.85rem;
-    color: var(--color-gray);
+    font-size: 0.75rem;
     font-weight: 600;
+    color: var(--color-gray);
 }
-.stat-card-compact-value {
-    font-size: 1.25rem;
+.health-value {
+    font-size: 1.1rem;
     font-weight: 700;
     color: var(--color-dark);
 }
-.sys-strip-container {
-    background: #ffffff;
-    border-radius: 16px;
-    padding: var(--space-lg) var(--space-xl);
-    box-shadow: var(--shadow-sm);
-    border: 1px solid var(--color-border);
-    margin-bottom: var(--space-xl);
-}
-.sys-strip-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: var(--space-xl);
-}
-@media (max-width: 768px) {
-    .sys-strip-grid {
-        grid-template-columns: 1fr;
-        gap: var(--space-lg);
-    }
-}
 </style>
 
-<!-- Hero Section (60/40 Split) -->
-<div class="dashboard-hero-layout">
-    
-    <!-- Left: 60% Hero Metrics -->
-    <div class="hero-main-group">
-        <!-- Revenue Today (Huge) -->
-        <div class="hero-card-xl animate-fadeIn">
-            <i class="bi bi-cash-stack hero-icon-bg" style="color: #1A73E8;"></i>
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; position: relative;">
-                <div class="stat-label">Revenue Today</div>
-                <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(26, 115, 232, 0.1); color: #1A73E8; display: flex; align-items: center; justify-content: center; font-size: 24px;">
-                    <i class="bi bi-cash-coin"></i>
-                </div>
-            </div>
-            <div class="stat-value" id="revenue-today" style="color: #1A73E8;">
-                <span style="font-size: 1.5rem; vertical-align: top;">₱</span>{{ revenue_today|default:"0" }}
-            </div>
+<!-- 1. RIGHT NOW -->
+<div class="section-title">Right Now</div>
+<div class="right-now-strip animate-fadeIn">
+    <div class="right-now-item">
+        <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; font-size: 20px;">
+            <i class="bi bi-people"></i>
         </div>
-
-        <!-- Connected Users (Huge) -->
-        <div class="hero-card-xl animate-fadeIn" style="animation-delay: 100ms">
-            <i class="bi bi-people-fill hero-icon-bg" style="color: #10B981;"></i>
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; position: relative;">
-                <div class="stat-label">Active Users</div>
-                <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(16, 185, 129, 0.1); color: #10B981; display: flex; align-items: center; justify-content: center; font-size: 24px;">
-                    <i class="bi bi-people"></i>
-                </div>
-            </div>
-            <div class="stat-value" id="connected-users" style="color: #10B981;">
-                {{ total_connected|default:"0" }}
-            </div>
+        <div>
+            <div class="right-now-label">Active Users</div>
+            <div class="right-now-value" id="live-active-users">{{ total_connected|default:"0" }}</div>
         </div>
     </div>
-
-    <!-- Right: 40% Secondary Metrics Grid (2x2) -->
-    <div class="hero-side-group">
-        <!-- Sessions Today -->
-        <div class="stat-card-compact animate-fadeIn" style="animation-delay: 200ms">
-            <div class="stat-card-compact-header">
-                <span>Sessions Today</span>
-                <i class="bi bi-clock text-muted"></i>
-            </div>
-            <div class="stat-card-compact-value" id="sessions-today">{{ sessions_today|default:"0" }}</div>
+    <div class="right-now-item">
+        <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; font-size: 20px;">
+            <i class="bi bi-clock"></i>
         </div>
-
-        <!-- ROI Progress -->
-        <div class="stat-card-compact animate-fadeIn" style="animation-delay: 250ms">
-            <div class="stat-card-compact-header">
-                <span>ROI Progress</span>
-                <i class="bi bi-pie-chart text-muted"></i>
-            </div>
-            <div class="stat-card-compact-value" id="roi-progress">{{ roi_percentage|default:"0" }}%</div>
-        </div>
-
-        <!-- Temperature -->
-        <div class="stat-card-compact animate-fadeIn" style="animation-delay: 300ms">
-            <div class="stat-card-compact-header">
-                <span>Temperature</span>
-                <i class="bi bi-thermometer-half text-muted"></i>
-            </div>
-            <div class="stat-card-compact-value" id="sys-cpu-temp">—</div>
-        </div>
-
-        <!-- Internet Status -->
-        <div class="stat-card-compact animate-fadeIn" style="animation-delay: 350ms">
-            <div class="stat-card-compact-header">
-                <span>Internet</span>
-                <div id="sys-internet-dot" style="width: 10px; height: 10px; border-radius: 50%; background: #94A3B8;"></div>
-            </div>
-            <div class="stat-card-compact-value" id="sys-internet-text" style="font-size: 1.1rem; line-height: 1.25rem;">Checking...</div>
+        <div>
+            <div class="right-now-label">Sessions Today</div>
+            <div class="right-now-value" id="sessions-today">{{ sessions_today|default:"0" }}</div>
         </div>
     </div>
-
-</div>
-
-<!-- System Resources Strip -->
-<div class="sys-strip-container animate-fadeIn" style="animation-delay: 400ms;">
-    <div class="sys-strip-grid">
-        <!-- Disk Card -->
-        <div>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <div style="font-weight: 600; font-size: 13px; color: var(--color-dark);">Disk Usage</div>
-                <div style="font-size: 12px; color: var(--color-gray);"><span id="sys-disk-used">—</span> / <span id="sys-disk-total">—</span> (<span id="sys-disk-pct">0%</span>)</div>
-            </div>
-            <div class="progress-bar-bg" style="height: 6px;">
-                <div id="sys-disk-bar" class="progress-bar-fill progress-success"></div>
-            </div>
+    <div class="right-now-item">
+        <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; font-size: 20px;">
+            <i class="bi bi-activity"></i>
         </div>
-
-        <!-- CPU Card -->
         <div>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <div style="font-weight: 600; font-size: 13px; color: var(--color-dark);">CPU Load</div>
-                <div style="font-size: 12px; color: var(--color-gray);"><span id="sys-cpu-count">—</span> cores (<span id="sys-cpu-pct">0%</span>)</div>
-            </div>
-            <div class="progress-bar-bg" style="height: 6px;">
-                <div id="sys-cpu-bar" class="progress-bar-fill progress-success"></div>
-            </div>
-        </div>
-
-        <!-- RAM Card -->
-        <div>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <div style="font-weight: 600; font-size: 13px; color: var(--color-dark);">RAM Usage</div>
-                <div style="font-size: 12px; color: var(--color-gray);"><span id="sys-ram-used">—</span> / <span id="sys-ram-total">—</span> (<span id="sys-ram-pct">0%</span>)</div>
-            </div>
-            <div class="progress-bar-bg" style="height: 6px;">
-                <div id="sys-ram-bar" class="progress-bar-fill progress-success"></div>
-            </div>
+            <div class="right-now-label">Live Bandwidth</div>
+            <div class="right-now-value" id="live-total-bandwidth">0 MB</div>
+            <div id="live-network-meta" style="display:none;"></div>
         </div>
     </div>
 </div>
 
-<div class="stats-grid" style="grid-template-columns: repeat(3, 1fr);">
-    <!-- Revenue This Week Card -->
-    <div class="chart-card animate-fadeIn" style="animation-delay: 400ms; margin-bottom: 0;">
-        <div class="chart-header" style="margin-bottom: 1.25rem;">
-            <div>
-                <h3 class="chart-title" style="margin-bottom: 2px;">Revenue This Week</h3>
-                <span class="text-xs text-muted">Since {{ start_of_week_date }}</span>
-            </div>
-            <span class="badge badge-info" style="font-size: 0.75rem; padding: 4px 10px;">
-                <i class="bi bi-calendar-week" style="margin-right: 4px;"></i>Weekly
-            </span>
-        </div>
-        <div class="d-flex align-items-center justify-content-between">
-            <div>
-                <div style="font-size: 2.25rem; font-weight: 800; color: #1A73E8; line-height: 1.1; font-variant-numeric: tabular-nums;">
-                    <span style="font-size: 0.6em; vertical-align: baseline;">₱</span>{{ revenue_this_week|default:"0" }}
-                </div>
-                <div class="text-small text-muted mt-xs">Total coin collection for current week</div>
-            </div>
-            <div style="width: 54px; height: 54px; border-radius: 14px; background: rgba(26, 115, 232, 0.1); color: #1A73E8; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0;">
-                <i class="bi bi-graph-up-arrow"></i>
-            </div>
-        </div>
+<!-- 2. MONEY -->
+<div class="section-title">Money</div>
+<div class="money-grid mb-xl">
+    <!-- Today -->
+    <div class="money-card money-card-today animate-fadeIn" style="animation-delay: 100ms">
+        <i class="bi bi-cash-stack hero-icon-bg" style="position:absolute; top:-10%; right:-5%; font-size: 8rem; opacity: 0.15; pointer-events:none;"></i>
+        <div class="stat-label">Collected Today</div>
+        <div class="stat-value" id="revenue-today"><span style="font-size: 2rem; vertical-align: top;">₱</span>{{ revenue_today|default:"0" }}</div>
+        <div class="text-xs">Based on latest drops</div>
     </div>
 
-    <!-- Revenue This Month Card -->
-    <div class="chart-card animate-fadeIn" style="animation-delay: 500ms; margin-bottom: 0;">
-        <div class="chart-header" style="margin-bottom: 1.25rem;">
-            <div>
-                <h3 class="chart-title" style="margin-bottom: 2px;">Revenue This Month</h3>
-                <span class="text-xs text-muted">{{ current_month_name }}</span>
-            </div>
-            <span class="badge badge-success" style="font-size: 0.75rem; padding: 4px 10px;">
-                <i class="bi bi-calendar-month" style="margin-right: 4px;"></i>Monthly
-            </span>
-        </div>
-        <div class="d-flex align-items-center justify-content-between">
-            <div>
-                <div style="font-size: 2.25rem; font-weight: 800; color: #10B981; line-height: 1.1; font-variant-numeric: tabular-nums;">
-                    <span style="font-size: 0.6em; vertical-align: baseline;">₱</span>{{ revenue_this_month|default:"0" }}
-                </div>
-                <div class="text-small text-muted mt-xs">Total coin collection for {{ current_month_name }}</div>
-            </div>
-            <div style="width: 54px; height: 54px; border-radius: 14px; background: rgba(16, 185, 129, 0.1); color: #10B981; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0;">
-                <i class="bi bi-wallet2"></i>
-            </div>
-        </div>
+    <!-- Week -->
+    <div class="money-card animate-fadeIn" style="animation-delay: 150ms">
+        <div class="stat-label">This Week</div>
+        <div class="stat-value" style="color: var(--color-dark);"><span style="font-size: 1.5rem; vertical-align: top;">₱</span>{{ revenue_this_week|default:"0" }}</div>
+        <div class="text-xs">Since {{ start_of_week_date }}</div>
     </div>
 
-    <!-- Live Network Usage -->
-    <div class="chart-card animate-fadeIn" style="animation-delay: 650ms; margin-bottom: 0;">
-        <div class="chart-header" style="margin-bottom: 1.25rem;">
-            <div>
-                <h3 class="chart-title" style="margin-bottom: 2px;">Live Network Usage</h3>
-                <span class="text-xs text-muted" id="live-network-meta">Waiting for live update...</span>
-            </div>
-            <span class="badge badge-info" style="font-size: 0.75rem; padding: 4px 10px;">
-                <i class="bi bi-arrow-repeat" style="margin-right: 4px;"></i>Auto
-            </span>
-        </div>
-        <div class="d-flex flex-column gap-md">
-            <div class="d-flex justify-content-between align-items-center">
-                <span class="text-small text-muted font-medium">Active Users Right Now</span>
-                <span class="font-bold text-lg" style="color: var(--color-dark);" id="live-active-users">0</span>
-            </div>
-            <div style="width: 100%; height: 1px; background: var(--color-border); margin: 4px 0;"></div>
-            <div class="d-flex justify-content-between align-items-center">
-                <span class="text-small text-muted font-medium">Total Bandwidth In Use</span>
-                <span class="font-bold text-lg" style="color: var(--color-dark);" id="live-total-bandwidth">0 MB</span>
-            </div>
-        </div>
+    <!-- Month -->
+    <div class="money-card animate-fadeIn" style="animation-delay: 200ms">
+        <div class="stat-label">This Month</div>
+        <div class="stat-value" style="color: var(--color-dark);"><span style="font-size: 1.5rem; vertical-align: top;">₱</span>{{ revenue_this_month|default:"0" }}</div>
+        <div class="text-xs">{{ current_month_name }}</div>
     </div>
 </div>
 
-<!-- Recent Sessions Table -->
-<div class="chart-card mt-lg animate-fadeIn" style="animation-delay: 700ms">
+<!-- 3. SYSTEM HEALTH -->
+<div class="section-title">System Health</div>
+<div class="system-health-panel mb-xl animate-fadeIn" style="animation-delay: 300ms">
+    <!-- Disk -->
+    <div class="health-item">
+        <div class="health-header">
+            <span>Disk</span>
+            <span id="sys-disk-pct">0%</span>
+        </div>
+        <div class="progress-bar-bg" style="height: 4px;">
+            <div id="sys-disk-bar" class="progress-bar-fill progress-success"></div>
+        </div>
+        <div class="text-xs text-muted"><span id="sys-disk-used">—</span> / <span id="sys-disk-total">—</span></div>
+    </div>
+    <!-- CPU -->
+    <div class="health-item">
+        <div class="health-header">
+            <span>CPU</span>
+            <span id="sys-cpu-pct">0%</span>
+        </div>
+        <div class="progress-bar-bg" style="height: 4px;">
+            <div id="sys-cpu-bar" class="progress-bar-fill progress-success"></div>
+        </div>
+        <div class="text-xs text-muted"><span id="sys-cpu-count">—</span> cores</div>
+    </div>
+    <!-- RAM -->
+    <div class="health-item">
+        <div class="health-header">
+            <span>RAM</span>
+            <span id="sys-ram-pct">0%</span>
+        </div>
+        <div class="progress-bar-bg" style="height: 4px;">
+            <div id="sys-ram-bar" class="progress-bar-fill progress-success"></div>
+        </div>
+        <div class="text-xs text-muted"><span id="sys-ram-used">—</span> / <span id="sys-ram-total">—</span></div>
+    </div>
+    <!-- Temp -->
+    <div class="health-item">
+        <div class="health-header">
+            <span>Temp</span>
+            <i class="bi bi-thermometer-half"></i>
+        </div>
+        <div class="health-value" id="sys-cpu-temp">—</div>
+    </div>
+    <!-- Internet -->
+    <div class="health-item">
+        <div class="health-header">
+            <span>Internet</span>
+            <div id="sys-internet-dot" style="width: 8px; height: 8px; border-radius: 50%; background: #94A3B8;"></div>
+        </div>
+        <div class="health-value" id="sys-internet-text" style="font-size: 0.9rem;">Checking...</div>
+    </div>
+</div>
+
+<!-- 4. ACTIVITY -->
+<div class="section-title">Activity</div>
+<div class="chart-card animate-fadeIn" style="animation-delay: 400ms">
     <div class="chart-header">
         <h3 class="chart-title">Recent Sessions</h3>
         <a href="{% url 'dashboard:sessions' %}" class="btn btn-sm btn-secondary">View All</a>
