@@ -51,11 +51,11 @@
 <!-- Charts Row -->
 
 <!-- System Resource Cards (Progress Bars) -->
-<div class="stats-grid" style="grid-template-columns: repeat(3, 1fr);">
+<div class="stats-grid" style="grid-template-columns: repeat(5, 1fr);">
     <!-- Disk Card -->
     <div class="stat-card animate-fadeIn" style="animation-delay: 350ms; display: block;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-sm);">
-            <div style="font-weight: 600; font-size: 14px; color: var(--color-dark);">Disk Usage</div>
+            <div style="font-weight: 600; font-size: 14px; color: var(--color-dark);">Disk</div>
             <div style="font-size: 12px; color: var(--color-gray);"><span id="sys-disk-used">—</span> / <span id="sys-disk-total">—</span></div>
         </div>
         <div class="progress-bar-bg">
@@ -92,6 +92,26 @@
         <div style="display: flex; justify-content: space-between; margin-top: var(--space-xs); font-size: 12px; font-weight: 500;">
             <span style="color: var(--color-gray);">Used</span>
             <span id="sys-ram-pct" style="color: var(--color-dark);">0%</span>
+        </div>
+    </div>
+    <!-- Temp Card -->
+    <div class="stat-card animate-fadeIn" style="animation-delay: 500ms; display: block;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-sm);">
+            <div style="font-weight: 600; font-size: 14px; color: var(--color-dark);">Temperature</div>
+            <div style="font-size: 12px; color: var(--color-gray);"><i class="bi bi-thermometer-half"></i></div>
+        </div>
+        <div style="display: flex; align-items: center; height: 38px;">
+            <div id="sys-cpu-temp" style="font-size: 20px; font-weight: 700; color: var(--color-dark);">—</div>
+        </div>
+    </div>
+    <!-- Internet Status Card -->
+    <div class="stat-card animate-fadeIn" style="animation-delay: 550ms; display: block;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-sm);">
+            <div style="font-weight: 600; font-size: 14px; color: var(--color-dark);">Internet</div>
+            <div id="sys-internet-dot" style="width: 10px; height: 10px; border-radius: 50%; background: #94A3B8;"></div>
+        </div>
+        <div style="display: flex; align-items: center; height: 38px;">
+            <div id="sys-internet-text" style="font-size: 14px; font-weight: 600; color: var(--color-gray);">Checking...</div>
         </div>
     </div>
 </div>

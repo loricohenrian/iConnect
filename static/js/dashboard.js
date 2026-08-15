@@ -453,21 +453,26 @@ async function refreshSystemStats() {
         setBar('sys-ram-bar', ramPct);
 
         // --- Internet Status ---
-        const internetDotEl = document.getElementById('sidebar-internet-dot');
-        const internetTextEl = document.getElementById('sidebar-internet-text');
+        const internetDotEl = document.getElementById('sys-internet-dot');
+        const internetTextEl = document.getElementById('sys-internet-text');
         if (internetDotEl && internetTextEl) {
             if (data.internet_online === true) {
                 internetDotEl.style.background = '#10B981'; // Green
-                internetDotEl.style.animation = 'pulse 2s infinite';
+                internetDotEl.style.boxShadow = '0 0 8px rgba(16, 185, 129, 0.5)';
                 internetTextEl.textContent = 'Internet is up';
             } else if (data.internet_online === false) {
                 internetDotEl.style.background = '#EF4444'; // Red
-                internetDotEl.style.animation = 'none';
+                internetDotEl.style.boxShadow = '0 0 8px rgba(239, 68, 68, 0.5)';
                 internetTextEl.textContent = 'Internet is down';
             } else {
-                internetTextEl.textContent = 'System Online';
+                internetDotEl.style.background = '#94A3B8';
+                internetDotEl.style.boxShadow = 'none';
+                internetTextEl.textContent = 'Unknown';
             }
         }
+        
+        // --- CPU Temp ---
+        setText('sys-cpu-temp', data.cpu_temp || '—');
 
     } catch (err) {
         console.error('Failed to refresh system stats:', err);
