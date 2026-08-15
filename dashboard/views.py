@@ -1403,7 +1403,7 @@ def account_view(request):
     }
     return render(request, 'dashboard/account.html', context)
 
-@user_passes_test(is_admin)
+@user_passes_test(_is_dashboard_admin, login_url='dashboard:login')
 def settings_view(request):
     """View to manage global system settings."""
     settings_obj = SystemSettings.get_settings()
