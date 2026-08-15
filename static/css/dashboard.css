@@ -112,7 +112,7 @@
 }
 
 .nav-section-title {
-    color: rgba(0,0,0,0.6);
+    color: rgba(255,255,255,0.4);
     font-size: 10px;
     font-weight: 700;
     text-transform: uppercase;
@@ -125,7 +125,7 @@
     display: flex;
     align-items: center;
     gap: var(--space-sm);
-    color: #000000;
+    color: rgba(255,255,255,0.8);
     padding: 10px 16px;
     border-radius: 8px;
     font-size: 14px;
@@ -136,13 +136,13 @@
 }
 
 .nav-item:hover {
-    background: rgba(0,0,0,0.1);
-    color: #000000;
+    background: rgba(255,255,255,0.05);
+    color: #ffffff;
 }
 
 .nav-item.active {
     background: #ffffff;
-    color: #7b2d3b;
+    color: #000000;
     box-shadow: 0 2px 8px rgba(0,0,0,0.15);
     font-weight: 600;
 }
@@ -162,7 +162,7 @@
 
 .nav-item.active i {
     opacity: 1;
-    color: #7b2d3b;
+    color: #000000;
 }
 
 .nav-item-form {
