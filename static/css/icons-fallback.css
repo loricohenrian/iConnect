@@ -80,7 +80,8 @@
 .bi-bell-slash::before { content: "\266A"; font-size: 1em; }
 .bi-tags::before { content: "\2606"; font-size: 1em; }            /* WiFi Rates */
 .bi-person-gear::before,
-.bi-person-circle::before { content: "\263B"; font-size: 1em; }   /* Account */
+.bi-person-circle::before,
+.bi-person::before { content: "\263B"; font-size: 1em; }   /* Account */
 .bi-box-arrow-right::before { content: "\21E8"; font-size: 1em; } /* Logout */
 .bi-gear::before { content: "\2699"; font-size: 1em; }
 
