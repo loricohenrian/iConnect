@@ -3,16 +3,16 @@
  * Sidebar + main content layout
  */
 
-/* ── Override base maroon palette for dashboard ── */
+/* ── Override base palette for ultra-minimalist light theme ── */
 .dashboard-wrapper {
-    --color-primary:      #8B0000;
-    --color-primary-dark:  #5c0000;
-    --color-primary-light: #fef2f2;
-    --color-dark:         #1E293B;
+    --color-primary:      #0f172a;
+    --color-primary-dark:  #000000;
+    --color-primary-light: #f1f5f9;
+    --color-dark:         #1e293b;
     --color-info:         #0EA5E9;
-    --color-gray:         #6B7280;
-    --color-light:        #F9FAFB;
-    --color-border:       #E5E7EB;
+    --color-gray:         #64748b;
+    --color-light:        #f8fafc;
+    --color-border:       #e2e8f0;
     --shadow-sm:          0 1px 2px 0 rgba(0, 0, 0, 0.05);
     --shadow-md:          0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
 }
@@ -29,7 +29,7 @@
    Sidebar
    ============================================ */
 .sidebar {
-    background: var(--color-primary);
+    background: #f3f4f6;
     width: 260px;
     height: 100vh;
     position: fixed;
@@ -40,24 +40,23 @@
     flex-direction: column;
     transition: transform 0.3s ease;
     overflow-y: auto;
-    border-right: none;
+    border-right: 1px solid var(--color-border);
 }
 
 .sidebar-brand {
     padding: var(--space-lg);
-    border-bottom: 1px solid rgba(255,255,255,0.1);
 }
 
 .sidebar-brand .brand-name {
-    color: #ffffff;
-    font-size: 24px;
+    color: var(--color-dark);
+    font-size: 20px;
     font-weight: 700;
     letter-spacing: -0.5px;
 }
 
 .sidebar-brand .brand-subtitle {
-    color: rgba(255,255,255,0.7);
-    font-size: 13px;
+    color: var(--color-gray);
+    font-size: 12px;
     margin-top: 2px;
 }
 
@@ -72,11 +71,11 @@
 }
 
 .nav-section-title {
-    color: rgba(255,255,255,0.5);
+    color: #94a3b8;
     font-size: 11px;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 0.5px;
     padding: 0 var(--space-md);
     margin-bottom: var(--space-sm);
 }
@@ -85,33 +84,39 @@
     display: flex;
     align-items: center;
     gap: var(--space-md);
-    color: rgba(255,255,255,0.8);
-    padding: 12px 16px;
+    color: #475569;
+    padding: 10px 16px;
     border-radius: 8px;
     font-size: 14px;
     font-weight: 500;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
     transition: all 0.2s;
     text-decoration: none;
 }
 
 .nav-item:hover {
-    background: rgba(255,255,255,0.1);
-    color: #ffffff;
+    background: rgba(0,0,0,0.03);
+    color: var(--color-dark);
 }
 
 .nav-item.active {
-    background: rgba(255,255,255,0.15);
-    color: #ffffff;
-    border-left: 3px solid #ffffff;
-    padding-left: 13px;
+    background: #ffffff;
+    color: var(--color-dark);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    font-weight: 600;
+    border-left: none;
+    padding-left: 16px;
 }
 
 .nav-item i {
-    font-size: 18px;
+    font-size: 16px;
     width: 20px;
     text-align: center;
-    font-weight: 300; /* Thin line icon look */
+    color: #64748b;
+}
+
+.nav-item.active i {
+    color: var(--color-dark);
 }
 
 .nav-item-form {
@@ -129,15 +134,15 @@
 /* Sidebar footer */
 .sidebar-footer {
     padding: var(--space-md) var(--space-lg);
-    border-top: 1px solid rgba(255,255,255,0.1);
 }
 
 .sidebar-footer .system-status {
     display: flex;
     align-items: center;
     gap: var(--space-sm);
-    color: rgba(255,255,255,0.8);
-    font-size: var(--font-size-xs);
+    color: var(--color-dark);
+    font-size: 12px;
+    font-weight: 600;
 }
 
 .sidebar-footer .status-dot {
