@@ -338,7 +338,7 @@ function renderBandwidthUsersTable(users) {
     if (!tbody) return;
 
     if (!users || users.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted">No active users</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="3"><div class="empty-state"><i class="bi bi-inbox"></i><p>No active users</p><small>Waiting for connections...</small></div></td></tr>';
         return;
     }
 
@@ -457,36 +457,23 @@ async function refreshSystemStats() {
 
         // --- Disk ---
         const diskPct = data.disk_percent || 0;
-        const diskRemPct = 100 - diskPct;
         setText('sys-disk-total', data.disk_total || '—');
         setText('sys-disk-used', data.disk_used || '—');
         setText('sys-disk-pct', diskPct + '%');
-        setText('sys-disk-remaining', data.disk_remaining || '—');
-        setText('sys-disk-remaining-pct', diskRemPct + '%');
         setBar('sys-disk-bar', diskPct);
-        setBar('sys-disk-bar-remaining', diskRemPct);
 
         // --- CPU ---
         const cpuPct = data.cpu_load_raw || 0;
-        const cpuRemPct = Math.max(0, 100 - cpuPct);
         setText('sys-cpu-count', data.cpu_count || '—');
-        setText('sys-cpu-used', data.cpu_load || '—');
         setText('sys-cpu-pct', cpuPct.toFixed(1) + '%');
-        setText('sys-cpu-remaining-pct-label', cpuRemPct.toFixed(1) + '%');
-        setText('sys-cpu-remaining-pct', cpuRemPct.toFixed(1) + '%');
         setBar('sys-cpu-bar', cpuPct);
-        setBar('sys-cpu-bar-remaining', cpuRemPct);
 
         // --- RAM ---
         const ramPct = data.ram_percent || 0;
-        const ramRemPct = 100 - ramPct;
         setText('sys-ram-total', data.ram_total || '—');
         setText('sys-ram-used', data.ram_used || '—');
         setText('sys-ram-pct', ramPct + '%');
-        setText('sys-ram-remaining', data.ram_remaining || '—');
-        setText('sys-ram-remaining-pct', ramRemPct + '%');
         setBar('sys-ram-bar', ramPct);
-        setBar('sys-ram-bar-remaining', ramRemPct);
 
     } catch (err) {
         console.error('Failed to refresh system stats:', err);
@@ -500,7 +487,21 @@ function setText(id, value) {
 
 function setBar(id, pct) {
     const el = document.getElementById(id);
-    if (el) el.style.width = Math.min(100, Math.max(0, pct)) + '%';
+    if (el) {
+        el.style.width = Math.min(100, Math.max(0, pct)) + '%';
+        
+        // Remove existing semantic classes
+        el.classList.remove('progress-success', 'progress-warning', 'progress-danger');
+        
+        // Add threshold class
+        if (pct >= 90) {
+            el.classList.add('progress-danger');
+        } else if (pct >= 70) {
+            el.classList.add('progress-warning');
+        } else {
+            el.classList.add('progress-success');
+        }
+    }
 }
 
 // ============================================
