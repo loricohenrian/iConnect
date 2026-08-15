@@ -1,0 +1,103 @@
+{% extends "base_dashboard.html" %}
+
+{% block page_title %}Global Settings{% endblock %}
+{% block topbar_title %}Global Settings{% endblock %}
+
+{% block dashboard_content %}
+
+{% if message %}
+<div class="alert alert-success mb-md">
+    <i class="bi bi-check-circle"></i> {{ message }}
+</div>
+{% endif %}
+
+{% if error_message %}
+<div class="alert alert-danger mb-md">
+    <i class="bi bi-exclamation-triangle"></i> {{ error_message }}
+</div>
+{% endif %}
+
+<div class="grid-2">
+    <!-- Networking Settings -->
+    <div class="chart-card animate-fadeIn">
+        <h3 class="card-title mb-md"><i class="bi bi-router"></i> Advanced Networking</h3>
+        
+        <form method="POST" action="">
+            {% csrf_token %}
+            
+            <div class="form-group">
+                <label class="d-flex align-items-center gap-sm" style="margin-bottom: 0.25rem;">
+                    <input type="checkbox" name="enable_anti_tethering" {% if settings.enable_anti_tethering %}checked{% endif %}>
+                    <span style="font-weight: 600;">Anti-Tethering (TTL=1)</span>
+                </label>
+                <small style="color: var(--text-secondary); display: block; margin-left: 1.75rem;">
+                    Blocks users from sharing their internet connection via Mobile Hotspot or Bluetooth by forcing packet time-to-live to 1.
+                </small>
+            </div>
+
+            <hr style="margin: 1.5rem 0; border: 0; border-top: 1px solid var(--border-color);">
+
+            <div class="form-group">
+                <label class="d-flex align-items-center gap-sm" style="margin-bottom: 0.25rem;">
+                    <input type="checkbox" name="enable_sqm" {% if settings.enable_sqm %}checked{% endif %}>
+                    <span style="font-weight: 600;">SQM CAKE (Anti-Bufferbloat)</span>
+                </label>
+                <small style="color: var(--text-secondary); display: block; margin-left: 1.75rem; margin-bottom: 1rem;">
+                    Replaces default queues with CAKE to drastically reduce latency and ping spikes when the network is under heavy load (e.g. downloads).
+                </small>
+            </div>
+            
+            <div class="grid-2" style="margin-left: 1.75rem;">
+                <div class="form-group">
+                    <label class="form-label" style="font-size: 0.85rem;">ISP Download Speed (Mbps)</label>
+                    <input type="number" min="1" class="form-input" name="isp_download_speed" value="{{ settings.isp_download_speed }}" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" style="font-size: 0.85rem;">ISP Upload Speed (Mbps)</label>
+                    <input type="number" min="1" class="form-input" name="isp_upload_speed" value="{{ settings.isp_upload_speed }}" required>
+                </div>
+            </div>
+            <small style="color: var(--text-muted); display: block; margin-left: 1.75rem; margin-top: -0.5rem; margin-bottom: 1rem;">
+                * Set this to 90-95% of your true maximum ISP speed for CAKE to work perfectly.
+            </small>
+
+    </div>
+
+    <!-- General Settings -->
+    <div class="chart-card animate-fadeIn" style="animation-delay: 100ms">
+        <h3 class="card-title mb-md"><i class="bi bi-sliders"></i> General Preferences</h3>
+        
+            <div class="form-group">
+                <label class="form-label">Max Concurrent Sessions</label>
+                <input type="number" min="1" class="form-input" name="max_concurrent_sessions" value="{{ settings.max_concurrent_sessions }}" required>
+                <small style="color: var(--text-secondary);">Maximum number of users allowed to connect at the exact same time.</small>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Global Max Pause (Hours)</label>
+                <input type="number" min="0" class="form-input" name="global_pause_limit_hours" value="{{ settings.global_pause_limit_hours }}" required>
+                <small style="color: var(--text-secondary);">Default limit if a Plan doesn't have a specific limit set. 0 = unlimited.</small>
+            </div>
+
+            <hr style="margin: 1.5rem 0; border: 0; border-top: 1px solid var(--border-color);">
+
+            <div class="form-group">
+                <label class="d-flex align-items-center gap-sm">
+                    <input type="checkbox" name="enable_dark_mode" {% if settings.enable_dark_mode %}checked{% endif %}>
+                    <span style="font-weight: 600;">Force Dark Mode</span>
+                </label>
+                <small style="color: var(--text-secondary); display: block; margin-left: 1.75rem;">
+                    Forces the admin dashboard to always use the dark theme regardless of system preferences.
+                </small>
+            </div>
+            
+            <div class="form-group mt-xl" style="text-align: right;">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-save"></i> Save All Settings
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}

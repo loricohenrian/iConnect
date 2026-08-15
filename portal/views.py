@@ -128,7 +128,7 @@ def index(request):
         ).aggregate(total=Sum("amount"))["total"] or 0
 
     # Connection slots
-    max_slots = getattr(settings, 'PISONET_MAX_CONCURRENT_SESSIONS', 20)
+    from dashboard.models import SystemSettings; max_slots = SystemSettings.get_settings().max_concurrent_sessions
     active_count = Session.objects.filter(status='active').count()
     available_slots = max(0, max_slots - active_count)
 
@@ -179,7 +179,7 @@ def session_page(request):
         return redirect(f"/?expired=1&mac={mac_address}")
 
     # Connection slots
-    max_slots = getattr(settings, 'PISONET_MAX_CONCURRENT_SESSIONS', 20)
+    from dashboard.models import SystemSettings; max_slots = SystemSettings.get_settings().max_concurrent_sessions
     active_count = Session.objects.filter(status='active').count()
     available_slots = max(0, max_slots - active_count)
 
@@ -270,7 +270,7 @@ def live_data(request):
 
     # Connection slots
     from django.conf import settings
-    max_slots = getattr(settings, 'PISONET_MAX_CONCURRENT_SESSIONS', 20)
+    from dashboard.models import SystemSettings; max_slots = SystemSettings.get_settings().max_concurrent_sessions
     active_count = Session.objects.filter(status='active').count()
     available_slots = max(0, max_slots - active_count)
 

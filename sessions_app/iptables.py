@@ -370,7 +370,7 @@ def _ensure_root_qdisc(iface):
     if ok:
         # Default class for unthrottled traffic
         _run_command(['tc', 'class', 'add', 'dev', iface, 'parent', '1:', 'classid', '1:9999', 'htb',
-                      'rate', '100mbit', 'ceil', '100mbit'])
+                      'rate', '1000mbit', 'ceil', '1000mbit'])
     return ok
 
 
@@ -511,6 +511,18 @@ def apply_bandwidth_limit(mac_address, rate_kbps=None, upload_kbps=None):
     _run_command(['tc', 'filter', 'add', 'dev', lan, 'parent', '1:', 'protocol', 'ip',
                   'handle', hex_mark, 'fw', 'classid', class_id])
 
+    # === SQM CAKE (if enabled) ===
+    try:
+        from dashboard.models import SystemSettings
+        settings_obj = SystemSettings.get_settings()
+        if settings_obj.enable_sqm:
+            # Attach CAKE to upload class
+            _run_command(['tc', 'qdisc', 'replace', 'dev', wan, 'parent', class_id, 'handle', f'{mark}:', 'cake'], ignore_errors=True)
+            # Attach CAKE to download class
+            _run_command(['tc', 'qdisc', 'replace', 'dev', lan, 'parent', class_id, 'handle', f'{mark}:', 'cake'], ignore_errors=True)
+    except Exception as e:
+        logger.error(f"Error applying SQM CAKE: {e}")
+
     logger.info('Bandwidth limit applied for %s (IP=%s): DL=%s UL=%s', mac, ip, dl_rate, ul_rate)
     return True
 
@@ -566,3 +578,59 @@ def flush_rules():
     if success:
         logger.info('Flushed all FORWARD rules')
     return success
+
+def apply_network_settings():
+    """Apply global network settings from SystemSettings."""
+    if _is_simulation():
+        logger.info("[SIM] Would apply network settings")
+        return True
+        
+    try:
+        from dashboard.models import SystemSettings
+        settings_obj = SystemSettings.get_settings()
+        lan = _get_lan_interface()
+        
+        # 1. Anti-Tethering (TTL = 1 on LAN)
+        # First remove any existing rule to avoid duplicates
+        _run_command(['iptables', '-t', 'mangle', '-D', 'POSTROUTING', '-o', lan, '-j', 'TTL', '--ttl-set', '1'], ignore_errors=True)
+        while _run_command(['iptables', '-t', 'mangle', '-D', 'POSTROUTING', '-o', lan, '-j', 'TTL', '--ttl-set', '1'], ignore_errors=True):
+            pass
+            
+        if settings_obj.enable_anti_tethering:
+            _run_command(['iptables', '-t', 'mangle', '-A', 'POSTROUTING', '-o', lan, '-j', 'TTL', '--ttl-set', '1'])
+            logger.info("Anti-Tethering (TTL=1) enabled on LAN")
+        else:
+            logger.info("Anti-Tethering disabled")
+            
+        # 2. SQM CAKE - For existing users, they will get CAKE when they reconnect or get re-allowed.
+        # But we also want to limit the root default unthrottled traffic to the ISP limits to prevent global bufferbloat
+        wan = _get_wan_interface()
+        
+        _ensure_root_qdisc(wan)
+        _ensure_root_qdisc(lan)
+        
+        if settings_obj.enable_sqm:
+            isp_dl = f"{settings_obj.isp_download_speed}mbit"
+            isp_ul = f"{settings_obj.isp_upload_speed}mbit"
+            
+            # Update default class (1:9999) to ISP limit instead of 1000mbit
+            _run_command(['tc', 'class', 'replace', 'dev', wan, 'parent', '1:', 'classid', '1:9999', 'htb', 'rate', isp_ul, 'ceil', isp_ul])
+            _run_command(['tc', 'class', 'replace', 'dev', lan, 'parent', '1:', 'classid', '1:9999', 'htb', 'rate', isp_dl, 'ceil', isp_dl])
+            
+            # Attach CAKE to the default classes
+            _run_command(['tc', 'qdisc', 'replace', 'dev', wan, 'parent', '1:9999', 'handle', '9999:', 'cake'], ignore_errors=True)
+            _run_command(['tc', 'qdisc', 'replace', 'dev', lan, 'parent', '1:9999', 'handle', '9999:', 'cake'], ignore_errors=True)
+            logger.info(f"SQM enabled: WAN default={isp_ul}, LAN default={isp_dl}")
+        else:
+            # Restore to unrestricted default
+            _run_command(['tc', 'class', 'replace', 'dev', wan, 'parent', '1:', 'classid', '1:9999', 'htb', 'rate', '1000mbit', 'ceil', '1000mbit'])
+            _run_command(['tc', 'class', 'replace', 'dev', lan, 'parent', '1:', 'classid', '1:9999', 'htb', 'rate', '1000mbit', 'ceil', '1000mbit'])
+            # Remove CAKE
+            _run_command(['tc', 'qdisc', 'del', 'dev', wan, 'parent', '1:9999'], ignore_errors=True)
+            _run_command(['tc', 'qdisc', 'del', 'dev', lan, 'parent', '1:9999'], ignore_errors=True)
+            logger.info("SQM disabled")
+            
+        return True
+    except Exception as e:
+        logger.error(f"Error applying network settings: {e}")
+        return False

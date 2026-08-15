@@ -126,3 +126,57 @@ class OperatingExpense(models.Model):
             
             total += daily_cost * days_operating
         return round(total, 2)
+
+
+class SystemSettings(models.Model):
+    """Singleton model for global system settings."""
+    # Networking
+    enable_anti_tethering = models.BooleanField(
+        default=False, 
+        help_text="Block hotspot sharing by fixing TTL to 1"
+    )
+    enable_sqm = models.BooleanField(
+        default=False, 
+        help_text="Enable CAKE Smart Queue Management for anti-bufferbloat"
+    )
+    isp_download_speed = models.PositiveIntegerField(
+        default=100, 
+        help_text="Total ISP Download Speed (Mbps)"
+    )
+    isp_upload_speed = models.PositiveIntegerField(
+        default=100, 
+        help_text="Total ISP Upload Speed (Mbps)"
+    )
+
+    # General / UI
+    enable_dark_mode = models.BooleanField(
+        default=False,
+        help_text="Force dark mode for the admin dashboard"
+    )
+    max_concurrent_sessions = models.PositiveIntegerField(
+        default=20,
+        help_text="Maximum allowed simultaneous connected users"
+    )
+    global_pause_limit_hours = models.PositiveIntegerField(
+        default=24,
+        help_text="Global fallback max pause duration in hours (0 = unlimited)"
+    )
+
+    class Meta:
+        verbose_name = "System Setting"
+        verbose_name_plural = "System Settings"
+
+    def __str__(self):
+        return "Global System Settings"
+
+    def save(self, *args, **kwargs):
+        # Ensure only one instance exists
+        if not self.pk and SystemSettings.objects.exists():
+            return
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def get_settings(cls):
+        """Get the singleton instance, creating it if it doesn't exist."""
+        obj, created = cls.objects.get_or_create(id=1)
+        return obj

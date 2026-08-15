@@ -72,7 +72,7 @@ def check_expired_sessions():
     from django.conf import settings
     from datetime import timedelta
     
-    global_max_pause_hours = getattr(settings, 'PISONET_MAX_PAUSE_HOURS', 24)
+    from dashboard.models import SystemSettings; global_max_pause_hours = SystemSettings.get_settings().global_pause_limit_hours
     paused_sessions = Session.objects.filter(status='paused').select_related('plan')
     
     resumed_count = 0

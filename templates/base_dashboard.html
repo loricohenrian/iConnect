@@ -8,7 +8,7 @@
 {% endblock %}
 
 {% block body %}
-<div class="dashboard-wrapper">
+<div class="dashboard-wrapper" {% if sys_settings.enable_dark_mode %}data-theme="dark"{% endif %}>
     <!-- Sidebar Overlay (mobile) -->
     <div class="sidebar-overlay" id="sidebar-overlay"></div>
 
@@ -65,6 +65,10 @@
                 <a href="{% url 'dashboard:plans' %}" class="nav-item {% if active_page == 'plans' %}active{% endif %}" id="nav-plans">
                     <i class="bi bi-tags"></i>
                     <span>WiFi Rates</span>
+                </a>
+                <a href="{% url 'dashboard:settings' %}" class="nav-item {% if active_page == 'settings' %}active{% endif %}" id="nav-settings">
+                    <i class="bi bi-gear-fill"></i>
+                    <span>Settings</span>
                 </a>
                 <a href="{% url 'dashboard:account' %}" class="nav-item {% if active_page == 'account' %}active{% endif %}" id="nav-account">
                     <i class="bi bi-person"></i>

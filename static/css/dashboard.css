@@ -726,3 +726,41 @@
 }
 
 
+
+[data-theme=" dark\] {
+ --color-primary: #a33b4e;
+ --color-primary-dark: #7b2d3b;
+ --color-primary-light: #2d1319;
+ --color-dark: #f8fafc;
+ --color-gray: #94a3b8;
+ --color-light: #0f172a;
+ --color-border: #334155;
+ background-color: var(--color-light);
+ color: var(--color-dark);
+}
+[data-theme=\dark\] .sidebar {
+ background: var(--color-primary-dark);
+}
+[data-theme=\dark\] .chart-card {
+ background: #1e293b;
+ border-color: var(--color-border);
+}
+[data-theme=\dark\] .topbar {
+ background: #1e293b;
+ border-color: var(--color-border);
+}
+[data-theme=\dark\] .table {
+ color: var(--color-dark);
+}
+[data-theme=\dark\] .table th {
+ background: #0f172a;
+ color: var(--color-gray);
+}
+[data-theme=\dark\] .table tr {
+ border-color: var(--color-border);
+}
+[data-theme=\dark\] .form-input {
+ background: #0f172a;
+ border-color: var(--color-border);
+ color: var(--color-dark);
+}

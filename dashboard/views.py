@@ -23,7 +23,7 @@ from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
-from .models import Announcement, RevenueGoal, ProjectCost, DailyRevenueSummary
+from .models import Announcement, RevenueGoal, ProjectCost, DailyRevenueSummary, SystemSettings
 from .serializers import AnnouncementSerializer, RevenueGoalSerializer, ProjectCostSerializer
 from sessions_app import iptables
 from sessions_app.models import Session, CoinEvent, Plan, WhitelistedDevice, SuspiciousDevice, PurchaseTransaction
@@ -1402,6 +1402,50 @@ def account_view(request):
         'password_form': password_form,
     }
     return render(request, 'dashboard/account.html', context)
+
+@user_passes_test(is_admin)
+def settings_view(request):
+    """View to manage global system settings."""
+    settings_obj = SystemSettings.get_settings()
+    message = None
+    error_message = None
+
+    if request.method == 'POST':
+        try:
+            # Networking
+            settings_obj.enable_anti_tethering = request.POST.get('enable_anti_tethering') == 'on'
+            settings_obj.enable_sqm = request.POST.get('enable_sqm') == 'on'
+            settings_obj.isp_download_speed = int(request.POST.get('isp_download_speed', 100))
+            settings_obj.isp_upload_speed = int(request.POST.get('isp_upload_speed', 100))
+            
+            # General / UI
+            settings_obj.enable_dark_mode = request.POST.get('enable_dark_mode') == 'on'
+            settings_obj.max_concurrent_sessions = int(request.POST.get('max_concurrent_sessions', 20))
+            settings_obj.global_pause_limit_hours = int(request.POST.get('global_pause_limit_hours', 24))
+            
+            settings_obj.save()
+            message = "Settings updated successfully."
+            
+            # Apply network settings immediately if on Linux
+            try:
+                from sessions_app.iptables import apply_network_settings
+                apply_network_settings()
+            except Exception as e:
+                logging.error(f"Failed to apply network settings: {e}")
+                message += " (Note: Network rules could not be applied, please check logs)."
+
+        except ValueError:
+            error_message = "Invalid input for numeric fields."
+        except Exception as e:
+            error_message = f"An error occurred: {e}"
+
+    context = {
+        'active_page': 'settings',
+        'settings': settings_obj,
+        'message': message,
+        'error_message': error_message,
+    }
+    return render(request, 'dashboard/settings.html', context)
 
 
 
