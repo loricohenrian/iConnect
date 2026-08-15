@@ -228,6 +228,7 @@ def system_stats_api(request):
     """System hardware stats (CPU temp, load, RAM, disk)."""
     import shutil
     import os
+    import subprocess
 
     stats = {
         'cpu_temp': 'N/A',
@@ -305,6 +306,18 @@ def system_stats_api(request):
         stats['disk_percent'] = round((usage.used / usage.total) * 100) if usage.total > 0 else 0
     except Exception:
         pass
+
+    # Internet Status Check
+    try:
+        subprocess.run(
+            ['ping', '-c', '1', '-W', '1', '8.8.8.8'],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=True
+        )
+        stats['internet_online'] = True
+    except Exception:
+        stats['internet_online'] = False
 
     return Response(stats)
 

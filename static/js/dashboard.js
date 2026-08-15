@@ -452,6 +452,23 @@ async function refreshSystemStats() {
         setText('sys-ram-pct', ramPct + '%');
         setBar('sys-ram-bar', ramPct);
 
+        // --- Internet Status ---
+        const internetDotEl = document.getElementById('sidebar-internet-dot');
+        const internetTextEl = document.getElementById('sidebar-internet-text');
+        if (internetDotEl && internetTextEl) {
+            if (data.internet_online === true) {
+                internetDotEl.style.background = '#10B981'; // Green
+                internetDotEl.style.animation = 'pulse 2s infinite';
+                internetTextEl.textContent = 'Internet is up';
+            } else if (data.internet_online === false) {
+                internetDotEl.style.background = '#EF4444'; // Red
+                internetDotEl.style.animation = 'none';
+                internetTextEl.textContent = 'Internet is down';
+            } else {
+                internetTextEl.textContent = 'System Online';
+            }
+        }
+
     } catch (err) {
         console.error('Failed to refresh system stats:', err);
     }
