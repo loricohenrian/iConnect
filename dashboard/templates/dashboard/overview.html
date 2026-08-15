@@ -183,7 +183,6 @@
             <thead>
                 <tr>
                     <th>Device</th>
-                    <th>Plan</th>
                     <th>Amount</th>
                     <th>Time In</th>
                     <th>Status</th>
@@ -196,7 +195,6 @@
                         <div class="font-semibold">{{ session.device_name|default:"Unknown" }}</div>
                         <div class="text-xs text-muted">{{ session.mac_address }}</div>
                     </td>
-                    <td>{{ session.plan.name }}</td>
                     <td class="font-semibold">₱{{ session.amount_paid }}</td>
                     <td>{{ session.time_in|date:"M d, h:i A" }}</td>
                     <td>
