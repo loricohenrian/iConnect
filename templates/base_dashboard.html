@@ -23,39 +23,39 @@
             <div class="nav-section">
                 <div class="nav-section-title">Main</div>
                 <a href="{% url 'dashboard:overview' %}" class="nav-item {% if active_page == 'overview' %}active{% endif %}" id="nav-overview">
-                    <i class="bi bi-grid-1x2"></i>
+                    <i class="bi bi-grid"></i>
                     <span>Overview</span>
                 </a>
                 <a href="{% url 'dashboard:revenue' %}" class="nav-item {% if active_page == 'revenue' %}active{% endif %}" id="nav-revenue">
-                    <i class="bi bi-coin"></i>
-                    <span>Sales Inventory</span>
+                    <i class="bi bi-cash-coin"></i>
+                    <span>Revenue</span>
                 </a>
                 <a href="{% url 'dashboard:sessions' %}" class="nav-item {% if active_page == 'sessions' %}active{% endif %}" id="nav-sessions">
-                    <i class="bi bi-clock"></i>
-                    <span>Timer Rates</span>
+                    <i class="bi bi-people"></i>
+                    <span>Sessions</span>
                 </a>
             </div>
 
             <div class="nav-section">
                 <div class="nav-section-title">Analytics</div>
                 <a href="{% url 'dashboard:heatmap' %}" class="nav-item {% if active_page == 'heatmap' %}active{% endif %}" id="nav-heatmap">
-                    <i class="bi bi-calendar3"></i>
-                    <span>Schedule & Timezone</span>
+                    <i class="bi bi-calendar-range"></i>
+                    <span>Peak Hours</span>
                 </a>
                 <a href="{% url 'dashboard:analytics' %}" class="nav-item {% if active_page == 'analytics' %}active{% endif %}" id="nav-analytics">
                     <i class="bi bi-graph-up"></i>
                     <span>Analytics</span>
                 </a>
                 <a href="{% url 'dashboard:roi' %}" class="nav-item {% if active_page == 'roi' %}active{% endif %}" id="nav-roi">
-                    <i class="bi bi-wallet2"></i>
+                    <i class="bi bi-pie-chart"></i>
                     <span>ROI Tracker</span>
                 </a>
             </div>
 
             <div class="nav-section">
-                <div class="nav-section-title">Extra Features</div>
+                <div class="nav-section-title">Management</div>
                 <a href="{% url 'dashboard:reports' %}" class="nav-item {% if active_page == 'reports' %}active{% endif %}" id="nav-reports">
-                    <i class="bi bi-file-earmark-text"></i>
+                    <i class="bi bi-file-earmark-arrow-down"></i>
                     <span>Reports</span>
                 </a>
                 <a href="{% url 'dashboard:announcements' %}" class="nav-item {% if active_page == 'announcements' %}active{% endif %}" id="nav-announcements">
@@ -63,11 +63,11 @@
                     <span>Announcements</span>
                 </a>
                 <a href="{% url 'dashboard:plans' %}" class="nav-item {% if active_page == 'plans' %}active{% endif %}" id="nav-plans">
-                    <i class="bi bi-wifi"></i>
+                    <i class="bi bi-tags"></i>
                     <span>WiFi Rates</span>
                 </a>
                 <a href="{% url 'dashboard:account' %}" class="nav-item {% if active_page == 'account' %}active{% endif %}" id="nav-account">
-                    <i class="bi bi-person"></i>
+                    <i class="bi bi-person-circle"></i>
                     <span>Account</span>
                 </a>
                 <form method="post" action="{% url 'dashboard:logout' %}" class="nav-item-form" id="nav-logout-form">

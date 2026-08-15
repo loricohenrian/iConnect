@@ -29,7 +29,7 @@
    Sidebar
    ============================================ */
 .sidebar {
-    background: #51aecf;
+    background: #7b2d3b;
     width: 260px;
     height: 100vh;
     position: fixed;
@@ -101,7 +101,7 @@
 
 .nav-item.active {
     background: #ffffff;
-    color: #51aecf;
+    color: #7b2d3b;
     box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     font-weight: 600;
     border-left: none;
@@ -116,7 +116,7 @@
 }
 
 .nav-item.active i {
-    color: #51aecf;
+    color: #7b2d3b;
 }
 
 .nav-item-form {
