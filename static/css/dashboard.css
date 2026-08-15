@@ -29,7 +29,7 @@
    Sidebar
    ============================================ */
 .sidebar {
-    background: #f3f4f6;
+    background: #51aecf;
     width: 260px;
     height: 100vh;
     position: fixed;
@@ -40,7 +40,7 @@
     flex-direction: column;
     transition: transform 0.3s ease;
     overflow-y: auto;
-    border-right: 1px solid var(--color-border);
+    border-right: none;
 }
 
 .sidebar-brand {
@@ -48,14 +48,14 @@
 }
 
 .sidebar-brand .brand-name {
-    color: var(--color-dark);
+    color: #ffffff;
     font-size: 20px;
     font-weight: 700;
     letter-spacing: -0.5px;
 }
 
 .sidebar-brand .brand-subtitle {
-    color: var(--color-gray);
+    color: rgba(255,255,255,0.8);
     font-size: 12px;
     margin-top: 2px;
 }
@@ -71,7 +71,7 @@
 }
 
 .nav-section-title {
-    color: #94a3b8;
+    color: rgba(255,255,255,0.6);
     font-size: 11px;
     font-weight: 600;
     text-transform: uppercase;
@@ -84,7 +84,7 @@
     display: flex;
     align-items: center;
     gap: var(--space-md);
-    color: #475569;
+    color: rgba(255,255,255,0.9);
     padding: 10px 16px;
     border-radius: 8px;
     font-size: 14px;
@@ -95,14 +95,14 @@
 }
 
 .nav-item:hover {
-    background: rgba(0,0,0,0.03);
-    color: var(--color-dark);
+    background: rgba(255,255,255,0.1);
+    color: #ffffff;
 }
 
 .nav-item.active {
     background: #ffffff;
-    color: var(--color-dark);
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    color: #51aecf;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     font-weight: 600;
     border-left: none;
     padding-left: 16px;
@@ -112,11 +112,11 @@
     font-size: 16px;
     width: 20px;
     text-align: center;
-    color: #64748b;
+    color: rgba(255,255,255,0.8);
 }
 
 .nav-item.active i {
-    color: var(--color-dark);
+    color: #51aecf;
 }
 
 .nav-item-form {
@@ -140,7 +140,7 @@
     display: flex;
     align-items: center;
     gap: var(--space-sm);
-    color: var(--color-dark);
+    color: #ffffff;
     font-size: 12px;
     font-weight: 600;
 }
