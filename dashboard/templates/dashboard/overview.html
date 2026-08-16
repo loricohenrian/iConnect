@@ -152,15 +152,15 @@
             <div class="stat-card-compact-value" id="sessions-today" style="color: var(--color-dark);">{{ sessions_today|default:"0" }}</div>
         </div>
 
-        <!-- ROI Progress -->
+        <!-- Internet Status -->
         <div class="stat-card-compact animate-fadeIn" style="animation-delay: 250ms">
             <div class="stat-card-compact-header" style="color: var(--color-dark);">
-                <span>ROI Progress</span>
+                <span>Internet</span>
                 <div class="static-icon">
-                    <i class="bi bi-pie-chart"></i>
+                    <div id="sys-internet-dot" style="width: 14px; height: 14px; border-radius: 50%; background: #94A3B8;"></div>
                 </div>
             </div>
-            <div class="stat-card-compact-value" id="roi-progress" style="color: {% if roi_percentage|add:0 < 0 %}var(--color-danger){% elif roi_percentage|add:0 > 0 %}var(--color-success){% else %}var(--color-dark){% endif %};">{{ roi_percentage|default:"0" }}%</div>
+            <div class="stat-card-compact-value" id="sys-internet-text" style="color: var(--color-dark);">Checking...</div>
         </div>
 
         <!-- Temperature -->
@@ -174,15 +174,15 @@
             <div class="stat-card-compact-value" id="sys-cpu-temp" style="color: var(--color-dark);">—</div>
         </div>
 
-        <!-- Internet Status -->
+        <!-- ROI Progress -->
         <div class="stat-card-compact animate-fadeIn" style="animation-delay: 350ms">
             <div class="stat-card-compact-header" style="color: var(--color-dark);">
-                <span>Internet</span>
+                <span>ROI Progress</span>
                 <div class="static-icon">
-                    <div id="sys-internet-dot" style="width: 14px; height: 14px; border-radius: 50%; background: #94A3B8;"></div>
+                    <i class="bi bi-pie-chart"></i>
                 </div>
             </div>
-            <div class="stat-card-compact-value" id="sys-internet-text" style="color: var(--color-dark);">Checking...</div>
+            <div class="stat-card-compact-value" id="roi-progress" style="color: {% if roi_percentage|add:0 < 0 %}var(--color-danger){% elif roi_percentage|add:0 > 0 %}var(--color-success){% else %}var(--color-dark){% endif %};">{{ roi_percentage|default:"0" }}%</div>
         </div>
     </div>
 
