@@ -24,11 +24,11 @@
     gap: var(--space-lg);
 }
 .hero-card-xl {
-    background: #ffffff;
+    background: var(--color-light, #ffffff);
     border-radius: 16px;
-    padding: 2rem;
-    box-shadow: var(--shadow-sm);
-    border: 1px solid var(--color-border);
+    padding: 1.5rem;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+    border: none;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -47,14 +47,6 @@
     line-height: 1;
     font-variant-numeric: tabular-nums;
 }
-.hero-icon-bg {
-    position: absolute;
-    top: -10%;
-    right: -10%;
-    font-size: 8rem;
-    opacity: 0.04;
-    pointer-events: none;
-}
 .hero-side-group {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -62,34 +54,34 @@
     align-content: start;
 }
 .stat-card-compact {
-    background: #ffffff;
+    background: var(--color-light, #ffffff);
     border-radius: 12px;
-    padding: var(--space-md) var(--space-lg);
-    box-shadow: var(--shadow-sm);
-    border: 1px solid var(--color-border);
+    padding: 1.5rem;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+    border: none;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 12px;
 }
 .stat-card-compact-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: 0.85rem;
+    font-size: 0.9rem;
     color: var(--color-gray);
     font-weight: 600;
 }
 .stat-card-compact-value {
-    font-size: 1.25rem;
+    font-size: 1.5rem;
     font-weight: 700;
     color: var(--color-dark);
 }
 .sys-strip-container {
-    background: #ffffff;
+    background: var(--color-light, #ffffff);
     border-radius: 16px;
-    padding: var(--space-lg) var(--space-xl);
-    box-shadow: var(--shadow-sm);
-    border: 1px solid var(--color-border);
+    padding: 1.5rem;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+    border: none;
     margin-bottom: var(--space-xl);
 }
 .sys-strip-grid {
@@ -103,9 +95,12 @@
         gap: var(--space-lg);
     }
 }
-/* Force progress bars to be black */
-.progress-success, .progress-warning, .progress-danger {
-    background-color: #000 !important;
+.static-icon {
+    color: var(--color-gray);
+    font-size: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 </style>
 
@@ -116,10 +111,9 @@
     <div class="hero-main-group">
         <!-- Revenue Today (Huge) -->
         <div class="hero-card-xl animate-fadeIn">
-            <i class="bi bi-cash-stack hero-icon-bg" style="color: var(--color-dark);"></i>
             <div style="display: flex; justify-content: space-between; align-items: flex-start; position: relative;">
                 <div class="stat-label" style="font-weight: 800; color: var(--color-dark);">Revenue Today</div>
-                <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(0, 0, 0, 0.05); color: var(--color-dark); display: flex; align-items: center; justify-content: center; font-size: 24px;">
+                <div class="static-icon">
                     <i class="bi bi-cash-coin"></i>
                 </div>
             </div>
@@ -130,10 +124,9 @@
 
         <!-- Connected Users (Huge) -->
         <div class="hero-card-xl animate-fadeIn" style="animation-delay: 100ms">
-            <i class="bi bi-people-fill hero-icon-bg" style="color: var(--color-dark);"></i>
             <div style="display: flex; justify-content: space-between; align-items: flex-start; position: relative;">
                 <div class="stat-label" style="font-weight: 800; color: var(--color-dark);">Active Users</div>
-                <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(0, 0, 0, 0.05); color: var(--color-dark); display: flex; align-items: center; justify-content: center; font-size: 24px;">
+                <div class="static-icon">
                     <i class="bi bi-people"></i>
                 </div>
             </div>
@@ -149,10 +142,12 @@
         <div class="stat-card-compact animate-fadeIn" style="animation-delay: 200ms">
             <div class="stat-card-compact-header" style="color: var(--color-dark);">
                 <span>Sessions Today</span>
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#000" viewBox="0 0 16 16">
-                    <path d="M8 3.5a.5.5 0 0 0-1 0V9a.5.5 0 0 0 .252.434l3.5 2a.5.5 0 0 0 .496-.868L8 8.71z"/>
-                    <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16m7-8A7 7 0 1 1 1 8a7 7 0 0 1 14 0"/>
-                </svg>
+                <div class="static-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M8 3.5a.5.5 0 0 0-1 0V9a.5.5 0 0 0 .252.434l3.5 2a.5.5 0 0 0 .496-.868L8 8.71z"/>
+                        <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16m7-8A7 7 0 1 1 1 8a7 7 0 0 1 14 0"/>
+                    </svg>
+                </div>
             </div>
             <div class="stat-card-compact-value" id="sessions-today" style="color: var(--color-dark);">{{ sessions_today|default:"0" }}</div>
         </div>
@@ -161,16 +156,20 @@
         <div class="stat-card-compact animate-fadeIn" style="animation-delay: 250ms">
             <div class="stat-card-compact-header" style="color: var(--color-dark);">
                 <span>ROI Progress</span>
-                <i class="bi bi-pie-chart" style="color: #000;"></i>
+                <div class="static-icon">
+                    <i class="bi bi-pie-chart"></i>
+                </div>
             </div>
-            <div class="stat-card-compact-value" id="roi-progress" style="color: var(--color-dark);">{{ roi_percentage|default:"0" }}%</div>
+            <div class="stat-card-compact-value" id="roi-progress" style="color: {% if roi_percentage|add:0 < 0 %}var(--color-danger){% elif roi_percentage|add:0 > 0 %}var(--color-success){% else %}var(--color-dark){% endif %};">{{ roi_percentage|default:"0" }}%</div>
         </div>
 
         <!-- Temperature -->
         <div class="stat-card-compact animate-fadeIn" style="animation-delay: 300ms">
             <div class="stat-card-compact-header" style="color: var(--color-dark);">
                 <span>Temperature</span>
-                <i class="bi bi-thermometer-half" style="color: #000;"></i>
+                <div class="static-icon">
+                    <i class="bi bi-thermometer-half"></i>
+                </div>
             </div>
             <div class="stat-card-compact-value" id="sys-cpu-temp" style="color: var(--color-dark);">—</div>
         </div>
@@ -179,9 +178,11 @@
         <div class="stat-card-compact animate-fadeIn" style="animation-delay: 350ms">
             <div class="stat-card-compact-header" style="color: var(--color-dark);">
                 <span>Internet</span>
-                <div id="sys-internet-dot" style="width: 10px; height: 10px; border-radius: 50%; background: #94A3B8;"></div>
+                <div class="static-icon">
+                    <div id="sys-internet-dot" style="width: 14px; height: 14px; border-radius: 50%; background: #94A3B8;"></div>
+                </div>
             </div>
-            <div class="stat-card-compact-value" id="sys-internet-text" style="font-size: 1.1rem; line-height: 1.25rem; color: var(--color-dark);">Checking...</div>
+            <div class="stat-card-compact-value" id="sys-internet-text" style="color: var(--color-dark);">Checking...</div>
         </div>
     </div>
 
@@ -244,7 +245,7 @@
                 </div>
                 <div class="text-small text-muted mt-xs" style="color: var(--color-dark) !important;">Total coin collection for current week</div>
             </div>
-            <div style="width: 54px; height: 54px; border-radius: 14px; background: rgba(0, 0, 0, 0.05); color: var(--color-dark); display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0;">
+            <div class="static-icon">
                 <i class="bi bi-wallet2"></i>
             </div>
         </div>
@@ -268,7 +269,7 @@
                 </div>
                 <div class="text-small text-muted mt-xs" style="color: var(--color-dark) !important;">Total coin collection for {{ current_month_name }}</div>
             </div>
-            <div style="width: 54px; height: 54px; border-radius: 14px; background: rgba(0, 0, 0, 0.05); color: var(--color-dark); display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0;">
+            <div class="static-icon">
                 <i class="bi bi-wallet2"></i>
             </div>
         </div>

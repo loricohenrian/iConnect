@@ -493,9 +493,9 @@ function setBar(id, pct) {
         el.classList.remove('progress-success', 'progress-warning', 'progress-danger');
         
         // Add threshold class
-        if (pct >= 90) {
+        if (pct > 85) {
             el.classList.add('progress-danger');
-        } else if (pct >= 70) {
+        } else if (pct >= 60) {
             el.classList.add('progress-warning');
         } else {
             el.classList.add('progress-success');
