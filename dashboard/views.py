@@ -645,6 +645,12 @@ def sessions_view(request):
         sessions = sessions.filter(time_in__gte=now - timedelta(days=365))
     # 'all' = no filter
 
+    # Calculate metrics before applying status and search filters
+    total_users = sessions.count()
+    connected_users = sessions.filter(status='active').count()
+    paused_users = sessions.filter(status='paused').count()
+    disconnected_users = sessions.filter(status='expired').count()
+
     if status_filter:
         sessions = sessions.filter(status=status_filter)
     if search:
@@ -660,6 +666,10 @@ def sessions_view(request):
         'search': search,
         'period': period,
         'active_page': 'sessions',
+        'total_users': total_users,
+        'connected_users': connected_users,
+        'paused_users': paused_users,
+        'disconnected_users': disconnected_users,
     }
     return render(request, 'dashboard/sessions.html', context)
 

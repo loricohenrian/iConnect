@@ -1,7 +1,7 @@
 {% extends "base_dashboard.html" %}
 
-{% block page_title %}Sessions{% endblock %}
-{% block topbar_title %}Session Logs{% endblock %}
+{% block page_title %}Users{% endblock %}
+{% block topbar_title %}Users{% endblock %}
 
 {% block dashboard_content %}
 
@@ -29,7 +29,47 @@
     </form>
 </div>
 
-<!-- Sessions Table -->
+<!-- Stats Grid (New) -->
+<div class="stats-grid mb-md" style="grid-template-columns: repeat(4, 1fr);">
+    <div class="stat-card animate-fadeIn">
+        <div class="stat-info">
+            <div class="stat-label">Total Users</div>
+            <div class="stat-value">{{ total_users|default:"0" }}</div>
+        </div>
+        <div class="static-icon" style="color: var(--color-dark);">
+            <i class="bi bi-people"></i>
+        </div>
+    </div>
+    <div class="stat-card animate-fadeIn" style="animation-delay: 100ms">
+        <div class="stat-info">
+            <div class="stat-label">Connected</div>
+            <div class="stat-value" style="color: var(--color-success);">{{ connected_users|default:"0" }}</div>
+        </div>
+        <div class="static-icon" style="color: var(--color-success);">
+            <i class="bi bi-wifi"></i>
+        </div>
+    </div>
+    <div class="stat-card animate-fadeIn" style="animation-delay: 200ms">
+        <div class="stat-info">
+            <div class="stat-label">Paused</div>
+            <div class="stat-value" style="color: var(--color-warning);">{{ paused_users|default:"0" }}</div>
+        </div>
+        <div class="static-icon" style="color: var(--color-warning);">
+            <i class="bi bi-pause-circle"></i>
+        </div>
+    </div>
+    <div class="stat-card animate-fadeIn" style="animation-delay: 300ms">
+        <div class="stat-info">
+            <div class="stat-label">Disconnected</div>
+            <div class="stat-value" style="color: var(--color-danger);">{{ disconnected_users|default:"0" }}</div>
+        </div>
+        <div class="static-icon" style="color: var(--color-danger);">
+            <i class="bi bi-x-circle"></i>
+        </div>
+    </div>
+</div>
+
+<!-- Users Table -->
 {% if sessions %}
 <div class="chart-card">
     <div class="table-container">
@@ -37,31 +77,37 @@
             <thead>
                 <tr>
                     <th>ID</th>
-                    <th>Device</th>
-                    <th>Plan</th>
-                    <th>Amount</th>
+                    <th>Hostname</th>
+                    <th>IP</th>
+                    <th>MAC</th>
+                    <th>Data Usage</th>
+                    <th>Remaining</th>
+                    <th>Expiry</th>
+                    <th>Status</th>
                     <th>Time In</th>
                     <th>Time Out</th>
                     <th>Duration</th>
-                    <th>Status</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
                 {% for session in sessions %}
                 <tr>
                     <td>#{{ session.id }}</td>
-                    <td>
+                    <td title="{{ session.device_name|default:'—' }}" style="max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                         <div class="font-semibold">{{ session.device_name|default:"Unknown" }}</div>
-                        <div class="text-xs text-muted">{{ session.mac_address }}</div>
-                        {% if session.ip_address %}
-                        <div class="text-xs text-muted">{{ session.ip_address }}</div>
+                    </td>
+                    <td class="text-xs">{{ session.ip_address|default:"—" }}</td>
+                    <td class="font-mono text-xs text-muted">{{ session.mac_address }}</td>
+                    <td class="text-xs">{{ session.bandwidth_used_mb|floatformat:1 }} MB</td>
+                    <td class="text-xs">
+                        {% if session.status == 'expired' %}
+                            0m
+                        {% else %}
+                            {{ session.remaining_minutes|floatformat:1 }}m
                         {% endif %}
                     </td>
-                    <td>{{ session.plan.name }}</td>
-                    <td class="font-semibold">₱{{ session.amount_paid }}</td>
-                    <td>{{ session.time_in|date:"M d, h:i A" }}</td>
-                    <td>{{ session.time_out|date:"M d, h:i A"|default:"—" }}</td>
-                    <td>{{ session.duration_minutes_purchased }} min</td>
+                    <td class="text-xs">{{ session.time_out|date:"M d, h:i A"|default:"—" }}</td>
                     <td>
                         {% if session.status == 'active' %}
                             <span class="badge badge-active">Active</span>
@@ -70,6 +116,16 @@
                         {% else %}
                             <span class="badge badge-paused">{{ session.get_status_display }}</span>
                         {% endif %}
+                    </td>
+                    <td class="text-xs">{{ session.time_in|date:"M d, h:i A" }}</td>
+                    <td class="text-xs">{{ session.time_out|date:"M d, h:i A"|default:"—" }}</td>
+                    <td class="text-xs">{{ session.duration_minutes_purchased }}m</td>
+                    <td>
+                        <div class="d-flex gap-xs">
+                            <button class="btn btn-sm btn-secondary" style="padding: 2px 6px;" title="Pause/Resume (To be implemented)"><i class="bi bi-pause-circle"></i></button>
+                            <button class="btn btn-sm btn-secondary" style="padding: 2px 6px;" title="Edit (To be implemented)"><i class="bi bi-pencil"></i></button>
+                            <button class="btn btn-sm btn-danger" style="padding: 2px 6px;" title="Delete (To be implemented)"><i class="bi bi-trash"></i></button>
+                        </div>
                     </td>
                 </tr>
                 {% endfor %}
