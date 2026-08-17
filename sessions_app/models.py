@@ -480,21 +480,6 @@ class DeviceProfile(models.Model):
     def __str__(self):
         return f"{self.mac_address} - Points: {self.points} | Streak: {self.current_streak}"
 
-
-class SpinPrize(models.Model):
-    name = models.CharField(max_length=50, help_text="Prize Name (e.g. '30 Mins', 'Try Again')")
-    minutes_reward = models.PositiveIntegerField(default=0, help_text="Minutes added to session (0 for Try Again)")
-    probability_weight = models.PositiveIntegerField(default=10, help_text="Higher weight = higher chance to win")
-    is_active = models.BooleanField(default=True, help_text="Is this prize currently active on the wheel?")
-
-    class Meta:
-        verbose_name = "Spin Prize"
-        verbose_name_plural = "Spin Prizes"
-
-    def __str__(self):
-        return f"{self.name} ({self.minutes_reward}m) - W: {self.probability_weight}"
-
-
     @classmethod
     def record_connection(cls, mac_address):
         if not mac_address:
@@ -539,3 +524,17 @@ class SpinPrize(models.Model):
         profile.points += points_earned
         profile.save(update_fields=['points'])
         return profile
+
+class SpinPrize(models.Model):
+    name = models.CharField(max_length=50, help_text="Prize Name (e.g. '30 Mins', 'Try Again')")
+    minutes_reward = models.PositiveIntegerField(default=0, help_text="Minutes added to session (0 for Try Again)")
+    probability_weight = models.PositiveIntegerField(default=10, help_text="Higher weight = higher chance to win")
+    is_active = models.BooleanField(default=True, help_text="Is this prize currently active on the wheel?")
+
+    class Meta:
+        verbose_name = "Spin Prize"
+        verbose_name_plural = "Spin Prizes"
+
+    def __str__(self):
+        return f"{self.name} ({self.minutes_reward}m) - W: {self.probability_weight}"
+
