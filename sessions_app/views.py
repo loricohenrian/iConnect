@@ -21,6 +21,7 @@ from .bandwidth import refresh_session_bandwidth_usage
 from .models import (
     CoinEvent,
     CoinInsertRequest,
+    DeviceProfile,
     Plan,
     Session,
     SuspiciousDevice,
