@@ -4,14 +4,28 @@
 {% block topbar_title %}ROI & Financial Report{% endblock %}
 
 {% block dashboard_content %}
+<style>
+.stat-card .stat-value {
+    font-size: clamp(1.25rem, 2vw, 2rem) !important;
+    word-break: break-word;
+}
+.cost-amount {
+    word-break: break-word;
+    text-align: right;
+    flex-shrink: 1;
+}
+.cost-item {
+    gap: 16px;
+}
+</style>
 
 <!-- Main ROI Card -->
 <div class="roi-card animate-fadeIn">
     <div class="roi-percentage">{{ roi_percentage }}%</div>
     <div class="roi-label">Return on Investment</div>
 
-    <div class="progress-bar" style="max-width: 400px; margin: 0 auto; height: 16px;">
-        <div class="progress-fill" style="width: {% if roi_percentage > 100 %}100{% else %}{{ roi_percentage }}{% endif %}%"></div>
+    <div class="progress-bar" style="max-width: 400px; margin: 0 auto; height: 16px; background: var(--color-border); border-radius: 8px; overflow: hidden;">
+        <div class="progress-fill" style="height: 100%; width: {% if roi_percentage|add:0 > 100 %}100{% else %}{{ roi_percentage }}{% endif %}%; background: {% if roi_percentage|add:0 < 0 %}var(--color-danger){% else %}var(--color-success){% endif %};"></div>
     </div>
     <p class="text-small text-muted mt-sm" style="text-align: center;">
         ROI = (Net Profit ÷ Total Investment) × 100
@@ -20,39 +34,39 @@
 
 <!-- Financial Summary Cards -->
 <div class="stats-grid mt-lg" style="grid-template-columns: repeat(4, 1fr);">
-    <div class="stat-card gradient-blue animate-fadeIn" style="animation-delay: 100ms">
+    <div class="stat-card animate-fadeIn" style="animation-delay: 100ms">
         <div class="stat-info">
             <div class="stat-label">Gross Revenue</div>
-            <div class="stat-value">₱{{ gross_revenue|default:"0" }}</div>
+            <div class="stat-value" style="color: var(--color-success);">₱{{ gross_revenue|default:"0" }}</div>
         </div>
-        <div class="stat-icon-wrap">
+        <div class="static-icon" style="color: var(--color-success);">
             <i class="bi bi-coin"></i>
         </div>
     </div>
-    <div class="stat-card animate-fadeIn" style="animation-delay: 150ms; border-left: 4px solid #EF4444;">
+    <div class="stat-card animate-fadeIn" style="animation-delay: 150ms">
         <div class="stat-info">
             <div class="stat-label">Operating Expenses</div>
-            <div class="stat-value" style="color: #EF4444;">₱{{ total_expenses|default:"0" }}</div>
+            <div class="stat-value" style="color: var(--color-danger);">₱{{ total_expenses|default:"0" }}</div>
         </div>
-        <div class="stat-icon-wrap" style="background: rgba(239,68,68,0.1); color: #EF4444;">
+        <div class="static-icon" style="color: var(--color-danger);">
             <i class="bi bi-receipt"></i>
         </div>
     </div>
-    <div class="stat-card gradient-green animate-fadeIn" style="animation-delay: 200ms">
+    <div class="stat-card animate-fadeIn" style="animation-delay: 200ms">
         <div class="stat-info">
             <div class="stat-label">Net Profit</div>
-            <div class="stat-value">₱{{ net_profit|default:"0" }}</div>
+            <div class="stat-value" style="color: {% if net_profit >= 0 %}var(--color-success){% else %}var(--color-danger){% endif %};">₱{{ net_profit|default:"0" }}</div>
         </div>
-        <div class="stat-icon-wrap">
+        <div class="static-icon" style="color: {% if net_profit >= 0 %}var(--color-success){% else %}var(--color-danger){% endif %};">
             <i class="bi bi-graph-up-arrow"></i>
         </div>
     </div>
-    <div class="stat-card animate-fadeIn" style="animation-delay: 250ms; border-left: 4px solid #F59E0B;">
+    <div class="stat-card animate-fadeIn" style="animation-delay: 250ms">
         <div class="stat-info">
             <div class="stat-label">Total Investment</div>
-            <div class="stat-value" style="color: #F59E0B;">₱{{ total_investment|default:"0" }}</div>
+            <div class="stat-value" style="color: var(--color-dark);">₱{{ total_investment|default:"0" }}</div>
         </div>
-        <div class="stat-icon-wrap" style="background: rgba(245,158,11,0.1); color: #F59E0B;">
+        <div class="static-icon" style="color: var(--color-gray);">
             <i class="bi bi-piggy-bank"></i>
         </div>
     </div>
@@ -65,20 +79,20 @@
 
         <!-- Revenue Section -->
         <div style="margin-bottom: 16px;">
-            <div style="font-weight: 600; font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Revenue</div>
+            <div style="font-weight: 600; font-size: 0.85rem; color: var(--color-gray); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Revenue</div>
             <div class="cost-item" style="background: rgba(16,185,129,0.06);">
                 <div>
                     <div class="cost-desc">Gross Revenue (All Coins Inserted)</div>
                     <div class="text-xs text-muted">{{ days_operating }} days of operation</div>
                 </div>
-                <div class="cost-amount" style="color: #10B981;">+₱{{ gross_revenue }}</div>
+                <div class="cost-amount" style="color: var(--color-success);">+₱{{ gross_revenue }}</div>
             </div>
         </div>
 
         <!-- Net Profit -->
-        <div class="cost-item" style="background: {% if net_profit >= 0 %}rgba(16,185,129,0.1){% else %}rgba(239,68,68,0.1){% endif %}; border-radius: var(--radius-sm); border: 2px solid {% if net_profit >= 0 %}#10B981{% else %}#EF4444{% endif %};">
+        <div class="cost-item" style="background: {% if net_profit >= 0 %}rgba(16,185,129,0.1){% else %}rgba(225,29,72,0.1){% endif %}; border-radius: var(--radius-sm); border: 2px solid {% if net_profit >= 0 %}var(--color-success){% else %}var(--color-danger){% endif %};">
             <div class="font-bold" style="font-size: 1rem;">Net Profit</div>
-            <div class="cost-amount font-bold" style="font-size: 1.1rem; color: {% if net_profit >= 0 %}#10B981{% else %}#EF4444{% endif %};">₱{{ net_profit }}</div>
+            <div class="cost-amount font-bold" style="font-size: 1.1rem; color: {% if net_profit >= 0 %}var(--color-success){% else %}var(--color-danger){% endif %};">₱{{ net_profit }}</div>
         </div>
     </div>
 
@@ -88,48 +102,48 @@
 
         <!-- Daily Averages -->
         <div style="margin-bottom: 20px;">
-            <div style="font-weight: 600; font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Daily Averages</div>
+            <div style="font-weight: 600; font-size: 0.85rem; color: var(--color-gray); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Daily Averages</div>
             <div class="cost-item">
                 <div class="cost-desc">Revenue / Day</div>
-                <div class="cost-amount" style="color: #3B82F6;">₱{{ daily_avg_revenue }}</div>
+                <div class="cost-amount" style="color: var(--color-success);">₱{{ daily_avg_revenue }}</div>
             </div>
             <div class="cost-item">
                 <div class="cost-desc">Expenses / Day</div>
-                <div class="cost-amount" style="color: #EF4444;">₱{{ daily_avg_expense }}</div>
+                <div class="cost-amount" style="color: var(--color-danger);">₱{{ daily_avg_expense }}</div>
             </div>
             <div class="cost-item" style="background: var(--color-light); border-radius: var(--radius-sm);">
                 <div class="font-semibold">Profit / Day</div>
-                <div class="cost-amount font-bold" style="color: {% if daily_avg_profit >= 0 %}#10B981{% else %}#EF4444{% endif %};">₱{{ daily_avg_profit }}</div>
+                <div class="cost-amount font-bold" style="color: {% if daily_avg_profit >= 0 %}var(--color-success){% else %}var(--color-danger){% endif %};">₱{{ daily_avg_profit }}</div>
             </div>
         </div>
 
         <!-- Monthly Projections -->
         <div style="margin-bottom: 20px;">
-            <div style="font-weight: 600; font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Monthly Projections (30 Days)</div>
+            <div style="font-weight: 600; font-size: 0.85rem; color: var(--color-gray); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Monthly Projections (30 Days)</div>
             <div class="cost-item">
                 <div class="cost-desc">Projected Revenue</div>
-                <div class="cost-amount" style="color: #3B82F6;">₱{{ monthly_revenue }}</div>
+                <div class="cost-amount" style="color: var(--color-success);">₱{{ monthly_revenue }}</div>
             </div>
             <div class="cost-item">
                 <div class="cost-desc">Projected Expenses</div>
-                <div class="cost-amount" style="color: #EF4444;">₱{{ monthly_expenses }}</div>
+                <div class="cost-amount" style="color: var(--color-danger);">₱{{ monthly_expenses }}</div>
             </div>
             <div class="cost-item" style="background: var(--color-light); border-radius: var(--radius-sm);">
                 <div class="font-semibold">Projected Profit</div>
-                <div class="cost-amount font-bold" style="color: {% if monthly_profit >= 0 %}#10B981{% else %}#EF4444{% endif %};">₱{{ monthly_profit }}</div>
+                <div class="cost-amount font-bold" style="color: {% if monthly_profit >= 0 %}var(--color-success){% else %}var(--color-danger){% endif %};">₱{{ monthly_profit }}</div>
             </div>
         </div>
 
         <!-- Breakeven -->
-        <div style="padding: 16px; background: linear-gradient(135deg, rgba(99,102,241,0.08), rgba(139,92,246,0.08)); border-radius: var(--radius-md); border: 1px solid rgba(99,102,241,0.15);">
-            <div style="font-weight: 600; font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Breakeven Projection</div>
+        <div style="padding: 16px; background: var(--color-light); border-radius: var(--radius-md); border: 1px solid var(--color-border);">
+            <div style="font-weight: 600; font-size: 0.85rem; color: var(--color-gray); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Breakeven Projection</div>
             {% if projected_breakeven %}
             <div class="stat-value mb-xs" style="font-size: 1.5rem;">{{ projected_breakeven|date:"M d, Y" }}</div>
             <p class="text-small text-muted" style="margin: 0;">Est. {{ days_to_breakeven }} days remaining (based on ₱{{ daily_avg_profit }}/day net profit)</p>
             {% else %}
             <p class="text-small text-muted" style="margin: 0;">
                 {% if daily_avg_profit <= 0 %}
-                <i class="bi bi-exclamation-triangle" style="color: #F59E0B;"></i>
+                <i class="bi bi-exclamation-triangle" style="color: var(--color-danger);"></i>
                 Currently operating at a loss. Increase revenue or reduce expenses to reach breakeven.
                 {% else %}
                 Not enough data yet. Start earning revenue to see projections.
@@ -312,7 +326,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     {{ total_expenses|default:"0" }},
                     {{ net_profit|default:"0" }}
                 ],
-                backgroundColor: ['#F59E0B', '#3B82F6', '#EF4444', '{{ net_profit|default:"0" }}' >= 0 ? '#10B981' : '#EF4444'],
+                backgroundColor: ['#94A3B8', '#10B981', '#E11D48', '{{ net_profit|default:"0" }}' >= 0 ? '#10B981' : '#E11D48'],
                 borderRadius: 8,
                 barPercentage: 0.6,
             }]
