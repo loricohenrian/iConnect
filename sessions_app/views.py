@@ -403,6 +403,7 @@ def coin_inserted(request):
                 status="paused",
                 voucher_code=voucher_code,
             )
+            DeviceProfile.add_spending_points(mac_address, amount)
 
     return Response(
         {
@@ -679,6 +680,7 @@ def session_start(request):
                 plan=plan,
                 amount=amount_paid,
             )
+            DeviceProfile.add_spending_points(mac_address, amount_paid)
 
             used_amount = 0
             for event in _pending_coin_events_for_mac(mac_address):
@@ -1006,6 +1008,7 @@ def session_extend_paid(request):
                 plan=plan,
                 amount=amount_paid,
             )
+            DeviceProfile.add_spending_points(mac_address, amount_paid)
             
             if speed_changed:
                 dl_kbps = int(plan.speed_limit * 1024) if plan.speed_limit else None

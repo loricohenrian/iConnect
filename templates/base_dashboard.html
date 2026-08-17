@@ -78,6 +78,10 @@
                     <i class="bi bi-person"></i>
                     <span>Account</span>
                 </a>
+                <a href="{% url 'dashboard:gamification' %}" class="nav-item {% if active_page == 'gamification' %}active{% endif %}" id="nav-gamification">
+                    <i class="bi bi-controller"></i>
+                    <span>Gamification</span>
+                </a>
                 <form method="post" action="{% url 'dashboard:logout' %}" class="nav-item-form" id="nav-logout-form">
                     {% csrf_token %}
                     <button type="submit" class="nav-item nav-item-btn" id="nav-logout">

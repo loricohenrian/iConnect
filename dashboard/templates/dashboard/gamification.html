@@ -1,0 +1,142 @@
+{% extends "base_dashboard.html" %}
+
+{% block page_title %}Gamification Settings{% endblock %}
+{% block topbar_title %}Gamification & Rewards{% endblock %}
+
+{% block dashboard_content %}
+
+{% if messages %}
+  {% for message in messages %}
+    <div class="alert alert-{{ message.tags }} mb-md">
+        <i class="bi bi-info-circle"></i> {{ message }}
+    </div>
+  {% endfor %}
+{% endif %}
+
+<div class="grid" style="grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+    <!-- Gamification Settings -->
+    <div class="card">
+        <div class="card-header border-bottom">
+            <h2 class="card-title"><i class="bi bi-gear me-2"></i> Point System Settings</h2>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{% url 'dashboard:gamification' %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="update_settings">
+                
+                <div class="form-group mb-3">
+                    <label class="form-label d-flex align-items-center">
+                        <input type="checkbox" name="enable_spin_wheel" class="me-2" {% if settings.enable_spin_wheel %}checked{% endif %}>
+                        Enable Spin The Wheel
+                    </label>
+                    <small class="text-muted">Allows users to play Spin the Wheel to win extra time.</small>
+                </div>
+
+                <div class="form-group mb-3">
+                    <label class="form-label">Spin Cost (Points)</label>
+                    <input type="number" name="spin_cost_points" class="form-control" value="{{ settings.spin_cost_points }}" min="1">
+                    <small class="text-muted">How many points it costs to spin the wheel once.</small>
+                </div>
+
+                <div class="form-group mb-3">
+                    <label class="form-label">Points Per Daily Streak</label>
+                    <input type="number" name="points_per_streak_day" class="form-control" value="{{ settings.points_per_streak_day }}" min="0">
+                    <small class="text-muted">Points awarded for connecting on consecutive days.</small>
+                </div>
+
+                <div class="form-group mb-4">
+                    <label class="form-label">Points Per ₱1 Spent</label>
+                    <input type="number" name="points_per_peso" class="form-control" value="{{ settings.points_per_peso }}" min="0">
+                    <small class="text-muted">Points awarded when a user pays for a session or voucher.</small>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100">Save Settings</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Prize Management -->
+    <div class="card">
+        <div class="card-header border-bottom d-flex justify-content-between align-items-center">
+            <h2 class="card-title"><i class="bi bi-gift me-2"></i> Wheel Prizes</h2>
+        </div>
+        <div class="card-body">
+            <!-- Add Prize Form -->
+            <form method="POST" action="{% url 'dashboard:gamification' %}" class="mb-4 p-3 bg-light rounded border">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="add_prize">
+                <h6 class="mb-3">Add New Prize</h6>
+                <div class="row g-2 mb-2">
+                    <div class="col-md-6">
+                        <label class="form-label small">Prize Name</label>
+                        <input type="text" name="name" class="form-control form-control-sm" placeholder="e.g. 30 Mins Free" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small">Reward (Minutes)</label>
+                        <input type="number" name="minutes_reward" class="form-control form-control-sm" value="0" min="0">
+                    </div>
+                </div>
+                <div class="row g-2 align-items-end">
+                    <div class="col-md-6">
+                        <label class="form-label small">Probability Weight</label>
+                        <input type="number" name="probability_weight" class="form-control form-control-sm" value="10" min="1">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small d-flex align-items-center">
+                            <input type="checkbox" name="is_active" class="me-1" checked> Active
+                        </label>
+                    </div>
+                    <div class="col-md-3">
+                        <button type="submit" class="btn btn-success btn-sm w-100">Add</button>
+                    </div>
+                </div>
+            </form>
+
+            <!-- Prizes List -->
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>Prize</th>
+                            <th>Minutes</th>
+                            <th>Weight</th>
+                            <th>Active</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for prize in prizes %}
+                        <tr>
+                            <td>{{ prize.name }}</td>
+                            <td>{{ prize.minutes_reward }}m</td>
+                            <td>{{ prize.probability_weight }}</td>
+                            <td>
+                                {% if prize.is_active %}
+                                <span class="badge bg-success">Yes</span>
+                                {% else %}
+                                <span class="badge bg-secondary">No</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <form method="POST" action="{% url 'dashboard:delete_prize' prize.id %}" onsubmit="return confirm('Delete this prize?');" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete"><i class="bi bi-trash"></i></button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted">No prizes configured.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <small class="text-muted d-block mt-2">
+                <strong>Note:</strong> The wheel supports up to 6 active prizes. If more are active, they may not display correctly on the UI.
+            </small>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

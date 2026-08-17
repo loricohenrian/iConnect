@@ -463,3 +463,79 @@ class SuspiciousDevice(models.Model):
         self.save(update_fields=["status", "is_blocked", "resolved_at", "resolved_by"])
 
 
+
+
+class DeviceProfile(models.Model):
+    mac_address = models.CharField(max_length=17, unique=True, help_text="Device MAC Address")
+    points = models.PositiveIntegerField(default=0, help_text="Accumulated Gamification Points")
+    current_streak = models.PositiveIntegerField(default=0, help_text="Current Daily Connection Streak")
+    last_connected_date = models.DateField(null=True, blank=True, help_text="Date of last connection")
+    spins_today = models.PositiveIntegerField(default=0, help_text="Number of wheel spins today")
+    last_spin_date = models.DateField(null=True, blank=True, help_text="Date of last wheel spin")
+
+    class Meta:
+        verbose_name = "Device Profile"
+        verbose_name_plural = "Device Profiles"
+
+    def __str__(self):
+        return f"{self.mac_address} - Points: {self.points} | Streak: {self.current_streak}"
+
+
+class SpinPrize(models.Model):
+    name = models.CharField(max_length=50, help_text="Prize Name (e.g. '30 Mins', 'Try Again')")
+    minutes_reward = models.PositiveIntegerField(default=0, help_text="Minutes added to session (0 for Try Again)")
+    probability_weight = models.PositiveIntegerField(default=10, help_text="Higher weight = higher chance to win")
+    is_active = models.BooleanField(default=True, help_text="Is this prize currently active on the wheel?")
+
+    class Meta:
+        verbose_name = "Spin Prize"
+        verbose_name_plural = "Spin Prizes"
+
+    def __str__(self):
+        return f"{self.name} ({self.minutes_reward}m) - W: {self.probability_weight}"
+
+
+    @classmethod
+    def record_connection(cls, mac_address):
+        if not mac_address:
+            return None
+        from dashboard.models import SystemSettings
+        from django.utils import timezone
+        from datetime import timedelta
+
+        settings_obj = SystemSettings.get_settings()
+        profile, created = cls.objects.get_or_create(mac_address=mac_address)
+        today = timezone.now().date()
+
+        if profile.last_connected_date == today:
+            return profile
+
+        if profile.last_connected_date == today - timedelta(days=1):
+            profile.current_streak += 1
+            if settings_obj.enable_spin_wheel:
+                profile.points += settings_obj.points_per_streak_day
+        else:
+            profile.current_streak = 1
+            if settings_obj.enable_spin_wheel and not profile.last_connected_date:
+                # First time gets points too
+                profile.points += settings_obj.points_per_streak_day
+
+        profile.last_connected_date = today
+        profile.save()
+        return profile
+
+    @classmethod
+    def add_spending_points(cls, mac_address, amount_spent):
+        if not mac_address or amount_spent <= 0:
+            return None
+        from dashboard.models import SystemSettings
+        settings_obj = SystemSettings.get_settings()
+        
+        if not settings_obj.enable_spin_wheel or settings_obj.points_per_peso <= 0:
+            return None
+            
+        profile, _ = cls.objects.get_or_create(mac_address=mac_address)
+        points_earned = amount_spent * settings_obj.points_per_peso
+        profile.points += points_earned
+        profile.save(update_fields=['points'])
+        return profile

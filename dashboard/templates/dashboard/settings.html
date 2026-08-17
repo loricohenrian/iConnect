@@ -133,6 +133,46 @@
             </div>
         </form>
     </div>
+
+    <!-- Gamification Settings -->
+    <div class="chart-card animate-fadeIn" style="animation-delay: 200ms; grid-column: 1 / -1;">
+        <h3 class="card-title mb-md"><i class="bi bi-controller"></i> Gamification (Spin The Wheel)</h3>
+        
+        <form method="POST" action="">
+            {% csrf_token %}
+            <div class="form-group">
+                <label class="d-flex align-items-center gap-sm" style="margin-bottom: 0.25rem;">
+                    <input type="checkbox" name="enable_spin_wheel" {% if settings.enable_spin_wheel %}checked{% endif %}>
+                    <span style="font-weight: 600;">Enable Gamification</span>
+                </label>
+                <small style="color: var(--text-secondary); display: block; margin-left: 1.75rem;">
+                    If enabled, users will earn points for daily streaks and can spin a wheel on the captive portal to win extra time.
+                </small>
+            </div>
+
+            <div class="grid-3" style="margin-left: 1.75rem; gap: 1rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+                <div class="form-group">
+                    <label class="form-label" style="font-size: 0.85rem;">Points Required to Spin</label>
+                    <input type="number" min="1" class="form-input" name="spin_cost_points" value="{{ settings.spin_cost_points }}" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" style="font-size: 0.85rem;">Max Spins Per Day</label>
+                    <input type="number" min="1" class="form-input" name="daily_spin_limit" value="{{ settings.daily_spin_limit }}" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" style="font-size: 0.85rem;">Points per Streak Day</label>
+                    <input type="number" min="1" class="form-input" name="points_per_streak_day" value="{{ settings.points_per_streak_day }}" required>
+                </div>
+            </div>
+            
+            <div class="form-group mt-xl" style="text-align: right;">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-save"></i> Save Gamification Settings
+                </button>
+            </div>
+        </form>
+    </div>
+
 </div>
 
 {% endblock %}

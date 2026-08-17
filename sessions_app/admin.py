@@ -61,3 +61,16 @@ class SuspiciousDeviceAdmin(admin.ModelAdmin):
     list_filter = ('status', 'is_blocked', 'reason')
     search_fields = ('mac_address', 'last_ip_address', 'reason', 'evidence')
     readonly_fields = ('first_detected_at', 'last_detected_at', 'blocked_at', 'resolved_at')
+
+
+from .models import DeviceProfile, SpinPrize
+
+@admin.register(DeviceProfile)
+class DeviceProfileAdmin(admin.ModelAdmin):
+    list_display = ('mac_address', 'points', 'current_streak', 'last_connected_date', 'spins_today')
+    search_fields = ('mac_address',)
+
+@admin.register(SpinPrize)
+class SpinPrizeAdmin(admin.ModelAdmin):
+    list_display = ('name', 'minutes_reward', 'probability_weight', 'is_active')
+    list_filter = ('is_active',)

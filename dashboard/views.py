@@ -1439,6 +1439,12 @@ def settings_view(request):
             settings_obj.auto_pause_timeout_seconds = int(request.POST.get('auto_pause_timeout_seconds', 300))
             settings_obj.insert_coin_countdown_seconds = int(request.POST.get('insert_coin_countdown_seconds', 120))
             
+            # Gamification
+            settings_obj.enable_spin_wheel = request.POST.get('enable_spin_wheel') == 'on'
+            settings_obj.spin_cost_points = int(request.POST.get('spin_cost_points', 10))
+            settings_obj.daily_spin_limit = int(request.POST.get('daily_spin_limit', 3))
+            settings_obj.points_per_streak_day = int(request.POST.get('points_per_streak_day', 5))
+            
             settings_obj.save()
             message = "Settings updated successfully."
             
@@ -1592,3 +1598,79 @@ def logs_view(request):
 
 
 
+
+@user_passes_test(_is_dashboard_admin, login_url='dashboard:login')
+def gamification_view(request):
+    from dashboard.models import SystemSettings
+    from sessions_app.models import SpinPrize
+    
+    settings_obj = SystemSettings.get_settings()
+    
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        
+        if action == 'update_settings':
+            settings_obj.enable_spin_wheel = request.POST.get('enable_spin_wheel') == 'on'
+            
+            try:
+                settings_obj.spin_cost_points = int(request.POST.get('spin_cost_points', 10))
+                settings_obj.points_per_streak_day = int(request.POST.get('points_per_streak_day', 5))
+                settings_obj.points_per_peso = int(request.POST.get('points_per_peso', 1))
+                settings_obj.save()
+                messages.success(request, 'Gamification settings updated successfully.')
+            except ValueError:
+                messages.error(request, 'Invalid input for settings. Must be numbers.')
+                
+        elif action == 'add_prize' or action == 'edit_prize':
+            try:
+                prize_id = request.POST.get('prize_id')
+                name = request.POST.get('name')
+                minutes = int(request.POST.get('minutes_reward', 0))
+                weight = int(request.POST.get('probability_weight', 10))
+                is_active = request.POST.get('is_active') == 'on'
+                
+                if action == 'edit_prize' and prize_id:
+                    prize = SpinPrize.objects.get(id=prize_id)
+                    prize.name = name
+                    prize.minutes_reward = minutes
+                    prize.probability_weight = weight
+                    prize.is_active = is_active
+                    prize.save()
+                    messages.success(request, 'Prize updated successfully.')
+                else:
+                    SpinPrize.objects.create(
+                        name=name,
+                        minutes_reward=minutes,
+                        probability_weight=weight,
+                        is_active=is_active
+                    )
+                    messages.success(request, 'New prize added successfully.')
+            except ValueError:
+                messages.error(request, 'Invalid input for prize details.')
+            except SpinPrize.DoesNotExist:
+                messages.error(request, 'Prize not found.')
+                
+        return redirect('dashboard:gamification')
+
+    prizes = SpinPrize.objects.all().order_by('-is_active', '-probability_weight')
+    
+    context = {
+        'active_page': 'gamification',
+        'settings': settings_obj,
+        'prizes': prizes,
+    }
+    return render(request, 'dashboard/gamification.html', context)
+
+
+@user_passes_test(_is_dashboard_admin, login_url='dashboard:login')
+def delete_prize_view(request, prize_id):
+    from sessions_app.models import SpinPrize
+    if request.method == 'POST':
+        try:
+            prize = SpinPrize.objects.get(id=prize_id)
+            prize.delete()
+            messages.success(request, 'Prize deleted successfully.')
+        except SpinPrize.DoesNotExist:
+            messages.error(request, 'Prize not found.')
+            
+    return redirect('dashboard:gamification')

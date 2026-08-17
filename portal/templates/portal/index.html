@@ -32,6 +32,30 @@
 </div>
 {% endif %}
 
+{% if device_profile and system_settings.enable_spin_wheel %}
+<!-- Gamification Widget -->
+<div class="timer-container animate-fadeIn mt-md" style="animation-delay: 100ms; background: linear-gradient(135deg, rgba(16,185,129,0.05) 0%, rgba(5,150,105,0.05) 100%); border-color: rgba(16,185,129,0.2);">
+    <h3 style="font-size: 1.1rem; margin-bottom: 1rem; color: var(--color-primary); display: flex; align-items: center; gap: 8px; justify-content: center;">
+        <i class="bi bi-controller"></i> iConnect Rewards
+    </h3>
+    
+    <div class="grid-2" style="gap: 1rem; margin-bottom: 1.5rem;">
+        <div style="background: var(--bg-secondary); padding: 12px; border-radius: 12px; text-align: center; border: 1px solid var(--border-color);">
+            <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 4px;">Daily Streak</div>
+            <div style="font-size: 1.5rem; font-weight: bold; color: var(--color-primary);">{{ device_profile.current_streak }} <i class="bi bi-fire" style="color: #F59E0B;"></i></div>
+        </div>
+        <div style="background: var(--bg-secondary); padding: 12px; border-radius: 12px; text-align: center; border: 1px solid var(--border-color);">
+            <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 4px;">Points</div>
+            <div style="font-size: 1.5rem; font-weight: bold; color: var(--color-primary);">{{ device_profile.points }} <i class="bi bi-star-fill" style="color: #F59E0B;"></i></div>
+        </div>
+    </div>
+    
+    <a href="/spin/" class="btn btn-primary w-100" style="background: linear-gradient(135deg, #10B981 0%, #059669 100%); border: none; box-shadow: 0 4px 12px rgba(16,185,129,0.3);">
+        <i class="bi bi-play-circle-fill"></i> Spin to Win! ({{ system_settings.spin_cost_points }} pts)
+    </a>
+</div>
+{% endif %}
+
 <!-- Connection Slots Indicator -->
 <div class="mt-lg" id="slots-indicator" style="text-align: center;">
     <div id="slots-badge" style="

@@ -11,4 +11,6 @@ urlpatterns = [
     path('session/', views.session_page, name='session'),
     path('history/', views.history, name='history'),
     path('manual/', views.manual, name='manual'),
+    path('spin/', views.spin_wheel_view, name='spin_wheel'),
+    path('api/execute_spin/', views.api_execute_spin, name='api_execute_spin'),
 ]

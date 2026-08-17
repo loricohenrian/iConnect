@@ -180,6 +180,28 @@ class SystemSettings(models.Model):
         help_text="Seconds before the coin slot auto-cancels if no coins are inserted (Default: 120)"
     )
 
+    # Gamification
+    enable_spin_wheel = models.BooleanField(
+        default=False,
+        help_text="Enable Spin the Wheel game for users"
+    )
+    spin_cost_points = models.PositiveIntegerField(
+        default=10,
+        help_text="Points required to spin the wheel"
+    )
+    daily_spin_limit = models.PositiveIntegerField(
+        default=3,
+        help_text="Maximum allowed spins per day per device"
+    )
+    points_per_streak_day = models.PositiveIntegerField(
+        default=5,
+        help_text="Points awarded for connecting on consecutive days"
+    )
+    points_per_peso = models.PositiveIntegerField(
+        default=1,
+        help_text="Points awarded for every ₱1 spent"
+    )
+
     class Meta:
         verbose_name = "System Setting"
         verbose_name_plural = "System Settings"
