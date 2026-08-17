@@ -1553,7 +1553,7 @@ def logs_view(request):
 
     search_mac = request.GET.get('mac', '').strip().upper()
 
-    coin_events_qs = CoinEvent.objects.all().order_by('-created_at')
+    coin_events_qs = CoinEvent.objects.all().order_by('-timestamp')
     if search_mac:
         coin_events_qs = coin_events_qs.filter(mac_address__icontains=search_mac)
 

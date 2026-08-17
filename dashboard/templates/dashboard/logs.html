@@ -32,15 +32,11 @@
                         <tbody>
                             {% for event in coin_events %}
                             <tr>
-                                <td>{{ event.created_at|date:"M d, Y H:i:s" }}</td>
+                                <td>{{ event.timestamp|date:"M d, Y H:i:s" }}</td>
                                 <td><code>{{ event.mac_address|default:"N/A" }}</code></td>
                                 <td><span class="badge badge-success">₱{{ event.amount }}</span></td>
                                 <td>
-                                    {% if event.is_processed %}
                                     <span class="badge badge-success">Processed</span>
-                                    {% else %}
-                                    <span class="badge badge-warning">Pending/Failed</span>
-                                    {% endif %}
                                 </td>
                                 <td>
                                     {% if event.session %}
