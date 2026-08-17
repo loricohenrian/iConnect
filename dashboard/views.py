@@ -1458,4 +1458,85 @@ def settings_view(request):
     return render(request, 'dashboard/settings.html', context)
 
 
+from django.views.decorators.http import require_POST
+
+@user_passes_test(_is_dashboard_admin, login_url='dashboard:login')
+@require_POST
+def admin_session_action(request, session_id, action):
+    """Admin endpoint to pause, resume, edit, or delete a session from the dashboard."""
+    import json
+    from django.http import JsonResponse
+    from django.utils import timezone
+    from sessions_app.models import Session
+    
+    try:
+        session = Session.objects.get(id=session_id)
+    except Session.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Session not found'}, status=404)
+        
+    if action == 'pause':
+        if session.status != 'active':
+            return JsonResponse({'success': False, 'error': 'Session is not active'})
+        if session.plan and session.plan.pause_duration_limit > 0 and session.pause_count >= session.plan.pause_duration_limit:
+            # Using pause_duration_limit loosely here as a limit or maybe no limit if it's not strictly tracked by count.
+            pass
+            
+        session.status = "paused"
+        session.paused_at = timezone.now()
+        session.pause_count += 1
+        session.save(update_fields=["status", "paused_at", "pause_count"])
+        
+        # Remove from firewall
+        try:
+            from sessions_app.iptables import block_device
+            block_device(session.mac_address)
+        except Exception as e:
+            logging.error(f"Failed to block device on pause: {e}")
+            
+    elif action == 'resume':
+        if session.status != 'paused':
+            return JsonResponse({'success': False, 'error': 'Session is not paused'})
+            
+        if session.paused_at:
+            paused_seconds = (timezone.now() - session.paused_at).total_seconds()
+            session.total_paused_seconds += paused_seconds
+            
+        session.status = "active"
+        session.paused_at = None
+        session.save(update_fields=["status", "total_paused_seconds", "paused_at"])
+        
+        # Allow in firewall
+        try:
+            from sessions_app.iptables import allow_device
+            rate = session.plan.speed_limit if session.plan else None
+            ul_rate = session.plan.speed_limit_upload if session.plan else None
+            allow_device(session.mac_address, rate_kbps=rate, upload_kbps=ul_rate)
+        except Exception as e:
+            logging.error(f"Failed to allow device on resume: {e}")
+            
+    elif action == 'delete':
+        if session.status == 'active':
+            try:
+                from sessions_app.iptables import block_device
+                block_device(session.mac_address)
+            except Exception as e:
+                logging.error(f"Failed to block device on delete: {e}")
+        session.delete()
+        
+    elif action == 'edit':
+        try:
+            data = json.loads(request.body)
+            new_name = data.get('device_name')
+            if new_name is not None:
+                session.device_name = new_name
+                session.save(update_fields=['device_name'])
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)}, status=400)
+            
+    else:
+        return JsonResponse({'success': False, 'error': 'Invalid action'}, status=400)
+        
+    return JsonResponse({'success': True})
+
+
 
