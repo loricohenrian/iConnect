@@ -39,8 +39,11 @@
                 <i class="bi bi-wifi"></i>
             </div>
         </div>
-        <div style="font-size: 2.5rem; color: var(--color-dark); line-height: 1.1; font-variant-numeric: tabular-nums;">
-            {{ total_sessions|default:"0" }}
+        <div style="font-size: 2.5rem; color: var(--color-dark); line-height: 1.1; font-variant-numeric: tabular-nums; display: flex; align-items: baseline; gap: 8px;">
+            <span>{{ total_sessions|default:"0" }}</span>
+            {% if total_sessions|add:0 > 0 and total_sales|add:0 == 0 %}
+                <span style="font-size: 1rem; color: var(--color-warning); font-weight: 500;">(pending)</span>
+            {% endif %}
         </div>
     </div>
     

@@ -14,39 +14,39 @@
 
 <!-- Financial Summary Cards -->
 <div class="stats-grid" style="grid-template-columns: repeat(4, 1fr);">
-    <div class="stat-card gradient-blue animate-fadeIn">
+    <div class="stat-card animate-fadeIn">
         <div class="stat-info">
             <div class="stat-label">Gross Revenue</div>
-            <div class="stat-value">₱{{ revenue_all_time|default:"0" }}</div>
+            <div class="stat-value" style="color: var(--color-success);">₱{{ revenue_all_time|default:"0" }}</div>
         </div>
-        <div class="stat-icon-wrap">
+        <div class="static-icon" style="color: var(--color-success);">
             <i class="bi bi-coin"></i>
         </div>
     </div>
-    <div class="stat-card animate-fadeIn" style="animation-delay: 100ms; border-left: 4px solid #EF4444;">
+    <div class="stat-card animate-fadeIn" style="animation-delay: 100ms">
         <div class="stat-info">
             <div class="stat-label">Total Expenses</div>
-            <div class="stat-value" style="color: #EF4444;">₱{{ total_expenses|default:"0" }}</div>
+            <div class="stat-value" style="color: var(--color-danger);">₱{{ total_expenses|default:"0" }}</div>
         </div>
-        <div class="stat-icon-wrap" style="background: rgba(239,68,68,0.1); color: #EF4444;">
+        <div class="static-icon" style="color: var(--color-danger);">
             <i class="bi bi-receipt"></i>
         </div>
     </div>
-    <div class="stat-card gradient-green animate-fadeIn" style="animation-delay: 200ms">
+    <div class="stat-card animate-fadeIn" style="animation-delay: 200ms">
         <div class="stat-info">
             <div class="stat-label">Net Profit</div>
-            <div class="stat-value">₱{{ net_profit|default:"0" }}</div>
+            <div class="stat-value" style="color: {% if net_profit >= 0 %}var(--color-success){% else %}var(--color-danger){% endif %};">₱{{ net_profit|default:"0" }}</div>
         </div>
-        <div class="stat-icon-wrap">
+        <div class="static-icon" style="color: {% if net_profit >= 0 %}var(--color-success){% else %}var(--color-danger){% endif %};">
             <i class="bi bi-graph-up-arrow"></i>
         </div>
     </div>
-    <div class="stat-card gradient-amber animate-fadeIn" style="animation-delay: 300ms">
+    <div class="stat-card animate-fadeIn" style="animation-delay: 300ms">
         <div class="stat-info">
             <div class="stat-label">ROI</div>
-            <div class="stat-value">{{ roi_percentage|default:"0" }}%</div>
+            <div class="stat-value" style="color: {% if roi_percentage|add:0 >= 0 %}var(--color-success){% else %}var(--color-danger){% endif %};">{{ roi_percentage|default:"0" }}%</div>
         </div>
-        <div class="stat-icon-wrap">
+        <div class="static-icon" style="color: {% if roi_percentage|add:0 >= 0 %}var(--color-success){% else %}var(--color-danger){% endif %};">
             <i class="bi bi-bar-chart"></i>
         </div>
     </div>
@@ -60,30 +60,30 @@
         <div class="cost-item">
             <div>
                 <div class="cost-desc">Today</div>
-                <div class="text-xs text-muted">{{ sessions_today }} session{{ sessions_today|pluralize }}</div>
+                <div class="text-xs text-muted">{{ sessions_today }} session{{ sessions_today|pluralize }} {% if sessions_today > 0 and revenue_today == 0 %}<span style="color: var(--color-warning);">(pending)</span>{% endif %}</div>
             </div>
-            <div class="cost-amount" style="color: #3B82F6;">₱{{ revenue_today }}</div>
+            <div class="cost-amount" style="color: var(--color-success);">₱{{ revenue_today }}</div>
         </div>
         <div class="cost-item">
             <div>
                 <div class="cost-desc">This Week (7 Days)</div>
                 <div class="text-xs text-muted">{{ sessions_week }} session{{ sessions_week|pluralize }}</div>
             </div>
-            <div class="cost-amount" style="color: #3B82F6;">₱{{ revenue_week }}</div>
+            <div class="cost-amount" style="color: var(--color-success);">₱{{ revenue_week }}</div>
         </div>
         <div class="cost-item">
             <div>
                 <div class="cost-desc">This Month (30 Days)</div>
                 <div class="text-xs text-muted">{{ sessions_month }} session{{ sessions_month|pluralize }}</div>
             </div>
-            <div class="cost-amount" style="color: #3B82F6;">₱{{ revenue_month }}</div>
+            <div class="cost-amount" style="color: var(--color-success);">₱{{ revenue_month }}</div>
         </div>
-        <div class="cost-item" style="background: rgba(59,130,246,0.06); border-radius: var(--radius-sm);">
+        <div class="cost-item" style="background: var(--color-light); border-radius: var(--radius-sm);">
             <div>
                 <div class="font-semibold">All Time</div>
                 <div class="text-xs text-muted">{{ sessions_total }} total sessions · {{ days_operating }} days operating</div>
             </div>
-            <div class="cost-amount font-bold" style="color: #3B82F6;">₱{{ revenue_all_time }}</div>
+            <div class="cost-amount font-bold" style="color: var(--color-success);">₱{{ revenue_all_time }}</div>
         </div>
     </div>
 
@@ -98,25 +98,25 @@
                     <div class="cost-desc">{{ exp.name }}</div>
                     <div class="text-xs text-muted">{{ exp.get_period_display }} (Prorated over {{ days_operating }} days)</div>
                 </div>
-                <div class="cost-amount" style="color: #EF4444;">₱{{ exp.amount }}</div>
+                <div class="cost-amount" style="color: var(--color-danger);">₱{{ exp.amount }}</div>
             </div>
             {% endfor %}
         {% else %}
             <div class="text-muted text-small mb-sm">No operating expenses recorded.</div>
         {% endif %}
-        <div class="cost-item" style="background: rgba(239,68,68,0.06); border-radius: var(--radius-sm);">
+        <div class="cost-item" style="background: var(--color-light); border-radius: var(--radius-sm);">
             <div class="font-semibold">Total Operating Expenses</div>
-            <div class="cost-amount font-bold" style="color: #EF4444;">₱{{ total_expenses }}</div>
+            <div class="cost-amount font-bold" style="color: var(--color-danger);">₱{{ total_expenses }}</div>
         </div>
 
         <!-- Profit Summary -->
-        <div style="margin-top: 16px; padding: 16px; background: {% if net_profit >= 0 %}rgba(16,185,129,0.08){% else %}rgba(239,68,68,0.08){% endif %}; border-radius: var(--radius-md); border: 2px solid {% if net_profit >= 0 %}#10B981{% else %}#EF4444{% endif %};">
+        <div style="margin-top: 16px; padding: 16px; background: var(--color-light); border-radius: var(--radius-md); border: 2px solid {% if net_profit >= 0 %}var(--color-success){% else %}var(--color-danger){% endif %};">
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <div>
                     <div class="font-bold" style="font-size: 1rem;">Net Profit</div>
                     <div class="text-xs text-muted">Revenue ₱{{ revenue_all_time }} − Expenses ₱{{ total_expenses }}</div>
                 </div>
-                <div class="font-bold" style="font-size: 1.25rem; color: {% if net_profit >= 0 %}#10B981{% else %}#EF4444{% endif %};">₱{{ net_profit }}</div>
+                <div class="font-bold" style="font-size: 1.25rem; color: {% if net_profit >= 0 %}var(--color-success){% else %}var(--color-danger){% endif %};">₱{{ net_profit }}</div>
             </div>
         </div>
     </div>
@@ -141,7 +141,7 @@
                 <div class="cost-desc">{{ plan.plan__name|default:"Unknown" }}</div>
                 <div class="text-xs text-muted">₱{{ plan.plan__price }} · {{ plan.count }} session{{ plan.count|pluralize }}</div>
             </div>
-            <div class="cost-amount" style="color: #8B5CF6;">₱{{ plan.total|default:"0" }}</div>
+            <div class="cost-amount" style="color: var(--color-success);">₱{{ plan.total|default:"0" }}</div>
         </div>
         {% endfor %}
         {% else %}
@@ -159,7 +159,7 @@
     <div class="chart-card animate-fadeIn" style="animation-delay: 550ms">
         <h3 class="card-title mb-md"><i class="bi bi-clock-history"></i> Recent Sessions</h3>
         {% if recent_sessions %}
-        <div class="table-container" style="overflow-x: auto; max-height: 320px; overflow-y: auto;">
+        <div class="table-container" style="overflow-x: auto;">
             <table style="min-width: 400px; font-size: 13px;">
                 <thead>
                     <tr>
@@ -173,7 +173,7 @@
                 <tbody>
                     {% for s in recent_sessions %}
                     <tr>
-                        <td style="max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ s.device_name|default:"—" }}</td>
+                        <td title="{{ s.device_name|default:'—' }}" style="max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ s.device_name|default:"—" }}</td>
                         <td>{{ s.plan.name|default:"—" }}</td>
                         <td>₱{{ s.amount_paid }}</td>
                         <td>{{ s.time_in|date:"M d, H:i" }}</td>
@@ -184,6 +184,11 @@
                     {% endfor %}
                 </tbody>
             </table>
+        </div>
+        <div class="d-flex justify-content-center mt-md">
+            <a href="{% url 'dashboard:sessions' %}" class="btn btn-sm btn-secondary">
+                View All Sessions
+            </a>
         </div>
         {% else %}
         <div class="empty-state" style="padding: 24px;">
@@ -200,7 +205,7 @@
         <div style="margin-bottom: 20px;">
             <div style="font-weight: 600; font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;">Generate Reports</div>
             <div class="d-flex gap-sm flex-wrap" style="margin-bottom: 8px;">
-                <button class="btn btn-primary btn-sm" onclick="generateReport(this, 'daily', 'today', 'pdf')" id="btn-daily-report-pdf">
+                <button class="btn btn-secondary btn-sm" onclick="generateReport(this, 'daily', 'today', 'pdf')" id="btn-daily-report-pdf">
                     <i class="bi bi-filetype-pdf"></i> Daily PDF
                 </button>
                 <button class="btn btn-secondary btn-sm" onclick="generateReport(this, 'daily', 'today', 'csv')" id="btn-daily-report-csv">
@@ -208,7 +213,7 @@
                 </button>
             </div>
             <div class="d-flex gap-sm flex-wrap" style="margin-bottom: 8px;">
-                <button class="btn btn-primary btn-sm" onclick="generateReport(this, 'weekly', 'week', 'pdf')" id="btn-weekly-report-pdf">
+                <button class="btn btn-secondary btn-sm" onclick="generateReport(this, 'weekly', 'week', 'pdf')" id="btn-weekly-report-pdf">
                     <i class="bi bi-filetype-pdf"></i> Weekly PDF
                 </button>
                 <button class="btn btn-secondary btn-sm" onclick="generateReport(this, 'weekly', 'week', 'csv')" id="btn-weekly-report-csv">
@@ -216,7 +221,7 @@
                 </button>
             </div>
             <div class="d-flex gap-sm flex-wrap">
-                <button class="btn btn-primary btn-sm" onclick="generateReport(this, 'monthly', 'month', 'pdf')" id="btn-monthly-report-pdf">
+                <button class="btn btn-secondary btn-sm" onclick="generateReport(this, 'monthly', 'month', 'pdf')" id="btn-monthly-report-pdf">
                     <i class="bi bi-filetype-pdf"></i> Monthly PDF
                 </button>
                 <button class="btn btn-secondary btn-sm" onclick="generateReport(this, 'monthly', 'month', 'csv')" id="btn-monthly-report-csv">
