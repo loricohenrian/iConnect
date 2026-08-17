@@ -82,7 +82,6 @@
                     <th>MAC</th>
                     <th>Data Usage</th>
                     <th>Remaining</th>
-                    <th>Expiry</th>
                     <th>Status</th>
                     <th>Time In</th>
                     <th>Time Out</th>
@@ -100,14 +99,13 @@
                     <td class="text-xs">{{ session.ip_address|default:"—" }}</td>
                     <td class="font-mono text-xs text-muted">{{ session.mac_address }}</td>
                     <td class="text-xs">{{ session.bandwidth_used_mb|floatformat:1 }} MB</td>
-                    <td class="text-xs">
+                    <td class="text-xs font-mono">
                         {% if session.status == 'expired' %}
-                            0m
+                            00:00:00
                         {% else %}
-                            {{ session.remaining_minutes|floatformat:1 }}m
+                            {{ session.time_remaining_display }}
                         {% endif %}
                     </td>
-                    <td class="text-xs">{{ session.time_out|date:"M d, h:i A"|default:"—" }}</td>
                     <td>
                         {% if session.status == 'active' %}
                             <span class="badge badge-active">Active</span>
