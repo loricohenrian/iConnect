@@ -207,13 +207,16 @@ def auto_pause_disconnected_sessions():
     from .models import Session
     from . import iptables
 
-    if not getattr(settings, 'PISONET_AUTO_PAUSE_ENABLED', False):
-        return 'Auto-pause disabled'
+    from dashboard.models import SystemSettings
+    
+    settings_obj = SystemSettings.get_settings()
+    if not settings_obj.enable_auto_pause_resume:
+        return 'Auto-pause/resume disabled'
 
     if getattr(settings, 'PISONET_GPIO_SIMULATION', False):
         return 'Skipped in simulation mode'
 
-    timeout_seconds = getattr(settings, 'PISONET_AUTO_PAUSE_TIMEOUT_SECONDS', 300)
+    timeout_seconds = settings_obj.auto_pause_timeout_seconds
     active_sessions = Session.objects.filter(status='active').exclude(ip_address__isnull=True)
 
     paused_count = 0
@@ -329,5 +332,79 @@ def expire_voucher_codes():
 
     return f'Expired {expired} voucher codes'
 
+@shared_task
+def auto_resume_connected_sessions():
+    """
+    Auto-resume paused sessions whose devices have reconnected to WiFi.
+    """
+    from dashboard.models import SystemSettings
+    from .models import Session
+    from . import iptables
+
+    settings_obj = SystemSettings.get_settings()
+    if not settings_obj.enable_auto_pause_resume:
+        return 'Auto-pause/resume disabled'
+
+    paused_sessions = Session.objects.filter(status='paused').exclude(ip_address__isnull=True)
+    resumed_count = 0
+
+    for session in paused_sessions:
+        if _is_device_reachable(session.mac_address, session.ip_address):
+            # Device is back online — resume the session
+            
+            # Check if network is full before allowing resume
+            from django.conf import settings
+            max_sessions = getattr(settings, "PISONET_MAX_CONCURRENT_SESSIONS", 20)
+            active_count = Session.objects.filter(status="active").count()
+            if active_count >= max_sessions:
+                logger.warning(f'Cannot auto-resume {session.mac_address} — network full')
+                continue
+
+            session.resume_session()
+            dl_kbps = int(session.plan.speed_limit * 1024) if session.plan and session.plan.speed_limit else None
+            ul_kbps = int(session.plan.speed_limit_upload * 1024) if session.plan and session.plan.speed_limit_upload else dl_kbps
+            iptables.allow_device(session.mac_address, rate_kbps=dl_kbps, upload_kbps=ul_kbps)
+            resumed_count += 1
+            logger.info(f'Auto-resumed session {session.id} for {session.mac_address}')
+
+    if resumed_count:
+        logger.info(f'Auto-resume check: resumed={resumed_count}')
+
+    return f'Checked {paused_sessions.count()} paused sessions, auto-resumed {resumed_count}'
+
+
+@shared_task
+def check_internet_status():
+    """
+    Ping a reliable external server (8.8.8.8) to check if the ISP is online.
+    Caches the result so the API endpoints can quickly check.
+    """
+    from dashboard.models import SystemSettings
+    from django.core.cache import cache
+    import subprocess
+
+    settings_obj = SystemSettings.get_settings()
+    if not settings_obj.enable_internet_check:
+        # If disabled, always assume internet is OK
+        cache.set("internet_status_ok", True, timeout=120)
+        return 'Internet checking disabled'
+
+    try:
+        # ICMP ping fallback
+        res = subprocess.run(
+            ["ping", "-c", "1", "-W", "2", "8.8.8.8"],
+            capture_output=True, timeout=3,
+        )
+        is_online = (res.returncode == 0)
+    except Exception:
+        is_online = False
+
+    cache.set("internet_status_ok", is_online, timeout=120)
+    
+    if not is_online:
+        logger.warning('Internet check failed. ISP is offline.')
+        return 'ISP is offline'
+    
+    return 'ISP is online'
 
 

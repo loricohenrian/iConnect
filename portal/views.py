@@ -145,6 +145,7 @@ def index(request):
         "slots_active": active_count,
         "slots_max": max_slots,
         "slots_available": available_slots,
+        "insert_coin_countdown_seconds": SystemSettings.get_settings().insert_coin_countdown_seconds,
     }
     return render(request, "portal/index.html", context)
 
@@ -193,6 +194,7 @@ def session_page(request):
         "slots_active": active_count,
         "slots_max": max_slots,
         "slots_available": available_slots,
+        "insert_coin_countdown_seconds": SystemSettings.get_settings().insert_coin_countdown_seconds,
     }
     return render(request, "portal/session.html", context)
 

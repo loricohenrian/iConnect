@@ -162,6 +162,24 @@ class SystemSettings(models.Model):
         help_text="Global fallback max pause duration in hours (0 = unlimited)"
     )
 
+    # Network & Automation Features
+    enable_internet_check = models.BooleanField(
+        default=False,
+        help_text="Auto-disable coin insertion when the ISP/Internet is down"
+    )
+    enable_auto_pause_resume = models.BooleanField(
+        default=False,
+        help_text="Automatically pause sessions when disconnected, and resume when reconnected"
+    )
+    auto_pause_timeout_seconds = models.PositiveIntegerField(
+        default=300,
+        help_text="Seconds device must be unreachable before auto-pausing (Default: 300)"
+    )
+    insert_coin_countdown_seconds = models.PositiveIntegerField(
+        default=120,
+        help_text="Seconds before the coin slot auto-cancels if no coins are inserted (Default: 120)"
+    )
+
     class Meta:
         verbose_name = "System Setting"
         verbose_name_plural = "System Settings"

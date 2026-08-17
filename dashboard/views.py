@@ -1433,6 +1433,12 @@ def settings_view(request):
             settings_obj.max_concurrent_sessions = int(request.POST.get('max_concurrent_sessions', 20))
             settings_obj.global_pause_limit_hours = int(request.POST.get('global_pause_limit_hours', 24))
             
+            # Network & Automation Features
+            settings_obj.enable_internet_check = request.POST.get('enable_internet_check') == 'on'
+            settings_obj.enable_auto_pause_resume = request.POST.get('enable_auto_pause_resume') == 'on'
+            settings_obj.auto_pause_timeout_seconds = int(request.POST.get('auto_pause_timeout_seconds', 300))
+            settings_obj.insert_coin_countdown_seconds = int(request.POST.get('insert_coin_countdown_seconds', 120))
+            
             settings_obj.save()
             message = "Settings updated successfully."
             

@@ -122,6 +122,53 @@
     </div>
     <div id="extend-flow-message" class="alert alert-info mt-md" style="display:none;"></div>
     <p id="extend-flow-meta" class="text-small text-muted mt-md" style="margin-bottom:0;"></p>
+    <div id="coin-countdown-container" class="mt-md" style="display:none; text-align:center;">
+        <div style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 4px;">Time remaining to insert coins</div>
+        <div id="coin-countdown-display" style="font-size: 1.5rem; font-weight: bold; font-family: monospace; color: var(--text-primary);">02:00</div>
+    </div>
 </div>
+
+<script>
+    const COUNTDOWN_SECONDS = {{ insert_coin_countdown_seconds|default:120 }};
+    let countdownInterval = null;
+    let countdownEndTime = 0;
+
+    // Observe changes to extend-flow-message to know when to start/stop the timer
+    const flowMessage = document.getElementById('extend-flow-message');
+    const countdownContainer = document.getElementById('coin-countdown-container');
+    const countdownDisplay = document.getElementById('coin-countdown-display');
+
+    if (flowMessage && countdownContainer && countdownDisplay) {
+        const observer = new MutationObserver(() => {
+            const msg = flowMessage.innerText;
+            // When the coin slot is active, start the timer
+            if (msg.includes("Insert coins now") || msg.includes("Insert coins first")) {
+                if (!countdownInterval) {
+                    countdownEndTime = Date.now() + (COUNTDOWN_SECONDS * 1000);
+                    countdownContainer.style.display = 'block';
+                    countdownInterval = setInterval(() => {
+                        const remaining = Math.max(0, Math.floor((countdownEndTime - Date.now()) / 1000));
+                        const m = Math.floor(remaining / 60).toString().padStart(2, '0');
+                        const s = (remaining % 60).toString().padStart(2, '0');
+                        countdownDisplay.innerText = `${m}:${s}`;
+                        
+                        if (remaining <= 0) {
+                            clearInterval(countdownInterval);
+                            countdownInterval = null;
+                        }
+                    }, 1000);
+                }
+            } else {
+                if (countdownInterval) {
+                    clearInterval(countdownInterval);
+                    countdownInterval = null;
+                }
+                countdownContainer.style.display = 'none';
+            }
+        });
+        
+        observer.observe(flowMessage, { childList: true, characterData: true, subtree: true });
+    }
+</script>
 
 {% endblock %}

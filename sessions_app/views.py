@@ -155,7 +155,9 @@ def _ensure_firewall_ready_for_session_start():
 
 
 def _coin_request_window_seconds():
-    return max(15, int(getattr(settings, "PISONET_COIN_REQUEST_WINDOW_SECONDS", 45)))
+    from dashboard.models import SystemSettings
+    settings_obj = SystemSettings.get_settings()
+    return max(15, int(settings_obj.insert_coin_countdown_seconds))
 
 
 def _coin_request_max_queue():
@@ -427,6 +429,18 @@ def session_start_request(request):
     mac_address = serializer.validated_data["mac_address"]
     plan_id = serializer.validated_data["plan_id"]
     ip_address = _client_ip(request)
+
+    from dashboard.models import SystemSettings
+    from django.core.cache import cache
+    
+    settings_obj = SystemSettings.get_settings()
+    if settings_obj.enable_internet_check:
+        # Check if internet is online from cache
+        if cache.get("internet_status_ok") is False:
+            return Response(
+                {"error": "Internet Connection is Offline. Coin slot disabled."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
 
     if SuspiciousDevice.objects.filter(mac_address=mac_address, is_blocked=True).exists():
         audit_logger.warning(
@@ -897,6 +911,17 @@ def session_extend_paid(request):
     """
     mac_address = request.data.get("mac_address", "").upper()
     plan_id = request.data.get("plan_id")
+
+    from dashboard.models import SystemSettings
+    from django.core.cache import cache
+    
+    settings_obj = SystemSettings.get_settings()
+    if settings_obj.enable_internet_check:
+        if cache.get("internet_status_ok") is False:
+            return Response(
+                {"error": "Internet Connection is Offline. Coin slot disabled."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
 
     if not mac_address or not plan_id:
         return Response(

@@ -228,6 +228,14 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'sessions_app.tasks.auto_pause_disconnected_sessions',
         'schedule': 30.0,
     },
+    'auto-resume-connected-sessions-every-30s': {
+        'task': 'sessions_app.tasks.auto_resume_connected_sessions',
+        'schedule': 30.0,
+    },
+    'check-internet-status-every-30s': {
+        'task': 'sessions_app.tasks.check_internet_status',
+        'schedule': 30.0,
+    },
 }
 
 # Email / report delivery settings
