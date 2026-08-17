@@ -1544,5 +1544,51 @@ def admin_session_action(request, session_id, action):
         
     return JsonResponse({'success': True})
 
+@user_passes_test(_is_dashboard_admin, login_url='dashboard:login')
+def logs_view(request):
+    """View for system logs and coin events."""
+    from sessions_app.models import CoinEvent
+    from django.conf import settings
+    import os
+
+    search_mac = request.GET.get('mac', '').strip().upper()
+
+    coin_events_qs = CoinEvent.objects.all().order_by('-created_at')
+    if search_mac:
+        coin_events_qs = coin_events_qs.filter(mac_address__icontains=search_mac)
+
+    # Pagination for Coin Events
+    page = request.GET.get('page', 1)
+    paginator = Paginator(coin_events_qs, 100)
+    try:
+        coin_events = paginator.page(page)
+    except PageNotAnInteger:
+        coin_events = paginator.page(1)
+    except EmptyPage:
+        coin_events = paginator.page(paginator.num_pages)
+
+    # Read audit.log
+    audit_log_lines = []
+    log_path = os.path.join(settings.BASE_DIR, 'logs', 'audit.log')
+    if os.path.exists(log_path):
+        try:
+            with open(log_path, 'r', encoding='utf-8') as f:
+                # Read last 500 lines
+                lines = f.readlines()
+                audit_log_lines = lines[-500:] if len(lines) > 500 else lines
+                audit_log_lines.reverse()  # Newest first
+        except Exception as e:
+            audit_log_lines = [f'Error reading log file: {e}']
+    else:
+        audit_log_lines = ['Audit log file not found.']
+
+    context = {
+        'active_page': 'logs',
+        'coin_events': coin_events,
+        'audit_log_lines': audit_log_lines,
+        'search_mac': search_mac,
+    }
+    return render(request, 'dashboard/logs.html', context)
+
 
 

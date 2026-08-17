@@ -1,0 +1,103 @@
+{% extends "base_dashboard.html" %}
+
+{% block page_title %}System Logs{% endblock %}
+{% block topbar_title %}System Logs{% endblock %}
+
+{% block dashboard_content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card mb-md">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h2>Coin Insertion History</h2>
+                <form method="get" action="{% url 'dashboard:logs' %}" class="d-flex gap-sm">
+                    <input type="text" name="mac" placeholder="Search MAC Address" value="{{ search_mac }}" class="form-input">
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-search"></i> Search</button>
+                    {% if search_mac %}
+                    <a href="{% url 'dashboard:logs' %}" class="btn btn-outline">Clear</a>
+                    {% endif %}
+                </form>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>MAC Address</th>
+                                <th>Amount</th>
+                                <th>Status</th>
+                                <th>Session / Plan</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for event in coin_events %}
+                            <tr>
+                                <td>{{ event.created_at|date:"M d, Y H:i:s" }}</td>
+                                <td><code>{{ event.mac_address|default:"N/A" }}</code></td>
+                                <td><span class="badge badge-success">₱{{ event.amount }}</span></td>
+                                <td>
+                                    {% if event.is_processed %}
+                                    <span class="badge badge-success">Processed</span>
+                                    {% else %}
+                                    <span class="badge badge-warning">Pending/Failed</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if event.session %}
+                                    <a href="{% url 'dashboard:sessions' %}?mac={{ event.session.mac_address }}">Session #{{ event.session.id }}</a>
+                                    {% else %}
+                                    <span class="text-muted">None</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center py-md text-muted">
+                                    {% if search_mac %}
+                                    No coin events found for MAC address "{{ search_mac }}".
+                                    {% else %}
+                                    No coin events recorded yet.
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% if coin_events.has_other_pages %}
+            <div class="card-footer text-center">
+                <div class="pagination">
+                    {% if coin_events.has_previous %}
+                    <a href="?page={{ coin_events.previous_page_number }}{% if search_mac %}&mac={{ search_mac }}{% endif %}" class="btn btn-sm btn-outline">&laquo; Prev</a>
+                    {% endif %}
+                    
+                    <span class="mx-md">Page {{ coin_events.number }} of {{ coin_events.paginator.num_pages }}</span>
+                    
+                    {% if coin_events.has_next %}
+                    <a href="?page={{ coin_events.next_page_number }}{% if search_mac %}&mac={{ search_mac }}{% endif %}" class="btn btn-sm btn-outline">Next &raquo;</a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h2>System Audit Log (Last 500 lines)</h2>
+            </div>
+            <div class="card-body">
+                <div class="terminal-view" style="background: #1e1e1e; color: #00ff00; padding: 15px; border-radius: 5px; height: 400px; overflow-y: auto; font-family: monospace; font-size: 13px;">
+                    {% for line in audit_log_lines %}
+                        <div style="white-space: pre-wrap; word-break: break-all; margin-bottom: 2px;">{{ line }}</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

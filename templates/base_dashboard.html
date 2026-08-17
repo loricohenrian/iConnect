@@ -62,6 +62,10 @@
                     <i class="bi bi-megaphone"></i>
                     <span>Announcements</span>
                 </a>
+                <a href="{% url 'dashboard:logs' %}" class="nav-item {% if active_page == 'logs' %}active{% endif %}" id="nav-logs">
+                    <i class="bi bi-journal-text"></i>
+                    <span>System Logs</span>
+                </a>
                 <a href="{% url 'dashboard:plans' %}" class="nav-item {% if active_page == 'plans' %}active{% endif %}" id="nav-plans">
                     <i class="bi bi-tags"></i>
                     <span>WiFi Rates</span>

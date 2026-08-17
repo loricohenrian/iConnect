@@ -22,5 +22,6 @@ urlpatterns = [
     path('plans/', views.plans_view, name='plans'),
     path('settings/', views.settings_view, name='settings'),
     path('account/', views.account_view, name='account'),
+    path('logs/', views.logs_view, name='logs'),
     path('sessions/<int:session_id>/<str:action>/', views.admin_session_action, name='session_action'),
 ]
