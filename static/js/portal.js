@@ -693,6 +693,8 @@ function initProductionStartFlow(macAddress) {
         readyToStart: false,
         pollTimer: null,
         pollInFlight: false,
+        isGroupPass: false,
+        groupDevices: null,
     };
 
     startBtn.dataset.readyToStart = "0";
@@ -707,6 +709,13 @@ function initProductionStartFlow(macAddress) {
     const applyCoinRequestState = (coinRequest) => {
         state.requestId = coinRequest ? coinRequest.id : null;
         state.readyToStart = Boolean(coinRequest && coinRequest.ready_to_start);
+        if (coinRequest) {
+            state.isGroupPass = coinRequest.is_group_pass || false;
+            state.groupDevices = coinRequest.group_pass_devices || null;
+            if (coinRequest.plan_id) {
+                state.planId = coinRequest.plan_id;
+            }
+        }
 
         setStartFlowMessage(
             coinRequestStatusMessage(coinRequest),
@@ -837,7 +846,7 @@ function initProductionStartFlow(macAddress) {
     });
 
     startBtn.addEventListener("click", async () => {
-        const planId = selectedPlanId();
+        const planId = state.planId || selectedPlanId();
         if (!planId) {
             setStartFlowMessage("Select a plan first.", "warning");
             startBtn.disabled = true;
@@ -854,18 +863,22 @@ function initProductionStartFlow(macAddress) {
         startBtn.disabled = true;
 
         try {
+            const payload = {
+                mac_address: macAddress,
+                plan_id: planId
+            };
+            if (state.isGroupPass) {
+                payload.is_group_pass = true;
+                payload.group_pass_devices = state.groupDevices;
+            }
+
             const response = await fetch("/api/session/start/", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                     "X-CSRFToken": getCSRFToken(),
                 },
-                body: JSON.stringify({
-                    mac_address: macAddress,
-                    plan_id: planId,
-                    is_group_pass: document.getElementById("group-pass-toggle")?.checked || false,
-                    group_pass_devices: document.getElementById("group-pass-toggle")?.checked ? parseInt(document.getElementById("fp-device-count")?.innerText || "2") : null,
-                }),
+                body: JSON.stringify(payload),
             });
             const data = await parseJsonSafe(response);
 

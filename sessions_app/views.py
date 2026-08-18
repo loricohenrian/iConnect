@@ -224,6 +224,9 @@ def _coin_request_payload(coin_request):
         "credited_amount": coin_request.credited_amount,
         "queue_position": _coin_request_queue_position(coin_request),
         "expires_at": coin_request.expires_at,
+        "is_group_pass": coin_request.is_group_pass,
+        "group_pass_devices": coin_request.group_pass_devices,
+        "plan_id": coin_request.plan_id,
         "ready_to_start": (
             coin_request.expected_amount > 0 and 
             coin_request.credited_amount >= coin_request.expected_amount
