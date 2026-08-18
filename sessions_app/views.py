@@ -277,7 +277,7 @@ def _active_coin_request_for_unscoped_insert():
     return _activate_next_coin_request()
 
 
-def _get_or_create_start_coin_request(mac_address, ip_address, plan):
+def _get_or_create_start_coin_request(mac_address, ip_address, plan, is_group_pass=False, group_pass_devices=1):
     """Create/reuse a queued start-session coin request for this device."""
     existing_request = CoinInsertRequest.objects.filter(
         mac_address=mac_address,
@@ -287,7 +287,7 @@ def _get_or_create_start_coin_request(mac_address, ip_address, plan):
 
     if existing_request:
         # If same plan, reuse. If different plan, cancel and create new.
-        if existing_request.plan_id == plan.id:
+        if existing_request.plan_id == plan.id and existing_request.is_group_pass == is_group_pass and existing_request.group_pass_devices == group_pass_devices:
             return _sync_coin_request_progress(existing_request), False
         else:
             existing_request.status = CoinInsertRequest.STATUS_CANCELLED
@@ -303,7 +303,7 @@ def _get_or_create_start_coin_request(mac_address, ip_address, plan):
     credited_amount = _pending_coin_events_for_mac(mac_address).aggregate(total=Sum("amount"))["total"] or 0
     initial_status = (
         CoinInsertRequest.STATUS_COMPLETED
-        if credited_amount >= plan.price
+        if credited_amount >= (plan.price * group_pass_devices if is_group_pass else plan.price)
         else CoinInsertRequest.STATUS_PENDING
     )
 
@@ -312,7 +312,9 @@ def _get_or_create_start_coin_request(mac_address, ip_address, plan):
         ip_address=ip_address,
         purpose=CoinInsertRequest.PURPOSE_START,
         plan=plan,
-        expected_amount=plan.price,
+        expected_amount=plan.price * group_pass_devices if is_group_pass else plan.price,
+        is_group_pass=is_group_pass,
+        group_pass_devices=group_pass_devices,
         credited_amount=credited_amount,
         status=initial_status,
         completed_at=timezone.now() if initial_status == CoinInsertRequest.STATUS_COMPLETED else None,
@@ -429,7 +431,10 @@ def session_start_request(request):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     mac_address = serializer.validated_data["mac_address"]
-    plan_id = serializer.validated_data["plan_id"]
+    plan_id = serializer.validated_data.get("plan_id")
+    is_group_pass = serializer.validated_data.get("is_group_pass", False)
+    group_pass_devices = serializer.validated_data.get("group_pass_devices")
+    group_pass_duration_minutes = serializer.validated_data.get("group_pass_duration_minutes")
     ip_address = _client_ip(request)
 
     from dashboard.models import SystemSettings
@@ -466,7 +471,13 @@ def session_start_request(request):
     # because the user may want to extend their session with more coins.
 
     try:
-        coin_request, created = _get_or_create_start_coin_request(mac_address, ip_address, plan)
+        coin_request, created = _get_or_create_start_coin_request(
+            mac_address, ip_address, plan,
+            is_group_pass=is_group_pass,
+            group_pass_devices=group_pass_devices,
+            group_pass_duration_minutes=group_pass_duration_minutes,
+            settings_obj=settings_obj
+        )
     except ValueError as exc:
         return Response({"error": str(exc)}, status=status.HTTP_429_TOO_MANY_REQUESTS)
 
@@ -543,21 +554,32 @@ def session_start(request):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     mac_address = serializer.validated_data["mac_address"]
-    plan_id = serializer.validated_data["plan_id"]
+    plan_id = serializer.validated_data.get("plan_id")
+    is_group_pass = serializer.validated_data.get("is_group_pass", False)
+    group_pass_devices = serializer.validated_data.get("group_pass_devices")
+    group_pass_duration_minutes = serializer.validated_data.get("group_pass_duration_minutes")
     ip_address = _client_ip(request)
     device_name = serializer.validated_data.get("device_name")
 
+    from dashboard.models import SystemSettings
+    from django.core.cache import cache
+    
+    settings_obj = SystemSettings.get_settings()
+    if settings_obj.enable_internet_check:
+        if cache.get("internet_status_ok") is False:
+            return Response(
+                {"error": "Internet Connection is Offline. Coin slot disabled."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
     if SuspiciousDevice.objects.filter(mac_address=mac_address, is_blocked=True).exists():
-        audit_logger.warning(
-            "event=session_start_blocked_device mac=%s ip=%s",
-            mac_address, ip_address,
-        )
+        audit_logger.warning("event=session_start_blocked_device mac=%s ip=%s", mac_address, ip_address)
         return Response(
             {"error": "Your device has been blocked by the administrator."},
             status=status.HTTP_403_FORBIDDEN,
         )
 
-    # Auto-detect device name from User-Agent if not provided
+    # Auto-detect device name
     if not device_name:
         ua = request.META.get("HTTP_USER_AGENT", "")
         if "iPhone" in ua:
@@ -565,7 +587,6 @@ def session_start(request):
         elif "iPad" in ua:
             device_name = "iPad"
         elif "Android" in ua:
-            # Try to extract model: "Android X.X; MODEL)"
             import re
             m = re.search(r'Android[^;]*;\s*([^)]+)', ua)
             device_name = m.group(1).strip() if m else "Android"
@@ -578,98 +599,92 @@ def session_start(request):
         else:
             device_name = "Unknown"
 
+    plan = None
+    expected_amount = 0
+    duration_minutes = 0
+    
     try:
         plan = Plan.objects.get(id=plan_id, is_active=True)
+        expected_amount = plan.price * group_pass_devices if is_group_pass else plan.price
+        duration_minutes = plan.duration_minutes
     except Plan.DoesNotExist:
-        return Response(
-            {"error": "Plan not found or inactive"},
-            status=status.HTTP_404_NOT_FOUND,
-        )
+        return Response({"error": "Plan not found or inactive"}, status=status.HTTP_404_NOT_FOUND)
 
-    existing = Session.objects.filter(
-        mac_address=mac_address,
-        status="active",
-    ).first()
+    existing = Session.objects.filter(mac_address=mac_address, status="active").first()
     if existing:
         if ip_address and existing.ip_address != ip_address:
             existing.ip_address = ip_address
             existing.save(update_fields=["ip_address"])
-            rate = existing.plan.speed_limit if existing.plan else None
-            iptables.allow_device(mac_address, rate_kbps=rate)
-
+            if existing.plan:
+                rate = existing.plan.speed_limit
+                iptables.allow_device(mac_address, rate_kbps=rate)
+            elif existing.session_group:
+                dl_kbps = int(existing.plan.speed_limit * 1024) if existing.plan and existing.plan.speed_limit else None
+                ul_kbps = int(existing.plan.speed_limit_upload * 1024) if existing.plan and existing.plan.speed_limit_upload else dl_kbps
+                iptables.allow_device(mac_address, rate_kbps=dl_kbps, upload_kbps=ul_kbps)
         return Response(
-            {
-                "error": "Device already has an active session",
-                "session": SessionSerializer(existing).data,
-            },
+            {"error": "Device already has an active session", "session": SessionSerializer(existing).data},
             status=status.HTTP_409_CONFLICT,
         )
 
     if not _ensure_firewall_ready_for_session_start():
-        audit_logger.error(
-            "event=session_start_firewall_baseline_failed mac=%s ip=%s",
-            mac_address,
-            ip_address,
-        )
-        return Response(
-            {"error": "Firewall baseline is not ready. Please retry shortly."},
-            status=status.HTTP_503_SERVICE_UNAVAILABLE,
-        )
+        return Response({"error": "Firewall baseline is not ready. Please retry shortly."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
-    # Check max concurrent sessions limit
     max_sessions = getattr(settings, "PISONET_MAX_CONCURRENT_SESSIONS", 20)
     active_count = Session.objects.filter(status="active").count()
     if active_count >= max_sessions:
-        audit_logger.warning(
-            "event=session_start_max_concurrent mac=%s active=%d max=%d",
-            mac_address, active_count, max_sessions,
-        )
-        return Response(
-            {"error": f"Maximum concurrent users ({max_sessions}) reached. Please try again later."},
-            status=status.HTTP_503_SERVICE_UNAVAILABLE,
-        )
+        return Response({"error": f"Maximum concurrent users ({max_sessions}) reached. Please try again later."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
-    total_coins = _pending_coin_events_for_mac(mac_address).aggregate(
-        total=Sum("amount")
-    )["total"] or 0
+    total_coins = _pending_coin_events_for_mac(mac_address).aggregate(total=Sum("amount"))["total"] or 0
 
-    if total_coins < plan.price:
+    if total_coins < expected_amount:
         try:
-            coin_request, _ = _get_or_create_start_coin_request(mac_address, ip_address, plan)
-        except ValueError as exc:
-            return Response(
-                {
-                    "error": str(exc),
-                    "required": plan.price,
-                    "received": total_coins,
-                },
-                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            coin_request, _ = _get_or_create_start_coin_request(
+                mac_address, ip_address, plan,
+                is_group_pass=is_group_pass,
+                group_pass_devices=group_pass_devices,
+                group_pass_duration_minutes=group_pass_duration_minutes,
+                settings_obj=settings_obj
             )
-
+        except ValueError as exc:
+            return Response({"error": str(exc), "required": expected_amount, "received": total_coins}, status=status.HTTP_429_TOO_MANY_REQUESTS)
         return Response(
-            {
-                "error": (
-                    f"Insufficient payment for {mac_address}. "
-                    f"Need {PESO_SYMBOL}{plan.price}, received {PESO_SYMBOL}{total_coins}"
-                ),
-                "required": plan.price,
-                "received": total_coins,
-                "coin_request": _coin_request_payload(coin_request),
-            },
+            {"error": f"Insufficient payment for {mac_address}. Need {PESO_SYMBOL}{expected_amount}, received {PESO_SYMBOL}{total_coins}", "required": expected_amount, "received": total_coins, "coin_request": _coin_request_payload(coin_request)},
             status=status.HTTP_402_PAYMENT_REQUIRED,
         )
 
     try:
         with transaction.atomic():
-            multiplier = total_coins // plan.price
-            amount_paid = plan.price * multiplier
-            duration_minutes = plan.duration_minutes * multiplier
+            multiplier = total_coins // expected_amount if expected_amount > 0 else 1
+            amount_paid = expected_amount * multiplier
+            actual_duration = duration_minutes * multiplier
+            
+            session_group = None
+            if is_group_pass:
+                import random
+                import string
+                # Generate unique code
+                while True:
+                    code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+                    if not SessionGroup.objects.filter(group_code=code).exists():
+                        break
+                
+                session_group = SessionGroup.objects.create(
+                    group_code=code,
+                    max_devices=group_pass_devices,
+                    total_price=amount_paid,
+                    duration_minutes=actual_duration,
+                    time_in=timezone.now(),
+                    time_out=timezone.now() + timedelta(minutes=actual_duration),
+                    status="active"
+                )
 
             session = Session.objects.create(
                 mac_address=mac_address,
                 plan=plan,
+                session_group=session_group,
                 time_in=timezone.now(),
-                duration_minutes_purchased=duration_minutes,
+                duration_minutes_purchased=actual_duration,
                 amount_paid=amount_paid,
                 ip_address=ip_address,
                 device_name=device_name,
@@ -691,7 +706,6 @@ def session_start(request):
                 event.save(update_fields=["session"])
                 used_amount += event.amount
 
-            # Return overpayment as balance (unlinked "change" coin event)
             overpayment = used_amount - amount_paid
             if overpayment > 0:
                 CoinEvent.objects.create(
@@ -710,16 +724,19 @@ def session_start(request):
                 completed_at=timezone.now(),
             )
 
-            # Apply bandwidth limit based on plan's speed_limit (Mbps → kbps)
-            dl_kbps = int(plan.speed_limit * 1024) if plan.speed_limit else None
-            ul_kbps = int(plan.speed_limit_upload * 1024) if plan.speed_limit_upload else dl_kbps
+            dl_kbps = None
+            ul_kbps = None
+            if plan:
+                dl_kbps = int(plan.speed_limit * 1024) if plan.speed_limit else None
+                ul_kbps = int(plan.speed_limit_upload * 1024) if plan.speed_limit_upload else dl_kbps
+            elif session_group:
+                dl_kbps = int(settings_obj.family_pass_speed_limit * 1024)
+                ul_kbps = int(settings_obj.family_pass_speed_limit_upload * 1024)
+                
             if not iptables.allow_device(mac_address, rate_kbps=dl_kbps, upload_kbps=ul_kbps):
                 raise RuntimeError("Failed to allow internet access for this device")
     except RuntimeError as exc:
-        return Response(
-            {"error": str(exc)},
-            status=status.HTTP_503_SERVICE_UNAVAILABLE,
-        )
+        return Response({"error": str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
     _activate_next_coin_request()
 
@@ -728,6 +745,97 @@ def session_start(request):
             "status": "success",
             "message": "Session started",
             "session": SessionSerializer(session).data,
+            "session_group": session.session_group.group_code if session.session_group else None
+        },
+        status=status.HTTP_201_CREATED,
+    )
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def session_join_group(request):
+    """
+    Join an existing Family/Group Pass.
+    POST /api/session/join-group/
+    """
+    serializer = GroupJoinSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    mac_address = serializer.validated_data["mac_address"]
+    group_code = serializer.validated_data["group_code"].upper()
+    ip_address = _client_ip(request)
+    device_name = serializer.validated_data.get("device_name", "Unknown")
+
+    # Rate limiting: simplistic cache based on IP
+    from django.core.cache import cache
+    cache_key = f"join_group_attempts_{ip_address}"
+    attempts = cache.get(cache_key, 0)
+    if attempts >= 5:
+        return Response({"error": "Too many attempts. Please try again later."}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+    cache.set(cache_key, attempts + 1, timeout=60)
+
+    if SuspiciousDevice.objects.filter(mac_address=mac_address, is_blocked=True).exists():
+        return Response({"error": "Your device has been blocked by the administrator."}, status=status.HTTP_403_FORBIDDEN)
+
+    existing = Session.objects.filter(mac_address=mac_address, status="active").first()
+    if existing:
+        return Response({"error": "Device already has an active session"}, status=status.HTTP_409_CONFLICT)
+
+    if not _ensure_firewall_ready_for_session_start():
+        return Response({"error": "Firewall is not ready. Please retry shortly."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+    max_sessions = getattr(settings, "PISONET_MAX_CONCURRENT_SESSIONS", 20)
+    if Session.objects.filter(status="active").count() >= max_sessions:
+        return Response({"error": "Network is currently full."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+    group = SessionGroup.objects.filter(group_code=group_code, status="active").first()
+    if not group:
+        return Response({"error": "Invalid or expired group code."}, status=status.HTTP_404_NOT_FOUND)
+
+    if group.time_out and group.time_out <= timezone.now():
+        group.status = "expired"
+        group.save(update_fields=["status"])
+        return Response({"error": "This group pass has expired."}, status=status.HTTP_400_BAD_REQUEST)
+
+    if group.is_full():
+        return Response({"error": f"This group pass is full ({group.connected_devices_count}/{group.max_devices} devices connected)."}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        with transaction.atomic():
+            remaining_minutes = max(0, int((group.time_out - timezone.now()).total_seconds() / 60))
+            
+            session = Session.objects.create(
+                mac_address=mac_address,
+                plan=None,
+                session_group=group,
+                time_in=timezone.now(),
+                duration_minutes_purchased=remaining_minutes,
+                amount_paid=0,
+                ip_address=ip_address,
+                device_name=device_name,
+                status="active",
+            )
+            
+            from dashboard.models import SystemSettings
+            settings_obj = SystemSettings.get_settings()
+            dl_kbps = int(settings_obj.family_pass_speed_limit * 1024)
+            ul_kbps = int(settings_obj.family_pass_speed_limit_upload * 1024)
+            
+            if not iptables.allow_device(mac_address, rate_kbps=dl_kbps, upload_kbps=ul_kbps):
+                raise RuntimeError("Failed to allow internet access for this device")
+    except RuntimeError as exc:
+        return Response({"error": str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+    # Clear rate limit on success
+    cache.delete(cache_key)
+
+    return Response(
+        {
+            "status": "success",
+            "message": "Successfully joined group pass",
+            "session": SessionSerializer(session).data,
+            "session_group": group.group_code
         },
         status=status.HTTP_201_CREATED,
     )

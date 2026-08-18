@@ -68,6 +68,39 @@ class Plan(models.Model):
         return round(self.price / self.duration_minutes, 2)
 
 
+class SessionGroup(models.Model):
+    """A group pass that allows multiple devices to share the same countdown."""
+    
+    STATUS_CHOICES = [
+        ("active", "Active"),
+        ("expired", "Expired"),
+    ]
+    
+    group_code = models.CharField(max_length=10, unique=True, help_text="Unique code to join the group")
+    max_devices = models.PositiveIntegerField(help_text="Maximum allowed devices")
+    total_price = models.PositiveIntegerField(help_text="Total amount paid in ₱")
+    duration_minutes = models.PositiveIntegerField()
+    time_in = models.DateTimeField(default=timezone.now)
+    time_out = models.DateTimeField(null=True, blank=True)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="active")
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ["-time_in"]
+        verbose_name = "Session Group"
+        verbose_name_plural = "Session Groups"
+
+    def __str__(self):
+        return f"Group {self.group_code} ({self.status})"
+
+    @property
+    def connected_devices_count(self):
+        return self.sessions.count()
+        
+    def is_full(self):
+        return self.connected_devices_count >= self.max_devices
+
+
 class Session(models.Model):
     """A WiFi session for a connected device."""
 
@@ -78,7 +111,8 @@ class Session(models.Model):
     ]
 
     mac_address = models.CharField(max_length=17, help_text="Format: AA:BB:CC:DD:EE:FF")
-    plan = models.ForeignKey(Plan, on_delete=models.PROTECT, related_name="sessions")
+    plan = models.ForeignKey(Plan, on_delete=models.PROTECT, related_name="sessions", null=True, blank=True)
+    session_group = models.ForeignKey(SessionGroup, on_delete=models.SET_NULL, null=True, blank=True, related_name="sessions")
     time_in = models.DateTimeField(default=timezone.now)
     time_out = models.DateTimeField(null=True, blank=True)
     duration_minutes_purchased = models.PositiveIntegerField()
@@ -115,6 +149,12 @@ class Session(models.Model):
     @property
     def time_remaining_seconds(self):
         """Calculate remaining time in seconds from time_in and purchased minutes."""
+        if self.session_group:
+            if self.session_group.time_out:
+                remaining = (self.session_group.time_out - timezone.now()).total_seconds()
+                return max(0, remaining)
+            return 0
+
         if self.status == "paused":
             from dashboard.models import SystemSettings
             global_max_pause = SystemSettings.get_settings().global_pause_limit_hours
@@ -300,6 +340,8 @@ class CoinInsertRequest(models.Model):
     mac_address = models.CharField(max_length=17, help_text="Format: AA:BB:CC:DD:EE:FF")
     ip_address = models.GenericIPAddressField(null=True, blank=True)
     purpose = models.CharField(max_length=10, choices=PURPOSE_CHOICES, default=PURPOSE_START)
+    
+    # Standard Plan
     plan = models.ForeignKey(
         Plan,
         on_delete=models.SET_NULL,
@@ -307,6 +349,12 @@ class CoinInsertRequest(models.Model):
         blank=True,
         related_name="coin_insert_requests",
     )
+    
+    # Group Pass
+    is_group_pass = models.BooleanField(default=False)
+    group_pass_devices = models.PositiveIntegerField(null=True, blank=True)
+    group_pass_duration_minutes = models.PositiveIntegerField(null=True, blank=True)
+
     expected_amount = models.PositiveIntegerField(default=0, help_text="Amount needed to complete this request")
     credited_amount = models.PositiveIntegerField(default=0, help_text="Current unconsumed credited amount")
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=STATUS_PENDING)

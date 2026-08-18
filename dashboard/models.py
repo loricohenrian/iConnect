@@ -202,6 +202,32 @@ class SystemSettings(models.Model):
         help_text="Points awarded for every ₱1 spent"
     )
 
+    # Family / Group Pass
+    enable_family_pass = models.BooleanField(
+        default=False,
+        help_text="Enable the Family/Group Pass feature"
+    )
+    family_pass_base_rate = models.PositiveIntegerField(
+        default=10,
+        help_text="Base rate for 1 device per hour (₱)"
+    )
+    family_pass_device_rate = models.PositiveIntegerField(
+        default=5,
+        help_text="Rate per additional device per hour (₱)"
+    )
+    family_pass_max_devices = models.PositiveIntegerField(
+        default=6,
+        help_text="Maximum devices allowed in a single Family Pass group"
+    )
+    family_pass_speed_limit = models.FloatField(
+        default=5.0,
+        help_text="Download speed limit per device in a Family Pass (Mbps)"
+    )
+    family_pass_speed_limit_upload = models.FloatField(
+        default=5.0,
+        help_text="Upload speed limit per device in a Family Pass (Mbps)"
+    )
+
     class Meta:
         verbose_name = "System Setting"
         verbose_name_plural = "System Settings"

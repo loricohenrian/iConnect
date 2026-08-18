@@ -150,6 +150,10 @@ def index(request):
         "slots_max": max_slots,
         "slots_available": available_slots,
         "insert_coin_countdown_seconds": SystemSettings.get_settings().insert_coin_countdown_seconds,
+        "enable_family_pass": SystemSettings.get_settings().enable_family_pass,
+        "family_pass_base_rate": SystemSettings.get_settings().family_pass_base_rate,
+        "family_pass_device_rate": SystemSettings.get_settings().family_pass_device_rate,
+        "family_pass_max_devices": SystemSettings.get_settings().family_pass_max_devices,
     }
     return render(request, "portal/index.html", context)
 
@@ -165,7 +169,7 @@ def session_page(request):
     active_session = Session.objects.filter(
         mac_address=mac_address,
         status__in=["active", "paused"],
-    ).select_related("plan").first()
+    ).select_related("plan", "session_group").first()
 
     if active_session and request_ip and active_session.ip_address != request_ip:
         active_session.ip_address = request_ip

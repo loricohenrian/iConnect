@@ -302,6 +302,52 @@ function initPlanSelection() {
     const planCards = document.querySelectorAll(".plan-card");
     const selectedPlanInput = document.getElementById("selected-plan");
 
+    // Group Pass UI Elements
+    const toggleGroup = document.getElementById("group-pass-toggle");
+    const configGroup = document.getElementById("group-pass-config");
+    const fpPlus = document.getElementById("fp-plus");
+    const fpMinus = document.getElementById("fp-minus");
+    const fpCount = document.getElementById("fp-device-count");
+    const fpPrice = document.getElementById("family-pass-price");
+    let fpDevices = 2; // Default to 2 devices for group pass
+    let currentPlanPrice = 0;
+
+    function updateGroupPassPrice() {
+        if (fpPrice && toggleGroup && toggleGroup.checked) {
+            fpPrice.innerText = `₱${currentPlanPrice * fpDevices}`;
+        }
+    }
+
+    if (toggleGroup && configGroup) {
+        toggleGroup.addEventListener("change", () => {
+            if (toggleGroup.checked) {
+                configGroup.style.display = "flex";
+                const selectedPlanInput = document.getElementById("selected-plan");
+                if (!currentPlanPrice && selectedPlanInput && selectedPlanInput.value) {
+                    const card = document.querySelector(`.plan-card[data-plan-id="${selectedPlanInput.value}"]`);
+                    if (card) {
+                        const priceText = card.querySelector('.plan-price').innerText.replace('₱', '');
+                        currentPlanPrice = parseInt(priceText) || 0;
+                    }
+                }
+            } else {
+                configGroup.style.display = "none";
+            }
+            updateGroupPassPrice();
+        });
+    }
+
+    if (fpPlus && fpMinus && fpCount) {
+        fpPlus.addEventListener("click", (e) => {
+            e.stopPropagation();
+            if (fpDevices < 10) { fpDevices++; fpCount.innerText = fpDevices; updateGroupPassPrice(); }
+        });
+        fpMinus.addEventListener("click", (e) => {
+            e.stopPropagation();
+            if (fpDevices > 2) { fpDevices--; fpCount.innerText = fpDevices; updateGroupPassPrice(); }
+        });
+    }
+
     planCards.forEach((card) => {
         card.addEventListener("click", () => {
             planCards.forEach((item) => item.classList.remove("selected"));
@@ -309,6 +355,9 @@ function initPlanSelection() {
 
             if (selectedPlanInput) {
                 selectedPlanInput.value = card.dataset.planId;
+                const priceText = card.querySelector('.plan-price').innerText.replace('₱', '');
+                currentPlanPrice = parseInt(priceText) || 0;
+                updateGroupPassPrice();
             }
 
             const requestBtn = document.getElementById("request-slot-btn");
@@ -317,7 +366,7 @@ function initPlanSelection() {
             }
 
             if (typeof window.onPortalPlanSelected === "function") {
-                window.onPortalPlanSelected(card.dataset.planId);
+                window.onPortalPlanSelected(selectedPlanInput.value);
             }
         });
     });
@@ -756,6 +805,8 @@ function initProductionStartFlow(macAddress) {
                 body: JSON.stringify({
                     mac_address: macAddress,
                     plan_id: planId,
+                    is_group_pass: document.getElementById("group-pass-toggle")?.checked || false,
+                    group_pass_devices: document.getElementById("group-pass-toggle")?.checked ? parseInt(document.getElementById("fp-device-count")?.innerText || "2") : null,
                 }),
             });
             const data = await parseJsonSafe(response);
@@ -808,6 +859,8 @@ function initProductionStartFlow(macAddress) {
                 body: JSON.stringify({
                     mac_address: macAddress,
                     plan_id: planId,
+                    is_group_pass: document.getElementById("group-pass-toggle")?.checked || false,
+                    group_pass_devices: document.getElementById("group-pass-toggle")?.checked ? parseInt(document.getElementById("fp-device-count")?.innerText || "2") : null,
                 }),
             });
             const data = await parseJsonSafe(response);
@@ -835,6 +888,68 @@ function initProductionStartFlow(macAddress) {
             }
         }
     });
+
+    
+    const btnShowJoin = document.getElementById("btn-show-join-group");
+    const joinModal = document.getElementById("joinGroupModal");
+    const btnCancelJoin = document.getElementById("btn-cancel-join");
+    const btnSubmitJoin = document.getElementById("btn-submit-join");
+    const joinCodeInput = document.getElementById("join-group-code");
+    const joinError = document.getElementById("join-group-error");
+
+    if (btnShowJoin && joinModal) {
+        btnShowJoin.addEventListener("click", () => {
+            joinModal.style.display = "flex";
+            joinCodeInput.value = "";
+            joinError.style.display = "none";
+            joinCodeInput.focus();
+        });
+
+        btnCancelJoin.addEventListener("click", () => {
+            joinModal.style.display = "none";
+        });
+
+        btnSubmitJoin.addEventListener("click", async () => {
+            const code = joinCodeInput.value.trim().toUpperCase();
+            if (!code || code.length !== 6) {
+                joinError.textContent = "Please enter a valid 6-character code.";
+                joinError.style.display = "block";
+                return;
+            }
+
+            btnSubmitJoin.disabled = true;
+            btnSubmitJoin.textContent = "Joining...";
+            joinError.style.display = "none";
+
+            try {
+                const response = await fetch("/api/session/join-group/", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": getCSRFToken(),
+                    },
+                    body: JSON.stringify({
+                        mac_address: macAddress,
+                        group_code: code,
+                    }),
+                });
+                const data = await parseJsonSafe(response);
+
+                if (response.ok) {
+                    window.location.href = buildPortalUrl("/session/", macAddress);
+                } else {
+                    joinError.textContent = data.error || "Failed to join group.";
+                    joinError.style.display = "block";
+                }
+            } catch (error) {
+                joinError.textContent = "Network error while joining group.";
+                joinError.style.display = "block";
+            } finally {
+                btnSubmitJoin.disabled = false;
+                btnSubmitJoin.textContent = "Join";
+            }
+        });
+    }
 
     window.onPortalPlanSelected = (planIdValue) => {
         const nextPlanId = Number.parseInt(planIdValue, 10);

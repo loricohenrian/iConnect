@@ -1446,6 +1446,20 @@ def settings_view(request):
             settings_obj.daily_spin_limit = int(request.POST.get('daily_spin_limit', 3))
             settings_obj.points_per_streak_day = int(request.POST.get('points_per_streak_day', 5))
             
+            # Family Pass
+            if 'enable_family_pass' in request.POST or 'family_pass_base_rate' in request.POST:
+                settings_obj.enable_family_pass = request.POST.get('enable_family_pass') == 'on'
+                if request.POST.get('family_pass_base_rate'):
+                    settings_obj.family_pass_base_rate = int(request.POST.get('family_pass_base_rate', 20))
+                if request.POST.get('family_pass_device_rate'):
+                    settings_obj.family_pass_device_rate = int(request.POST.get('family_pass_device_rate', 5))
+                if request.POST.get('family_pass_max_devices'):
+                    settings_obj.family_pass_max_devices = int(request.POST.get('family_pass_max_devices', 6))
+                if request.POST.get('family_pass_speed_limit'):
+                    settings_obj.family_pass_speed_limit = float(request.POST.get('family_pass_speed_limit', 5.0))
+                if request.POST.get('family_pass_speed_limit_upload'):
+                    settings_obj.family_pass_speed_limit_upload = float(request.POST.get('family_pass_speed_limit_upload', 5.0))
+            
             settings_obj.save()
             message = "Settings updated successfully."
             

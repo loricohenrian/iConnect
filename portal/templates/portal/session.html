@@ -64,7 +64,14 @@
 
     <!-- Plan badge -->
     <div class="mt-md">
+        {% if session.session_group %}
+        <span class="badge badge-active" style="background: #6366F1;">Family Pass - Code: {{ session.session_group.group_code }}</span>
+        <div style="font-size: 11px; margin-top: 8px; color: var(--text-secondary);">
+            Share this 6-character code with your family to let them join the session.
+        </div>
+        {% else %}
         <span class="badge badge-active">₱{{ session.plan.price }} - {{ session.plan.duration_display }}</span>
+        {% endif %}
     </div>
 
     <!-- Session Details (inside timer container) -->
