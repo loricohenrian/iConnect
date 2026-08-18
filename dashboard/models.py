@@ -227,6 +227,10 @@ class SystemSettings(models.Model):
         default=5.0,
         help_text="Upload speed limit per device in a Family Pass (Mbps)"
     )
+    group_code_expiry_hours = models.PositiveIntegerField(
+        default=24,
+        help_text="Hours after purchase before a group code can no longer be redeemed (0 = no expiry)"
+    )
 
     class Meta:
         verbose_name = "System Setting"

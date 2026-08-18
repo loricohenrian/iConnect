@@ -1236,10 +1236,18 @@ function pollSessionStatus(macAddress, intervalMs = 3000) {
                 window.location.href = buildPortalUrl("/", macAddress, { expired: 1 });
             }
             
-            if (data.group_max && data.group_connected) {
+            if (data.group_max && data.group_redeemed !== undefined) {
                 const groupStatusEl = document.getElementById("group-plan-status");
                 if (groupStatusEl) {
-                    groupStatusEl.innerText = `Group Plan: ${data.group_connected} / ${data.group_max} devices connected`;
+                    groupStatusEl.innerText = `${data.group_redeemed} / ${data.group_max} slots redeemed`;
+                }
+                
+                // If API returned live expiry update
+                if (data.group_code_expires_at) {
+                    const expiryTimerEl = document.getElementById("group-code-expiry-timer");
+                    if (expiryTimerEl && !expiryTimerEl.getAttribute('data-expires')) {
+                         expiryTimerEl.setAttribute('data-expires', data.group_code_expires_at);
+                    }
                 }
             }
         } catch (error) {

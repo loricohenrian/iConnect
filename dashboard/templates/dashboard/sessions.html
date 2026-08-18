@@ -95,6 +95,11 @@
                     <td>#{{ session.id }}</td>
                     <td title="{{ session.device_name|default:'—' }}" style="max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                         <div class="font-semibold">{{ session.device_name|default:"Unknown" }}</div>
+                        {% if session.session_group %}
+                        <div class="text-xs" style="color: #6366F1; margin-top: 2px;">
+                            Group: {{ session.session_group.group_code }}
+                        </div>
+                        {% endif %}
                     </td>
                     <td class="text-xs">{{ session.ip_address|default:"—" }}</td>
                     <td class="font-mono text-xs text-muted">{{ session.mac_address }}</td>

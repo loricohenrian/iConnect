@@ -199,7 +199,19 @@
             <input type="hidden" name="family_pass_speed_limit" value="{{ settings.family_pass_speed_limit }}">
             <input type="hidden" name="family_pass_speed_limit_upload" value="{{ settings.family_pass_speed_limit_upload }}">
 
-            
+            <div class="form-group mb-lg">
+                <label style="font-weight: 600; display: block; margin-bottom: 0.35rem;">
+                    <i class="bi bi-clock-history"></i> Group Code Expiry (hours)
+                </label>
+                <input type="number" name="group_code_expiry_hours" min="0" max="168"
+                       value="{{ settings.group_code_expiry_hours }}"
+                       style="width: 120px; padding: 0.4rem 0.6rem; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-secondary); color: var(--text-primary);">
+                <small style="color: var(--text-secondary); display: block; margin-top: 0.35rem;">
+                    How many hours after purchase a group code can still be redeemed. Set to <strong>0</strong> for no expiry.
+                    This is separate from a device's own session timer — it only controls when the code stops being valid.
+                </small>
+            </div>
+
             <div class="form-group mt-xl" style="text-align: right;">
                 <button type="submit" class="btn btn-primary">
                     <i class="bi bi-save"></i> Save Family Pass Settings

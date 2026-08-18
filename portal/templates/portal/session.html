@@ -65,12 +65,19 @@
     <!-- Plan badge -->
     <div class="mt-md">
         {% if session.session_group %}
-        <span class="badge badge-active" style="background: #6366F1;">Group Plan - Code: {{ session.session_group.group_code }}</span>
+        <span class="badge badge-active" style="background: #6366F1;">Group Pass · {{ session.session_group.group_code }}</span>
         <div id="group-plan-status" style="font-weight: bold; margin-top: 8px; color: #4f46e5;">
-            Group Plan: {{ session.session_group.connected_devices_count }} / {{ session.session_group.max_devices }} devices connected
+            {{ session.session_group.redeemed_count }} / {{ session.session_group.max_devices }} slots redeemed
         </div>
-        <div style="font-size: 11px; margin-top: 4px; color: var(--text-secondary);">
-            Share this 6-character code with your group to let them join the session.
+        <div id="group-code-expiry" style="font-size: 11px; margin-top: 4px; color: var(--text-secondary);">
+            {% if session.session_group.code_expires_at %}
+                Code expires: <span id="group-code-expiry-timer" data-expires="{{ session.session_group.code_expires_at.isoformat }}">calculating...</span>
+            {% else %}
+                Code: no expiry
+            {% endif %}
+        </div>
+        <div style="font-size: 11px; margin-top: 2px; color: var(--text-secondary);">
+            Share the code <strong>{{ session.session_group.group_code }}</strong> — each friend who redeems it gets their own full {{ session.plan.duration_display }} session.
         </div>
         {% else %}
         <span class="badge badge-active">₱{{ session.plan.price }} - {{ session.plan.duration_display }}</span>
@@ -179,6 +186,26 @@
         });
         
         observer.observe(flowMessage, { childList: true, characterData: true, subtree: true });
+    }
+
+    // Group code expiry timer
+    const expiryTimerEl = document.getElementById('group-code-expiry-timer');
+    if (expiryTimerEl) {
+        const expiryIso = expiryTimerEl.getAttribute('data-expires');
+        if (expiryIso) {
+            const expiryDate = new Date(expiryIso);
+            setInterval(() => {
+                const remaining = Math.max(0, Math.floor((expiryDate - Date.now()) / 1000));
+                if (remaining <= 0) {
+                    expiryTimerEl.innerText = "Expired";
+                } else {
+                    const h = Math.floor(remaining / 3600);
+                    const m = Math.floor((remaining % 3600) / 60);
+                    const s = remaining % 60;
+                    expiryTimerEl.innerText = `${h}h ${m}m ${s}s`;
+                }
+            }, 1000);
+        }
     }
 </script>
 

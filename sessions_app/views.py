@@ -669,14 +669,21 @@ def session_start(request):
                     code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
                     if not SessionGroup.objects.filter(group_code=code).exists():
                         break
-                
+
+                # Determine code expiry from admin setting (0 = no expiry)
+                expiry_hours = getattr(settings_obj, 'group_code_expiry_hours', 24)
+                code_expires_at = None
+                if expiry_hours > 0:
+                    code_expires_at = timezone.now() + timedelta(hours=expiry_hours)
+
                 session_group = SessionGroup.objects.create(
                     group_code=code,
+                    plan=plan,
                     max_devices=group_pass_devices,
                     total_price=amount_paid,
-                    duration_minutes=actual_duration,
+                    duration_minutes=plan.duration_minutes if plan else actual_duration,
                     time_in=timezone.now(),
-                    time_out=timezone.now() + timedelta(minutes=actual_duration),
+                    code_expires_at=code_expires_at,
                     status="active"
                 )
 
@@ -691,7 +698,7 @@ def session_start(request):
                 device_name=device_name,
                 status="active",
             )
-            
+
             PurchaseTransaction.objects.create(
                 session=session,
                 plan=plan,
@@ -730,10 +737,7 @@ def session_start(request):
             if plan:
                 dl_kbps = int(plan.speed_limit * 1024) if plan.speed_limit else None
                 ul_kbps = int(plan.speed_limit_upload * 1024) if plan.speed_limit_upload else dl_kbps
-            elif session_group:
-                dl_kbps = int(settings_obj.family_pass_speed_limit * 1024)
-                ul_kbps = int(settings_obj.family_pass_speed_limit_upload * 1024)
-                
+
             if not iptables.allow_device(mac_address, rate_kbps=dl_kbps, upload_kbps=ul_kbps):
                 raise RuntimeError("Failed to allow internet access for this device")
     except RuntimeError as exc:
@@ -756,8 +760,10 @@ def session_start(request):
 @permission_classes([AllowAny])
 def session_join_group(request):
     """
-    Join an existing Family/Group Pass.
+    Redeem a Group Pass code.
     POST /api/session/join-group/
+    Each redemption starts a fully independent session with the full plan duration —
+    identical to a solo session of that plan.
     """
     serializer = GroupJoinSerializer(data=request.data)
     if not serializer.is_valid():
@@ -768,7 +774,7 @@ def session_join_group(request):
     ip_address = _client_ip(request)
     device_name = serializer.validated_data.get("device_name", "Unknown")
 
-    # Rate limiting: simplistic cache based on IP
+    # Rate limiting
     from django.core.cache import cache
     cache_key = f"join_group_attempts_{ip_address}"
     attempts = cache.get(cache_key, 0)
@@ -779,9 +785,10 @@ def session_join_group(request):
     if SuspiciousDevice.objects.filter(mac_address=mac_address, is_blocked=True).exists():
         return Response({"error": "Your device has been blocked by the administrator."}, status=status.HTTP_403_FORBIDDEN)
 
+    # Already has an active session
     existing = Session.objects.filter(mac_address=mac_address, status="active").first()
     if existing:
-        return Response({"error": "Device already has an active session"}, status=status.HTTP_409_CONFLICT)
+        return Response({"error": "Device already has an active session."}, status=status.HTTP_409_CONFLICT)
 
     if not _ensure_firewall_ready_for_session_start():
         return Response({"error": "Firewall is not ready. Please retry shortly."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
@@ -790,43 +797,60 @@ def session_join_group(request):
     if Session.objects.filter(status="active").count() >= max_sessions:
         return Response({"error": "Network is currently full."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
-    group = SessionGroup.objects.filter(group_code=group_code, status="active").first()
+    group = SessionGroup.objects.filter(group_code=group_code, status="active").select_related("plan").first()
     if not group:
         return Response({"error": "Invalid or expired group code."}, status=status.HTTP_404_NOT_FOUND)
 
-    if group.time_out and group.time_out <= timezone.now():
+    # Check code's own expiry (separate from session expiry)
+    if group.is_code_expired():
         group.status = "expired"
         group.save(update_fields=["status"])
         return Response({"error": "This group pass has expired."}, status=status.HTTP_400_BAD_REQUEST)
 
+    # Check if all slots are used
     if group.is_full():
-        return Response({"error": f"This group pass is full ({group.connected_devices_count}/{group.max_devices} devices connected)."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"error": f"This group pass is full ({group.redeemed_count}/{group.max_devices} slots used)."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # MAC lock — prevent same device from redeeming twice
+    if group.has_mac_redeemed(mac_address):
+        return Response(
+            {"error": "Your device has already redeemed this group pass."},
+            status=status.HTTP_409_CONFLICT,
+        )
+
+    group_plan = group.plan
+    if not group_plan:
+        return Response({"error": "This group pass has no plan configured. Please contact the operator."}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
         with transaction.atomic():
-            remaining_minutes = max(0, int((group.time_out - timezone.now()).total_seconds() / 60))
-            
-            # Inherit plan from the group's creator session
-            creator_session = group.sessions.first()
-            group_plan = creator_session.plan if creator_session else None
-
+            # Each device gets the FULL plan duration — fully independent session
             session = Session.objects.create(
                 mac_address=mac_address,
                 plan=group_plan,
                 session_group=group,
                 time_in=timezone.now(),
-                duration_minutes_purchased=remaining_minutes,
+                duration_minutes_purchased=group_plan.duration_minutes,
                 amount_paid=0,
                 ip_address=ip_address,
                 device_name=device_name,
                 status="active",
             )
-            
-            dl_kbps = int(group_plan.speed_limit * 1024) if group_plan and group_plan.speed_limit else None
-            ul_kbps = int(group_plan.speed_limit_upload * 1024) if group_plan and group_plan.speed_limit_upload else dl_kbps
-            
+
+            dl_kbps = int(group_plan.speed_limit * 1024) if group_plan.speed_limit else None
+            ul_kbps = int(group_plan.speed_limit_upload * 1024) if group_plan.speed_limit_upload else dl_kbps
+
             if not iptables.allow_device(mac_address, rate_kbps=dl_kbps, upload_kbps=ul_kbps):
                 raise RuntimeError("Failed to allow internet access for this device")
+
+            # If all slots are now filled, mark the group exhausted
+            if group.redeemed_count >= group.max_devices:
+                group.status = "exhausted"
+                group.save(update_fields=["status"])
+
     except RuntimeError as exc:
         return Response({"error": str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
@@ -836,9 +860,9 @@ def session_join_group(request):
     return Response(
         {
             "status": "success",
-            "message": "Successfully joined group pass",
+            "message": "Successfully joined group pass. Your session has started.",
             "session": SessionSerializer(session).data,
-            "session_group": group.group_code
+            "session_group": group.group_code,
         },
         status=status.HTTP_201_CREATED,
     )
@@ -1384,8 +1408,13 @@ def session_status(request):
                 "is_whitelisted": False,
             }
             if locked_session.session_group:
-                response_data["group_connected"] = locked_session.session_group.connected_devices_count
-                response_data["group_max"] = locked_session.session_group.max_devices
+                grp = locked_session.session_group
+                response_data["group_redeemed"] = grp.redeemed_count
+                response_data["group_max"] = grp.max_devices
+                response_data["group_code"] = grp.group_code
+                response_data["group_code_expires_at"] = (
+                    grp.code_expires_at.isoformat() if grp.code_expires_at else None
+                )
             return Response(response_data)
 
     return Response(

@@ -69,22 +69,40 @@ class Plan(models.Model):
 
 
 class SessionGroup(models.Model):
-    """A group pass that allows multiple devices to share the same countdown."""
-    
+    """
+    A Group Pass voucher code.
+    Each redemption starts a fully independent session for that device —
+    same duration/plan/speed as a solo purchase.
+    The group code itself has a separate expiry (code_expires_at) that is
+    checked at redemption time and is independent from any individual session timer.
+    """
+
     STATUS_CHOICES = [
         ("active", "Active"),
         ("expired", "Expired"),
+        ("exhausted", "Exhausted"),  # All slots used
     ]
-    
+
     group_code = models.CharField(max_length=10, unique=True, help_text="Unique code to join the group")
-    max_devices = models.PositiveIntegerField(help_text="Maximum allowed devices")
+    plan = models.ForeignKey(
+        "Plan",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="session_groups",
+        help_text="The plan each redeemer will receive a full independent session for",
+    )
+    max_devices = models.PositiveIntegerField(help_text="Maximum allowed redemptions")
     total_price = models.PositiveIntegerField(help_text="Total amount paid in ₱")
     duration_minutes = models.PositiveIntegerField()
-    time_in = models.DateTimeField(default=timezone.now)
-    time_out = models.DateTimeField(null=True, blank=True)
+    time_in = models.DateTimeField(default=timezone.now, help_text="When the group pass was purchased")
+    code_expires_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text="When this code can no longer be redeemed (separate from session expiry)"
+    )
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="active")
     created_at = models.DateTimeField(auto_now_add=True)
-    
+
     class Meta:
         ordering = ["-time_in"]
         verbose_name = "Session Group"
@@ -94,11 +112,27 @@ class SessionGroup(models.Model):
         return f"Group {self.group_code} ({self.status})"
 
     @property
+    def redeemed_count(self):
+        """Total number of times this code has been redeemed (any session status)."""
+        return self.sessions.count()
+
+    # Backward-compat alias
+    @property
     def connected_devices_count(self):
-        return self.sessions.filter(status__in=["active", "paused"]).count()
-        
+        return self.redeemed_count
+
     def is_full(self):
-        return self.connected_devices_count >= self.max_devices
+        return self.redeemed_count >= self.max_devices
+
+    def is_code_expired(self):
+        """Check whether the code's own expiry has passed."""
+        if self.code_expires_at and timezone.now() >= self.code_expires_at:
+            return True
+        return False
+
+    def has_mac_redeemed(self, mac_address):
+        """Return True if this MAC has already redeemed this code."""
+        return self.sessions.filter(mac_address=mac_address).exists()
 
 
 class Session(models.Model):
@@ -148,35 +182,30 @@ class Session(models.Model):
 
     @property
     def time_remaining_seconds(self):
-        """Calculate remaining time in seconds from time_in and purchased minutes."""
-        if self.session_group:
-            if self.session_group.time_out:
-                remaining = (self.session_group.time_out - timezone.now()).total_seconds()
-                return max(0, remaining)
-            return 0
-
+        """
+        Calculate remaining time in seconds.
+        Group-redeemed sessions are fully independent — they use the same
+        elapsed-time calculation as solo sessions. No shared timer.
+        """
         if self.status == "paused":
             from dashboard.models import SystemSettings
             global_max_pause = SystemSettings.get_settings().global_pause_limit_hours
             max_pause_hours = self.plan.pause_duration_limit if self.plan and self.plan.pause_duration_limit > 0 else global_max_pause
-            
+
             if max_pause_hours > 0 and self.paused_at:
                 paused_time = (timezone.now() - self.paused_at).total_seconds()
                 max_pause_seconds = max_pause_hours * 3600
                 if paused_time > max_pause_seconds:
-                    # Treat it as if it automatically resumed exactly when it hit the limit
                     effective_paused_time_this_pause = max_pause_seconds
-                    time_since_resume = paused_time - max_pause_seconds
-                    
                     elapsed = (timezone.now() - self.time_in).total_seconds() - self.total_paused_seconds - effective_paused_time_this_pause
                     total_seconds = self.duration_minutes_purchased * 60
                     return max(0, total_seconds - elapsed)
-                    
+
             # When paused normally, freeze remaining time at point of pause
             elapsed = (self.paused_at - self.time_in).total_seconds() - self.total_paused_seconds
             total_seconds = self.duration_minutes_purchased * 60
             return max(0, total_seconds - elapsed)
-            
+
         if self.status != "active":
             return 0
         elapsed = (timezone.now() - self.time_in).total_seconds() - self.total_paused_seconds

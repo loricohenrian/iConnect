@@ -1459,6 +1459,8 @@ def settings_view(request):
                     settings_obj.family_pass_speed_limit = float(request.POST.get('family_pass_speed_limit', 5.0))
                 if request.POST.get('family_pass_speed_limit_upload'):
                     settings_obj.family_pass_speed_limit_upload = float(request.POST.get('family_pass_speed_limit_upload', 5.0))
+            if 'group_code_expiry_hours' in request.POST:
+                settings_obj.group_code_expiry_hours = max(0, int(request.POST.get('group_code_expiry_hours', 24)))
             
             settings_obj.save()
             message = "Settings updated successfully."

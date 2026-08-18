@@ -3,27 +3,25 @@ import re
 with open("sessions_app/views.py", "r", encoding="utf-8") as f:
     code = f.read()
 
-old_status = """        return Response(
-            {
-                "status": "active",
-                "remaining_minutes": int(remaining.total_seconds() / 60),
-                "mac_address": session.mac_address,
-                "plan_name": session.plan.name if session.plan else "Family Pass",
-            }
-        )"""
+old_status = """            refresh_session_bandwidth_usage(locked_session)
+            return Response(
+                {
+                    "status": "active",
+                    "session": SessionSerializer(locked_session).data,
+                    "is_whitelisted": False,
+                }
+            )"""
 
-new_status = """        response_data = {
-            "status": "active",
-            "remaining_minutes": int(remaining.total_seconds() / 60),
-            "mac_address": session.mac_address,
-            "plan_name": session.plan.name if session.plan else "Family Pass",
-        }
-        
-        if session.session_group:
-            response_data["group_connected"] = session.session_group.session_set.filter(status='active').count()
-            response_data["group_max"] = session.session_group.max_devices
-            
-        return Response(response_data)"""
+new_status = """            refresh_session_bandwidth_usage(locked_session)
+            response_data = {
+                "status": "active",
+                "session": SessionSerializer(locked_session).data,
+                "is_whitelisted": False,
+            }
+            if locked_session.session_group:
+                response_data["group_connected"] = locked_session.session_group.connected_devices_count
+                response_data["group_max"] = locked_session.session_group.max_devices
+            return Response(response_data)"""
 
 code = code.replace(old_status, new_status)
 
