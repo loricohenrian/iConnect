@@ -409,110 +409,174 @@ def api_execute_spin(request):
     from django.utils import timezone
     from dashboard.models import SystemSettings
     from sessions_app.models import DeviceProfile, SpinPrize, Session
-    from .views import _get_mac_address, _client_ip
-    
+
     if request.method != "POST":
         return JsonResponse({"status": "error", "message": "Method not allowed"}, status=405)
-        
-    settings = SystemSettings.get_settings()
-    if not settings.enable_spin_wheel:
+
+    settings_obj = SystemSettings.get_settings()
+    if not settings_obj.enable_spin_wheel:
         return JsonResponse({"status": "error", "message": "Spin wheel is disabled"})
-        
+
     mac_address = _get_mac_address(request)
     if not mac_address:
         return JsonResponse({"status": "error", "message": "MAC address required"})
-        
+
     device_profile, _ = DeviceProfile.objects.get_or_create(mac_address=mac_address)
-    
+
     today = timezone.localdate()
     if device_profile.last_spin_date != today:
         device_profile.spins_today = 0
         device_profile.last_spin_date = today
-        
-    # Validation
-    if device_profile.spins_today >= settings.daily_spin_limit:
+        device_profile.save(update_fields=['spins_today', 'last_spin_date'])
+
+    # Validation — all checks BEFORE deducting points
+    if device_profile.spins_today >= settings_obj.daily_spin_limit:
         return JsonResponse({"status": "error", "message": "Daily spin limit reached"})
-        
-    if device_profile.points < settings.spin_cost_points:
+
+    if device_profile.points < settings_obj.spin_cost_points:
         return JsonResponse({"status": "error", "message": "Not enough points"})
-        
+
     prizes = list(SpinPrize.objects.filter(is_active=True))
     if not prizes:
         return JsonResponse({"status": "error", "message": "No prizes configured"})
-        
+
     # Calculate weights and select prize
     total_weight = sum(p.probability_weight for p in prizes)
+    if total_weight <= 0:
+        return JsonResponse({"status": "error", "message": "Invalid prize configuration"})
+
     random_val = random.uniform(0, total_weight)
-    
+
     current_weight = 0
     selected_prize = None
-    
+
     for prize in prizes:
         current_weight += prize.probability_weight
         if random_val <= current_weight:
             selected_prize = prize
             break
-            
+
     if not selected_prize:
         selected_prize = prizes[-1]
-        
-    # Find mid_deg to pass back to frontend for wheel rotation
-    current_deg = 0
-    # Calculate deg to spin to
+
+    # Calculate target_deg for the wheel animation
     sorted_prizes = sorted(prizes, key=lambda x: x.probability_weight)
     deg_current = 0
     target_deg = 0
     for prize in sorted_prizes:
         deg_share = (prize.probability_weight / total_weight) * 360
         if prize.id == selected_prize.id:
-            # Random position within this slice
             target_deg = deg_current + random.uniform(deg_share * 0.1, deg_share * 0.9)
             break
         deg_current += deg_share
-        
-    # Process the reward
-    device_profile.points -= settings.spin_cost_points
+
+    # Deduct points and update spin count
+    device_profile.points -= settings_obj.spin_cost_points
     device_profile.spins_today += 1
-    device_profile.save()
-    
-    # Award prize
+    device_profile.save(update_fields=['points', 'spins_today'])
+
+    # Award prize — extend existing session if one is active
+    prize_applied = False
     if selected_prize.minutes_reward > 0:
-        # Create or extend session
         session = Session.objects.filter(
             mac_address=mac_address,
             status__in=["active", "paused"]
         ).first()
-        
-        from dashboard.utils.mikrotik import allow_device
+
         if session:
-            # Extend existing session
             session.duration_minutes_purchased += selected_prize.minutes_reward
             session.save(update_fields=['duration_minutes_purchased'])
-            # Since the device is already active/paused, rules should already be fine, 
-            # or if paused, it remains paused but with more time.
             if session.status == "active":
                 rate = session.plan.speed_limit if session.plan else None
-                allow_device(mac_address, rate_kbps=rate)
-        else:
-            # Create a free session
-            import uuid
-            new_session = Session.objects.create(
-                session_id=str(uuid.uuid4())[:12],
-                mac_address=mac_address,
-                ip_address=_client_ip(request),
-                duration_minutes_purchased=selected_prize.minutes_reward,
-                amount_paid=0,
-                status='active',
-                is_free_spin=True
-            )
-            allow_device(mac_address)
-            
+                iptables.allow_device(mac_address, rate_kbps=rate)
+            prize_applied = True
+
+    # Calculate remaining spins for the response
+    remaining_spins = max(0, settings_obj.daily_spin_limit - device_profile.spins_today)
+
     return JsonResponse({
         "status": "success",
         "prize": {
             "id": selected_prize.id,
             "name": selected_prize.name,
             "minutes": selected_prize.minutes_reward,
-            "mid_deg": prize_mid_deg
+            "mid_deg": target_deg,
+            "applied": prize_applied,
+        },
+        "updated": {
+            "points": device_profile.points,
+            "remaining_spins": remaining_spins,
         }
     })
+
+
+def api_spin_data(request):
+    """JSON API returning spin wheel data for the modal."""
+    from django.http import JsonResponse
+    from django.utils import timezone
+    from dashboard.models import SystemSettings
+    from sessions_app.models import DeviceProfile, SpinPrize
+
+    settings_obj = SystemSettings.get_settings()
+
+    if not settings_obj.enable_spin_wheel:
+        return JsonResponse({"enabled": False})
+
+    mac_address = _get_mac_address(request)
+    if not mac_address:
+        return JsonResponse({"enabled": True, "error": "MAC address required"})
+
+    device_profile, _ = DeviceProfile.objects.get_or_create(mac_address=mac_address)
+
+    today = timezone.localdate()
+    spins_today = device_profile.spins_today if device_profile.last_spin_date == today else 0
+    remaining_spins = max(0, settings_obj.daily_spin_limit - spins_today)
+
+    can_spin = True
+    error_message = ""
+
+    if remaining_spins <= 0:
+        can_spin = False
+        error_message = "You have reached the daily spin limit."
+    elif device_profile.points < settings_obj.spin_cost_points:
+        can_spin = False
+        error_message = "Not enough points to spin."
+
+    prizes = list(SpinPrize.objects.filter(is_active=True).order_by('probability_weight'))
+
+    if not prizes:
+        can_spin = False
+        error_message = "No prizes available."
+
+    total_weight = sum(p.probability_weight for p in prizes)
+
+    wheel_prizes = []
+    current_deg = 0
+    for prize in prizes:
+        deg_share = (prize.probability_weight / total_weight) * 360 if total_weight > 0 else 0
+        end_deg = current_deg + deg_share
+        mid_deg = current_deg + (deg_share / 2)
+        wheel_prizes.append({
+            'id': prize.id,
+            'name': prize.name,
+            'start_deg': round(current_deg, 2),
+            'end_deg': round(end_deg, 2),
+            'mid_deg': round(mid_deg, 2),
+            'minutes': prize.minutes_reward,
+        })
+        current_deg = end_deg
+
+    return JsonResponse({
+        "enabled": True,
+        "can_spin": can_spin,
+        "error_message": error_message,
+        "points": device_profile.points,
+        "streak": device_profile.current_streak,
+        "spin_cost": settings_obj.spin_cost_points,
+        "remaining_spins": remaining_spins,
+        "daily_limit": settings_obj.daily_spin_limit,
+        "prizes": wheel_prizes,
+        "points_per_peso": settings_obj.points_per_peso,
+        "points_per_streak": settings_obj.points_per_streak_day,
+    })
+
