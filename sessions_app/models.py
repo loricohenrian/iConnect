@@ -95,7 +95,7 @@ class SessionGroup(models.Model):
 
     @property
     def connected_devices_count(self):
-        return self.sessions.count()
+        return self.sessions.filter(status__in=["active", "paused"]).count()
         
     def is_full(self):
         return self.connected_devices_count >= self.max_devices

@@ -67,7 +67,7 @@
         {% if session.session_group %}
         <span class="badge badge-active" style="background: #6366F1;">Group Plan - Code: {{ session.session_group.group_code }}</span>
         <div id="group-plan-status" style="font-weight: bold; margin-top: 8px; color: #4f46e5;">
-            Group Plan: {{ session.session_group.session_set.count }} / {{ session.session_group.max_devices }} devices connected
+            Group Plan: {{ session.session_group.sessions.count }} / {{ session.session_group.max_devices }} devices connected
         </div>
         <div style="font-size: 11px; margin-top: 4px; color: var(--text-secondary);">
             Share this 6-character code with your group to let them join the session.
