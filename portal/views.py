@@ -486,9 +486,6 @@ def api_execute_spin(request):
         if session:
             session.duration_minutes_purchased += selected_prize.minutes_reward
             session.save(update_fields=['duration_minutes_purchased'])
-            if session.status == "active":
-                rate = session.plan.speed_limit if session.plan else None
-                iptables.allow_device(mac_address, rate_kbps=rate)
             prize_applied = True
 
     # Calculate remaining spins for the response
