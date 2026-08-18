@@ -359,13 +359,13 @@ def spin_wheel_view(request):
         error_message = "Not enough points to spin."
     
     # Calculate wheel segments based on prizes
-    prizes = list(SpinPrize.objects.filter(is_active=True).order_by('weight'))
+    prizes = list(SpinPrize.objects.filter(is_active=True).order_by('probability_weight'))
     
     if not prizes:
         can_spin = False
         error_message = "No prizes available."
         
-    total_weight = sum(p.weight for p in prizes)
+    total_weight = sum(p.probability_weight for p in prizes)
     
     wheel_prizes = []
     current_deg = 0
@@ -373,7 +373,7 @@ def spin_wheel_view(request):
     if prizes:
         for prize in prizes:
             # Share of the circle
-            deg_share = (prize.weight / total_weight) * 360 if total_weight > 0 else 0
+            deg_share = (prize.probability_weight / total_weight) * 360 if total_weight > 0 else 0
             end_deg = current_deg + deg_share
             mid_deg = current_deg + (deg_share / 2)
             
@@ -383,7 +383,7 @@ def spin_wheel_view(request):
                 'start_deg': round(current_deg, 2),
                 'end_deg': round(end_deg, 2),
                 'mid_deg': round(mid_deg, 2),
-                'minutes': prize.reward_minutes
+                'minutes': prize.minutes_reward
             })
             current_deg = end_deg
         
@@ -441,14 +441,14 @@ def api_execute_spin(request):
         return JsonResponse({"status": "error", "message": "No prizes configured"})
         
     # Calculate weights and select prize
-    total_weight = sum(p.weight for p in prizes)
+    total_weight = sum(p.probability_weight for p in prizes)
     random_val = random.uniform(0, total_weight)
     
     current_weight = 0
     selected_prize = None
     
     for prize in prizes:
-        current_weight += prize.weight
+        current_weight += prize.probability_weight
         if random_val <= current_weight:
             selected_prize = prize
             break
@@ -458,22 +458,25 @@ def api_execute_spin(request):
         
     # Find mid_deg to pass back to frontend for wheel rotation
     current_deg = 0
-    prize_mid_deg = 0
-    sorted_prizes = sorted(prizes, key=lambda x: x.weight)
-    
+    # Calculate deg to spin to
+    sorted_prizes = sorted(prizes, key=lambda x: x.probability_weight)
+    deg_current = 0
+    target_deg = 0
     for prize in sorted_prizes:
-        deg_share = (prize.weight / total_weight) * 360
+        deg_share = (prize.probability_weight / total_weight) * 360
         if prize.id == selected_prize.id:
-            prize_mid_deg = current_deg + (deg_share / 2)
-        current_deg += deg_share
+            # Random position within this slice
+            target_deg = deg_current + random.uniform(deg_share * 0.1, deg_share * 0.9)
+            break
+        deg_current += deg_share
         
-    # Deduct points and update spins
+    # Process the reward
     device_profile.points -= settings.spin_cost_points
     device_profile.spins_today += 1
     device_profile.save()
     
     # Award prize
-    if selected_prize.reward_minutes > 0:
+    if selected_prize.minutes_reward > 0:
         # Create or extend session
         session = Session.objects.filter(
             mac_address=mac_address,
@@ -483,7 +486,7 @@ def api_execute_spin(request):
         from dashboard.utils.mikrotik import allow_device
         if session:
             # Extend existing session
-            session.duration_minutes_purchased += selected_prize.reward_minutes
+            session.duration_minutes_purchased += selected_prize.minutes_reward
             session.save(update_fields=['duration_minutes_purchased'])
             # Since the device is already active/paused, rules should already be fine, 
             # or if paused, it remains paused but with more time.
@@ -497,7 +500,7 @@ def api_execute_spin(request):
                 session_id=str(uuid.uuid4())[:12],
                 mac_address=mac_address,
                 ip_address=_client_ip(request),
-                duration_minutes_purchased=selected_prize.reward_minutes,
+                duration_minutes_purchased=selected_prize.minutes_reward,
                 amount_paid=0,
                 status='active',
                 is_free_spin=True
@@ -509,7 +512,7 @@ def api_execute_spin(request):
         "prize": {
             "id": selected_prize.id,
             "name": selected_prize.name,
-            "minutes": selected_prize.reward_minutes,
+            "minutes": selected_prize.minutes_reward,
             "mid_deg": prize_mid_deg
         }
     })
