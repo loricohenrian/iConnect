@@ -772,6 +772,10 @@ function initProductionStartFlow(macAddress) {
         state.pollTimer = setInterval(pollRequestStatus, 3000);
         pollRequestStatus();
     };
+    
+    // EXPORT TO GLOBAL SCOPE FOR GROUP PLAN FLOW
+    window.applyCoinRequestState = applyCoinRequestState;
+    window.startPolling = startPolling;
 
     const selectedPlanId = () => {
         const value = Number.parseInt(selectedPlanInput.value, 10);
@@ -1537,8 +1541,12 @@ if (btnGroupRequestSlot) {
                     startFlowMeta.innerText = `Pending Amount: ₱${data.coin_request.expected_amount}`;
                 }
                 
-                // Reload the page to automatically start polling the new coin request
-                window.location.reload();
+                if (window.applyCoinRequestState && window.startPolling) {
+                    window.applyCoinRequestState(data.coin_request);
+                    window.startPolling();
+                } else {
+                    window.location.reload(); // Fallback
+                }
                 
             } else {
                 alert(data.error || "Failed to request coin slot.");
