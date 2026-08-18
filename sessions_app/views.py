@@ -24,6 +24,7 @@ from .models import (
     DeviceProfile,
     Plan,
     Session,
+    SessionGroup,
     SuspiciousDevice,
     WhitelistedDevice,
     PurchaseTransaction,
