@@ -807,26 +807,29 @@ def session_join_group(request):
         group.save(update_fields=["status"])
         return Response({"error": "This group pass has expired."}, status=status.HTTP_400_BAD_REQUEST)
 
-    # Check if all slots are used
-    if group.is_full():
-        return Response(
-            {"error": f"This group pass is full ({group.redeemed_count}/{group.max_devices} slots used)."},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
-    # MAC lock — prevent same device from redeeming twice
-    if group.has_mac_redeemed(mac_address):
-        return Response(
-            {"error": "Your device has already redeemed this group pass."},
-            status=status.HTTP_409_CONFLICT,
-        )
-
     group_plan = group.plan
     if not group_plan:
         return Response({"error": "This group pass has no plan configured. Please contact the operator."}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
         with transaction.atomic():
+            # Lock the group row to prevent race conditions from concurrent clicks
+            locked_group = SessionGroup.objects.select_for_update().get(id=group.id)
+            
+            # Check if all slots are used
+            if locked_group.is_full():
+                return Response(
+                    {"error": f"This group pass is full ({locked_group.redeemed_count}/{locked_group.max_devices} slots used)."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # MAC lock — prevent same device from redeeming twice
+            if locked_group.has_mac_redeemed(mac_address):
+                return Response(
+                    {"error": "Your device has already redeemed this group pass."},
+                    status=status.HTTP_409_CONFLICT,
+                )
+
             # Each device gets the FULL plan duration — fully independent session
             session = Session.objects.create(
                 mac_address=mac_address,
@@ -847,9 +850,9 @@ def session_join_group(request):
                 raise RuntimeError("Failed to allow internet access for this device")
 
             # If all slots are now filled, mark the group exhausted
-            if group.redeemed_count >= group.max_devices:
-                group.status = "exhausted"
-                group.save(update_fields=["status"])
+            if locked_group.redeemed_count >= locked_group.max_devices:
+                locked_group.status = "exhausted"
+                locked_group.save(update_fields=["status"])
 
     except RuntimeError as exc:
         return Response({"error": str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
