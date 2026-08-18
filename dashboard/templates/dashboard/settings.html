@@ -17,13 +17,15 @@
 </div>
 {% endif %}
 
+<form method="POST" action="">
+{% csrf_token %}
 <div class="grid-2">
     <!-- Networking Settings -->
     <div class="chart-card animate-fadeIn">
         <h3 class="card-title mb-md"><i class="bi bi-router"></i> Advanced Networking</h3>
         
-        <form method="POST" action="">
-            {% csrf_token %}
+        
+            
             
             <div class="form-group">
                 <label class="d-flex align-items-center gap-sm" style="margin-bottom: 0.25rem;">
@@ -128,18 +130,18 @@
             
             <div class="form-group mt-xl" style="text-align: right;">
                 <button type="submit" class="btn btn-primary">
-                    <i class="bi bi-save"></i> Save All Settings
+                    <i class="bi bi-save"></i> Save Settings
                 </button>
             </div>
-        </form>
+        
     </div>
 
     <!-- Gamification Settings -->
     <div class="chart-card animate-fadeIn" style="animation-delay: 200ms; grid-column: 1 / -1;">
         <h3 class="card-title mb-md"><i class="bi bi-controller"></i> Gamification (Spin The Wheel)</h3>
         
-        <form method="POST" action="">
-            {% csrf_token %}
+        
+            
             <div class="form-group">
                 <label class="d-flex align-items-center gap-sm" style="margin-bottom: 0.25rem;">
                     <input type="checkbox" name="enable_spin_wheel" {% if settings.enable_spin_wheel %}checked{% endif %}>
@@ -167,10 +169,10 @@
             
             <div class="form-group mt-xl" style="text-align: right;">
                 <button type="submit" class="btn btn-primary">
-                    <i class="bi bi-save"></i> Save Gamification Settings
+                    <i class="bi bi-save"></i> Save Settings
                 </button>
             </div>
-        </form>
+        
     </div>
 
 </div>
@@ -180,8 +182,8 @@
     <div class="chart-card animate-fadeIn" style="animation-delay: 250ms; grid-column: 1 / -1;">
         <h3 class="card-title mb-md"><i class="bi bi-people-fill"></i> Family/Group Pass</h3>
         
-        <form method="POST" action="">
-            {% csrf_token %}
+        
+            
             <div class="form-group mb-lg">
                 <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
                     <input type="checkbox" name="enable_family_pass" {% if settings.enable_family_pass %}checked{% endif %}>
@@ -214,10 +216,11 @@
 
             <div class="form-group mt-xl" style="text-align: right;">
                 <button type="submit" class="btn btn-primary">
-                    <i class="bi bi-save"></i> Save Family Pass Settings
+                    <i class="bi bi-save"></i> Save Settings
                 </button>
             </div>
-        </form>
+        
     </div>
 
+</form>
 {% endblock %}
