@@ -1373,13 +1373,15 @@ def session_status(request):
                 )
 
             refresh_session_bandwidth_usage(locked_session)
-            return Response(
-                {
-                    "status": "active",
-                    "session": SessionSerializer(locked_session).data,
-                    "is_whitelisted": False,
-                }
-            )
+            response_data = {
+                "status": "active",
+                "session": SessionSerializer(locked_session).data,
+                "is_whitelisted": False,
+            }
+            if locked_session.session_group:
+                response_data["group_connected"] = locked_session.session_group.connected_devices_count
+                response_data["group_max"] = locked_session.session_group.max_devices
+            return Response(response_data)
 
     return Response(
         {
