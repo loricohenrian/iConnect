@@ -35,6 +35,7 @@ from .serializers import (
     SessionExtendSerializer,
     SessionSerializer,
     SessionStartSerializer,
+    GroupJoinSerializer,
     WhitelistedDeviceSerializer,
 )
 
@@ -806,7 +807,7 @@ def session_join_group(request):
             remaining_minutes = max(0, int((group.time_out - timezone.now()).total_seconds() / 60))
             
             # Inherit plan from the group's creator session
-            creator_session = group.session_set.first()
+            creator_session = group.sessions.first()
             group_plan = creator_session.plan if creator_session else None
 
             session = Session.objects.create(
