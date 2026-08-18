@@ -1537,9 +1537,9 @@ def admin_session_action(request, session_id, action):
         # Allow in firewall
         try:
             from sessions_app.iptables import allow_device
-            rate = session.plan.speed_limit if session.plan else None
-            ul_rate = session.plan.speed_limit_upload if session.plan else None
-            allow_device(session.mac_address, rate_kbps=rate, upload_kbps=ul_rate)
+            dl_kbps = int(session.plan.speed_limit * 1024) if session.plan and session.plan.speed_limit else None
+            ul_kbps = int(session.plan.speed_limit_upload * 1024) if session.plan and session.plan.speed_limit_upload else dl_kbps
+            allow_device(session.mac_address, rate_kbps=dl_kbps, upload_kbps=ul_kbps)
         except Exception as e:
             logging.error(f"Failed to allow device on resume: {e}")
             
