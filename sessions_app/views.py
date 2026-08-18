@@ -474,9 +474,7 @@ def session_start_request(request):
         coin_request, created = _get_or_create_start_coin_request(
             mac_address, ip_address, plan,
             is_group_pass=is_group_pass,
-            group_pass_devices=group_pass_devices,
-            group_pass_duration_minutes=group_pass_duration_minutes,
-            settings_obj=settings_obj
+            group_pass_devices=group_pass_devices
         )
     except ValueError as exc:
         return Response({"error": str(exc)}, status=status.HTTP_429_TOO_MANY_REQUESTS)
@@ -642,9 +640,7 @@ def session_start(request):
             coin_request, _ = _get_or_create_start_coin_request(
                 mac_address, ip_address, plan,
                 is_group_pass=is_group_pass,
-                group_pass_devices=group_pass_devices,
-                group_pass_duration_minutes=group_pass_duration_minutes,
-                settings_obj=settings_obj
+                group_pass_devices=group_pass_devices
             )
         except ValueError as exc:
             return Response({"error": str(exc), "required": expected_amount, "received": total_coins}, status=status.HTTP_429_TOO_MANY_REQUESTS)
