@@ -805,9 +805,13 @@ def session_join_group(request):
         with transaction.atomic():
             remaining_minutes = max(0, int((group.time_out - timezone.now()).total_seconds() / 60))
             
+            # Inherit plan from the group's creator session
+            creator_session = group.session_set.first()
+            group_plan = creator_session.plan if creator_session else None
+
             session = Session.objects.create(
                 mac_address=mac_address,
-                plan=None,
+                plan=group_plan,
                 session_group=group,
                 time_in=timezone.now(),
                 duration_minutes_purchased=remaining_minutes,
@@ -817,10 +821,8 @@ def session_join_group(request):
                 status="active",
             )
             
-            from dashboard.models import SystemSettings
-            settings_obj = SystemSettings.get_settings()
-            dl_kbps = int(settings_obj.family_pass_speed_limit * 1024)
-            ul_kbps = int(settings_obj.family_pass_speed_limit_upload * 1024)
+            dl_kbps = int(group_plan.speed_limit * 1024) if group_plan and group_plan.speed_limit else None
+            ul_kbps = int(group_plan.speed_limit_upload * 1024) if group_plan and group_plan.speed_limit_upload else dl_kbps
             
             if not iptables.allow_device(mac_address, rate_kbps=dl_kbps, upload_kbps=ul_kbps):
                 raise RuntimeError("Failed to allow internet access for this device")
