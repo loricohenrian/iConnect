@@ -1218,6 +1218,13 @@ function pollSessionStatus(macAddress, intervalMs = 3000) {
             if (data.status === "expired") {
                 window.location.href = buildPortalUrl("/", macAddress, { expired: 1 });
             }
+            
+            if (data.group_max && data.group_connected) {
+                const groupStatusEl = document.getElementById("group-plan-status");
+                if (groupStatusEl) {
+                    groupStatusEl.innerText = `Group Plan: ${data.group_connected} / ${data.group_max} devices connected`;
+                }
+            }
         } catch (error) {
             console.error("Status poll error:", error);
         }
@@ -1530,11 +1537,8 @@ if (btnGroupRequestSlot) {
                     startFlowMeta.innerText = `Pending Amount: ₱${data.coin_request.expected_amount}`;
                 }
                 
-                // Manually start polling since we bypassed the normal click
-                initProductionStartFlow(getMacAddress()); 
-                // Or rather we should just set the coin request state
-                applyCoinRequestState(data.coin_request);
-                startPolling();
+                // Reload the page to automatically start polling the new coin request
+                window.location.reload();
                 
             } else {
                 alert(data.error || "Failed to request coin slot.");
