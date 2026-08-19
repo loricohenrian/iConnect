@@ -69,13 +69,13 @@
     <div id="spin-modal" onclick="event.stopPropagation()">
         <!-- Modal Header -->
         <div class="spin-modal-header">
-            <h3><i class="bi bi-controller"></i> Spin to Win</h3>
+            <h3>Spin to Win</h3>
             <div style="display:flex; gap:8px; align-items:center;">
                 <button type="button" class="spin-help-btn" id="spin-help-toggle" onclick="toggleSpinHelp()">
-                    <i class="bi bi-question-circle"></i>
+                    ?
                 </button>
-                <button type="button" class="spin-close-btn" onclick="closeSpinModal()">
-                    <i class="bi bi-x-lg"></i>
+                <button type="button" class="spin-close-btn" onclick="closeSpinModal()" style="font-size: 24px; line-height: 1; padding-bottom: 4px;">
+                    &times;
                 </button>
             </div>
         </div>
@@ -83,10 +83,10 @@
         <!-- Help Panel (hidden by default) -->
         <div id="spin-help-panel" style="display:none;">
             <div class="spin-help-content">
-                <h4><i class="bi bi-lightbulb"></i> How to Earn Points</h4>
+                <h4>How to Earn Points</h4>
                 <ul>
-                    <li><i class="bi bi-cash-coin" style="color:#10B981;"></i> <strong>Spend money</strong> — Earn <span id="help-pts-peso">1</span> pt per ₱1 spent on sessions</li>
-                    <li><i class="bi bi-fire" style="color:#F59E0B;"></i> <strong>Daily streak</strong> — Connect daily to earn <span id="help-pts-streak">5</span> pts per day</li>
+                    <li><strong style="color:var(--color-primary);">Spend money</strong> — Earn <span id="help-pts-peso">1</span> pt per ₱1 spent on sessions</li>
+                    <li><strong style="color:var(--color-warning);">Daily streak</strong> — Connect daily to earn <span id="help-pts-streak">5</span> pts per day</li>
                 </ul>
             </div>
         </div>
@@ -127,7 +127,7 @@
 
         <!-- Spin Button -->
         <button type="button" id="spin-action-btn" class="spin-action-btn" onclick="executeSpin()" disabled>
-            <i class="bi bi-play-circle-fill"></i> SPIN!
+            SPIN!
         </button>
     </div>
 </div>
@@ -401,8 +401,8 @@
     font-size: 1rem;
     font-weight: 700;
     color: #fff;
-    background: linear-gradient(135deg, #10B981 0%, #059669 100%);
-    box-shadow: 0 4px 12px rgba(16,185,129,0.3);
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+    box-shadow: 0 4px 12px rgba(123, 45, 59, 0.3);
     cursor: pointer;
     transition: transform 0.15s, opacity 0.15s;
     display: flex;
