@@ -463,7 +463,7 @@ def overview(request):
     net_profit = total_revenue - total_expenses
     roi_pct = (net_profit / total_cost * 100) if total_cost > 0 else 0
 
-    recent_sessions = Session.objects.select_related('plan').all()[:10]
+    recent_sessions = Session.objects.select_related('plan').all()[:5]
     announcements = Announcement.objects.filter(is_active=True)
 
     # Solar savings

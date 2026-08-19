@@ -479,7 +479,7 @@ def api_execute_spin(request):
     device_profile.spins_today += 1
     device_profile.save(update_fields=['points', 'spins_today'])
 
-    # Award prize — extend existing session if one is active
+    # Award prize — extend existing session if one is active, or create a new one!
     prize_applied = False
     if selected_prize.minutes_reward > 0:
         session = Session.objects.filter(
@@ -490,6 +490,29 @@ def api_execute_spin(request):
         if session:
             session.duration_minutes_purchased += selected_prize.minutes_reward
             session.save(update_fields=['duration_minutes_purchased'])
+            prize_applied = True
+        else:
+            # No active session, so we create a completely free one for the reward!
+            from sessions_app import iptables
+            # Attempt to get IP if function available in this scope, otherwise fallback
+            ip_address = ""
+            try:
+                from sessions_app.views import _client_ip
+                ip_address = _client_ip(request)
+            except ImportError:
+                pass
+
+            new_session = Session.objects.create(
+                mac_address=mac_address,
+                plan=None, # It's a free prize, not a paid plan
+                time_in=timezone.now(),
+                duration_minutes_purchased=selected_prize.minutes_reward,
+                amount_paid=0,
+                status="active",
+                ip_address=ip_address,
+                device_name="Spin Winner"
+            )
+            iptables.allow_device(mac_address)
             prize_applied = True
 
     # Calculate remaining spins for the response
