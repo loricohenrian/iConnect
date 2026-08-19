@@ -7,6 +7,7 @@ import re
 from django.conf import settings
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
+from django.core.paginator import Paginator
 
 from dashboard.models import Announcement
 from sessions_app import iptables
@@ -240,16 +241,24 @@ def history(request):
 
     request_ip = _client_ip(request)
     sessions = []
+    page_obj = None
     if history_verified:
-        sessions = Session.objects.filter(
+        sessions_qs = Session.objects.filter(
             mac_address=mac_address,
-        ).select_related("plan").order_by("-time_in")[:20]
+        ).select_related("plan").order_by("-time_in")
+        
+        paginator = Paginator(sessions_qs, 10)
+        page_number = request.GET.get("page")
+        page_obj = paginator.get_page(page_number)
+        sessions = page_obj.object_list
 
     announcements = Announcement.objects.filter(is_active=True)
 
     context = {
-        "sessions": sessions,
         "mac_address": mac_address,
+        "request_ip": request_ip,
+        "sessions": sessions,
+        "page_obj": page_obj,
         "announcements": announcements,
         "passcode_required": passcode_required,
         "history_verified": history_verified,
