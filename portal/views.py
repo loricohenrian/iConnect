@@ -374,8 +374,10 @@ def spin_wheel_view(request):
     wheel_prizes = []
     current_deg = 0
     
+    colors = ['#10B981', '#3B82F6', '#F59E0B', '#8B5CF6', '#EF4444', '#EC4899', '#14B8A6', '#84CC16', '#6366F1', '#D946EF']
+    
     if prizes:
-        for prize in prizes:
+        for index, prize in enumerate(prizes):
             # Share of the circle
             deg_share = (prize.probability_weight / total_weight) * 360 if total_weight > 0 else 0
             end_deg = current_deg + deg_share
@@ -387,7 +389,8 @@ def spin_wheel_view(request):
                 'start_deg': round(current_deg, 2),
                 'end_deg': round(end_deg, 2),
                 'mid_deg': round(mid_deg, 2),
-                'minutes': prize.minutes_reward
+                'minutes': prize.minutes_reward,
+                'color': colors[index % len(colors)]
             })
             current_deg = end_deg
         
