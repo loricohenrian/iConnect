@@ -32,14 +32,3 @@ class SessionsAppConfig(AppConfig):
 
         if not iptables.enforce_firewall_baseline():
             logger.error('Firewall baseline enforcement failed during startup')
-        else:
-            from .models import Session
-            active_sessions = Session.objects.filter(status='active').select_related('plan')
-            restored = 0
-            for session in active_sessions:
-                dl_kbps = int(session.plan.speed_limit * 1024) if session.plan and session.plan.speed_limit else None
-                ul_kbps = int(session.plan.speed_limit_upload * 1024) if session.plan and session.plan.speed_limit_upload else dl_kbps
-                if iptables.allow_device(session.mac_address, rate_kbps=dl_kbps, upload_kbps=ul_kbps):
-                    restored += 1
-            if restored > 0:
-                logger.info(f'Restored iptables rules for {restored} active sessions on startup')
