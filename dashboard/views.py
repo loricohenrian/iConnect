@@ -1691,3 +1691,18 @@ def delete_prize_view(request, prize_id):
             messages.error(request, 'Prize not found.')
             
     return redirect('dashboard:gamification')
+import os
+from django.conf import settings
+from django.http import FileResponse, Http404
+
+def backup_database(request):
+    auth_resp = _require_dashboard_admin_response(request)
+    if auth_resp:
+        return auth_resp
+    
+    db_path = settings.BASE_DIR / 'db.sqlite3'
+    if not os.path.exists(db_path):
+        raise Http404("Database file not found.")
+        
+    response = FileResponse(open(db_path, 'rb'), as_attachment=True, filename='db_backup.sqlite3')
+    return response

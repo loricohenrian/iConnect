@@ -12,62 +12,71 @@
     </p>
 
     {% if not can_spin %}
-        <div class="alert alert-warning">
+        <div class="alert alert-warning mb-md">
             {{ error_message }}
         </div>
-        <div class="mt-lg">
-            <a href="/" class="btn btn-secondary"><i class="bi bi-arrow-left"></i> Back to Portal</a>
-        </div>
-    {% else %}
-        <!-- Wheel Container -->
-        <div class="wheel-container mb-xl" style="position: relative; width: 280px; height: 280px; margin: 0 auto;">
-            <!-- Pointer -->
-            <div style="position: absolute; top: -15px; left: 50%; transform: translateX(-50%); z-index: 10; width: 30px; height: 30px; background: #DC2626; clip-path: polygon(50% 100%, 0 0, 100% 0);"></div>
-            
-            <!-- The Wheel (CSS Conic Gradient approach for simplicity and responsive design) -->
-            <div id="wheel" style="
-                width: 100%; height: 100%; border-radius: 50%; border: 4px solid var(--border-color);
-                box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-                transition: transform 4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-                background: conic-gradient(
-                    {% for prize in prizes %}
-                        {% cycle '#10B981' '#3B82F6' '#F59E0B' '#8B5CF6' '#EF4444' as color %}
-                        {{ color }} {{ prize.start_deg }}deg {{ prize.end_deg }}deg{% if not forloop.last %},{% endif %}
-                    {% endfor %}
-                );
-                position: relative;
-                overflow: hidden;
-            ">
-                <!-- Text Labels inside wheel -->
-                {% for prize in prizes %}
-                <div style="
-                    position: absolute; width: 50%; height: 20px; top: 50%; left: 50%;
-                    transform-origin: 0 50%;
-                    transform: translateY(-50%) rotate({{ prize.mid_deg }}deg);
-                    text-align: right; padding-right: 20px; font-weight: bold; color: white;
-                    text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
-                    user-select: none;
-                ">
-                    {{ prize.name }}
-                </div>
-                {% endfor %}
-            </div>
-            
-            <!-- Center dot -->
-            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 20px; height: 20px; background: white; border-radius: 50%; box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);"></div>
-        </div>
-
-        <div id="spin-result-container" class="alert alert-success" style="display: none;">
-            <strong id="spin-result-text"></strong>
-        </div>
-
-        <div class="d-flex gap-sm">
-            <a href="/" class="btn btn-secondary w-100"><i class="bi bi-arrow-left"></i> Back</a>
-            <button id="spin-btn" class="btn btn-primary w-100" style="background: linear-gradient(135deg, #10B981 0%, #059669 100%); border: none;">
-                <i class="bi bi-play-circle-fill"></i> SPIN!
-            </button>
-        </div>
     {% endif %}
+
+    <!-- Wheel Container -->
+    <div class="wheel-container mb-xl" style="position: relative; width: 280px; height: 280px; margin: 0 auto; {% if not can_spin %}opacity: 0.6;{% endif %}">
+        <!-- Pointer -->
+        <div style="position: absolute; top: -15px; left: 50%; transform: translateX(-50%); z-index: 10; width: 30px; height: 30px; background: #DC2626; clip-path: polygon(50% 100%, 0 0, 100% 0);"></div>
+        
+        <!-- The Wheel -->
+        <div id="wheel" style="
+            width: 100%; height: 100%; border-radius: 50%; border: 4px solid var(--border-color);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            transition: transform 4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            background: conic-gradient(
+                {% for prize in prizes %}
+                    {% cycle '#10B981' '#3B82F6' '#F59E0B' '#8B5CF6' '#EF4444' as color %}
+                    {{ color }} {{ prize.start_deg }}deg {{ prize.end_deg }}deg{% if not forloop.last %},{% endif %}
+                {% endfor %}
+            );
+            position: relative;
+            overflow: hidden;
+        ">
+            <!-- Text Labels inside wheel -->
+            {% for prize in prizes %}
+            <div style="
+                position: absolute; width: 50%; height: 20px; top: 50%; left: 50%;
+                transform-origin: 0 50%;
+                transform: translateY(-50%) rotate({{ prize.mid_deg }}deg);
+                text-align: right; padding-right: 20px; font-weight: bold; color: white;
+                text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+                user-select: none;
+            ">
+                {{ prize.name }}
+            </div>
+            {% endfor %}
+        </div>
+        
+        <!-- Center dot -->
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 20px; height: 20px; background: white; border-radius: 50%; box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);"></div>
+    </div>
+
+    <div id="spin-result-container" class="alert alert-success" style="display: none;">
+        <strong id="spin-result-text"></strong>
+    </div>
+
+    <div class="d-flex gap-sm mb-lg">
+        <a href="/" class="btn btn-secondary w-100"><i class="bi bi-arrow-left"></i> Back</a>
+        {% if can_spin %}
+        <button id="spin-btn" class="btn btn-primary w-100" style="background: linear-gradient(135deg, #10B981 0%, #059669 100%); border: none;">
+            <i class="bi bi-play-circle-fill"></i> SPIN!
+        </button>
+        {% else %}
+        <button class="btn btn-primary w-100" style="background: #6B7280; border: none; cursor: not-allowed; opacity: 0.7;" disabled>
+            <i class="bi bi-play-circle-fill"></i> SPIN!
+        </button>
+        {% endif %}
+    </div>
+
+    <!-- MAC Randomization Notice -->
+    <div style="background: rgba(var(--primary-color-rgb), 0.05); border: 1px dashed rgba(var(--primary-color-rgb), 0.3); border-radius: 8px; padding: 1rem; text-align: left; font-size: 0.85rem; color: var(--text-secondary);">
+        <i class="bi bi-info-circle text-primary" style="margin-right: 0.5rem;"></i>
+        <strong>Tip:</strong> Turn off "Randomized MAC" in your WiFi settings for this network to keep your points saved permanently!
+    </div>
 </div>
 
 <script>
