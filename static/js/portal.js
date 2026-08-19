@@ -1501,23 +1501,34 @@ if (gpMinus && gpPlus && gpDeviceCount) {
         }
     });
     gpPlus.addEventListener("click", () => {
-        if (currentGpDevices < 50) {
+        const currentMax = parseInt(gpDeviceCount.getAttribute('data-max-slots')) || 50;
+        if (currentGpDevices < currentMax) {
             currentGpDevices++;
             gpDeviceCount.value = currentGpDevices;
             updateGroupPlanPrice();
+        } else {
+            alert("No more slots available.");
         }
     });
     gpDeviceCount.addEventListener("input", (e) => {
         let val = parseInt(e.target.value);
-        if (!isNaN(val) && val >= 2 && val <= 50) {
+        if (!isNaN(val)) {
+            // Update price instantly as they type, but don't strictly clamp until blur 
+            // so we don't break their typing flow (e.g. typing "1" before "5").
             currentGpDevices = val;
             updateGroupPlanPrice();
         }
     });
     gpDeviceCount.addEventListener("blur", (e) => {
         let val = parseInt(e.target.value);
+        const currentMax = parseInt(gpDeviceCount.getAttribute('data-max-slots')) || 50;
+        
         if (isNaN(val) || val < 2) val = 2;
-        if (val > 50) val = 50;
+        if (val > currentMax) {
+            val = currentMax;
+            alert("Maximum available slots is " + currentMax);
+        }
+        
         currentGpDevices = val;
         gpDeviceCount.value = currentGpDevices;
         updateGroupPlanPrice();
