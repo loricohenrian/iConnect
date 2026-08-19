@@ -1496,16 +1496,31 @@ if (gpMinus && gpPlus && gpDeviceCount) {
     gpMinus.addEventListener("click", () => {
         if (currentGpDevices > 2) {
             currentGpDevices--;
-            gpDeviceCount.innerText = currentGpDevices;
+            gpDeviceCount.value = currentGpDevices;
             updateGroupPlanPrice();
         }
     });
     gpPlus.addEventListener("click", () => {
-        if (currentGpDevices < 10) {
+        if (currentGpDevices < 50) {
             currentGpDevices++;
-            gpDeviceCount.innerText = currentGpDevices;
+            gpDeviceCount.value = currentGpDevices;
             updateGroupPlanPrice();
         }
+    });
+    gpDeviceCount.addEventListener("input", (e) => {
+        let val = parseInt(e.target.value);
+        if (!isNaN(val) && val >= 2 && val <= 50) {
+            currentGpDevices = val;
+            updateGroupPlanPrice();
+        }
+    });
+    gpDeviceCount.addEventListener("blur", (e) => {
+        let val = parseInt(e.target.value);
+        if (isNaN(val) || val < 2) val = 2;
+        if (val > 50) val = 50;
+        currentGpDevices = val;
+        gpDeviceCount.value = currentGpDevices;
+        updateGroupPlanPrice();
     });
 }
 
