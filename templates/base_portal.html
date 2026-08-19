@@ -51,8 +51,15 @@
 
 <!-- Floating Spin Button (bottom-right, above nav) -->
 <button type="button" id="spin-fab" style="display:none;" onclick="openSpinModal()">
-    <div class="spin-fab-icon">
-        <i class="bi bi-gift-fill" style="font-size: 24px; color: #fff;"></i>
+    <div class="spin-fab-wheel">
+        <svg viewBox="0 0 40 40" width="28" height="28">
+            <circle cx="20" cy="20" r="18" fill="none" stroke="#fff" stroke-width="2" opacity="0.4"/>
+            <path d="M20 2 A18 18 0 0 1 38 20 L20 20 Z" fill="#F59E0B"/>
+            <path d="M38 20 A18 18 0 0 1 20 38 L20 20 Z" fill="#FFFFFF"/>
+            <path d="M20 38 A18 18 0 0 1 2 20 L20 20 Z" fill="#D97706"/>
+            <path d="M2 20 A18 18 0 0 1 20 2 L20 20 Z" fill="var(--color-light)"/>
+            <circle cx="20" cy="20" r="4" fill="#fff"/>
+        </svg>
     </div>
     <span class="spin-fab-badge" id="spin-fab-pts">0</span>
 </button>
@@ -148,10 +155,15 @@
 #spin-fab:hover { transform: scale(1.1); box-shadow: 0 6px 20px rgba(123, 45, 59, 0.6); }
 #spin-fab:active { transform: scale(0.95); }
 
-.spin-fab-icon {
+.spin-fab-wheel {
     display: flex;
     align-items: center;
     justify-content: center;
+    animation: spin-slow 8s linear infinite;
+}
+@keyframes spin-slow {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
 }
 
 .spin-fab-badge {
