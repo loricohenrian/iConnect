@@ -1609,3 +1609,28 @@ if (btnGroupRequestSlot) {
     });
 }
 
+const btnCancelCoinRequest = document.getElementById("btn-cancel-coin-request");
+if (btnCancelCoinRequest) {
+    btnCancelCoinRequest.addEventListener("click", async () => {
+        const confirmCancel = confirm("Are you sure you want to cancel the coin slot request?");
+        if (!confirmCancel) return;
+        
+        btnCancelCoinRequest.disabled = true;
+        btnCancelCoinRequest.innerText = "Canceling...";
+        
+        try {
+            await fetch("/api/session/start/cancel/", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": getCSRFToken()
+                },
+                body: JSON.stringify({ mac_address: getMacAddress() })
+            });
+        } catch (e) {
+            console.error(e);
+        }
+        
+        window.location.reload();
+    });
+}

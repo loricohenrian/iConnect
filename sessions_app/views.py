@@ -544,6 +544,30 @@ def session_start_request_status(request):
         }
     )
 
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def session_start_cancel(request):
+    """Cancel a pending start-session coin request."""
+    mac_address = request.data.get("mac_address", "").upper().strip()
+    if not mac_address:
+        return Response({"error": "MAC address required"}, status=status.HTTP_400_BAD_REQUEST)
+        
+    coin_request = CoinInsertRequest.objects.filter(
+        mac_address=mac_address,
+        purpose=CoinInsertRequest.PURPOSE_START,
+        status__in=[CoinInsertRequest.STATUS_PENDING, CoinInsertRequest.STATUS_ACTIVE]
+    ).first()
+    
+    if coin_request:
+        coin_request.status = CoinInsertRequest.STATUS_CANCELLED
+        coin_request.completed_at = timezone.now()
+        coin_request.save(update_fields=["status", "completed_at"])
+        
+        # In case the cancelled request was ACTIVE, activate the next one in queue
+        _activate_next_coin_request()
+        
+    return Response({"status": "success"})
+
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
