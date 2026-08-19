@@ -22,7 +22,7 @@
         <!-- Pointer -->
         <div style="position: absolute; top: -15px; left: 50%; transform: translateX(-50%); z-index: 10; width: 30px; height: 30px; background: #DC2626; clip-path: polygon(50% 100%, 0 0, 100% 0);"></div>
         
-        <!-- The Wheel -->
+    <!-- The Wheel -->
         <div id="wheel" style="
             width: 100%; height: 100%; border-radius: 50%; border: 4px solid var(--border-color);
             box-shadow: 0 4px 15px rgba(0,0,0,0.1);
@@ -33,25 +33,28 @@
                 {% endfor %}
             );
             position: relative;
-            overflow: hidden;
         ">
-            <!-- Text Labels inside wheel -->
-            {% for prize in prizes %}
-            <div style="
-                position: absolute; width: 50%; height: 20px; top: 50%; left: 50%;
-                transform-origin: 0 50%;
-                transform: translateY(-50%) rotate({{ prize.mid_deg }}deg);
-                text-align: right; padding-right: 20px; font-weight: bold; color: white;
-                text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
-                user-select: none;
-            ">
-                {{ prize.name }}
-            </div>
-            {% endfor %}
         </div>
-        
+
+        <!-- SVG Text Labels (outside overflow:hidden wheel div) -->
+        <svg id="wheel-labels" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;overflow:visible;transition: transform 4s cubic-bezier(0.175, 0.885, 0.32, 1.275);" viewBox="0 0 280 280">
+            {% for prize in prizes %}
+            <text
+                x="140" y="140"
+                text-anchor="middle"
+                dominant-baseline="middle"
+                fill="white"
+                font-size="11"
+                font-weight="bold"
+                font-family="sans-serif"
+                style="text-shadow: 1px 1px 2px rgba(0,0,0,0.5);"
+                transform="rotate({{ prize.mid_deg }}, 140, 140) translate(80, 0)"
+            >{{ prize.name }}</text>
+            {% endfor %}
+        </svg>
+
         <!-- Center dot -->
-        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 20px; height: 20px; background: white; border-radius: 50%; box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);"></div>
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 20px; height: 20px; background: white; border-radius: 50%; box-shadow: inset 0 2px 4px rgba(0,0,0,0.3); z-index:2;"></div>
     </div>
 
     <div id="spin-result-container" class="alert alert-success" style="display: none;">
@@ -110,7 +113,9 @@
                         // To land targetDeg at the top pointer (0deg position), we rotate by 360 - targetDeg
                         const finalRotation = fullSpins + (360 - targetDeg);
                         
+                        const wheelSvg = document.getElementById("wheel-labels");
                         wheel.style.transform = `rotate(${finalRotation}deg)`;
+                        if (wheelSvg) wheelSvg.style.transform = `rotate(${finalRotation}deg)`;
                         
                         setTimeout(() => {
                             resultContainer.style.display = "block";
