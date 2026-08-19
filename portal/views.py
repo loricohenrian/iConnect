@@ -407,13 +407,13 @@ def spin_wheel_view(request):
 
 from django.views.decorators.csrf import csrf_exempt
 
-@csrf_exempt
 def api_execute_spin(request):
     """API endpoint to execute a spin, deduct points, and award prize."""
     import json
     import random
     from django.http import JsonResponse
     from django.utils import timezone
+    from django.db import transaction
     from dashboard.models import SystemSettings
     from sessions_app.models import DeviceProfile, SpinPrize, Session
 
@@ -428,113 +428,116 @@ def api_execute_spin(request):
     if not mac_address:
         return JsonResponse({"status": "error", "message": "MAC address required"})
 
-    device_profile, _ = DeviceProfile.objects.get_or_create(mac_address=mac_address)
+    try:
+        with transaction.atomic():
+            device_profile, _ = DeviceProfile.objects.select_for_update().get_or_create(mac_address=mac_address)
 
-    today = timezone.localdate()
-    if device_profile.last_spin_date != today:
-        device_profile.spins_today = 0
-        device_profile.last_spin_date = today
-        device_profile.save(update_fields=['spins_today', 'last_spin_date'])
+            today = timezone.localdate()
+            if device_profile.last_spin_date != today:
+                device_profile.spins_today = 0
+                device_profile.last_spin_date = today
 
-    # Validation — all checks BEFORE deducting points
-    if device_profile.spins_today >= settings_obj.daily_spin_limit:
-        return JsonResponse({"status": "error", "message": "Daily spin limit reached"})
+            # Validation — all checks BEFORE deducting points
+            if device_profile.spins_today >= settings_obj.daily_spin_limit:
+                return JsonResponse({"status": "error", "message": "Daily spin limit reached"})
 
-    if device_profile.points < settings_obj.spin_cost_points:
-        return JsonResponse({"status": "error", "message": "Not enough points"})
+            if device_profile.points < settings_obj.spin_cost_points:
+                return JsonResponse({"status": "error", "message": "Not enough points"})
 
-    prizes = list(SpinPrize.objects.filter(is_active=True))
-    if not prizes:
-        return JsonResponse({"status": "error", "message": "No prizes configured"})
+            prizes = list(SpinPrize.objects.filter(is_active=True))
+            if not prizes:
+                return JsonResponse({"status": "error", "message": "No prizes configured"})
 
-    # Calculate weights and select prize
-    total_weight = sum(p.probability_weight for p in prizes)
-    if total_weight <= 0:
-        return JsonResponse({"status": "error", "message": "Invalid prize configuration"})
+            # Calculate weights and select prize
+            total_weight = sum(p.probability_weight for p in prizes)
+            if total_weight <= 0:
+                return JsonResponse({"status": "error", "message": "Invalid prize configuration"})
 
-    random_val = random.uniform(0, total_weight)
+            random_val = random.uniform(0, total_weight)
 
-    current_weight = 0
-    selected_prize = None
+            current_weight = 0
+            selected_prize = None
 
-    for prize in prizes:
-        current_weight += prize.probability_weight
-        if random_val <= current_weight:
-            selected_prize = prize
-            break
+            for prize in prizes:
+                current_weight += prize.probability_weight
+                if random_val <= current_weight:
+                    selected_prize = prize
+                    break
 
-    if not selected_prize:
-        selected_prize = prizes[-1]
+            if not selected_prize:
+                selected_prize = prizes[-1]
 
-    # Calculate target_deg for the wheel animation
-    sorted_prizes = sorted(prizes, key=lambda x: x.probability_weight)
-    deg_current = 0
-    target_deg = 0
-    for prize in sorted_prizes:
-        deg_share = (prize.probability_weight / total_weight) * 360
-        if prize.id == selected_prize.id:
-            target_deg = deg_current + random.uniform(deg_share * 0.1, deg_share * 0.9)
-            break
-        deg_current += deg_share
+            # Calculate target_deg for the wheel animation
+            sorted_prizes = sorted(prizes, key=lambda x: x.probability_weight)
+            deg_current = 0
+            target_deg = 0
+            for prize in sorted_prizes:
+                deg_share = (prize.probability_weight / total_weight) * 360
+                if prize.id == selected_prize.id:
+                    target_deg = deg_current + random.uniform(deg_share * 0.1, deg_share * 0.9)
+                    break
+                deg_current += deg_share
 
-    # Deduct points and update spin count
-    device_profile.points -= settings_obj.spin_cost_points
-    device_profile.spins_today += 1
-    device_profile.save(update_fields=['points', 'spins_today'])
+            # Deduct points and update spin count
+            device_profile.points -= settings_obj.spin_cost_points
+            device_profile.spins_today += 1
+            device_profile.save(update_fields=['points', 'spins_today', 'last_spin_date'])
 
-    # Award prize — extend existing session if one is active, or create a new one!
-    prize_applied = False
-    if selected_prize.minutes_reward > 0:
-        session = Session.objects.filter(
-            mac_address=mac_address,
-            status__in=["active", "paused"]
-        ).first()
+            # Award prize — extend existing session if one is active, or create a new one!
+            prize_applied = False
+            if selected_prize.minutes_reward > 0:
+                session = Session.objects.filter(
+                    mac_address=mac_address,
+                    status__in=["active", "paused"]
+                ).first()
 
-        if session:
-            session.duration_minutes_purchased += selected_prize.minutes_reward
-            session.save(update_fields=['duration_minutes_purchased'])
-            prize_applied = True
-        else:
-            # No active session, so we create a completely free one for the reward!
-            from sessions_app import iptables
-            # Attempt to get IP if function available in this scope, otherwise fallback
-            ip_address = ""
-            try:
-                from sessions_app.views import _client_ip
-                ip_address = _client_ip(request)
-            except ImportError:
-                pass
+                if session:
+                    session.duration_minutes_purchased += selected_prize.minutes_reward
+                    session.save(update_fields=['duration_minutes_purchased'])
+                    prize_applied = True
+                else:
+                    # No active session, so we create a completely free one for the reward!
+                    from sessions_app import iptables
+                    # Attempt to get IP if function available in this scope, otherwise fallback
+                    ip_address = ""
+                    try:
+                        from sessions_app.views import _client_ip
+                        ip_address = _client_ip(request)
+                    except ImportError:
+                        pass
 
-            new_session = Session.objects.create(
-                mac_address=mac_address,
-                plan=None, # It's a free prize, not a paid plan
-                time_in=timezone.now(),
-                duration_minutes_purchased=selected_prize.minutes_reward,
-                amount_paid=0,
-                status="active",
-                ip_address=ip_address,
-                device_name="Spin Winner"
-            )
-            iptables.allow_device(mac_address)
-            prize_applied = True
+                    new_session = Session.objects.create(
+                        mac_address=mac_address,
+                        plan=None, # It's a free prize, not a paid plan
+                        time_in=timezone.now(),
+                        duration_minutes_purchased=selected_prize.minutes_reward,
+                        amount_paid=0,
+                        status="active",
+                        ip_address=ip_address,
+                        device_name="Spin Winner"
+                    )
+                    iptables.allow_device(mac_address)
+                    prize_applied = True
 
-    # Calculate remaining spins for the response
-    remaining_spins = max(0, settings_obj.daily_spin_limit - device_profile.spins_today)
+            # Calculate remaining spins for the response
+            remaining_spins = max(0, settings_obj.daily_spin_limit - device_profile.spins_today)
 
-    return JsonResponse({
-        "status": "success",
-        "prize": {
-            "id": selected_prize.id,
-            "name": selected_prize.name,
-            "minutes": selected_prize.minutes_reward,
-            "mid_deg": target_deg,
-            "applied": prize_applied,
-        },
-        "updated": {
-            "points": device_profile.points,
-            "remaining_spins": remaining_spins,
-        }
-    })
+            return JsonResponse({
+                "status": "success",
+                "prize": {
+                    "id": selected_prize.id,
+                    "name": selected_prize.name,
+                    "minutes": selected_prize.minutes_reward,
+                    "mid_deg": target_deg,
+                    "applied": prize_applied,
+                },
+                "updated": {
+                    "points": device_profile.points,
+                    "remaining_spins": remaining_spins,
+                }
+            })
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": "An error occurred during spin processing"}, status=500)
 
 
 def api_spin_data(request):

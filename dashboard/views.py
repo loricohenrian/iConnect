@@ -1695,11 +1695,8 @@ import os
 from django.conf import settings
 from django.http import FileResponse, Http404
 
+@user_passes_test(_is_dashboard_admin, login_url='dashboard:login')
 def backup_database(request):
-    auth_resp = _require_dashboard_admin_response(request)
-    if auth_resp:
-        return auth_resp
-    
     db_path = settings.BASE_DIR / 'db.sqlite3'
     if not os.path.exists(db_path):
         raise Http404("Database file not found.")
