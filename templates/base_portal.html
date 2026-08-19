@@ -51,15 +51,8 @@
 
 <!-- Floating Spin Button (bottom-right, above nav) -->
 <button type="button" id="spin-fab" style="display:none;" onclick="openSpinModal()">
-    <div class="spin-fab-wheel">
-        <svg viewBox="0 0 40 40" width="28" height="28">
-            <circle cx="20" cy="20" r="18" fill="none" stroke="#fff" stroke-width="2" opacity="0.3"/>
-            <path d="M20 2 A18 18 0 0 1 38 20 L20 20 Z" fill="#10B981"/>
-            <path d="M38 20 A18 18 0 0 1 20 38 L20 20 Z" fill="#3B82F6"/>
-            <path d="M20 38 A18 18 0 0 1 2 20 L20 20 Z" fill="#F59E0B"/>
-            <path d="M2 20 A18 18 0 0 1 20 2 L20 20 Z" fill="#8B5CF6"/>
-            <circle cx="20" cy="20" r="4" fill="#fff"/>
-        </svg>
+    <div class="spin-fab-icon">
+        <i class="bi bi-gift-fill" style="font-size: 24px; color: #fff;"></i>
     </div>
     <span class="spin-fab-badge" id="spin-fab-pts">0</span>
 </button>
@@ -143,8 +136,8 @@
     height: 56px;
     border-radius: 50%;
     border: none;
-    background: linear-gradient(135deg, #10B981 0%, #059669 100%);
-    box-shadow: 0 4px 16px rgba(16,185,129,0.4);
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+    box-shadow: 0 4px 16px rgba(123, 45, 59, 0.4);
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -152,25 +145,24 @@
     padding: 0;
     transition: transform 0.2s, box-shadow 0.2s;
 }
-#spin-fab:hover { transform: scale(1.1); box-shadow: 0 6px 20px rgba(16,185,129,0.5); }
+#spin-fab:hover { transform: scale(1.1); box-shadow: 0 6px 20px rgba(123, 45, 59, 0.6); }
 #spin-fab:active { transform: scale(0.95); }
 
-.spin-fab-wheel {
-    animation: spin-slow 8s linear infinite;
-}
-@keyframes spin-slow {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
+.spin-fab-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .spin-fab-badge {
     position: absolute;
     top: -4px;
     right: -4px;
-    background: #F59E0B;
-    color: #fff;
-    font-size: 10px;
-    font-weight: 700;
+    background: var(--color-light);
+    color: var(--color-primary);
+    border: 2px solid var(--color-primary);
+    font-size: 11px;
+    font-weight: 800;
     min-width: 20px;
     height: 20px;
     border-radius: 10px;
@@ -178,7 +170,7 @@
     align-items: center;
     justify-content: center;
     padding: 0 4px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
 }
 
 /* ── Modal Overlay ── */
