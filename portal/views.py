@@ -210,6 +210,17 @@ def session_page(request):
         "slots_available": available_slots,
         "insert_coin_countdown_seconds": SystemSettings.get_settings().insert_coin_countdown_seconds,
     }
+    
+    # Calculate pause info for display
+    if active_session.plan and active_session.plan.pause_limit > 0:
+        context["pauses_left"] = max(0, active_session.plan.pause_limit - active_session.pause_count)
+    else:
+        context["pauses_left"] = "Unlimited"
+        
+    if active_session.plan and active_session.plan.pause_duration_limit > 0:
+        context["pause_max_hours"] = active_session.plan.pause_duration_limit
+    else:
+        context["pause_max_hours"] = SystemSettings.get_settings().global_pause_limit_hours
     return render(request, "portal/session.html", context)
 
 

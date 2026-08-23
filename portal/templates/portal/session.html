@@ -61,6 +61,19 @@
     <button type="button" class="pause-btn {% if session.status == 'paused' %}paused{% endif %}" id="pause-btn">
         {% if session.status == 'paused' %}Resume{% else %}Pause{% endif %}
     </button>
+    
+    <!-- Pause Info -->
+    <div style="font-size: 13px; color: var(--text-secondary); margin-top: 10px; text-align: center; font-weight: 500;">
+        <i class="bi bi-pause-circle"></i> Pauses remaining: <strong id="pauses-left-display">{{ pauses_left }}</strong>
+    </div>
+    
+    <div id="pause-duration-warning" class="alert alert-warning" style="display: {% if session.status == 'paused' %}block{% else %}none{% endif %}; font-size: 12px; margin-top: 12px; padding: 8px 12px; border-radius: 8px; text-align: left;">
+        {% if pause_max_hours > 0 %}
+            <i class="bi bi-info-circle"></i> <strong>Note:</strong> Your paused time will automatically expire if you do not resume within <strong>{{ pause_max_hours }} hour{{ pause_max_hours|pluralize }}</strong>.
+        {% else %}
+            <i class="bi bi-info-circle"></i> <strong>Note:</strong> Your session is paused. Don't forget to resume when you return!
+        {% endif %}
+    </div>
 
     <!-- Plan badge -->
     <div class="mt-md">

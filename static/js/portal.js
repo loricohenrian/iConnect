@@ -1409,42 +1409,8 @@ function initPauseButton(macAddress) {
                 return;
             }
 
-            isPaused = data.status === "paused";
-            const statusEl = document.getElementById("connection-status");
-            const timerEl = document.getElementById("session-timer");
-
-            if (isPaused) {
-                // Paused: stop timer, update UI
-                pauseBtn.textContent = "Resume";
-                pauseBtn.classList.add("paused");
-                if (window.sessionTimer) window.sessionTimer.pause();
-                if (statusEl) {
-                    statusEl.querySelector(".status-dot").style.background = "var(--color-warning)";
-                    statusEl.querySelector("span:last-child").textContent = "Paused";
-                }
-                if (timerEl) {
-                    timerEl.classList.remove("timer-green");
-                    timerEl.classList.add("timer-amber");
-                    timerEl.dataset.status = "paused";
-                }
-            } else {
-                // Resumed: restart timer with remaining seconds
-                pauseBtn.textContent = "Pause";
-                pauseBtn.classList.remove("paused");
-                if (window.sessionTimer && data.time_remaining_seconds != null) {
-                    window.sessionTimer.setRemaining(data.time_remaining_seconds);
-                    window.sessionTimer.start();
-                }
-                if (statusEl) {
-                    statusEl.querySelector(".status-dot").style.background = "";
-                    statusEl.querySelector("span:last-child").textContent = "Connected";
-                }
-                if (timerEl) {
-                    timerEl.classList.remove("timer-amber");
-                    timerEl.classList.add("timer-green");
-                    timerEl.dataset.status = "active";
-                }
-            }
+            // Reload to ensure accurate 'Pauses remaining' count and UI state
+            window.location.reload();
         } catch (err) {
             console.error("Pause toggle error:", err);
         } finally {
