@@ -1,4 +1,4 @@
-{% extends "base_dashboard.html" %}
+﻿{% extends "base_dashboard.html" %}
 
 {% block page_title %}Global Settings{% endblock %}
 {% block topbar_title %}Global Settings{% endblock %}
@@ -24,394 +24,160 @@
     <div class="chart-card animate-fadeIn">
         <h3 class="card-title mb-md"><i class="bi bi-router"></i> Advanced Networking</h3>
         
-        
-            
-            
-            <div class="form-group">
-                <label class="d-flex align-items-center gap-sm" style="margin-bottom: 0.25rem;">
-                    <input type="checkbox" name="enable_internet_check" {% if settings.enable_internet_check %}checked{% endif %}>
-                    <span style="font-weight: 600;">Internet Active Checking</span>
-                </label>
-                <small style="color: var(--text-secondary); display: block; margin-left: 1.75rem;">
-                    Automatically disables the "Insert Coin" button when the ISP is offline to prevent eating coins.
-                </small>
-            </div>
-
-            <hr style="margin: 1.5rem 0; border: 0; border-top: 1px solid var(--border-color);">
-
-            <div class="form-group">
-                <label class="d-flex align-items-center gap-sm" style="margin-bottom: 0.25rem;">
-                    <input type="checkbox" name="enable_anti_tethering" {% if settings.enable_anti_tethering %}checked{% endif %}>
-                    <span style="font-weight: 600;">Anti-Tethering (TTL=1)</span>
-                </label>
-                <small style="color: var(--text-secondary); display: block; margin-left: 1.75rem;">
-                    Blocks users from sharing their internet connection via Mobile Hotspot or Bluetooth by forcing packet time-to-live to 1.
-                </small>
-            </div>
-
-            <hr style="margin: 1.5rem 0; border: 0; border-top: 1px solid var(--border-color);">
-
-            <div class="form-group">
-                <label class="d-flex align-items-center gap-sm" style="margin-bottom: 0.25rem;">
-                    <input type="checkbox" name="enable_sqm" {% if settings.enable_sqm %}checked{% endif %}>
-                    <span style="font-weight: 600;">SQM CAKE (Anti-Bufferbloat)</span>
-                </label>
-                <small style="color: var(--text-secondary); display: block; margin-left: 1.75rem; margin-bottom: 1rem;">
-                    Replaces default queues with CAKE to drastically reduce latency and ping spikes when the network is under heavy load (e.g. downloads).
-                </small>
-            </div>
-            
-            <div class="grid-2" style="margin-left: 1.75rem;">
-                <div class="form-group">
-                    <label class="form-label" style="font-size: 0.85rem;">ISP Download Speed (Mbps)</label>
-                    <input type="number" min="1" class="form-input" name="isp_download_speed" value="{{ settings.isp_download_speed }}" required>
-                </div>
-                <div class="form-group">
-                    <label class="form-label" style="font-size: 0.85rem;">ISP Upload Speed (Mbps)</label>
-                    <input type="number" min="1" class="form-input" name="isp_upload_speed" value="{{ settings.isp_upload_speed }}" required>
-                </div>
-            </div>
-            <small style="color: var(--text-muted); display: block; margin-left: 1.75rem; margin-top: -0.5rem; margin-bottom: 1rem;">
-                * Set this to 90-95% of your true maximum ISP speed for CAKE to work perfectly.
+        <div class="form-group">
+            <label class="d-flex align-items-center gap-sm" style="margin-bottom: 0.25rem;">
+                <input type="checkbox" name="enable_internet_check" {% if settings.enable_internet_check %}checked{% endif %}>
+                <span style="font-weight: 600;">Internet Active Checking</span>
+            </label>
+            <small style="color: #9ca3af; display: block; margin-left: 1.75rem;">
+                Automatically disables the "Insert Coin" button when the ISP is offline to prevent eating coins.
             </small>
+        </div>
 
+        <div class="form-group mt-md">
+            <label class="d-flex align-items-center gap-sm" style="margin-bottom: 0.25rem;">
+                <input type="checkbox" name="enable_anti_tethering" {% if settings.enable_anti_tethering %}checked{% endif %}>
+                <span style="font-weight: 600;">Anti-Tethering (TTL=1)</span>
+            </label>
+            <small style="color: #9ca3af; display: block; margin-left: 1.75rem;">
+                Blocks users from sharing their internet connection via Mobile Hotspot or Bluetooth by forcing packet time-to-live to 1.
+            </small>
+        </div>
+
+        <div class="form-group mt-md">
+            <label class="d-flex align-items-center gap-sm" style="margin-bottom: 0.25rem;">
+                <input type="checkbox" name="enable_sqm" {% if settings.enable_sqm %}checked{% endif %}>
+                <span style="font-weight: 600;">SQM CAKE (Anti-Bufferbloat)</span>
+            </label>
+            <small style="color: #9ca3af; display: block; margin-left: 1.75rem; margin-bottom: 1rem;">
+                Replaces default queues with CAKE to drastically reduce latency and ping spikes when the network is under heavy load.
+            </small>
+        </div>
+        
+        <div class="grid-2" style="margin-left: 1.75rem;">
+            <div class="form-group">
+                <label class="form-label" style="font-size: 0.85rem;">ISP Download (Mbps)</label>
+                <input type="number" min="1" class="form-input" name="isp_download_speed" value="{{ settings.isp_download_speed }}" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label" style="font-size: 0.85rem;">ISP Upload (Mbps)</label>
+                <input type="number" min="1" class="form-input" name="isp_upload_speed" value="{{ settings.isp_upload_speed }}" required>
+            </div>
+        </div>
+        <small style="color: var(--text-muted); display: block; margin-left: 1.75rem; margin-top: -0.5rem; margin-bottom: 1rem;">
+            * Set this to 90-95% of your true maximum ISP speed for CAKE to work perfectly.
+        </small>
     </div>
 
     <!-- General Settings -->
     <div class="chart-card animate-fadeIn" style="animation-delay: 100ms">
         <h3 class="card-title mb-md"><i class="bi bi-sliders"></i> General Preferences</h3>
         
-            <div class="form-group">
-                <label class="form-label">Max Concurrent Sessions</label>
-                <input type="number" min="1" class="form-input" name="max_concurrent_sessions" value="{{ settings.max_concurrent_sessions }}" required>
-                <small style="color: var(--text-secondary);">Maximum number of users allowed to connect at the exact same time.</small>
-            </div>
+        <div class="form-group">
+            <label class="form-label">Max Concurrent Sessions</label>
+            <input type="number" min="1" class="form-input" name="max_concurrent_sessions" value="{{ settings.max_concurrent_sessions }}" required>
+            <small style="color: #9ca3af;">Maximum number of users allowed to connect at the exact same time.</small>
+        </div>
 
-            <div class="form-group">
-                <label class="form-label">Global Max Pause (Hours)</label>
-                <input type="number" min="0" class="form-input" name="global_pause_limit_hours" value="{{ settings.global_pause_limit_hours }}" required>
-                <small style="color: var(--text-secondary);">Default limit if a Plan doesn't have a specific limit set. 0 = unlimited.</small>
-            </div>
+        <div class="form-group mt-md">
+            <label class="form-label">Global Max Pause (Hours)</label>
+            <input type="number" min="0" class="form-input" name="global_pause_limit_hours" value="{{ settings.global_pause_limit_hours }}" required>
+            <small style="color: #9ca3af;">Default limit if a Plan doesn't have a specific limit set. 0 = unlimited.</small>
+        </div>
 
-            <hr style="margin: 1.5rem 0; border: 0; border-top: 1px solid var(--border-color);">
-
-            <div class="form-group">
-                <label class="d-flex align-items-center gap-sm" style="margin-bottom: 0.25rem;">
-                    <input type="checkbox" name="enable_auto_pause_resume" {% if settings.enable_auto_pause_resume %}checked{% endif %}>
-                    <span style="font-weight: 600;">Auto-Pause & Resume</span>
-                </label>
-                <small style="color: var(--text-secondary); display: block; margin-left: 1.75rem;">
-                    Automatically pauses sessions when users disconnect from Wi-Fi, and resumes when they reconnect.
-                </small>
-            </div>
-            
-            <div class="grid-2" style="margin-left: 1.75rem;">
-                <div class="form-group">
-                    <label class="form-label" style="font-size: 0.85rem;">Disconnect Timeout (Secs)</label>
-                    <input type="number" min="60" class="form-input" name="auto_pause_timeout_seconds" value="{{ settings.auto_pause_timeout_seconds }}" required>
-                </div>
-                <div class="form-group">
-                    <label class="form-label" style="font-size: 0.85rem;">Insert Coin UI Timer (Secs)</label>
-                    <input type="number" min="10" class="form-input" name="insert_coin_countdown_seconds" value="{{ settings.insert_coin_countdown_seconds }}" required>
-                </div>
-            </div>
-
-            <hr style="margin: 1.5rem 0; border: 0; border-top: 1px solid var(--border-color);">
-
-            <div class="form-group">
-                <label class="d-flex align-items-center gap-sm">
-                    <input type="checkbox" name="enable_dark_mode" {% if settings.enable_dark_mode %}checked{% endif %}>
-                    <span style="font-weight: 600;">Force Dark Mode</span>
-                </label>
-                <small style="color: var(--text-secondary); display: block; margin-left: 1.75rem;">
-                    Forces the admin dashboard to always use the dark theme regardless of system preferences.
-                </small>
-            </div>
-            
-            <div class="form-group mt-xl" style="text-align: right;">
-                <button type="submit" class="btn btn-primary">
-                    <i class="bi bi-save"></i> Save Settings
-                </button>
-            </div>
-        
-    </div>
-
-    <!-- Gamification Settings -->
-    <div class="chart-card animate-fadeIn" style="animation-delay: 200ms; grid-column: 1 / -1;">
-        <h3 class="card-title mb-md"><i class="bi bi-controller"></i> Gamification (Spin The Wheel)</h3>
-        
-        
-            
-            <div class="form-group">
-                <label class="d-flex align-items-center gap-sm" style="margin-bottom: 0.25rem;">
-                    <input type="checkbox" name="enable_spin_wheel" {% if settings.enable_spin_wheel %}checked{% endif %}>
-                    <span style="font-weight: 600;">Enable Gamification</span>
-                </label>
-                <small style="color: var(--text-secondary); display: block; margin-left: 1.75rem;">
-                    If enabled, users will earn points for daily streaks and can spin a wheel on the captive portal to win extra time.
-                </small>
-            </div>
-
-            <div class="grid-3" style="margin-left: 1.75rem; gap: 1rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
-                <div class="form-group">
-                    <label class="form-label" style="font-size: 0.85rem;">Points Required to Spin</label>
-                    <input type="number" min="1" class="form-input" name="spin_cost_points" value="{{ settings.spin_cost_points }}" required>
-                </div>
-                <div class="form-group">
-                    <label class="form-label" style="font-size: 0.85rem;">Max Spins Per Day</label>
-                    <input type="number" min="1" class="form-input" name="daily_spin_limit" value="{{ settings.daily_spin_limit }}" required>
-                </div>
-                <div class="form-group">
-                    <label class="form-label" style="font-size: 0.85rem;">Points per Streak Day</label>
-                    <input type="number" min="1" class="form-input" name="points_per_streak_day" value="{{ settings.points_per_streak_day }}" required>
-                </div>
-            </div>
-            
-            <div class="form-group mt-xl" style="text-align: right;">
-                <button type="submit" class="btn btn-primary">
-                    <i class="bi bi-save"></i> Save Settings
-                </button>
-            </div>
-        
-    </div>
-
-</div>
-
-
-    <!-- Family Pass Settings -->
-    <div class="chart-card animate-fadeIn" style="animation-delay: 250ms; grid-column: 1 / -1;">
-        <h3 class="card-title mb-md"><i class="bi bi-people-fill"></i> Family/Group Pass</h3>
-        
-        
-            
-            <div class="form-group mb-lg">
-                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-                    <input type="checkbox" name="enable_family_pass" {% if settings.enable_family_pass %}checked{% endif %}>
-                    <span style="font-weight: 600;">Enable Family Pass</span>
-                </label>
-                <small style="color: var(--text-secondary); display: block; margin-left: 1.75rem;">
-                    Allow users to purchase a group plan and share a 6-character code with their family to connect multiple devices.
-                </small>
-            </div>
-
-            <!-- Obsolete fields removed: Base Rate, Device Rate, Max Devices, and Speed Limits are now dynamically inherited from the selected Plan -->
-            <input type="hidden" name="family_pass_base_rate" value="{{ settings.family_pass_base_rate }}">
-            <input type="hidden" name="family_pass_device_rate" value="{{ settings.family_pass_device_rate }}">
-            <input type="hidden" name="family_pass_max_devices" value="{{ settings.family_pass_max_devices }}">
-            <input type="hidden" name="family_pass_speed_limit" value="{{ settings.family_pass_speed_limit }}">
-            <input type="hidden" name="family_pass_speed_limit_upload" value="{{ settings.family_pass_speed_limit_upload }}">
-
-            <div class="form-group mb-lg">
-                <label style="font-weight: 600; display: block; margin-bottom: 0.35rem;">
-                    <i class="bi bi-clock-history"></i> Group Code Expiry (hours)
-                </label>
-                <input type="number" name="group_code_expiry_hours" min="0" max="168"
-                       value="{{ settings.group_code_expiry_hours }}"
-                       style="width: 120px; padding: 0.4rem 0.6rem; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-secondary); color: var(--text-primary);">
-                <small style="color: var(--text-secondary); display: block; margin-top: 0.35rem;">
-                    How many hours after purchase a group code can still be redeemed. Set to <strong>0</strong> for no expiry.
-                    This is separate from a device's own session timer — it only controls when the code stops being valid.
-                </small>
-            </div>
-
-            <div class="form-group mt-xl" style="text-align: right;">
-    <!-- Networking Settings -->
-    <div class="chart-card animate-fadeIn">
-        <h3 class="card-title mb-md"><i class="bi bi-router"></i> Advanced Networking</h3>
-        
-        
-            
-            
-            <div class="form-group">
-                <label class="d-flex align-items-center gap-sm" style="margin-bottom: 0.25rem;">
-                    <input type="checkbox" name="enable_internet_check" {% if settings.enable_internet_check %}checked{% endif %}>
-                    <span style="font-weight: 600;">Internet Active Checking</span>
-                </label>
-                <small style="color: var(--text-secondary); display: block; margin-left: 1.75rem;">
-                    Automatically disables the "Insert Coin" button when the ISP is offline to prevent eating coins.
-                </small>
-            </div>
-
-            <hr style="margin: 1.5rem 0; border: 0; border-top: 1px solid var(--border-color);">
-
-            <div class="form-group">
-                <label class="d-flex align-items-center gap-sm" style="margin-bottom: 0.25rem;">
-                    <input type="checkbox" name="enable_anti_tethering" {% if settings.enable_anti_tethering %}checked{% endif %}>
-                    <span style="font-weight: 600;">Anti-Tethering (TTL=1)</span>
-                </label>
-                <small style="color: var(--text-secondary); display: block; margin-left: 1.75rem;">
-                    Blocks users from sharing their internet connection via Mobile Hotspot or Bluetooth by forcing packet time-to-live to 1.
-                </small>
-            </div>
-
-            <hr style="margin: 1.5rem 0; border: 0; border-top: 1px solid var(--border-color);">
-
-            <div class="form-group">
-                <label class="d-flex align-items-center gap-sm" style="margin-bottom: 0.25rem;">
-                    <input type="checkbox" name="enable_sqm" {% if settings.enable_sqm %}checked{% endif %}>
-                    <span style="font-weight: 600;">SQM CAKE (Anti-Bufferbloat)</span>
-                </label>
-                <small style="color: var(--text-secondary); display: block; margin-left: 1.75rem; margin-bottom: 1rem;">
-                    Replaces default queues with CAKE to drastically reduce latency and ping spikes when the network is under heavy load (e.g. downloads).
-                </small>
-            </div>
-            
-            <div class="grid-2" style="margin-left: 1.75rem;">
-                <div class="form-group">
-                    <label class="form-label" style="font-size: 0.85rem;">ISP Download Speed (Mbps)</label>
-                    <input type="number" min="1" class="form-input" name="isp_download_speed" value="{{ settings.isp_download_speed }}" required>
-                </div>
-                <div class="form-group">
-                    <label class="form-label" style="font-size: 0.85rem;">ISP Upload Speed (Mbps)</label>
-                    <input type="number" min="1" class="form-input" name="isp_upload_speed" value="{{ settings.isp_upload_speed }}" required>
-                </div>
-            </div>
-            <small style="color: var(--text-muted); display: block; margin-left: 1.75rem; margin-top: -0.5rem; margin-bottom: 1rem;">
-                * Set this to 90-95% of your true maximum ISP speed for CAKE to work perfectly.
+        <div class="form-group mt-md">
+            <label class="d-flex align-items-center gap-sm" style="margin-bottom: 0.25rem;">
+                <input type="checkbox" name="enable_auto_pause_resume" {% if settings.enable_auto_pause_resume %}checked{% endif %}>
+                <span style="font-weight: 600;">Auto-Pause & Resume</span>
+            </label>
+            <small style="color: #9ca3af; display: block; margin-left: 1.75rem;">
+                Automatically pauses sessions when users disconnect from Wi-Fi, and resumes when they reconnect.
             </small>
-
-    </div>
-
-    <!-- General Settings -->
-    <div class="chart-card animate-fadeIn" style="animation-delay: 100ms">
-        <h3 class="card-title mb-md"><i class="bi bi-sliders"></i> General Preferences</h3>
+        </div>
         
+        <div class="grid-2" style="margin-left: 1.75rem; margin-top: 0.5rem;">
             <div class="form-group">
-                <label class="form-label">Max Concurrent Sessions</label>
-                <input type="number" min="1" class="form-input" name="max_concurrent_sessions" value="{{ settings.max_concurrent_sessions }}" required>
-                <small style="color: var(--text-secondary);">Maximum number of users allowed to connect at the exact same time.</small>
+                <label class="form-label" style="font-size: 0.85rem;">Disconnect Timeout (Secs)</label>
+                <input type="number" min="60" class="form-input" name="auto_pause_timeout_seconds" value="{{ settings.auto_pause_timeout_seconds }}" required>
             </div>
-
             <div class="form-group">
-                <label class="form-label">Global Max Pause (Hours)</label>
-                <input type="number" min="0" class="form-input" name="global_pause_limit_hours" value="{{ settings.global_pause_limit_hours }}" required>
-                <small style="color: var(--text-secondary);">Default limit if a Plan doesn't have a specific limit set. 0 = unlimited.</small>
+                <label class="form-label" style="font-size: 0.85rem;">Insert Coin UI Timer (s)</label>
+                <input type="number" min="10" class="form-input" name="insert_coin_countdown_seconds" value="{{ settings.insert_coin_countdown_seconds }}" required>
             </div>
+        </div>
 
-            <hr style="margin: 1.5rem 0; border: 0; border-top: 1px solid var(--border-color);">
-
-            <div class="form-group">
-                <label class="d-flex align-items-center gap-sm" style="margin-bottom: 0.25rem;">
-                    <input type="checkbox" name="enable_auto_pause_resume" {% if settings.enable_auto_pause_resume %}checked{% endif %}>
-                    <span style="font-weight: 600;">Auto-Pause & Resume</span>
-                </label>
-                <small style="color: var(--text-secondary); display: block; margin-left: 1.75rem;">
-                    Automatically pauses sessions when users disconnect from Wi-Fi, and resumes when they reconnect.
-                </small>
-            </div>
-            
-            <div class="grid-2" style="margin-left: 1.75rem;">
-                <div class="form-group">
-                    <label class="form-label" style="font-size: 0.85rem;">Disconnect Timeout (Secs)</label>
-                    <input type="number" min="60" class="form-input" name="auto_pause_timeout_seconds" value="{{ settings.auto_pause_timeout_seconds }}" required>
-                </div>
-                <div class="form-group">
-                    <label class="form-label" style="font-size: 0.85rem;">Insert Coin UI Timer (Secs)</label>
-                    <input type="number" min="10" class="form-input" name="insert_coin_countdown_seconds" value="{{ settings.insert_coin_countdown_seconds }}" required>
-                </div>
-            </div>
-
-            <hr style="margin: 1.5rem 0; border: 0; border-top: 1px solid var(--border-color);">
-
-            <div class="form-group">
-                <label class="d-flex align-items-center gap-sm">
-                    <input type="checkbox" name="enable_dark_mode" {% if settings.enable_dark_mode %}checked{% endif %}>
-                    <span style="font-weight: 600;">Force Dark Mode</span>
-                </label>
-                <small style="color: var(--text-secondary); display: block; margin-left: 1.75rem;">
-                    Forces the admin dashboard to always use the dark theme regardless of system preferences.
-                </small>
-            </div>
-            
-            <div class="form-group mt-xl" style="text-align: right;">
-                <button type="submit" class="btn btn-primary">
-                    <i class="bi bi-save"></i> Save Settings
-                </button>
-            </div>
-        
+        <div class="form-group mt-md">
+            <label class="d-flex align-items-center gap-sm">
+                <input type="checkbox" name="enable_dark_mode" {% if settings.enable_dark_mode %}checked{% endif %}>
+                <span style="font-weight: 600;">Force Dark Mode</span>
+            </label>
+            <small style="color: #9ca3af; display: block; margin-left: 1.75rem;">
+                Forces the admin dashboard to always use the dark theme regardless of system preferences.
+            </small>
+        </div>
     </div>
 
     <!-- Gamification Settings -->
-    <div class="chart-card animate-fadeIn" style="animation-delay: 200ms; grid-column: 1 / -1;">
+    <div class="chart-card animate-fadeIn" style="animation-delay: 200ms;">
         <h3 class="card-title mb-md"><i class="bi bi-controller"></i> Gamification (Spin The Wheel)</h3>
         
-        
-            
-            <div class="form-group">
-                <label class="d-flex align-items-center gap-sm" style="margin-bottom: 0.25rem;">
-                    <input type="checkbox" name="enable_spin_wheel" {% if settings.enable_spin_wheel %}checked{% endif %}>
-                    <span style="font-weight: 600;">Enable Gamification</span>
-                </label>
-                <small style="color: var(--text-secondary); display: block; margin-left: 1.75rem;">
-                    If enabled, users will earn points for daily streaks and can spin a wheel on the captive portal to win extra time.
-                </small>
-            </div>
+        <div class="form-group">
+            <label class="d-flex align-items-center gap-sm" style="margin-bottom: 0.25rem;">
+                <input type="checkbox" name="enable_spin_wheel" {% if settings.enable_spin_wheel %}checked{% endif %}>
+                <span style="font-weight: 600;">Enable Gamification</span>
+            </label>
+            <small style="color: #9ca3af; display: block; margin-left: 1.75rem;">
+                If enabled, users will earn points for daily streaks and can spin a wheel on the captive portal to win extra time.
+            </small>
+        </div>
 
-            <div class="grid-3" style="margin-left: 1.75rem; gap: 1rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
-                <div class="form-group">
-                    <label class="form-label" style="font-size: 0.85rem;">Points Required to Spin</label>
-                    <input type="number" min="1" class="form-input" name="spin_cost_points" value="{{ settings.spin_cost_points }}" required>
-                </div>
-                <div class="form-group">
-                    <label class="form-label" style="font-size: 0.85rem;">Max Spins Per Day</label>
-                    <input type="number" min="1" class="form-input" name="daily_spin_limit" value="{{ settings.daily_spin_limit }}" required>
-                </div>
-                <div class="form-group">
-                    <label class="form-label" style="font-size: 0.85rem;">Points per Streak Day</label>
-                    <input type="number" min="1" class="form-input" name="points_per_streak_day" value="{{ settings.points_per_streak_day }}" required>
-                </div>
+        <div class="grid-3 mt-md" style="margin-left: 1.75rem; gap: 1rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));">
+            <div class="form-group">
+                <label class="form-label" style="font-size: 0.85rem;">Points to Spin</label>
+                <input type="number" min="1" class="form-input" name="spin_cost_points" value="{{ settings.spin_cost_points }}" required>
             </div>
-            
-            <div class="form-group mt-xl" style="text-align: right;">
-                <button type="submit" class="btn btn-primary">
-                    <i class="bi bi-save"></i> Save Settings
-                </button>
+            <div class="form-group">
+                <label class="form-label" style="font-size: 0.85rem;">Max Spins/Day</label>
+                <input type="number" min="1" class="form-input" name="daily_spin_limit" value="{{ settings.daily_spin_limit }}" required>
             </div>
-        
+            <div class="form-group">
+                <label class="form-label" style="font-size: 0.85rem;">Points/Streak</label>
+                <input type="number" min="1" class="form-input" name="points_per_streak_day" value="{{ settings.points_per_streak_day }}" required>
+            </div>
+        </div>
     </div>
 
     <!-- Family Pass Settings -->
-    <div class="chart-card animate-fadeIn" style="animation-delay: 250ms; grid-column: 1 / -1;">
+    <div class="chart-card animate-fadeIn" style="animation-delay: 250ms;">
         <h3 class="card-title mb-md"><i class="bi bi-people-fill"></i> Family/Group Pass</h3>
         
-        
-            
-            <div class="form-group mb-lg">
-                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-                    <input type="checkbox" name="enable_family_pass" {% if settings.enable_family_pass %}checked{% endif %}>
-                    <span style="font-weight: 600;">Enable Family Pass</span>
-                </label>
-                <small style="color: var(--text-secondary); display: block; margin-left: 1.75rem;">
-                    Allow users to purchase a group plan and share a 6-character code with their family to connect multiple devices.
-                </small>
-            </div>
+        <div class="form-group mb-lg">
+            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                <input type="checkbox" name="enable_family_pass" {% if settings.enable_family_pass %}checked{% endif %}>
+                <span style="font-weight: 600;">Enable Family Pass</span>
+            </label>
+            <small style="color: #9ca3af; display: block; margin-left: 1.75rem;">
+                Allow users to purchase a group plan and share a 6-character code with their family to connect multiple devices.
+            </small>
+        </div>
 
-            <!-- Obsolete fields removed: Base Rate, Device Rate, Max Devices, and Speed Limits are now dynamically inherited from the selected Plan -->
-            <input type="hidden" name="family_pass_base_rate" value="{{ settings.family_pass_base_rate }}">
-            <input type="hidden" name="family_pass_device_rate" value="{{ settings.family_pass_device_rate }}">
-            <input type="hidden" name="family_pass_max_devices" value="{{ settings.family_pass_max_devices }}">
-            <input type="hidden" name="family_pass_speed_limit" value="{{ settings.family_pass_speed_limit }}">
-            <input type="hidden" name="family_pass_speed_limit_upload" value="{{ settings.family_pass_speed_limit_upload }}">
+        <!-- Obsolete fields removed: Base Rate, Device Rate, Max Devices, and Speed Limits are now dynamically inherited from the selected Plan -->
+        <input type="hidden" name="family_pass_base_rate" value="{{ settings.family_pass_base_rate }}">
+        <input type="hidden" name="family_pass_device_rate" value="{{ settings.family_pass_device_rate }}">
+        <input type="hidden" name="family_pass_max_devices" value="{{ settings.family_pass_max_devices }}">
+        <input type="hidden" name="family_pass_speed_limit" value="{{ settings.family_pass_speed_limit }}">
+        <input type="hidden" name="family_pass_speed_limit_upload" value="{{ settings.family_pass_speed_limit_upload }}">
 
-            <div class="form-group mb-lg">
-                <label style="font-weight: 600; display: block; margin-bottom: 0.35rem;">
-                    <i class="bi bi-clock-history"></i> Group Code Expiry (hours)
-                </label>
-                <input type="number" name="group_code_expiry_hours" min="0" max="168"
-                       value="{{ settings.group_code_expiry_hours }}"
-                       style="width: 120px; padding: 0.4rem 0.6rem; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-secondary); color: var(--text-primary);">
-                <small style="color: var(--text-secondary); display: block; margin-top: 0.35rem;">
-                    How many hours after purchase a group code can still be redeemed. Set to <strong>0</strong> for no expiry.
-                    This is separate from a device's own session timer — it only controls when the code stops being valid.
-                </small>
-            </div>
-
-            <div class="form-group mt-xl" style="text-align: right;">
-                <button type="submit" class="btn btn-primary">
-                    <i class="bi bi-save"></i> Save Settings
-                </button>
-            </div>
-        
+        <div class="form-group mb-lg">
+            <label style="font-weight: 600; display: block; margin-bottom: 0.35rem;">
+                <i class="bi bi-clock-history"></i> Group Code Expiry (hours)
+            </label>
+            <input type="number" class="form-input" name="group_code_expiry_hours" min="0" max="168" value="{{ settings.group_code_expiry_hours }}">
+            <small style="color: #9ca3af; display: block; margin-top: 0.35rem;">
+                How many hours after purchase a group code can still be redeemed. Set to <strong>0</strong> for no expiry.
+                This is separate from a device's own session timer — it only controls when the code stops being valid.
+            </small>
+        </div>
     </div>
 
     <!-- Data Management -->
@@ -422,13 +188,13 @@
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
                 <div>
                     <h4 style="margin: 0 0 0.5rem 0; font-size: 1.1rem;">Backup Database</h4>
-                    <p style="margin: 0; color: var(--text-secondary); font-size: 0.9rem;">
+                    <p style="margin: 0; color: #9ca3af; font-size: 0.9rem; max-width: 600px;">
                         Download a full snapshot of your current database (active sessions, revenue history, settings, and gamification points). 
                         Keep this file safe in case your Orange Pi SD card gets corrupted.
                     </p>
                 </div>
                 <div>
-                    <a href="{% url 'dashboard:backup_database' %}" class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none;">
+                    <a href="{% url 'dashboard:backup_database' %}" class="btn btn-secondary" style="display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none;">
                         <i class="bi bi-download"></i> Download db.sqlite3
                     </a>
                 </div>
@@ -436,5 +202,13 @@
         </div>
     </div>
 </div>
+
+<!-- Sticky Save Action Bar -->
+<div style="position: sticky; bottom: 0; background: var(--bg-primary); padding: 1rem 1.5rem; border-top: 1px solid var(--border-color); margin-top: 2rem; z-index: 100; display: flex; justify-content: flex-end; align-items: center; box-shadow: 0 -4px 12px rgba(0,0,0,0.05); margin-left: -1.5rem; margin-right: -1.5rem;">
+    <button type="submit" class="btn btn-primary" style="font-size: 1.05rem; padding: 0.6rem 1.5rem; display: flex; align-items: center; gap: 0.5rem;">
+        <i class="bi bi-save"></i> Save All Settings
+    </button>
+</div>
+
 </form>
 {% endblock %}
