@@ -83,7 +83,8 @@
 .bi-person-circle::before,
 .bi-person::before { content: "\263B"; font-size: 1em; }   /* Account */
 .bi-box-arrow-right::before { content: "\21E8"; font-size: 1em; } /* Logout */
-.bi-gear::before { content: "\2699"; font-size: 1em; }
+.bi-gear::before,
+.bi-gear-fill::before { content: "\2699"; font-size: 1em; }       /* Settings */
 
 /* ─── CRUD & Edit ─── */
 .bi-pencil::before,
@@ -101,7 +102,8 @@
 .bi-hdd::before { content: "\25A3"; font-size: 1em; }
 
 /* ─── File & Report Types ─── */
-.bi-file-earmark-text::before { content: "\2637"; font-size: 1em; }
+.bi-file-earmark-text::before,
+.bi-journal-text::before { content: "\2630"; font-size: 1em; }    /* Logs/Docs */
 .bi-file-earmark-bar-graph::before { content: "\2584"; font-size: 1em; }
 .bi-file-earmark-spreadsheet::before { content: "\2637"; font-size: 1em; }
 .bi-filetype-pdf::before { content: "\2637"; font-size: 1em; }
@@ -114,8 +116,9 @@
 .bi-toggle-on::before { content: "\25C9"; font-size: 1em; }
 .bi-toggle-off::before { content: "\25CB"; font-size: 1em; }
 
-/* ─── Analytics ─── */
+/* ─── Analytics & Games ─── */
 .bi-lightbulb::before { content: "\2605"; font-size: 1em; }
 .bi-activity::before { content: "\2197"; font-size: 1em; }
-.bi-trophy::before { content: "\2605"; font-size: 1em; }
+.bi-trophy::before,
+.bi-controller::before { content: "\2605"; font-size: 1em; }      /* Gamification */
 .bi-person-check::before { content: "\2713"; font-size: 1em; }
