@@ -494,7 +494,10 @@ function renderWheel(prizes) {
     // Add labels
     let labelsHTML = '';
     prizes.forEach((p) => {
-        labelsHTML += `<div class="spin-wheel-label" style="transform: translateY(-50%) rotate(${p.mid_deg}deg);">${p.name}</div>`;
+        // SVG/CSS rotate starts at 3 o'clock, but conic-gradient starts at 12 o'clock.
+        // We subtract 90 degrees to perfectly align the text into the center of the slice.
+        const labelDeg = p.mid_deg - 90;
+        labelsHTML += `<div class="spin-wheel-label" style="transform: translateY(-50%) rotate(${labelDeg}deg);">${p.name}</div>`;
     });
     wheel.innerHTML = labelsHTML;
 }
