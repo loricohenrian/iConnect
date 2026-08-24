@@ -543,6 +543,25 @@ function executeSpin() {
                     let msg = `🎉 You won ${data.prize.name}!`;
                     if (data.prize.applied) {
                         msg += ` (+${data.prize.minutes} mins added to your session)`;
+                        
+                        // Dynamically update the active session timer
+                        if (window.sessionTimer) {
+                            const newSeconds = window.sessionTimer.remaining + (data.prize.minutes * 60);
+                            window.sessionTimer.setRemaining(newSeconds);
+                            // Also update the total duration text if it exists
+                            const durationEl = document.querySelector('.detail-value');
+                            if (durationEl && durationEl.textContent.includes('mins')) {
+                                const currentMins = parseInt(durationEl.textContent);
+                                if (!isNaN(currentMins)) {
+                                    durationEl.textContent = (currentMins + data.prize.minutes) + ' mins';
+                                }
+                            }
+                        } else {
+                            // If they were on the home page and won a free session, reload to show it
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 2500);
+                        }
                     } else {
                         msg += ` (Start a session to use your reward)`;
                     }
