@@ -606,6 +606,13 @@ class SpinPrize(models.Model):
     name = models.CharField(max_length=50, help_text="Prize Name (e.g. '30 Mins', 'Try Again')")
     minutes_reward = models.PositiveIntegerField(default=0, help_text="Minutes added to session (0 for Try Again)")
     probability_weight = models.PositiveIntegerField(default=10, help_text="Higher weight = higher chance to win")
+    
+    # New limits for free standalone sessions won from the wheel
+    speed_limit = models.DecimalField(max_digits=5, decimal_places=1, null=True, blank=True, help_text="Download speed cap in Mbps (defaults to global if blank)")
+    speed_limit_upload = models.DecimalField(max_digits=5, decimal_places=1, null=True, blank=True, help_text="Upload speed cap in Mbps (defaults to download if blank)")
+    pause_limit = models.PositiveIntegerField(default=0, help_text="Maximum pauses for free sessions (0 = unli)")
+    pause_duration_limit = models.PositiveIntegerField(default=0, help_text="Max hours a free session can remain paused (0 = unli)")
+
     is_active = models.BooleanField(default=True, help_text="Is this prize currently active on the wheel?")
 
     class Meta:

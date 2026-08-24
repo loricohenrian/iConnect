@@ -518,6 +518,29 @@ def api_execute_spin(request):
                 else:
                     # No active session, so we create a completely free one for the reward!
                     from sessions_app import iptables
+                    from sessions_app.models import Plan
+                    
+                    # Create a hidden Plan to hold the prize's network and pause limits
+                    hidden_plan, _ = Plan.objects.get_or_create(
+                        name=f"Prize: {selected_prize.name}",
+                        price=0,
+                        duration_minutes=selected_prize.minutes_reward,
+                        defaults={
+                            'speed_limit': selected_prize.speed_limit,
+                            'speed_limit_upload': selected_prize.speed_limit_upload,
+                            'pause_limit': selected_prize.pause_limit,
+                            'pause_duration_limit': selected_prize.pause_duration_limit,
+                            'is_active': False
+                        }
+                    )
+                    # Update limits in case the admin changed them
+                    hidden_plan.speed_limit = selected_prize.speed_limit
+                    hidden_plan.speed_limit_upload = selected_prize.speed_limit_upload
+                    hidden_plan.pause_limit = selected_prize.pause_limit
+                    hidden_plan.pause_duration_limit = selected_prize.pause_duration_limit
+                    hidden_plan.is_active = False
+                    hidden_plan.save()
+
                     # Attempt to get IP if function available in this scope, otherwise fallback
                     ip_address = ""
                     try:
@@ -528,7 +551,7 @@ def api_execute_spin(request):
 
                     new_session = Session.objects.create(
                         mac_address=mac_address,
-                        plan=None, # It's a free prize, not a paid plan
+                        plan=hidden_plan, # Apply the prize's network limits
                         time_in=timezone.now(),
                         duration_minutes_purchased=selected_prize.minutes_reward,
                         amount_paid=0,
@@ -536,7 +559,11 @@ def api_execute_spin(request):
                         ip_address=ip_address,
                         device_name="Spin Winner"
                     )
-                    iptables.allow_device(mac_address)
+                    
+                    rate_kbps = int(selected_prize.speed_limit * 1024) if selected_prize.speed_limit else None
+                    upload_kbps = int(selected_prize.speed_limit_upload * 1024) if selected_prize.speed_limit_upload else rate_kbps
+                    
+                    iptables.allow_device(mac_address, rate_kbps=rate_kbps, upload_kbps=upload_kbps)
                     prize_applied = True
 
             # Calculate remaining spins for the response

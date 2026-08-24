@@ -1,5 +1,5 @@
-"""
-Dashboard Views — API endpoints and template views for admin dashboard
+﻿"""
+Dashboard Views â€” API endpoints and template views for admin dashboard
 """
 import csv
 from datetime import timedelta, date
@@ -130,8 +130,8 @@ def dashboard_logout(request):
 @api_view(['GET', 'POST'])
 def announcements_api(request):
     """
-    GET /api/announcements/ — Returns active announcements
-    POST /api/announcements/ — Creates new announcement
+    GET /api/announcements/ â€” Returns active announcements
+    POST /api/announcements/ â€” Creates new announcement
     """
     if not _is_dashboard_admin(request.user):
         return Response({'detail': 'Authentication required.'}, status=status.HTTP_401_UNAUTHORIZED)
@@ -156,7 +156,7 @@ def announcements_api(request):
 @api_view(['GET'])
 def dashboard_stats_api(request):
     """
-    GET /api/dashboard/stats/ — Returns dashboard summary stats
+    GET /api/dashboard/stats/ â€” Returns dashboard summary stats
     """
     if not _is_dashboard_admin(request.user):
         return Response({'detail': 'Authentication required.'}, status=status.HTTP_401_UNAUTHORIZED)
@@ -252,7 +252,7 @@ def system_stats_api(request):
     try:
         with open('/sys/class/thermal/thermal_zone0/temp', 'r') as f:
             temp_raw = int(f.read().strip())
-            stats['cpu_temp'] = f"{temp_raw / 1000:.1f}°C"
+            stats['cpu_temp'] = f"{temp_raw / 1000:.1f}Â°C"
     except Exception:
         pass
 
@@ -328,7 +328,7 @@ def system_stats_api(request):
 @api_view(['GET'])
 def heatmap_data_api(request):
     """
-    GET /api/dashboard/heatmap/ — Returns peak hours heatmap data
+    GET /api/dashboard/heatmap/ â€” Returns peak hours heatmap data
     """
     if not _is_dashboard_admin(request.user):
         return Response({'detail': 'Authentication required.'}, status=status.HTTP_401_UNAUTHORIZED)
@@ -350,7 +350,7 @@ def heatmap_data_api(request):
 @api_view(['GET'])
 def revenue_data_api(request):
     """
-    GET /api/dashboard/revenue/ — Returns detailed revenue data
+    GET /api/dashboard/revenue/ â€” Returns detailed revenue data
     """
     if not _is_dashboard_admin(request.user):
         return Response({'detail': 'Authentication required.'}, status=status.HTTP_401_UNAUTHORIZED)
@@ -413,7 +413,7 @@ def revenue_data_api(request):
             'threshold_amount': threshold_amount,
             'message': (
                 f'Revenue is below {threshold_pct:.0f}% threshold '
-                f'(₱{int(period_revenue_total):,} vs ₱{int(threshold_amount):,}).'
+                f'(â‚±{int(period_revenue_total):,} vs â‚±{int(threshold_amount):,}).'
                 if low_revenue_triggered
                 else ''
             ),
@@ -917,7 +917,7 @@ def analytics_view(request):
     # Most popular plan
     top_plan = plan_stats[0]['plan__name'] if plan_stats else 'N/A'
 
-    # ── Diagnostic Analytics ──
+    # â”€â”€ Diagnostic Analytics â”€â”€
     # Peak hour (which hour has most sessions)
     from django.db.models.functions import ExtractHour, ExtractWeekDay
     import zoneinfo
@@ -989,7 +989,7 @@ def analytics_view(request):
     ).filter(sessions__gt=1).count()
     retention_rate = round((returning_devices / unique_devices) * 100, 1) if unique_devices > 0 else 0
 
-    # ── Prescriptive Insights ──
+    # â”€â”€ Prescriptive Insights â”€â”€
     insights = []
     if peak_hour_data:
         insights.append({
@@ -1006,7 +1006,7 @@ def analytics_view(request):
     elif revenue_growth > 20:
         insights.append({
             'title': 'Strong Growth',
-            'text': f"Revenue grew {revenue_growth}% this week — great momentum! Keep current pricing strategy.",
+            'text': f"Revenue grew {revenue_growth}% this week â€” great momentum! Keep current pricing strategy.",
             'type': 'success'
         })
     if retention_rate < 30:
@@ -1099,7 +1099,7 @@ def roi(request):
     net_profit = round(gross_revenue - total_expenses, 2)
 
     # === ROI COMPUTATION ===
-    # ROI = (Net Profit / Total Investment) × 100
+    # ROI = (Net Profit / Total Investment) Ã— 100
     roi_pct = round((net_profit / total_investment * 100), 1) if total_investment > 0 else 0
 
     # === DAILY AVERAGES ===
@@ -1228,7 +1228,7 @@ def plans_view(request):
                 pause_duration_limit = int(pause_duration_limit_raw) if pause_duration_limit_raw else 0
                 
                 if not name:
-                    name = f"₱{price} Plan"
+                    name = f"â‚±{price} Plan"
                     
                 if price <= 0 or duration_minutes <= 0:
                     raise ValueError('Price and duration must be positive.')
@@ -1623,60 +1623,76 @@ def gamification_view(request):
     
     settings_obj = SystemSettings.get_settings()
     
-    if request.method == 'POST':
-        action = request.POST.get('action')
+    if request.method == "POST":
+        action = request.POST.get("action")
         
-        if action == 'update_settings':
-            settings_obj.enable_spin_wheel = request.POST.get('enable_spin_wheel') == 'on'
-            
+        if action == "update_settings":
+            settings_obj.enable_spin_wheel = request.POST.get("enable_spin_wheel") == "on"
             try:
-                settings_obj.spin_cost_points = int(request.POST.get('spin_cost_points', 10))
-                settings_obj.points_per_streak_day = int(request.POST.get('points_per_streak_day', 5))
-                settings_obj.points_per_peso = int(request.POST.get('points_per_peso', 1))
+                settings_obj.spin_cost_points = int(request.POST.get("spin_cost_points", 10))
+                settings_obj.points_per_streak_day = int(request.POST.get("points_per_streak_day", 5))
+                settings_obj.points_per_peso = int(request.POST.get("points_per_peso", 1))
                 settings_obj.save()
-                messages.success(request, 'Gamification settings updated successfully.')
+                messages.success(request, "Gamification settings updated successfully.")
             except ValueError:
-                messages.error(request, 'Invalid input for settings. Must be numbers.')
+                messages.error(request, "Invalid input for settings. Must be numbers.")
                 
-        elif action == 'add_prize' or action == 'edit_prize':
+        elif action == "add_prize" or action == "edit_prize":
             try:
-                prize_id = request.POST.get('prize_id')
-                name = request.POST.get('name')
-                minutes = int(request.POST.get('minutes_reward', 0))
-                weight = int(request.POST.get('probability_weight', 10))
-                is_active = request.POST.get('is_active') == 'on'
+                prize_id = request.POST.get("prize_id")
+                name = request.POST.get("name")
+                minutes = int(request.POST.get("minutes_reward", 0))
+                weight = int(request.POST.get("probability_weight", 10))
+                is_active = request.POST.get("is_active") == "on"
                 
-                if action == 'edit_prize' and prize_id:
+                speed_limit = request.POST.get("speed_limit")
+                speed_limit = float(speed_limit) if speed_limit else None
+                
+                speed_limit_upload = request.POST.get("speed_limit_upload")
+                speed_limit_upload = float(speed_limit_upload) if speed_limit_upload else None
+                
+                pause_limit = int(request.POST.get("pause_limit") or 0)
+                pause_duration_limit = int(request.POST.get("pause_duration_limit") or 0)
+                
+                if action == "edit_prize" and prize_id:
                     prize = SpinPrize.objects.get(id=prize_id)
                     prize.name = name
                     prize.minutes_reward = minutes
                     prize.probability_weight = weight
                     prize.is_active = is_active
+                    prize.speed_limit = speed_limit
+                    prize.speed_limit_upload = speed_limit_upload
+                    prize.pause_limit = pause_limit
+                    prize.pause_duration_limit = pause_duration_limit
                     prize.save()
-                    messages.success(request, 'Prize updated successfully.')
+                    messages.success(request, "Prize updated successfully.")
                 else:
                     SpinPrize.objects.create(
                         name=name,
                         minutes_reward=minutes,
                         probability_weight=weight,
-                        is_active=is_active
+                        is_active=is_active,
+                        speed_limit=speed_limit,
+                        speed_limit_upload=speed_limit_upload,
+                        pause_limit=pause_limit,
+                        pause_duration_limit=pause_duration_limit
                     )
-                    messages.success(request, 'New prize added successfully.')
+                    messages.success(request, "New prize added successfully.")
             except ValueError:
-                messages.error(request, 'Invalid input for prize details.')
+                messages.error(request, "Invalid input for prize details.")
             except SpinPrize.DoesNotExist:
-                messages.error(request, 'Prize not found.')
+                messages.error(request, "Prize not found.")
                 
-        return redirect('dashboard:gamification')
+        return redirect("dashboard:gamification")
 
-    prizes = SpinPrize.objects.all().order_by('-is_active', '-probability_weight')
+    prizes = SpinPrize.objects.all().order_by("-is_active", "-probability_weight")
     
     context = {
-        'active_page': 'gamification',
-        'settings': settings_obj,
-        'prizes': prizes,
+        "active_page": "gamification",
+        "settings": settings_obj,
+        "prizes": prizes,
     }
-    return render(request, 'dashboard/gamification.html', context)
+    return render(request, "dashboard/gamification.html", context)
 
 
 @user_passes_test(_is_dashboard_admin, login_url='dashboard:login')
@@ -1703,3 +1719,4 @@ def backup_database(request):
         
     response = FileResponse(open(db_path, 'rb'), as_attachment=True, filename='db_backup.sqlite3')
     return response
+
