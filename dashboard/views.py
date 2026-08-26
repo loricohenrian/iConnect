@@ -1277,11 +1277,16 @@ def plans_view(request):
             if not plan:
                 error_message = 'Plan not found.'
             else:
-                try:
-                    plan.delete()
-                except ProtectedError:
-                    error_message = 'Cannot delete this plan because it is already used by existing sessions. Set it inactive instead.'
-
+                active_sessions = plan.sessions.filter(status='active').count()
+                active_groups = plan.session_groups.filter(status='active').count()
+                
+                if active_sessions > 0 or active_groups > 0:
+                    error_message = f'Cannot delete this plan. It is currently used by {active_sessions} active sessions and {active_groups} active group passes. Set it inactive instead.'
+                else:
+                    try:
+                        plan.delete()
+                    except ProtectedError:
+                        error_message = 'Cannot delete this plan because it is restricted by the database. Set it inactive instead.'
         if not error_message:
             return redirect('dashboard:plans')
 
