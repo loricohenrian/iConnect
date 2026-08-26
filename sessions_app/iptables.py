@@ -593,8 +593,9 @@ def apply_network_settings():
         # 1. Anti-Tethering (TTL = 1 on LAN)
         # First remove any existing rule to avoid duplicates
         _run_command(['iptables', '-t', 'mangle', '-D', 'POSTROUTING', '-o', lan, '-j', 'TTL', '--ttl-set', '1'], ignore_errors=True)
-        while _run_command(['iptables', '-t', 'mangle', '-D', 'POSTROUTING', '-o', lan, '-j', 'TTL', '--ttl-set', '1'], ignore_errors=True):
-            pass
+        for _ in range(20):
+            if not _run_command(['iptables', '-t', 'mangle', '-D', 'POSTROUTING', '-o', lan, '-j', 'TTL', '--ttl-set', '1'], ignore_errors=True):
+                break
             
         if settings_obj.enable_anti_tethering:
             _run_command(['iptables', '-t', 'mangle', '-A', 'POSTROUTING', '-o', lan, '-j', 'TTL', '--ttl-set', '1'])
