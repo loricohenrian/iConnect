@@ -228,7 +228,6 @@ class Session(models.Model):
             self.status = "active"
             self.time_in = timezone.now()
             self.duration_minutes_purchased = additional_minutes
-        self.save()
 
     def expire_session(self):
         """Mark session as expired and set time_out."""
