@@ -112,6 +112,21 @@ def _session_ip_matches_request(session, request):
         return False
     request_ip = _client_ip(request)
     if request_ip and session.ip_address != request_ip:
+        from django.core.cache import cache
+        key = f"mac_ip_changes:{session.mac_address}"
+        changes = cache.get(key, 0)
+        
+        # If IP changes more than 2 times in 5 minutes, flag for MAC spoofing
+        if changes >= 2:
+            from .models import SuspiciousDevice
+            SuspiciousDevice.record_incident(
+                session.mac_address,
+                ip_address=request_ip,
+                reason="MAC Spoofing Suspected",
+                evidence=f"MAC flapped between multiple IPs rapidly (old={session.ip_address}, new={request_ip})."
+            )
+        cache.set(key, changes + 1, timeout=300)
+
         session.ip_address = request_ip
         session.save(update_fields=["ip_address"])
         if session.status == "active":
