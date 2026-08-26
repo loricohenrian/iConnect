@@ -1763,3 +1763,34 @@ def plans_list(request):
     return Response({"plans": PlanSerializer(plans, many=True).data})
 
 
+
+from django.http import StreamingHttpResponse
+import os
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def speed_test_download(request):
+    """
+    Endpoint for performing a real download speed test.
+    Streams 10MB of random data.
+    """
+    chunk_size = 65536
+    chunks = (10 * 1024 * 1024) // chunk_size
+
+    def stream_random_data():
+        for _ in range(chunks):
+            yield os.urandom(chunk_size)
+
+    response = StreamingHttpResponse(stream_random_data(), content_type="application/octet-stream")
+    response['Content-Length'] = str(10 * 1024 * 1024)
+    response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    return response
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def speed_test_upload(request):
+    """
+    Endpoint for performing a real upload speed test.
+    Accepts arbitrary data and returns 200 OK.
+    """
+    return Response({"status": "success", "message": "Upload test completed"}, status=status.HTTP_200_OK)

@@ -28,6 +28,8 @@ urlpatterns = [
     path('whitelist/', views.whitelist_device, name='whitelist'),
     path('signal-strength/', views.signal_strength, name='signal-strength'),
     path('speed-test/', views.speed_test, name='speed-test'),
+    path('speed-test-download/', views.speed_test_download, name='speed-test-download'),
+    path('speed-test-upload/', views.speed_test_upload, name='speed-test-upload'),
 
     # Plans
     path('plans/', views.plans_list, name='plans-list'),
