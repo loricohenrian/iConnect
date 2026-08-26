@@ -888,10 +888,14 @@ def session_join_group(request):
             if not iptables.allow_device(mac_address, rate_kbps=dl_kbps, upload_kbps=ul_kbps):
                 raise RuntimeError("Failed to allow internet access for this device")
 
+            # Increment redeemed count atomically (row is locked)
+            locked_group.redeemed_count += 1
+
             # If all slots are now filled, mark the group exhausted
             if locked_group.redeemed_count >= locked_group.max_devices:
                 locked_group.status = "exhausted"
-                locked_group.save(update_fields=["status"])
+                
+            locked_group.save(update_fields=["redeemed_count", "status"])
 
     except RuntimeError as exc:
         return Response({"error": str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)

@@ -101,6 +101,10 @@ class SessionGroup(models.Model):
         help_text="When this code can no longer be redeemed (separate from session expiry)"
     )
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="active")
+    redeemed_count = models.PositiveIntegerField(
+        default=0, 
+        help_text="Total number of times this code has been redeemed (any session status)."
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -110,11 +114,6 @@ class SessionGroup(models.Model):
 
     def __str__(self):
         return f"Group {self.group_code} ({self.status})"
-
-    @property
-    def redeemed_count(self):
-        """Total number of times this code has been redeemed (any session status)."""
-        return self.sessions.count()
 
     # Backward-compat alias
     @property
