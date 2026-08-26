@@ -16,6 +16,16 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Security
 DEFAULT_DEV_SECRET_KEY = 'django-insecure-iConnect-dev-key-change-in-production'
 SECRET_KEY = os.getenv('SECRET_KEY', DEFAULT_DEV_SECRET_KEY)
+
+if SECRET_KEY == DEFAULT_DEV_SECRET_KEY:
+    import secrets
+    from pathlib import Path
+    secret_path = Path(__file__).resolve().parent.parent / '.django_secret'
+    if not secret_path.exists():
+        with open(secret_path, 'w') as f:
+            f.write(secrets.token_urlsafe(50))
+    with open(secret_path, 'r') as f:
+        SECRET_KEY = f.read().strip()
 DEBUG = os.getenv('DEBUG', 'False').lower().strip() in ('true', '1', 'yes')
 ALLOWED_HOSTS = [host.strip() for host in os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1,0.0.0.0').split(',') if host.strip()]
 
