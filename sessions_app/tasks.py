@@ -22,13 +22,44 @@ def restore_iptables_on_boot():
     """
     from .models import Session
     from . import iptables
+    import os
+    from django.conf import settings
+
+    # Calculate downtime from heartbeat
+    downtime_seconds = 0
+    heartbeat_path = os.path.join(settings.BASE_DIR, 'heartbeat.txt')
+    try:
+        if os.path.exists(heartbeat_path):
+            with open(heartbeat_path, 'r') as f:
+                last_heartbeat = float(f.read().strip())
+                downtime_seconds = timezone.now().timestamp() - last_heartbeat
+                
+                # Minimum 60s downtime to matter, max 30 days cap
+                if downtime_seconds < 60:
+                    downtime_seconds = 0
+                elif downtime_seconds > 2592000:
+                    downtime_seconds = 2592000
+                    
+            # Clear heartbeat to prevent double-counting
+            os.remove(heartbeat_path)
+    except Exception as e:
+        logger.error(f'Failed to process heartbeat on boot: {e}')
 
     active = Session.objects.filter(status='active')
     paused = Session.objects.filter(status='paused')
 
     reallowed = 0
     expired = 0
+    
+    if downtime_seconds > 0:
+        logger.info(f'Boot: Refunding {int(downtime_seconds)}s of downtime to {active.count()} active sessions.')
+
     for session in active:
+        # Refund downtime BEFORE checking remaining time
+        if downtime_seconds > 0:
+            session.total_paused_seconds += downtime_seconds
+            session.save(update_fields=['total_paused_seconds'])
+
         if session.time_remaining_seconds > 0:
             # Restore internet access for the active session
             dl_kbps = int(session.plan.speed_limit * 1024) if session.plan and session.plan.speed_limit else None
@@ -58,6 +89,16 @@ def check_expired_sessions():
     """
     from .models import Session
     from . import iptables
+    import os
+    from django.conf import settings
+
+    # Record heartbeat so we can calculate downtime on reboot
+    heartbeat_path = os.path.join(settings.BASE_DIR, 'heartbeat.txt')
+    try:
+        with open(heartbeat_path, 'w') as f:
+            f.write(str(timezone.now().timestamp()))
+    except Exception as e:
+        logger.error(f'Failed to write heartbeat: {e}')
 
     active_sessions = Session.objects.filter(status='active')
     expired_count = 0
@@ -69,7 +110,6 @@ def check_expired_sessions():
             expired_count += 1
             logger.info(f'Expired active session {session.id} for {session.mac_address}')
 
-    from django.conf import settings
     from datetime import timedelta
     from dashboard.models import SystemSettings
     global_max_pause_hours = SystemSettings.get_settings().global_pause_limit_hours
