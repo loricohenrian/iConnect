@@ -144,7 +144,7 @@ class Session(models.Model):
     ]
 
     mac_address = models.CharField(max_length=17, help_text="Format: AA:BB:CC:DD:EE:FF")
-    plan = models.ForeignKey(Plan, on_delete=models.PROTECT, related_name="sessions", null=True, blank=True)
+    plan = models.ForeignKey(Plan, on_delete=models.SET_NULL, related_name="sessions", null=True, blank=True)
     session_group = models.ForeignKey(SessionGroup, on_delete=models.SET_NULL, null=True, blank=True, related_name="sessions")
     time_in = models.DateTimeField(default=timezone.now)
     time_out = models.DateTimeField(null=True, blank=True)
