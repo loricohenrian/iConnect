@@ -1,5 +1,5 @@
-﻿"""
-Dashboard Views â€” API endpoints and template views for admin dashboard
+"""
+Dashboard Views — API endpoints and template views for admin dashboard
 """
 import csv
 from datetime import timedelta, date
@@ -130,8 +130,8 @@ def dashboard_logout(request):
 @api_view(['GET', 'POST'])
 def announcements_api(request):
     """
-    GET /api/announcements/ â€” Returns active announcements
-    POST /api/announcements/ â€” Creates new announcement
+    GET /api/announcements/ — Returns active announcements
+    POST /api/announcements/ — Creates new announcement
     """
     if not _is_dashboard_admin(request.user):
         return Response({'detail': 'Authentication required.'}, status=status.HTTP_401_UNAUTHORIZED)
@@ -156,7 +156,7 @@ def announcements_api(request):
 @api_view(['GET'])
 def dashboard_stats_api(request):
     """
-    GET /api/dashboard/stats/ â€” Returns dashboard summary stats
+    GET /api/dashboard/stats/ — Returns dashboard summary stats
     """
     if not _is_dashboard_admin(request.user):
         return Response({'detail': 'Authentication required.'}, status=status.HTTP_401_UNAUTHORIZED)
@@ -252,7 +252,7 @@ def system_stats_api(request):
     try:
         with open('/sys/class/thermal/thermal_zone0/temp', 'r') as f:
             temp_raw = int(f.read().strip())
-            stats['cpu_temp'] = f"{temp_raw / 1000:.1f}Â°C"
+            stats['cpu_temp'] = f"{temp_raw / 1000:.1f}°C"
     except Exception:
         pass
 
@@ -328,7 +328,7 @@ def system_stats_api(request):
 @api_view(['GET'])
 def heatmap_data_api(request):
     """
-    GET /api/dashboard/heatmap/ â€” Returns peak hours heatmap data
+    GET /api/dashboard/heatmap/ — Returns peak hours heatmap data
     """
     if not _is_dashboard_admin(request.user):
         return Response({'detail': 'Authentication required.'}, status=status.HTTP_401_UNAUTHORIZED)
@@ -350,7 +350,7 @@ def heatmap_data_api(request):
 @api_view(['GET'])
 def revenue_data_api(request):
     """
-    GET /api/dashboard/revenue/ â€” Returns detailed revenue data
+    GET /api/dashboard/revenue/ — Returns detailed revenue data
     """
     if not _is_dashboard_admin(request.user):
         return Response({'detail': 'Authentication required.'}, status=status.HTTP_401_UNAUTHORIZED)
@@ -413,7 +413,7 @@ def revenue_data_api(request):
             'threshold_amount': threshold_amount,
             'message': (
                 f'Revenue is below {threshold_pct:.0f}% threshold '
-                f'(â‚±{int(period_revenue_total):,} vs â‚±{int(threshold_amount):,}).'
+                f'(₱{int(period_revenue_total):,} vs ₱{int(threshold_amount):,}).'
                 if low_revenue_triggered
                 else ''
             ),
@@ -917,7 +917,7 @@ def analytics_view(request):
     # Most popular plan
     top_plan = plan_stats[0]['plan__name'] if plan_stats else 'N/A'
 
-    # â”€â”€ Diagnostic Analytics â”€â”€
+    # ── Diagnostic Analytics ──
     # Peak hour (which hour has most sessions)
     from django.db.models.functions import ExtractHour, ExtractWeekDay
     import zoneinfo
@@ -989,7 +989,7 @@ def analytics_view(request):
     ).filter(sessions__gt=1).count()
     retention_rate = round((returning_devices / unique_devices) * 100, 1) if unique_devices > 0 else 0
 
-    # â”€â”€ Prescriptive Insights â”€â”€
+    # ── Prescriptive Insights ──
     insights = []
     if peak_hour_data:
         insights.append({
@@ -1006,7 +1006,7 @@ def analytics_view(request):
     elif revenue_growth > 20:
         insights.append({
             'title': 'Strong Growth',
-            'text': f"Revenue grew {revenue_growth}% this week â€” great momentum! Keep current pricing strategy.",
+            'text': f"Revenue grew {revenue_growth}% this week — great momentum! Keep current pricing strategy.",
             'type': 'success'
         })
     if retention_rate < 30:
@@ -1099,7 +1099,7 @@ def roi(request):
     net_profit = round(gross_revenue - total_expenses, 2)
 
     # === ROI COMPUTATION ===
-    # ROI = (Net Profit / Total Investment) Ã— 100
+    # ROI = (Net Profit / Total Investment) × 100
     roi_pct = round((net_profit / total_investment * 100), 1) if total_investment > 0 else 0
 
     # === DAILY AVERAGES ===
@@ -1228,7 +1228,7 @@ def plans_view(request):
                 pause_duration_limit = int(pause_duration_limit_raw) if pause_duration_limit_raw else 0
                 
                 if not name:
-                    name = f"â‚±{price} Plan"
+                    name = f"₱{price} Plan"
                     
                 if price <= 0 or duration_minutes <= 0:
                     raise ValueError('Price and duration must be positive.')
@@ -1432,7 +1432,7 @@ def settings_view(request):
             # General / UI
             settings_obj.enable_dark_mode = request.POST.get('enable_dark_mode') == 'on'
             settings_obj.max_concurrent_sessions = int(request.POST.get('max_concurrent_sessions', 20))
-            settings_obj.global_pause_limit_hours = int(request.POST.get('global_pause_limit_hours', 24))
+            settings_obj.global_pause_limit_hours = max(1, int(request.POST.get('global_pause_limit_hours', 24)))
             
             # Network & Automation Features
             settings_obj.enable_internet_check = request.POST.get('enable_internet_check') == 'on'
