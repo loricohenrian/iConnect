@@ -40,10 +40,10 @@ def _is_dashboard_admin(user):
 
 
 def _client_ip(request):
-    forwarded = request.META.get('HTTP_X_FORWARDED_FOR', '')
-    if forwarded:
-        return forwarded.split(',')[0].strip()
-    return request.META.get('REMOTE_ADDR', 'unknown')
+    real_ip = request.META.get("HTTP_X_REAL_IP", "")
+    if real_ip:
+        return real_ip.strip()
+    return request.META.get("REMOTE_ADDR", "unknown")
 
 
 def _check_rate_limit(key, max_attempts, window_seconds):
