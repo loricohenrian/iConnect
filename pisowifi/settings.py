@@ -260,6 +260,16 @@ PISONET_GPIO_PIN = int(os.getenv('GPIO_PIN', '3'))
 PISONET_GPIO_SIMULATION = os.getenv('GPIO_SIMULATION', 'False').lower() in ('true', '1', 'yes')
 DEFAULT_DEVICE_API_KEY = 'iconnect-local-device-key-change-me'
 PISONET_DEVICE_API_KEY = os.getenv('DEVICE_API_KEY', DEFAULT_DEVICE_API_KEY)
+
+# Auto-generate a secure key if using a vulnerable default
+if PISONET_DEVICE_API_KEY in (DEFAULT_DEVICE_API_KEY, 'replace-with-a-strong-device-api-key', ''):
+    secret_path = BASE_DIR / '.api_secret'
+    if not secret_path.exists():
+        import secrets
+        with open(secret_path, 'w') as f:
+            f.write(secrets.token_urlsafe(32))
+    with open(secret_path, 'r') as f:
+        PISONET_DEVICE_API_KEY = f.read().strip()
 PISONET_ELECTRICITY_RATE = float(os.getenv('ELECTRICITY_RATE', '0.0'))
 PISONET_SYSTEM_WATTAGE = 18  # ALLAN H3 (5W) + Router (10W) + Coinslot (3W)
 PISONET_ISP_MONTHLY_COST = float(os.getenv('ISP_MONTHLY_COST', '1600.0'))  # Monthly internet subscription

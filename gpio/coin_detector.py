@@ -27,6 +27,11 @@ GPIO_PIN = int(os.getenv("GPIO_PIN", "3"))
 DEVICE_MAC = os.getenv("DEVICE_MAC", "").upper().strip()
 DEVICE_SCOPE_ENABLED = os.getenv("DEVICE_SCOPE_ENABLED", "False").lower() in ("true", "1", "yes")
 DEVICE_API_KEY = os.getenv("DEVICE_API_KEY", "iconnect-local-device-key-change-me")
+if DEVICE_API_KEY in ("iconnect-local-device-key-change-me", "replace-with-a-strong-device-api-key", ""):
+    secret_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.api_secret')
+    if os.path.exists(secret_path):
+        with open(secret_path, 'r') as f:
+            DEVICE_API_KEY = f.read().strip()
 PULSE_TIMEOUT = 0.5
 API_ENDPOINT = f"{DJANGO_URL}/api/coin-inserted/"
 
