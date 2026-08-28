@@ -637,7 +637,10 @@ def sessions_view(request):
     now = timezone.now()
     today = timezone.localdate()
     if period == 'today' or not period:
-        sessions = sessions.filter(time_in__date=today)
+        # Include sessions started today OR any session that is currently active/paused
+        sessions = sessions.filter(
+            Q(time_in__date=today) | Q(status__in=['active', 'paused'])
+        )
     elif period == 'week':
         sessions = sessions.filter(time_in__gte=now - timedelta(days=7))
     elif period == 'month':
