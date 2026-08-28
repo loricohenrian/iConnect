@@ -745,7 +745,12 @@ def session_start(request):
                 plan=plan,
                 amount=amount_paid,
             )
-            DeviceProfile.add_spending_points(mac_address, amount_paid)
+            if is_group_pass and session_group and session_group.max_devices > 0:
+                # Pro-rate points for the host (1 slot worth)
+                host_points_value = session_group.total_price / session_group.max_devices
+                DeviceProfile.add_spending_points(mac_address, host_points_value)
+            else:
+                DeviceProfile.add_spending_points(mac_address, amount_paid)
 
             used_amount = 0
             for event in _pending_coin_events_for_mac(mac_address):
@@ -898,6 +903,12 @@ def session_join_group(request):
                 locked_group.status = "exhausted"
                 
             locked_group.save(update_fields=["redeemed_count", "status"])
+
+            # Grant points to the joining user (pro-rated value of 1 slot)
+            if locked_group.max_devices > 0:
+                slot_value = locked_group.total_price / locked_group.max_devices
+                DeviceProfile.add_spending_points(mac_address, slot_value)
+
 
     except RuntimeError as exc:
         return Response({"error": str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
