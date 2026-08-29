@@ -1558,7 +1558,9 @@ def admin_session_action(request, session_id, action):
                 block_device(session.mac_address)
             except Exception as e:
                 logging.error(f"Failed to block device on delete: {e}")
-        session.delete()
+        # Forcefully terminate the session without deleting the DB row
+        session.status = 'expired'
+        session.save(update_fields=['status'])
         
     elif action == 'edit':
         try:
