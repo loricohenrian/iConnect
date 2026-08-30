@@ -514,12 +514,12 @@ document.addEventListener('DOMContentLoaded', () => {
     initSidebar();
     initOverviewLiveMonitoring();
 
-    // Auto-refresh stats every 10 seconds (real-time)
-    if (document.querySelector('.stats-grid')) {
+    // Auto-refresh stats on Overview / Dashboard
+    if (document.getElementById('revenue-today') || document.querySelector('.dashboard-hero-layout') || document.querySelector('.sys-strip-container') || document.querySelector('.stats-grid')) {
         refreshDashboardStats();
         setInterval(refreshDashboardStats, 10000);
 
-        // System stats
+        // System stats (CPU, RAM, Disk, Temp, Internet)
         refreshSystemStats();
         setInterval(refreshSystemStats, 10000);
     }

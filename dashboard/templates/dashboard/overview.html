@@ -385,6 +385,14 @@
     }
 
     setInterval(tickCountdowns, 1000);
+
+    // Explicitly trigger hardware & system stats refresh on load
+    if (typeof refreshSystemStats === 'function') {
+        refreshSystemStats();
+    }
+    if (typeof refreshDashboardStats === 'function') {
+        refreshDashboardStats();
+    }
 })();
 </script>
 {% endblock %}
