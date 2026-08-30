@@ -1,248 +1,276 @@
 {% extends "base_dashboard.html" %}
 
 {% block page_title %}Reports{% endblock %}
-{% block topbar_title %}Financial Reports{% endblock %}
+{% block topbar_title %}Financial & Operational Reports{% endblock %}
 
 {% block dashboard_content %}
 
-<div class="d-flex justify-between align-center mb-md">
-    <div></div>
-    <a href="{% url 'dashboard:export_revenue_csv' %}" class="btn btn-sm btn-secondary">
-        <i class="bi bi-download"></i> Export Revenue CSV
-    </a>
+<!-- Header Action Toolbar -->
+<div class="card mb-md animate-fadeIn" style="padding: 16px 22px;">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-md">
+        <div>
+            <h3 style="margin: 0; font-size: 17px; color: var(--color-dark);">Executive Financial Overview</h3>
+            <span class="text-xs text-muted">Comprehensive revenue breakdown, operational costs, and downloadable audit reports</span>
+        </div>
+        <div class="d-flex align-items-center gap-sm flex-wrap">
+            <a href="{% url 'dashboard:export_revenue_csv' %}" class="btn btn-sm btn-secondary" style="font-size: 13px; padding: 6px 14px;">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="vertical-align: -1px; margin-right: 4px;"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708z"/></svg>
+                Revenue CSV
+            </a>
+            <a href="{% url 'dashboard:export_sessions_csv' %}" class="btn btn-sm btn-secondary" style="font-size: 13px; padding: 6px 14px;">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="vertical-align: -1px; margin-right: 4px;"><path d="M0 2a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2zm15 2h-4v3h4zm0 4h-4v3h4zm0 4h-4v3h3a1 1 0 0 0 1-1zm-5 3v-3H6v3zm-5 0v-3H1v2a1 1 0 0 0 1 1zm-4-4h4V8H1zm0-4h4V4H1zm5-3v3h4V1zm4 0h-4v3h4zM1 3a1 1 0 0 1 1-1h3V1H2a2 2 0 0 0-2 2v1h1z"/></svg>
+                Sessions CSV
+            </a>
+            <button type="button" class="btn btn-sm btn-primary" onclick="window.print()" style="font-size: 13px; padding: 6px 14px;">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="vertical-align: -1px; margin-right: 4px;"><path d="M2.5 8a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1"/><path d="M5 1a2 2 0 0 0-2 2v2H2a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h1v1a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-1h1a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-1V3a2 2 0 0 0-2-2zM4 3a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2H4zm1 5a2 2 0 0 0-2 2v1H2a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v-1a2 2 0 0 0-2-2zm7 2v3a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1"/></svg>
+                Print Report
+            </button>
+        </div>
+    </div>
 </div>
 
-<!-- Financial Summary Cards -->
-<div class="stats-grid" style="grid-template-columns: repeat(4, 1fr);">
+<!-- 4 Financial Summary KPI Cards -->
+<div class="stats-grid mb-md" style="grid-template-columns: repeat(4, 1fr);">
+    <!-- Gross Revenue -->
     <div class="stat-card animate-fadeIn">
         <div class="stat-info">
-            <div class="stat-label">Gross Revenue</div>
-            <div class="stat-value" style="color: var(--color-success);">₱{{ revenue_all_time|default:"0" }}</div>
+            <div class="stat-label">Gross Revenue (All Time)</div>
+            <div class="stat-value" style="color: #10b981;">₱{{ revenue_all_time|default:"0" }}</div>
         </div>
-        <div class="static-icon" style="color: var(--color-success);">
-            <i class="bi bi-coin"></i>
-        </div>
-    </div>
-    <div class="stat-card animate-fadeIn" style="animation-delay: 100ms">
-        <div class="stat-info">
-            <div class="stat-label">Total Expenses</div>
-            <div class="stat-value" style="color: var(--color-danger);">₱{{ total_expenses|default:"0" }}</div>
-        </div>
-        <div class="static-icon" style="color: var(--color-danger);">
-            <i class="bi bi-receipt"></i>
+        <div class="static-icon" style="background: rgba(16,185,129,0.12); color: #10b981; width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+            <svg width="22" height="22" viewBox="0 0 16 16" fill="currentColor"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/><path d="M5.5 4.5h5a.5.5 0 0 1 0 1H9v1h1.5a.5.5 0 0 1 0 1H9v1.5a2.5 2.5 0 0 1-5 0V8H3.5a.5.5 0 0 1 0-1H4V6H3.5a.5.5 0 0 1 0-1H4v-.5a.5.5 0 0 1 .5-.5h1zm2.5 2v-1H5.5v1zm0 2H5.5v.5a1.5 1.5 0 0 0 3 0z"/></svg>
         </div>
     </div>
-    <div class="stat-card animate-fadeIn" style="animation-delay: 200ms">
+
+    <!-- Operating Expenses -->
+    <div class="stat-card animate-fadeIn" style="animation-delay: 80ms">
         <div class="stat-info">
-            <div class="stat-label">Net Profit</div>
-            <div class="stat-value" style="color: {% if net_profit >= 0 %}var(--color-success){% else %}var(--color-danger){% endif %};">₱{{ net_profit|default:"0" }}</div>
+            <div class="stat-label">Cumulative Expenses</div>
+            <div class="stat-value" style="color: #ef4444;">₱{{ total_expenses|default:"0" }}</div>
         </div>
-        <div class="static-icon" style="color: {% if net_profit >= 0 %}var(--color-success){% else %}var(--color-danger){% endif %};">
-            <i class="bi bi-graph-up-arrow"></i>
+        <div class="static-icon" style="background: rgba(239,68,68,0.12); color: #ef4444; width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+            <svg width="22" height="22" viewBox="0 0 16 16" fill="currentColor"><path d="M1.5 0A1.5 1.5 0 0 0 0 1.5v13A1.5 1.5 0 0 0 1.5 16h13a1.5 1.5 0 0 0 1.5-1.5V2.914a1.5 1.5 0 0 0-.44-1.06L14.147.439A1.5 1.5 0 0 0 13.086 0zM4 3.5a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5M4 6.5a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5M4 9.5a.5.5 0 0 1 .5-.5h4a.5.5 0 0 1 0 1h-4a.5.5 0 0 1-.5-.5"/></svg>
         </div>
     </div>
-    <div class="stat-card animate-fadeIn" style="animation-delay: 300ms">
+
+    <!-- Net Profit -->
+    <div class="stat-card animate-fadeIn" style="animation-delay: 160ms">
         <div class="stat-info">
-            <div class="stat-label">ROI</div>
-            <div class="stat-value" style="color: {% if roi_percentage|add:0 >= 0 %}var(--color-success){% else %}var(--color-danger){% endif %};">{{ roi_percentage|default:"0" }}%</div>
+            <div class="stat-label">Net Profit (After OPEX)</div>
+            <div class="stat-value" style="color: {% if net_profit >= 0 %}#059669{% else %}#ef4444{% endif %};">₱{{ net_profit|default:"0" }}</div>
         </div>
-        <div class="static-icon" style="color: {% if roi_percentage|add:0 >= 0 %}var(--color-success){% else %}var(--color-danger){% endif %};">
-            <i class="bi bi-bar-chart"></i>
+        <div class="static-icon" style="background: {% if net_profit >= 0 %}rgba(5,150,105,0.12){% else %}rgba(239,68,68,0.12){% endif %}; color: {% if net_profit >= 0 %}#059669{% else %}#ef4444{% endif %}; width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+            <svg width="22" height="22" viewBox="0 0 16 16" fill="currentColor"><path fill-rule="evenodd" d="M0 0h1v15h15v1H0zm10 3.5a.5.5 0 0 1 .5-.5h4a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-1 0V4.707l-4.146 4.147a.5.5 0 0 1-.708 0L7 6.707l-2.646 2.647a.5.5 0 0 1-.708-.708l3-3a.5.5 0 0 1 .708 0L9.5 7.793 13.293 4H10.5a.5.5 0 0 1-.5-.5"/></svg>
+        </div>
+    </div>
+
+    <!-- Total ROI -->
+    <div class="stat-card animate-fadeIn" style="animation-delay: 240ms">
+        <div class="stat-info">
+            <div class="stat-label">Total ROI</div>
+            <div class="stat-value" style="color: #7b2d3b;">{{ roi_percentage|default:"0" }}%</div>
+        </div>
+        <div class="static-icon" style="background: rgba(123,45,59,0.12); color: #7b2d3b; width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+            <svg width="22" height="22" viewBox="0 0 16 16" fill="currentColor"><path d="M2.5.5A.5.5 0 0 1 3 0h10a.5.5 0 0 1 .5.5c0 .538-.012 1.05-.034 1.536a3 3 0 1 1-1.133 5.89c-.79 1.865-1.878 2.774-3.333 3.03V13h2a.5.5 0 0 1 0 1H5a.5.5 0 0 1 0-1h2v-2.044c-1.455-.256-2.543-1.165-3.333-3.03a3 3 0 1 1-1.133-5.89C2.512 1.55 2.5 1.038 2.5.5"/></svg>
         </div>
     </div>
 </div>
 
-<!-- Revenue by Period -->
-<div class="grid-2 mt-lg">
-    <!-- Revenue Breakdown by Period -->
-    <div class="chart-card animate-fadeIn" style="animation-delay: 350ms">
-        <h3 class="card-title mb-md"><i class="bi bi-calendar-range"></i> Revenue by Period</h3>
-        <div class="cost-item">
-            <div>
-                <div class="cost-desc">Today</div>
-                <div class="text-xs text-muted">{{ sessions_today }} session{{ sessions_today|pluralize }} {% if sessions_today > 0 and revenue_today == 0 %}<span style="color: var(--color-warning);">(pending)</span>{% endif %}</div>
-            </div>
-            <div class="cost-amount" style="color: var(--color-success);">₱{{ revenue_today }}</div>
+<!-- Section 2: Revenue Chart & Period Breakdown -->
+<div class="grid-2 mb-md">
+    <!-- 7-Day Trajectory Chart -->
+    <div class="chart-card animate-fadeIn" style="animation-delay: 300ms">
+        <div class="chart-header">
+            <h3 class="chart-title">7-Day Revenue Trajectory</h3>
+            <span class="text-xs text-muted">Recent coin collection momentum</span>
         </div>
-        <div class="cost-item">
-            <div>
-                <div class="cost-desc">This Week (7 Days)</div>
-                <div class="text-xs text-muted">{{ sessions_week }} session{{ sessions_week|pluralize }}</div>
-            </div>
-            <div class="cost-amount" style="color: var(--color-success);">₱{{ revenue_week }}</div>
-        </div>
-        <div class="cost-item">
-            <div>
-                <div class="cost-desc">This Month (30 Days)</div>
-                <div class="text-xs text-muted">{{ sessions_month }} session{{ sessions_month|pluralize }}</div>
-            </div>
-            <div class="cost-amount" style="color: var(--color-success);">₱{{ revenue_month }}</div>
-        </div>
-        <div class="cost-item" style="background: var(--color-light); border-radius: var(--radius-sm);">
-            <div>
-                <div class="font-semibold">All Time</div>
-                <div class="text-xs text-muted">{{ sessions_total }} total sessions · {{ days_operating }} days operating</div>
-            </div>
-            <div class="cost-amount font-bold" style="color: var(--color-success);">₱{{ revenue_all_time }}</div>
-        </div>
-    </div>
-
-    <!-- Expense Breakdown -->
-    <div class="chart-card animate-fadeIn" style="animation-delay: 400ms">
-        <h3 class="card-title mb-md"><i class="bi bi-cash-stack"></i> Expense Breakdown</h3>
-
-        {% if operating_expenses %}
-            {% for exp in operating_expenses %}
-            <div class="cost-item">
-                <div>
-                    <div class="cost-desc">{{ exp.name }}</div>
-                    <div class="text-xs text-muted">{{ exp.get_period_display }} (Prorated over {{ days_operating }} days)</div>
-                </div>
-                <div class="cost-amount" style="color: var(--color-danger);">₱{{ exp.amount }}</div>
-            </div>
-            {% endfor %}
-        {% else %}
-            <div class="text-muted text-small mb-sm">No operating expenses recorded.</div>
-        {% endif %}
-        <div class="cost-item" style="background: var(--color-light); border-radius: var(--radius-sm);">
-            <div class="font-semibold">Total Operating Expenses</div>
-            <div class="cost-amount font-bold" style="color: var(--color-danger);">₱{{ total_expenses }}</div>
-        </div>
-
-        <!-- Profit Summary -->
-        <div style="margin-top: 16px; padding: 16px; background: var(--color-light); border-radius: var(--radius-md); border: 2px solid {% if net_profit >= 0 %}var(--color-success){% else %}var(--color-danger){% endif %};">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <div class="font-bold" style="font-size: 1rem;">Net Profit</div>
-                    <div class="text-xs text-muted">Revenue ₱{{ revenue_all_time }} − Expenses ₱{{ total_expenses }}</div>
-                </div>
-                <div class="font-bold" style="font-size: 1.25rem; color: {% if net_profit >= 0 %}var(--color-success){% else %}var(--color-danger){% endif %};">₱{{ net_profit }}</div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="grid-2 mt-lg">
-    <!-- Revenue Chart (Last 7 Days) -->
-    <div class="chart-card animate-fadeIn" style="animation-delay: 450ms">
-        <h3 class="card-title mb-md"><i class="bi bi-graph-up"></i> Revenue (Last 7 Days)</h3>
-        <div class="chart-wrapper" style="height: 250px;">
+        <div class="chart-wrapper" style="height: 260px;">
             <canvas id="reports-revenue-chart"></canvas>
         </div>
     </div>
 
-    <!-- Top Plans -->
-    <div class="chart-card animate-fadeIn" style="animation-delay: 500ms">
-        <h3 class="card-title mb-md"><i class="bi bi-trophy"></i> Top Plans (30 Days)</h3>
-        {% if top_plans %}
-        {% for plan in top_plans %}
-        <div class="cost-item">
-            <div>
-                <div class="cost-desc">{{ plan.plan__name|default:"Unknown" }}</div>
-                <div class="text-xs text-muted">₱{{ plan.plan__price }} · {{ plan.count }} session{{ plan.count|pluralize }}</div>
+    <!-- Revenue by Period Breakdown -->
+    <div class="chart-card animate-fadeIn" style="animation-delay: 350ms">
+        <div class="chart-header">
+            <h3 class="chart-title">Revenue by Time Period</h3>
+            <span class="badge badge-info text-xs">{{ days_operating }} Days Tracked</span>
+        </div>
+
+        <div class="d-flex flex-column gap-sm">
+            <div class="cost-item" style="background: rgba(16,185,129,0.04); border-radius: 8px;">
+                <div>
+                    <div class="font-semibold" style="color: var(--color-dark);">Today</div>
+                    <div class="text-xs text-muted">{{ sessions_today }} session{{ sessions_today|pluralize }} recorded</div>
+                </div>
+                <div class="font-bold" style="color: #10b981; font-size: 15px;">+₱{{ revenue_today }}</div>
             </div>
-            <div class="cost-amount" style="color: var(--color-success);">₱{{ plan.total|default:"0" }}</div>
+
+            <div class="cost-item" style="background: rgba(16,185,129,0.04); border-radius: 8px;">
+                <div>
+                    <div class="font-semibold" style="color: var(--color-dark);">This Week (7 Days)</div>
+                    <div class="text-xs text-muted">{{ sessions_week }} session{{ sessions_week|pluralize }} recorded</div>
+                </div>
+                <div class="font-bold" style="color: #10b981; font-size: 15px;">+₱{{ revenue_week }}</div>
+            </div>
+
+            <div class="cost-item" style="background: rgba(16,185,129,0.04); border-radius: 8px;">
+                <div>
+                    <div class="font-semibold" style="color: var(--color-dark);">This Month (30 Days)</div>
+                    <div class="text-xs text-muted">{{ sessions_month }} session{{ sessions_month|pluralize }} recorded</div>
+                </div>
+                <div class="font-bold" style="color: #10b981; font-size: 15px;">+₱{{ revenue_month }}</div>
+            </div>
+
+            <div class="cost-item" style="background: rgba(123,45,59,0.06); border-radius: 8px; border-top: 1px dashed rgba(123,45,59,0.2);">
+                <div>
+                    <div class="font-bold" style="color: var(--color-dark);">Cumulative (All Time)</div>
+                    <div class="text-xs text-muted">{{ sessions_total }} total lifetime sessions</div>
+                </div>
+                <div class="font-bold" style="color: #7b2d3b; font-size: 16px;">₱{{ revenue_all_time }}</div>
+            </div>
         </div>
-        {% endfor %}
-        {% else %}
-        <div class="empty-state" style="padding: 24px;">
-            <i class="bi bi-tags"></i>
-            <p>No session data yet</p>
-        </div>
-        {% endif %}
     </div>
 </div>
 
-<!-- Recent Sessions + Export -->
-<div class="grid-2 mt-lg">
-    <!-- Recent Sessions -->
-    <div class="chart-card animate-fadeIn" style="animation-delay: 550ms">
-        <h3 class="card-title mb-md"><i class="bi bi-clock-history"></i> Recent Sessions</h3>
-        {% if recent_sessions %}
-        <div class="table-container" style="overflow-x: auto;">
-            <table style="min-width: 400px; font-size: 13px;">
+<!-- Section 3: Top Plans & Formal Report Generator Hub -->
+<div class="grid-2 mb-md">
+    <!-- Top Performing WiFi Plans -->
+    <div class="chart-card animate-fadeIn" style="animation-delay: 400ms">
+        <div class="chart-header">
+            <h3 class="chart-title">Top Performing Plans (Last 30 Days)</h3>
+            <span class="text-xs text-muted">Ranked by purchase volume</span>
+        </div>
+
+        {% if top_plans %}
+        <div class="table-container">
+            <table>
                 <thead>
                     <tr>
-                        <th>Device</th>
-                        <th>Plan</th>
-                        <th>Amount</th>
-                        <th>Time</th>
-                        <th>Status</th>
+                        <th>Plan Name</th>
+                        <th>Rate Price</th>
+                        <th>Sold</th>
+                        <th style="text-align: right;">Total Generated</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for s in recent_sessions %}
+                    {% for plan in top_plans %}
                     <tr>
-                        <td title="{{ s.device_name|default:'—' }}" style="max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ s.device_name|default:"—" }}</td>
-                        <td>{{ s.plan.name|default:"—" }}</td>
-                        <td>₱{{ s.amount_paid }}</td>
-                        <td>{{ s.time_in|date:"M d, H:i" }}</td>
                         <td>
-                            <span class="badge badge-{% if s.status == 'active' %}success{% elif s.status == 'paused' %}warning{% else %}secondary{% endif %}" style="font-size: 11px; padding: 2px 8px;">{{ s.status }}</span>
+                            <span class="badge" style="background: rgba(123, 45, 59, 0.08); color: var(--color-dark, #7b2d3b); font-weight: 600;">
+                                {{ plan.plan__name|default:"Custom" }}
+                            </span>
                         </td>
+                        <td>₱{{ plan.plan__price }}</td>
+                        <td>{{ plan.count }}</td>
+                        <td class="font-semibold" style="text-align: right; color: #10b981;">₱{{ plan.total|default:"0" }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
-        <div class="d-flex justify-content-center mt-md">
-            <a href="{% url 'dashboard:sessions' %}" class="btn btn-sm btn-secondary">
-                View All Sessions
-            </a>
-        </div>
         {% else %}
         <div class="empty-state" style="padding: 24px;">
-            <i class="bi bi-clock"></i>
-            <p>No sessions yet</p>
+            <p class="font-semibold" style="margin: 0;">No plan sales recorded in the last 30 days</p>
         </div>
         {% endif %}
     </div>
 
-    <!-- Export & Generate Reports -->
-    <div class="chart-card animate-fadeIn" style="animation-delay: 600ms">
-        <h3 class="card-title mb-md"><i class="bi bi-download"></i> Generate & Export</h3>
+    <!-- Official Report Generator Center -->
+    <div class="chart-card animate-fadeIn" style="animation-delay: 450ms">
+        <div class="chart-header">
+            <div>
+                <h3 class="chart-title">Executive Report Download Center</h3>
+                <span class="text-xs text-muted">Generate official summaries with 1-click</span>
+            </div>
+        </div>
 
-        <div style="margin-bottom: 20px;">
-            <div style="font-weight: 600; font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;">Generate Reports</div>
-            <div class="d-flex gap-sm flex-wrap" style="margin-bottom: 8px;">
-                <button class="btn btn-secondary btn-sm" onclick="generateReport(this, 'daily', 'today', 'pdf')" id="btn-daily-report-pdf">
-                    <i class="bi bi-filetype-pdf"></i> Daily PDF
-                </button>
-                <button class="btn btn-secondary btn-sm" onclick="generateReport(this, 'daily', 'today', 'csv')" id="btn-daily-report-csv">
-                    <i class="bi bi-filetype-csv"></i> Daily CSV
-                </button>
-            </div>
-            <div class="d-flex gap-sm flex-wrap" style="margin-bottom: 8px;">
-                <button class="btn btn-secondary btn-sm" onclick="generateReport(this, 'weekly', 'week', 'pdf')" id="btn-weekly-report-pdf">
-                    <i class="bi bi-filetype-pdf"></i> Weekly PDF
-                </button>
-                <button class="btn btn-secondary btn-sm" onclick="generateReport(this, 'weekly', 'week', 'csv')" id="btn-weekly-report-csv">
-                    <i class="bi bi-filetype-csv"></i> Weekly CSV
-                </button>
-            </div>
+        <!-- 1. Formal PDF Reports -->
+        <div class="mb-md">
+            <div class="text-xs font-semibold text-muted text-uppercase mb-xs" style="letter-spacing: 0.5px;">📄 Official Executive PDF Summaries</div>
             <div class="d-flex gap-sm flex-wrap">
-                <button class="btn btn-secondary btn-sm" onclick="generateReport(this, 'monthly', 'month', 'pdf')" id="btn-monthly-report-pdf">
-                    <i class="bi bi-filetype-pdf"></i> Monthly PDF
+                <button class="btn btn-secondary btn-sm" onclick="generateReport(this, 'daily', 'today', 'pdf')" id="btn-daily-report-pdf" style="padding: 6px 12px; font-size: 13px;">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="#ef4444" style="vertical-align: -1px; margin-right: 4px;"><path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2M9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5z"/><path d="M4.603 14.087a.8.8 0 0 1-.438-.42c-.195-.388-.13-.776.08-1.107.18-.283.473-.48.868-.619.4-.14.88-.23 1.455-.279.37-.03.737-.042 1.096-.037.28.004.538.018.77.042.47.05.86.13 1.17.24a2 2 0 0 1 .73.45c.24.23.36.5.36.81 0 .37-.15.68-.45.92-.3.24-.72.36-1.26.36a5 5 0 0 1-1.3-.17 7 7 0 0 1-1.42-.52c-.44-.22-.79-.47-1.05-.75-.24-.26-.38-.54-.42-.84-.04-.3-.01-.58.1-.84.11-.26.29-.48.55-.66.26-.18.57-.3.94-.37.37-.07.78-.09 1.23-.06.45.03.88.11 1.29.24.41.13.76.31 1.05.54.29.23.49.51.6.84.11.33.11.69 0 1.08-.11.39-.33.72-.66.99-.33.27-.77.44-1.32.51-.55.07-1.19.04-1.92-.09-.73-.13-1.48-.36-2.25-.69z"/></svg>
+                    Daily Audit PDF
                 </button>
-                <button class="btn btn-secondary btn-sm" onclick="generateReport(this, 'monthly', 'month', 'csv')" id="btn-monthly-report-csv">
-                    <i class="bi bi-filetype-csv"></i> Monthly CSV
+                <button class="btn btn-secondary btn-sm" onclick="generateReport(this, 'weekly', 'week', 'pdf')" id="btn-weekly-report-pdf" style="padding: 6px 12px; font-size: 13px;">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="#ef4444" style="vertical-align: -1px; margin-right: 4px;"><path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2M9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5z"/></svg>
+                    Weekly Summary PDF
+                </button>
+                <button class="btn btn-secondary btn-sm" onclick="generateReport(this, 'monthly', 'month', 'pdf')" id="btn-monthly-report-pdf" style="padding: 6px 12px; font-size: 13px;">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="#ef4444" style="vertical-align: -1px; margin-right: 4px;"><path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2M9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5z"/></svg>
+                    Monthly Financial PDF
                 </button>
             </div>
         </div>
 
+        <!-- 2. Spreadsheet CSV Exports -->
         <div>
-            <div style="font-weight: 600; font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;">Quick Data Export</div>
+            <div class="text-xs font-semibold text-muted text-uppercase mb-xs" style="letter-spacing: 0.5px;">📊 Period CSV Spreadsheets</div>
             <div class="d-flex gap-sm flex-wrap">
-                <a href="{% url 'dashboard:sessions' %}" class="btn btn-secondary btn-sm" id="export-sessions-link">
-                    <i class="bi bi-table"></i> Sessions
-                </a>
-                <button class="btn btn-secondary btn-sm" onclick="window.open('/api/connected-users/')" id="export-connected-btn">
-                    <i class="bi bi-people"></i> Connected Users
+                <button class="btn btn-secondary btn-sm" onclick="generateReport(this, 'daily', 'today', 'csv')" id="btn-daily-report-csv" style="padding: 6px 12px; font-size: 13px;">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="#10b981" style="vertical-align: -1px; margin-right: 4px;"><path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2M9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5z"/></svg>
+                    Daily CSV
                 </button>
-
+                <button class="btn btn-secondary btn-sm" onclick="generateReport(this, 'weekly', 'week', 'csv')" id="btn-weekly-report-csv" style="padding: 6px 12px; font-size: 13px;">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="#10b981" style="vertical-align: -1px; margin-right: 4px;"><path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2M9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5z"/></svg>
+                    Weekly CSV
+                </button>
+                <button class="btn btn-secondary btn-sm" onclick="generateReport(this, 'monthly', 'month', 'csv')" id="btn-monthly-report-csv" style="padding: 6px 12px; font-size: 13px;">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="#10b981" style="vertical-align: -1px; margin-right: 4px;"><path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2M9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5z"/></svg>
+                    Monthly CSV
+                </button>
             </div>
         </div>
     </div>
+</div>
+
+<!-- Section 4: Recent Sessions Ledger -->
+<div class="chart-card animate-fadeIn" style="animation-delay: 500ms">
+    <div class="chart-header">
+        <h3 class="chart-title">Recent Session Transactions</h3>
+        <a href="{% url 'dashboard:sessions' %}" class="btn btn-sm btn-secondary" style="font-size: 12px; padding: 4px 10px;">
+            View All in Sessions Table →
+        </a>
+    </div>
+
+    {% if recent_sessions %}
+    <div class="table-container" style="overflow-x: auto;">
+        <table>
+            <thead>
+                <tr>
+                    <th>Session ID</th>
+                    <th>Device Name</th>
+                    <th>Plan</th>
+                    <th>Amount</th>
+                    <th>Time Started</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in recent_sessions %}
+                <tr>
+                    <td>#{{ s.id }}</td>
+                    <td class="font-semibold" style="max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ s.device_name|default:"Unknown" }}</td>
+                    <td>
+                        <span class="badge" style="background: rgba(123, 45, 59, 0.08); color: var(--color-dark, #7b2d3b); font-weight: 600;">
+                            {{ s.plan.name|default:"Custom" }}
+                        </span>
+                    </td>
+                    <td class="font-semibold" style="color: #10b981;">₱{{ s.amount_paid }}</td>
+                    <td class="text-xs text-muted">{{ s.time_in|date:"M d, h:i A" }}</td>
+                    <td>
+                        <span class="badge badge-{% if s.status == 'active' %}active{% elif s.status == 'paused' %}paused{% else %}expired{% endif %}" style="font-size: 11px; padding: 2px 8px;">{{ s.status|upper }}</span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state" style="padding: 24px;">
+        <p class="font-semibold" style="margin: 0;">No recent sessions found</p>
+    </div>
+    {% endif %}
 </div>
 
 {% endblock %}
@@ -251,7 +279,7 @@
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     const ctx = document.getElementById('reports-revenue-chart');
-    if (!ctx) return;
+    if (!ctx || typeof Chart === 'undefined') return;
 
     const dailyData = [
         {% for d in daily_revenue %}
@@ -266,13 +294,14 @@ document.addEventListener('DOMContentLoaded', () => {
             datasets: [{
                 label: 'Revenue',
                 data: dailyData.map(d => d.revenue),
-                borderColor: '#3B82F6',
-                backgroundColor: 'rgba(59,130,246,0.1)',
+                borderColor: '#7b2d3b',
+                backgroundColor: 'rgba(123, 45, 59, 0.08)',
                 fill: true,
-                tension: 0.4,
-                pointRadius: 5,
-                pointBackgroundColor: '#3B82F6',
-                pointBorderColor: '#fff',
+                tension: 0.35,
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                pointBackgroundColor: '#7b2d3b',
+                pointBorderColor: '#ffffff',
                 pointBorderWidth: 2,
             }]
         },
@@ -282,18 +311,32 @@ document.addEventListener('DOMContentLoaded', () => {
             plugins: {
                 legend: { display: false },
                 tooltip: {
+                    backgroundColor: '#1e293b',
+                    padding: 12,
+                    titleFont: { family: "'Inter', sans-serif", size: 13 },
+                    bodyFont: { family: "'Inter', sans-serif", size: 13 },
                     callbacks: {
-                        label: (ctx) => '₱' + ctx.parsed.y.toLocaleString()
+                        label: (ctx) => '₱' + Number(ctx.parsed.y).toLocaleString()
                     }
                 }
             },
             scales: {
                 y: {
                     beginAtZero: true,
-                    grid: { color: '#E2E8F0' },
-                    ticks: { callback: (val) => '₱' + val }
+                    grid: { color: '#e2e8f0' },
+                    ticks: {
+                        callback: (val) => '₱' + Number(val).toLocaleString(),
+                        font: { family: "'Inter', sans-serif", size: 12 },
+                        color: '#64748b'
+                    }
                 },
-                x: { grid: { display: false } }
+                x: {
+                    grid: { display: false },
+                    ticks: {
+                        font: { family: "'Inter', sans-serif", size: 12 },
+                        color: '#64748b'
+                    }
+                }
             }
         }
     });

@@ -838,11 +838,13 @@ def reports(request):
     net_profit = round(revenue_all_time - total_expenses, 2)
     roi_pct = round((net_profit / total_investment * 100), 1) if total_investment > 0 else 0
 
-    # === Top Plans ===
+    # === Top Plans (Excluding ₱0 prizes) ===
     top_plans = Session.objects.filter(
         time_in__date__gte=month_ago,
-        status__in=['active', 'expired', 'paused']
-    ).values('plan__name', 'plan__price').annotate(
+        status__in=['active', 'expired', 'paused'],
+        amount_paid__gt=0,
+        plan__isnull=False
+    ).exclude(plan__name__startswith="Prize:").values('plan__name', 'plan__price').annotate(
         count=Count('id'),
         total=Sum('amount_paid'),
     ).order_by('-count')[:5]
