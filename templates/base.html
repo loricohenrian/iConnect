@@ -1,4 +1,4 @@
-﻿{% load static %}
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -8,10 +8,10 @@
     <title>{% block title %}iConnect{% endblock %}</title>
 
     <!-- Local icon fallback to avoid external CDN dependency -->
-    <link rel="stylesheet" href="{% static 'css/icons-fallback.css' %}">
+    <link rel="stylesheet" href="{% static 'css/icons-fallback.css' %}?v=3">
 
     <!-- iConnect Base CSS -->
-    <link rel="stylesheet" href="{% static 'css/base.css' %}">
+    <link rel="stylesheet" href="{% static 'css/base.css' %}?v=3">
 
     {% block extra_css %}{% endblock %}
 </head>

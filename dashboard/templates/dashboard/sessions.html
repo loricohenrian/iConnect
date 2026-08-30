@@ -135,26 +135,26 @@
                         <div class="d-flex gap-xs" style="justify-content: flex-end;">
                             {% if session.status == 'active' %}
                             <button class="action-btn action-btn-pause" title="Pause Session" onclick="openActionModal({{ session.id }}, 'pause', '{{ session.device_name|escapejs }}', '{{ session.mac_address }}')">
-                                <i class="bi bi-pause-fill"></i>
+                                <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5zm5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5z"/></svg>
                             </button>
                             {% elif session.status == 'paused' %}
                             <button class="action-btn action-btn-resume" title="Resume Session" onclick="openActionModal({{ session.id }}, 'resume', '{{ session.device_name|escapejs }}', '{{ session.mac_address }}')">
-                                <i class="bi bi-play-fill"></i>
+                                <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z"/></svg>
                             </button>
                             {% endif %}
                             
                             <button class="action-btn action-btn-edit" title="Edit Hostname" onclick="openActionModal({{ session.id }}, 'edit', '{{ session.device_name|escapejs }}', '{{ session.mac_address }}')">
-                                <i class="bi bi-pencil-square"></i>
+                                <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708zm.646 6.061L9.793 2.5 3.293 9H3.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.207zm-7.468 7.468A.5.5 0 0 1 6 13.5V13h-.5a.5.5 0 0 1-.5-.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.5-.5V10h-.5a.5.5 0 0 1-.175-.032l-.179.178a.5.5 0 0 0-.11.168l-2 5a.5.5 0 0 0 .65.65l5-2a.5.5 0 0 0 .168-.11z"/></svg>
                             </button>
 
                             {% if session.status == 'active' or session.status == 'paused' %}
                             <button class="action-btn action-btn-disconnect" title="End Session" onclick="openActionModal({{ session.id }}, 'disconnect', '{{ session.device_name|escapejs }}', '{{ session.mac_address }}')">
-                                <i class="bi bi-stop-fill"></i>
+                                <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M5 3.5h6A1.5 1.5 0 0 1 12.5 5v6a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 11V5A1.5 1.5 0 0 1 5 3.5z"/></svg>
                             </button>
                             {% endif %}
 
                             <button class="action-btn action-btn-block" title="Block Device (Blacklist)" onclick="openActionModal({{ session.id }}, 'block', '{{ session.device_name|escapejs }}', '{{ session.mac_address }}')">
-                                <i class="bi bi-ban"></i>
+                                <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M15 8a6.973 6.973 0 0 0-1.71-4.584l-9.874 9.874A7 7 0 0 0 15 8M2.71 12.584l9.874-9.874A7 7 0 0 0 1 8a6.973 6.973 0 0 0 1.71 4.584M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0"/></svg>
                             </button>
                         </div>
                     </td>
@@ -181,7 +181,7 @@
         
         <div class="d-flex align-items-center gap-sm mb-md">
             <div id="modalIconContainer" style="width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px;">
-                <i id="modalIcon" class="bi bi-info-circle"></i>
+                <!-- Dynamic SVG Icon -->
             </div>
             <div>
                 <h3 id="modalTitle" class="card-title m-0" style="font-size: 1.15rem;">Confirm Action</h3>
@@ -216,9 +216,11 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 13px;
     cursor: pointer;
     transition: all 0.15s ease;
+}
+.action-btn svg {
+    display: block;
 }
 .action-btn:hover {
     transform: translateY(-1px);
@@ -256,6 +258,14 @@
     let currentSessionId = null;
     let currentAction = null;
 
+    const modalIcons = {
+        pause: `<svg width="22" height="22" viewBox="0 0 16 16" fill="currentColor"><path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5zm5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5z"/></svg>`,
+        resume: `<svg width="22" height="22" viewBox="0 0 16 16" fill="currentColor"><path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z"/></svg>`,
+        edit: `<svg width="22" height="22" viewBox="0 0 16 16" fill="currentColor"><path d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708zm.646 6.061L9.793 2.5 3.293 9H3.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.207zm-7.468 7.468A.5.5 0 0 1 6 13.5V13h-.5a.5.5 0 0 1-.5-.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.5-.5V10h-.5a.5.5 0 0 1-.175-.032l-.179.178a.5.5 0 0 0-.11.168l-2 5a.5.5 0 0 0 .65.65l5-2a.5.5 0 0 0 .168-.11z"/></svg>`,
+        disconnect: `<svg width="22" height="22" viewBox="0 0 16 16" fill="currentColor"><path d="M5 3.5h6A1.5 1.5 0 0 1 12.5 5v6a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 11V5A1.5 1.5 0 0 1 5 3.5z"/></svg>`,
+        block: `<svg width="22" height="22" viewBox="0 0 16 16" fill="currentColor"><path d="M15 8a6.973 6.973 0 0 0-1.71-4.584l-9.874 9.874A7 7 0 0 0 15 8M2.71 12.584l9.874-9.874A7 7 0 0 0 1 8a6.973 6.973 0 0 0 1.71 4.584M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0"/></svg>`
+    };
+
     function openActionModal(sessionId, action, currentName = '', macAddress = '') {
         currentSessionId = sessionId;
         currentAction = action;
@@ -263,7 +273,6 @@
         const modal = document.getElementById('sessionActionModal');
         const title = document.getElementById('modalTitle');
         const subtitle = document.getElementById('modalSubtitle');
-        const icon = document.getElementById('modalIcon');
         const iconBox = document.getElementById('modalIconContainer');
         const bodyText = document.getElementById('modalBodyText');
         const inputContainer = document.getElementById('modalInputContainer');
@@ -272,11 +281,11 @@
 
         inputContainer.style.display = 'none';
         confirmBtn.className = 'btn';
+        iconBox.innerHTML = modalIcons[action] || '';
 
         if (action === 'pause') {
             title.innerText = 'Pause Session';
             subtitle.innerText = `Session #${sessionId} (${currentName || 'Unknown'})`;
-            icon.className = 'bi bi-pause-fill';
             iconBox.style.background = 'rgba(245,158,11,0.12)';
             iconBox.style.color = '#f59e0b';
             bodyText.innerHTML = `Are you sure you want to pause this session? Internet access will be temporarily stopped until resumed.`;
@@ -285,7 +294,6 @@
         } else if (action === 'resume') {
             title.innerText = 'Resume Session';
             subtitle.innerText = `Session #${sessionId} (${currentName || 'Unknown'})`;
-            icon.className = 'bi bi-play-fill';
             iconBox.style.background = 'rgba(16,185,129,0.12)';
             iconBox.style.color = '#10b981';
             bodyText.innerHTML = `Resume internet access for this user? The remaining timer will continue counting down.`;
@@ -294,7 +302,6 @@
         } else if (action === 'edit') {
             title.innerText = 'Edit Hostname';
             subtitle.innerText = `Session #${sessionId}`;
-            icon.className = 'bi bi-pencil-square';
             iconBox.style.background = 'rgba(99,102,241,0.12)';
             iconBox.style.color = '#6366f1';
             bodyText.innerHTML = `Enter a friendly device name / hostname for this student:`;
@@ -306,7 +313,6 @@
         } else if (action === 'disconnect') {
             title.innerText = 'End Active Session';
             subtitle.innerText = `Session #${sessionId} (${currentName || 'Unknown'})`;
-            icon.className = 'bi bi-stop-fill';
             iconBox.style.background = 'rgba(234,88,12,0.12)';
             iconBox.style.color = '#ea580c';
             bodyText.innerHTML = `Disconnect this session now? The student will immediately lose active internet access.`;
@@ -317,7 +323,6 @@
         } else if (action === 'block') {
             title.innerText = 'Block Device from WiFi';
             subtitle.innerText = `MAC: ${macAddress || 'Unknown'}`;
-            icon.className = 'bi bi-ban';
             iconBox.style.background = 'rgba(239,68,68,0.12)';
             iconBox.style.color = '#ef4444';
             bodyText.innerHTML = `Are you sure you want to <strong>blacklist and block</strong> this device (<code>${macAddress}</code>)? It will be permanently disconnected and denied WiFi access.`;
