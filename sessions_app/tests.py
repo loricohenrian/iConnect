@@ -295,7 +295,7 @@ class SessionApiTests(TestCase):
             }
         },
     )
-    def test_unscoped_coin_insert_rejected_when_no_active_request(self):
+    def test_unscoped_coin_insert_logged_as_unassigned_revenue(self):
         # No request created, coin sent unscoped (no mac_address)
         response = self.client.post(
             reverse("sessions_app:coin-inserted"),
@@ -303,8 +303,14 @@ class SessionApiTests(TestCase):
             format="json",
             HTTP_X_DEVICE_API_KEY="test-device-key",
         )
-        self.assertEqual(response.status_code, 409)
-        self.assertEqual(CoinEvent.objects.count(), 0)
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(CoinEvent.objects.count(), 1)
+        event = CoinEvent.objects.first()
+        self.assertIsNone(event.mac_address)
+        self.assertIsNone(event.session)
+        self.assertEqual(event.amount, 5)
+        # Verify no active session was granted
+        self.assertEqual(Session.objects.count(), 0)
 
     @override_settings(PISONET_DEVICE_API_KEY="test-device-key")
     def test_coinslot_status_lifecycle(self):

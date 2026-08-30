@@ -178,13 +178,10 @@ def run_gpio():
                 if pulse_count in (1, 5, 10, 20):
                     amount = pulse_count
                     if not is_slot_active and not device_scope_active():
-                        logger.warning(
-                            "⛔ ₱%d coin pulse received but coinslot is LOCKED (No active request). Ignoring pulse.",
-                            amount
-                        )
+                        logger.info("₱%d unassigned coin detected (recorded in revenue, no active session)", amount)
                     else:
-                        logger.info("₱%d coin detected (%d pulses)", amount, pulse_count)
-                        send_coin_event(amount, amount)
+                        logger.info("₱%d coin detected for active session (%d pulses)", amount, pulse_count)
+                    send_coin_event(amount, amount)
                 else:
                     logger.warning("Invalid pulse count: %d. Ignoring.", pulse_count)
 

@@ -384,23 +384,6 @@ def coin_inserted(request):
         if assigned_request:
             mac_address = assigned_request.mac_address
 
-    # Reject coin insertion if no active request exists for unscoped coin insertion
-    if not mac_address and not assigned_request:
-        audit_logger.warning(
-            "event=coin_rejected_no_active_request amount=%s denomination=%s ip=%s",
-            amount,
-            denomination,
-            _client_ip(request),
-        )
-        return Response(
-            {
-                "status": "rejected",
-                "error": "No active coin slot request",
-                "message": "Coin rejected: Coinslot is locked until a user taps 'Request Coin Slot' on the portal.",
-            },
-            status=status.HTTP_409_CONFLICT,
-        )
-
     session = None
     voucher_code = None
     if mac_address:
@@ -412,6 +395,7 @@ def coin_inserted(request):
     # When a coin request exists (extend flow), DON'T link coin to the session.
     # _pending_coin_events_for_mac filters session__isnull=True, so linked
     # coins would be invisible to the coin request progress tracker.
+    # If no active request and no mac, coin is saved as unassigned revenue (pure profit).
     coin_event = CoinEvent.objects.create(
         amount=amount,
         denomination=denomination,
@@ -422,7 +406,7 @@ def coin_inserted(request):
         "event=coin_received amount=%s denomination=%s mac=%s request_id=%s ip=%s",
         amount,
         denomination,
-        mac_address or "<none>",
+        mac_address or "<unassigned>",
         assigned_request.id if assigned_request else "<none>",
         _client_ip(request),
     )
@@ -450,7 +434,7 @@ def coin_inserted(request):
     return Response(
         {
             "status": "success",
-            "message": f"{PESO_SYMBOL}{amount} coin received",
+            "message": f"{PESO_SYMBOL}{amount} coin received" if assigned_request or mac_address else f"{PESO_SYMBOL}{amount} unassigned coin logged",
             "coin_event_id": coin_event.id,
             "voucher_code": voucher_code,
             "amount": amount,
