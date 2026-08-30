@@ -1109,7 +1109,7 @@ def roi(request):
                 OperatingExpense.objects.filter(id=expense_id).delete()
         return redirect('dashboard:roi')
 
-    # === INVESTMENT (one-time project costs) ===
+    # === INVESTMENT (one-time capital project costs) ===
     total_investment = ProjectCost.total_cost()
     costs = ProjectCost.objects.all()
 
@@ -1118,12 +1118,20 @@ def roi(request):
         total=Sum('amount')
     )['total'] or 0
 
-    # === OPERATING EXPENSES ===
+    # === OPERATING DAYS ===
     first_session = Session.objects.order_by('time_in').first()
-    if first_session:
-        days_operating = max((timezone.now() - first_session.time_in).days, 1)
+    first_coin = CoinEvent.objects.order_by('timestamp').first()
+    first_dates = []
+    if first_session and first_session.time_in:
+        first_dates.append(first_session.time_in)
+    if first_coin and first_coin.timestamp:
+        first_dates.append(first_coin.timestamp)
+
+    if first_dates:
+        earliest_date = min(first_dates)
+        days_operating = max((timezone.now() - earliest_date).days, 1)
     else:
-        days_operating = 0
+        days_operating = 1
 
     operating_expenses = OperatingExpense.objects.all()
     total_expenses = OperatingExpense.calculate_total_expenses(days_operating)
@@ -1132,26 +1140,35 @@ def roi(request):
     net_profit = round(gross_revenue - total_expenses, 2)
 
     # === ROI COMPUTATION ===
-    # ROI = (Net Profit / Total Investment) × 100
-    roi_pct = round((net_profit / total_investment * 100), 1) if total_investment > 0 else 0
+    # ROI % = (Net Profit / Total Investment) * 100
+    if total_investment > 0:
+        roi_pct = round((net_profit / total_investment * 100), 1)
+        recovery_progress = min(100, max(0, round((net_profit / total_investment * 100), 1)))
+    else:
+        roi_pct = 100.0 if net_profit > 0 else 0.0
+        recovery_progress = 100.0 if net_profit > 0 else 0.0
 
-    # === DAILY AVERAGES ===
+    # === DAILY AVERAGES & BREAKEVEN FORECAST ===
     if days_operating > 0 and gross_revenue > 0:
         daily_avg_revenue = round(gross_revenue / days_operating, 2)
         daily_avg_expense = round(total_expenses / days_operating, 2)
         daily_avg_profit = round(net_profit / days_operating, 2)
 
-        # Breakeven: based on NET daily profit (not gross revenue)
-        if daily_avg_profit > 0:
-            remaining_to_recover = max(0, total_investment - net_profit)
-            days_to_breakeven = int(remaining_to_recover / daily_avg_profit) if daily_avg_profit > 0 else 0
-            
-            # Cap breakeven days to 100 years to prevent OverflowError
-            if days_to_breakeven > 36500:
+        # Remaining capital to recover
+        remaining_to_recover = max(0, total_investment - net_profit)
+
+        if remaining_to_recover == 0:
+            is_breakeven_reached = True
+            days_to_breakeven = 0
+            projected_date = timezone.localdate()
+        elif daily_avg_profit > 0:
+            is_breakeven_reached = False
+            days_to_breakeven = int(remaining_to_recover / daily_avg_profit)
+            if days_to_breakeven > 36500:  # Cap at 100 years
                 days_to_breakeven = 36500
-                
             projected_date = timezone.localdate() + timedelta(days=days_to_breakeven)
         else:
+            is_breakeven_reached = False
             days_to_breakeven = 0
             projected_date = None
     else:
@@ -1160,40 +1177,34 @@ def roi(request):
         daily_avg_profit = 0
         days_to_breakeven = 0
         projected_date = None
+        is_breakeven_reached = False
+        remaining_to_recover = total_investment
 
-    # Monthly projections
+    # Monthly projections (30-day baseline)
     monthly_revenue = round(daily_avg_revenue * 30, 2)
     monthly_expenses = round(daily_avg_expense * 30, 2)
     monthly_profit = round(daily_avg_profit * 30, 2)
 
     context = {
-        # Investment
         'total_investment': total_investment,
         'costs': costs,
-        # Revenue
         'gross_revenue': gross_revenue,
-        'total_revenue': gross_revenue,  # backward compat
-        # Operating Expenses
         'total_expenses': total_expenses,
         'operating_expenses': operating_expenses,
-        # Profit
         'net_profit': net_profit,
-        # ROI
         'roi_percentage': roi_pct,
-        'total_cost': total_investment,  # backward compat
-        # Daily Averages
+        'recovery_progress': recovery_progress,
+        'remaining_to_recover': remaining_to_recover,
+        'is_breakeven_reached': is_breakeven_reached,
         'daily_avg_revenue': daily_avg_revenue,
         'daily_avg_expense': daily_avg_expense,
         'daily_avg_profit': daily_avg_profit,
         'days_operating': days_operating,
-        # Monthly Projections
         'monthly_revenue': monthly_revenue,
         'monthly_expenses': monthly_expenses,
         'monthly_profit': monthly_profit,
-        # Breakeven
         'days_to_breakeven': days_to_breakeven,
         'projected_breakeven': projected_date,
-        # Settings (for display)
         'active_page': 'roi',
     }
     return render(request, 'dashboard/roi.html', context)
