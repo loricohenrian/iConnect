@@ -313,6 +313,7 @@
             <thead>
                 <tr>
                     <th>Hostname</th>
+                    <th>Plan</th>
                     <th>Amount</th>
                     <th>Time In</th>
                     <th>Remaining</th>
@@ -325,6 +326,11 @@
                     <td>
                         <div class="font-semibold">{{ session.device_name|default:"Unknown" }}</div>
                         <div class="text-xs text-muted">{{ session.mac_address }}</div>
+                    </td>
+                    <td>
+                        <span class="badge" style="background: rgba(123, 45, 59, 0.08); color: var(--color-dark, #7b2d3b); font-weight: 600;">
+                            {{ session.plan.name|default:"Custom" }}
+                        </span>
                     </td>
                     <td class="font-semibold">₱{{ session.amount_paid }}</td>
                     <td>{{ session.time_in|date:"M d, h:i A" }}</td>

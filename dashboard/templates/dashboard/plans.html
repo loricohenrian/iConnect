@@ -24,6 +24,7 @@
         <table style="min-width: 800px;">
             <thead>
                 <tr>
+                    <th>Plan Name</th>
                     <th>Price</th>
                     <th>Duration</th>
                     <th>DL Speed</th>
@@ -37,6 +38,7 @@
             <tbody>
                 {% for plan in plans %}
                 <tr>
+                    <td class="font-semibold" style="color: var(--color-dark);">{{ plan.name }}</td>
                     <td style="font-weight: 600;">₱{{ plan.price }}</td>
                     <td>{{ plan.duration_minutes }} mins</td>
                     <td>{{ plan.speed_limit|default_if_none:"Default" }}{% if plan.speed_limit %} Mbps{% endif %}</td>
@@ -54,6 +56,7 @@
                         <div class="d-flex gap-xs" style="justify-content: flex-end;">
                             <button class="btn btn-sm" style="background: var(--surface-hover); color: var(--text-primary); border: 1px solid var(--border-color);" onclick="openPlanModal('edit', {
                                 id: '{{ plan.id }}',
+                                name: '{{ plan.name|escapejs }}',
                                 price: '{{ plan.price }}',
                                 duration_minutes: '{{ plan.duration_minutes }}',
                                 speed_limit: '{{ plan.speed_limit|default_if_none:"" }}',
@@ -93,6 +96,11 @@
             {% csrf_token %}
             <input type="hidden" name="action" id="planModalAction" value="create">
             <input type="hidden" name="plan_id" id="planModalId" value="">
+
+            <div class="form-group mb-sm">
+                <label class="form-label">Plan Name</label>
+                <input type="text" class="form-input" name="name" id="planModalName" placeholder="e.g. ₱5 Regular, Study Pass (Leave blank for default)">
+            </div>
 
             <div class="grid-2">
                 <div class="form-group">
@@ -177,6 +185,7 @@
             document.getElementById('planModalSubmitBtn').innerText = 'Create Plan';
             
             // Reset fields
+            document.getElementById('planModalName').value = '';
             document.getElementById('planModalPrice').value = '';
             document.getElementById('planModalDuration').value = '';
             document.getElementById('planModalSpeed').value = '';
@@ -191,6 +200,7 @@
             document.getElementById('planModalSubmitBtn').innerText = 'Save Changes';
             
             // Populate fields
+            document.getElementById('planModalName').value = data.name || '';
             document.getElementById('planModalPrice').value = data.price;
             document.getElementById('planModalDuration').value = data.duration_minutes;
             document.getElementById('planModalSpeed').value = data.speed_limit;

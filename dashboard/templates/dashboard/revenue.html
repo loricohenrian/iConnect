@@ -136,6 +136,7 @@
                 <tr>
                     <th>ID</th>
                     <th>Hostname</th>
+                    <th>Plan</th>
                     <th>Date & Time</th>
                     <th>IP Address</th>
                     <th>Duration</th>
@@ -150,6 +151,11 @@
                     <td>
                         <div class="font-semibold" style="color: var(--color-dark);">{{ session.device_name|default:"Unknown" }}</div>
                         <div class="font-mono text-xs text-muted">{{ session.mac_address }}</div>
+                    </td>
+                    <td>
+                        <span class="badge" style="background: rgba(123, 45, 59, 0.08); color: var(--color-dark, #7b2d3b); font-weight: 600;">
+                            {{ session.plan.name|default:"Custom" }}
+                        </span>
                     </td>
                     <td>
                         <div class="font-medium" style="color: var(--color-dark);">{{ session.time_in|date:"M d, Y" }}</div>
