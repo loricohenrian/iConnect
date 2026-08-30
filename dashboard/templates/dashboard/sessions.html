@@ -60,11 +60,11 @@
     </div>
     <div class="stat-card animate-fadeIn" style="animation-delay: 300ms">
         <div class="stat-info">
-            <div class="stat-label">Disconnected</div>
+            <div class="stat-label">Expired</div>
             <div class="stat-value" style="color: var(--color-danger);">{{ disconnected_users|default:"0" }}</div>
         </div>
         <div class="static-icon" style="color: var(--color-danger);">
-            <i class="bi bi-x-circle"></i>
+            <i class="bi bi-clock-history"></i>
         </div>
     </div>
 </div>
@@ -78,6 +78,7 @@
                 <tr>
                     <th>ID</th>
                     <th>Hostname</th>
+                    <th>Plan</th>
                     <th>IP</th>
                     <th>MAC</th>
                     <th>Data Usage</th>
@@ -86,14 +87,14 @@
                     <th>Time In</th>
                     <th>Time Out</th>
                     <th>Duration</th>
-                    <th>Actions</th>
+                    <th style="text-align: right;">Actions</th>
                 </tr>
             </thead>
             <tbody>
                 {% for session in sessions %}
                 <tr>
                     <td>#{{ session.id }}</td>
-                    <td title="{{ session.device_name|default:'—' }}" style="max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    <td title="{{ session.device_name|default:'—' }}" style="max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                         <div class="font-semibold">{{ session.device_name|default:"Unknown" }}</div>
                         {% if session.session_group %}
                         <div class="text-xs" style="color: #6366F1; margin-top: 2px;">
@@ -101,7 +102,12 @@
                         </div>
                         {% endif %}
                     </td>
-                    <td class="text-xs">{{ session.ip_address|default:"—" }}</td>
+                    <td>
+                        <span class="badge" style="background: rgba(123, 45, 59, 0.08); color: var(--color-dark, #7b2d3b); font-weight: 600;">
+                            {{ session.plan.name|default:"Custom" }}
+                        </span>
+                    </td>
+                    <td class="text-xs font-mono">{{ session.ip_address|default:"—" }}</td>
                     <td class="font-mono text-xs text-muted">{{ session.mac_address }}</td>
                     <td class="text-xs">{{ session.bandwidth_used_mb|floatformat:1 }} MB</td>
                     <td class="text-xs font-mono {% if session.status == 'active' %}countdown-cell{% endif %}" data-remaining="{{ session.time_remaining_seconds|floatformat:0 }}" data-status="{{ session.status }}">
@@ -123,15 +129,23 @@
                     <td class="text-xs">{{ session.time_in|date:"M d, h:i A" }}</td>
                     <td class="text-xs">{{ session.time_out|date:"M d, h:i A"|default:"—" }}</td>
                     <td class="text-xs">{{ session.duration_minutes_purchased }}m</td>
-                    <td>
-                        <div class="d-flex gap-xs">
+                    <td style="text-align: right;">
+                        <div class="d-flex gap-xs" style="justify-content: flex-end;">
                             {% if session.status == 'active' %}
-                            <button class="btn btn-sm btn-secondary" style="padding: 2px 6px;" title="Pause" onclick="handleSessionAction({{ session.id }}, 'pause')"><i class="bi bi-pause-circle"></i></button>
+                            <button class="action-btn action-btn-pause" title="Pause Session" onclick="openActionModal({{ session.id }}, 'pause', '{{ session.device_name|escapejs }}')">
+                                <i class="bi bi-pause-fill"></i>
+                            </button>
                             {% elif session.status == 'paused' %}
-                            <button class="btn btn-sm btn-secondary" style="padding: 2px 6px;" title="Resume" onclick="handleSessionAction({{ session.id }}, 'resume')"><i class="bi bi-play-circle"></i></button>
+                            <button class="action-btn action-btn-resume" title="Resume Session" onclick="openActionModal({{ session.id }}, 'resume', '{{ session.device_name|escapejs }}')">
+                                <i class="bi bi-play-fill"></i>
+                            </button>
                             {% endif %}
-                            <button class="btn btn-sm btn-secondary" style="padding: 2px 6px;" title="Edit" onclick="handleSessionAction({{ session.id }}, 'edit', '{{ session.device_name|escapejs }}')"><i class="bi bi-pencil"></i></button>
-                            <button class="btn btn-sm btn-danger" style="padding: 2px 6px;" title="Delete" onclick="handleSessionAction({{ session.id }}, 'delete')"><i class="bi bi-trash"></i></button>
+                            <button class="action-btn action-btn-edit" title="Edit Hostname" onclick="openActionModal({{ session.id }}, 'edit', '{{ session.device_name|escapejs }}')">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="action-btn action-btn-delete" title="Expire / Delete" onclick="openActionModal({{ session.id }}, 'delete', '{{ session.device_name|escapejs }}')">
+                                <i class="bi bi-trash3"></i>
+                            </button>
                         </div>
                     </td>
                 </tr>
@@ -150,27 +164,165 @@
 </div>
 {% endif %}
 
+<!-- Modern Action Modal -->
+<div id="sessionActionModal" class="modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(2px); z-index: 1050; align-items: center; justify-content: center;">
+    <div class="modal-content chart-card animate-fadeIn" style="width: 100%; max-width: 440px; margin: 1rem; position: relative; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.15);">
+        <button type="button" onclick="closeActionModal()" style="position: absolute; top: 1rem; right: 1rem; background: none; border: none; font-size: 1.5rem; color: var(--text-secondary); cursor: pointer; line-height: 1;">&times;</button>
+        
+        <div class="d-flex align-items-center gap-sm mb-md">
+            <div id="modalIconContainer" style="width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+                <i id="modalIcon" class="bi bi-info-circle"></i>
+            </div>
+            <div>
+                <h3 id="modalTitle" class="card-title m-0" style="font-size: 1.15rem;">Confirm Action</h3>
+                <p id="modalSubtitle" class="text-xs text-muted m-0">Session Management</p>
+            </div>
+        </div>
+
+        <div id="modalBodyText" style="color: var(--color-dark); font-size: 14px; margin-bottom: 1.25rem;">
+            <!-- Dynamic body message -->
+        </div>
+
+        <div id="modalInputContainer" class="form-group mb-md" style="display: none;">
+            <label class="form-label" style="font-weight: 500;">Hostname / Device Name</label>
+            <input type="text" id="modalInputDeviceName" class="form-input" placeholder="e.g. John's Laptop, Samsung A12">
+        </div>
+
+        <div class="d-flex gap-sm" style="justify-content: flex-end;">
+            <button type="button" class="btn btn-secondary" onclick="closeActionModal()">Cancel</button>
+            <button type="button" id="modalConfirmBtn" class="btn btn-primary" onclick="submitActionModal()">Confirm</button>
+        </div>
+    </div>
+</div>
+
+<style>
+.action-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 6px;
+    border: 1px solid var(--color-border, #e2e8f0);
+    background: #fff;
+    color: var(--color-dark, #334155);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.action-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+}
+.action-btn-pause:hover {
+    border-color: #f59e0b;
+    color: #f59e0b;
+    background: rgba(245,158,11,0.08);
+}
+.action-btn-resume:hover {
+    border-color: #10b981;
+    color: #10b981;
+    background: rgba(16,185,129,0.08);
+}
+.action-btn-edit:hover {
+    border-color: #6366f1;
+    color: #6366f1;
+    background: rgba(99,102,241,0.08);
+}
+.action-btn-delete:hover {
+    border-color: #ef4444;
+    color: #ef4444;
+    background: rgba(239,68,68,0.08);
+}
+</style>
+
 {% csrf_token %}
 <script>
-    function handleSessionAction(sessionId, action, currentName='') {
-        let body = null;
-        let confirmMsg = '';
+    let currentSessionId = null;
+    let currentAction = null;
 
-        if (action === 'delete') {
-            if (!confirm('Are you sure you want to delete this session? This action cannot be undone.')) return;
-        } else if (action === 'edit') {
-            const newName = prompt('Enter new hostname/device name:', currentName);
-            if (newName === null) return;
-            body = JSON.stringify({ device_name: newName });
-        } else if (action === 'pause') {
-            if (!confirm('Pause this session?')) return;
+    function openActionModal(sessionId, action, currentName = '') {
+        currentSessionId = sessionId;
+        currentAction = action;
+
+        const modal = document.getElementById('sessionActionModal');
+        const title = document.getElementById('modalTitle');
+        const subtitle = document.getElementById('modalSubtitle');
+        const icon = document.getElementById('modalIcon');
+        const iconBox = document.getElementById('modalIconContainer');
+        const bodyText = document.getElementById('modalBodyText');
+        const inputContainer = document.getElementById('modalInputContainer');
+        const inputField = document.getElementById('modalInputDeviceName');
+        const confirmBtn = document.getElementById('modalConfirmBtn');
+
+        inputContainer.style.display = 'none';
+        confirmBtn.className = 'btn';
+
+        if (action === 'pause') {
+            title.innerText = 'Pause Session';
+            subtitle.innerText = `Session #${sessionId} (${currentName || 'Unknown'})`;
+            icon.className = 'bi bi-pause-circle-fill';
+            iconBox.style.background = 'rgba(245,158,11,0.12)';
+            iconBox.style.color = '#f59e0b';
+            bodyText.innerHTML = `Are you sure you want to pause this session? Internet access will be temporarily stopped until resumed.`;
+            confirmBtn.className = 'btn btn-warning';
+            confirmBtn.innerText = 'Pause Session';
         } else if (action === 'resume') {
-            if (!confirm('Resume this session?')) return;
+            title.innerText = 'Resume Session';
+            subtitle.innerText = `Session #${sessionId} (${currentName || 'Unknown'})`;
+            icon.className = 'bi bi-play-circle-fill';
+            iconBox.style.background = 'rgba(16,185,129,0.12)';
+            iconBox.style.color = '#10b981';
+            bodyText.innerHTML = `Resume internet access for this user? The remaining timer will continue counting down.`;
+            confirmBtn.className = 'btn btn-success';
+            confirmBtn.innerText = 'Resume Session';
+        } else if (action === 'edit') {
+            title.innerText = 'Edit Hostname';
+            subtitle.innerText = `Session #${sessionId}`;
+            icon.className = 'bi bi-pencil-square';
+            iconBox.style.background = 'rgba(99,102,241,0.12)';
+            iconBox.style.color = '#6366f1';
+            bodyText.innerHTML = `Enter a friendly device name / hostname for this student:`;
+            inputContainer.style.display = 'block';
+            inputField.value = currentName;
+            confirmBtn.className = 'btn btn-primary';
+            confirmBtn.innerText = 'Save Hostname';
+            setTimeout(() => inputField.focus(), 100);
+        } else if (action === 'delete') {
+            title.innerText = 'Expire Session';
+            subtitle.innerText = `Session #${sessionId} (${currentName || 'Unknown'})`;
+            icon.className = 'bi bi-trash3-fill';
+            iconBox.style.background = 'rgba(239,68,68,0.12)';
+            iconBox.style.color = '#ef4444';
+            bodyText.innerHTML = `Are you sure you want to expire and remove this session? The device will be disconnected immediately.`;
+            confirmBtn.className = 'btn btn-danger';
+            confirmBtn.innerText = 'Confirm Expire';
+        }
+
+        modal.style.display = 'flex';
+    }
+
+    function closeActionModal() {
+        document.getElementById('sessionActionModal').style.display = 'none';
+        currentSessionId = null;
+        currentAction = null;
+    }
+
+    function submitActionModal() {
+        if (!currentSessionId || !currentAction) return;
+
+        let body = null;
+        if (currentAction === 'edit') {
+            const newName = document.getElementById('modalInputDeviceName').value.trim();
+            body = JSON.stringify({ device_name: newName });
         }
 
         const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-        
-        fetch(`/dashboard/sessions/${sessionId}/${action}/`, {
+        const confirmBtn = document.getElementById('modalConfirmBtn');
+        confirmBtn.disabled = true;
+        confirmBtn.innerText = 'Processing...';
+
+        fetch(`/dashboard/sessions/${currentSessionId}/${currentAction}/`, {
             method: 'POST',
             headers: {
                 'X-CSRFToken': csrfToken,
@@ -184,13 +336,23 @@
                 window.location.reload();
             } else {
                 alert(data.error || 'Failed to perform action');
+                confirmBtn.disabled = false;
             }
         })
         .catch(err => {
             console.error(err);
             alert('An error occurred.');
+            confirmBtn.disabled = false;
         });
     }
+
+    // Close modal on escape key or outside click
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeActionModal();
+    });
+    document.getElementById('sessionActionModal').addEventListener('click', (e) => {
+        if (e.target.id === 'sessionActionModal') closeActionModal();
+    });
 </script>
 
 {% endblock %}
