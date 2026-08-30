@@ -603,7 +603,6 @@ def session_start_cancel(request):
         
     coin_request = CoinInsertRequest.objects.filter(
         mac_address=mac_address,
-        purpose=CoinInsertRequest.PURPOSE_START,
         status__in=[CoinInsertRequest.STATUS_PENDING, CoinInsertRequest.STATUS_ACTIVE]
     ).first()
     
