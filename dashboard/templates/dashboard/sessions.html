@@ -36,8 +36,8 @@
             <div class="stat-label">Total Users</div>
             <div class="stat-value">{{ total_users|default:"0" }}</div>
         </div>
-        <div class="static-icon" style="color: var(--color-dark);">
-            <i class="bi bi-people"></i>
+        <div class="static-icon" style="color: var(--color-dark); display: flex; align-items: center; justify-content: center;">
+            <svg width="24" height="24" viewBox="0 0 16 16" fill="currentColor"><path d="M7 14s-1 0-1-1 1-4 5-4 5 3 5 4-1 1-1 1zm4-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6m-5.784 6A2.24 2.24 0 0 1 5 13c0-1.355.68-2.75 1.936-3.72A6.3 6.3 0 0 0 5 9c-4 0-5 3-5 4s1 1 1 1zM4.5 8a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5"/></svg>
         </div>
     </div>
     <div class="stat-card animate-fadeIn" style="animation-delay: 100ms">
@@ -45,8 +45,8 @@
             <div class="stat-label">Connected</div>
             <div class="stat-value" style="color: var(--color-success);">{{ connected_users|default:"0" }}</div>
         </div>
-        <div class="static-icon" style="color: var(--color-success);">
-            <i class="bi bi-wifi"></i>
+        <div class="static-icon" style="color: var(--color-success); display: flex; align-items: center; justify-content: center;">
+            <svg width="24" height="24" viewBox="0 0 16 16" fill="currentColor"><path fill-rule="evenodd" d="M0 4.882a.5.5 0 0 1 .68-.15c4.08 2.378 10.56 2.378 14.64 0a.5.5 0 0 1 .5.866c-4.38 2.553-11.26 2.553-15.64 0A.5.5 0 0 1 0 4.882m2.5 3a.5.5 0 0 1 .68-.15c2.72 1.585 7.04 1.585 9.76 0a.5.5 0 1 1 .5.866c-3.02 1.76-7.74 1.76-10.76 0a.5.5 0 0 1-.18-.716m2.5 3a.5.5 0 0 1 .68-.15c1.36.793 3.52.793 4.88 0a.5.5 0 1 1 .5.866c-1.66.968-4.22.968-5.88 0a.5.5 0 0 1-.18-.716M8 12a1 1 0 1 0 0 2 1 1 0 0 0 0-2"/></svg>
         </div>
     </div>
     <div class="stat-card animate-fadeIn" style="animation-delay: 200ms">
@@ -54,8 +54,8 @@
             <div class="stat-label">Paused</div>
             <div class="stat-value" style="color: var(--color-warning);">{{ paused_users|default:"0" }}</div>
         </div>
-        <div class="static-icon" style="color: var(--color-warning);">
-            <i class="bi bi-pause-circle"></i>
+        <div class="static-icon" style="color: var(--color-warning); display: flex; align-items: center; justify-content: center;">
+            <svg width="24" height="24" viewBox="0 0 16 16" fill="currentColor"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/><path d="M5 6.25a1.25 1.25 0 1 1 2.5 0v3.5a1.25 1.25 0 1 1-2.5 0zm3.5 0a1.25 1.25 0 1 1 2.5 0v3.5a1.25 1.25 0 1 1-2.5 0z"/></svg>
         </div>
     </div>
     <div class="stat-card animate-fadeIn" style="animation-delay: 300ms">
@@ -63,8 +63,8 @@
             <div class="stat-label">Expired</div>
             <div class="stat-value" style="color: var(--color-danger);">{{ disconnected_users|default:"0" }}</div>
         </div>
-        <div class="static-icon" style="color: var(--color-danger);">
-            <i class="bi bi-clock-history"></i>
+        <div class="static-icon" style="color: var(--color-danger); display: flex; align-items: center; justify-content: center;">
+            <svg width="24" height="24" viewBox="0 0 16 16" fill="currentColor"><path d="M8.515 1.019A7 7 0 0 0 8 1V0a8 8 0 0 1 .589.022zm2.004.45a7 7 0 0 0-.985-.299l.219-.976q.576.129 1.123.338zm2.49 1.515a7 7 0 0 0-.792-.688l.583-.811q.467.336.88.746l-.67.753zM16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0m-8-5a.5.5 0 0 0-.5.5v5.25a.5.5 0 0 0 .25.433l3.5 2a.5.5 0 0 0 .5-.866L8.5 8.35V3.5A.5.5 0 0 0 8 3"/></svg>
         </div>
     </div>
 </div>
