@@ -42,6 +42,7 @@ urlpatterns = [
     path('gamification/', views.gamification_view, name='gamification'),
     path('gamification/prize/<int:prize_id>/delete/', views.delete_prize_view, name='delete_prize'),
     path('account/', views.account_view, name='account'),
+    path('security/', views.security_view, name='security'),
     path('logs/', views.logs_view, name='logs'),
     path('sessions/<int:session_id>/<str:action>/', views.admin_session_action, name='session_action'),
     path('settings/backup/', views.backup_database, name='backup_database'),

@@ -66,6 +66,13 @@
                     <i class="bi bi-journal-text"></i>
                     <span>System Logs</span>
                 </a>
+                <a href="{% url 'dashboard:security' %}" class="nav-item {% if active_page == 'security' %}active{% endif %}" id="nav-security">
+                    <i class="bi bi-shield-lock"></i>
+                    <span>Security</span>
+                    {% if new_security_alerts_count > 0 %}
+                    <span class="badge" style="margin-left: auto; font-size: 11px; padding: 2px 6px; border-radius: 10px; background: #ef4444; color: #fff; font-weight: 700;">{{ new_security_alerts_count }}</span>
+                    {% endif %}
+                </a>
                 <a href="{% url 'dashboard:plans' %}" class="nav-item {% if active_page == 'plans' %}active{% endif %}" id="nav-plans">
                     <i class="bi bi-tags"></i>
                     <span>WiFi Rates</span>

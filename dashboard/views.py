@@ -664,6 +664,8 @@ def sessions_view(request):
             Q(ip_address__icontains=search)
         )
 
+    suspicious_macs = set(SuspiciousDevice.objects.filter(status='new').values_list('mac_address', flat=True))
+
     context = {
         'sessions': sessions[:100],
         'status_filter': status_filter,
@@ -674,6 +676,7 @@ def sessions_view(request):
         'connected_users': connected_users,
         'paused_users': paused_users,
         'disconnected_users': disconnected_users,
+        'suspicious_macs': suspicious_macs,
     }
     return render(request, 'dashboard/sessions.html', context)
 

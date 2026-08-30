@@ -95,8 +95,13 @@
                 {% for session in sessions %}
                 <tr>
                     <td>#{{ session.id }}</td>
-                    <td title="{{ session.device_name|default:'—' }}" style="max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                        <div class="font-semibold">{{ session.device_name|default:"Unknown" }}</div>
+                    <td title="{{ session.device_name|default:'—' }}" style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        <div class="font-semibold d-flex align-items-center gap-xs">
+                            <span>{{ session.device_name|default:"Unknown" }}</span>
+                            {% if session.mac_address in suspicious_macs %}
+                            <span class="badge" style="background: #fee2e2; color: #dc2626; font-size: 10px; padding: 1px 5px; border-radius: 4px; font-weight: 700;" title="Flagged for Suspicious Activity">⚠️ Alert</span>
+                            {% endif %}
+                        </div>
                         {% if session.session_group %}
                         <div class="text-xs" style="color: #6366F1; margin-top: 2px;">
                             Group: {{ session.session_group.group_code }}
