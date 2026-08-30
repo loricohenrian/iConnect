@@ -1551,17 +1551,51 @@ def admin_session_action(request, session_id, action):
         except Exception as e:
             logging.error(f"Failed to allow device on resume: {e}")
             
-    elif action == 'delete':
-        if session.status == 'active':
+    elif action in ('delete', 'end', 'disconnect'):
+        if session.status in ('active', 'paused'):
             try:
                 from sessions_app.iptables import block_device
                 block_device(session.mac_address)
             except Exception as e:
-                logging.error(f"Failed to block device on delete: {e}")
-        # Forcefully terminate the session without deleting the DB row
+                logging.error(f"Failed to block device on disconnect: {e}")
         session.status = 'expired'
-        session.save(update_fields=['status'])
-        
+        session.time_out = timezone.now()
+        session.save(update_fields=['status', 'time_out'])
+
+    elif action == 'block':
+        from sessions_app.models import SuspiciousDevice
+        try:
+            from sessions_app.iptables import block_device
+            block_device(session.mac_address)
+        except Exception as e:
+            logging.error(f"Failed to block device in iptables: {e}")
+
+        # Mark any active session as expired
+        if session.status in ('active', 'paused'):
+            session.status = 'expired'
+            session.time_out = timezone.now()
+            session.save(update_fields=['status', 'time_out'])
+
+        # Add or update Blacklist / SuspiciousDevice entry
+        susp, created = SuspiciousDevice.objects.get_or_create(
+            mac_address=session.mac_address,
+            defaults={
+                'last_ip_address': session.ip_address or '',
+                'reason': 'Manual Admin Block',
+                'evidence': f'Blocked by administrator from Users table (Session #{session.id})',
+                'status': SuspiciousDevice.STATUS_BLOCKED,
+                'is_blocked': True,
+                'blocked_at': timezone.now(),
+                'resolved_by': getattr(request.user, 'username', 'admin')
+            }
+        )
+        if not created:
+            susp.status = SuspiciousDevice.STATUS_BLOCKED
+            susp.is_blocked = True
+            susp.blocked_at = timezone.now()
+            susp.resolved_by = getattr(request.user, 'username', 'admin')
+            susp.save()
+
     elif action == 'edit':
         try:
             data = json.loads(request.body)

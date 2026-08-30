@@ -86,10 +86,35 @@
 .bi-gear::before,
 .bi-gear-fill::before { content: "\2699"; font-size: 1em; }       /* Settings */
 
-/* ─── CRUD & Edit ─── */
+/* ─── CRUD, Actions & Media ─── */
 .bi-pencil::before,
-.bi-pencil-square::before { content: "\270E"; font-size: 1em; }
-.bi-trash::before { content: "\2715"; font-size: 1em; }
+.bi-pencil-square::before,
+.bi-pencil-fill::before { content: "\270E"; font-size: 1em; }
+.bi-trash::before,
+.bi-trash-fill::before,
+.bi-trash3::before,
+.bi-trash3-fill::before { content: "\2715"; font-size: 1em; }
+.bi-pause::before,
+.bi-pause-fill::before,
+.bi-pause-circle::before,
+.bi-pause-circle-fill::before { content: "\23F8"; font-size: 1em; font-weight: bold; }
+.bi-play::before,
+.bi-play-fill::before,
+.bi-play-circle::before,
+.bi-play-circle-fill::before { content: "\25B6"; font-size: 0.9em; }
+.bi-stop::before,
+.bi-stop-fill::before,
+.bi-stop-circle::before,
+.bi-stop-circle-fill::before { content: "\25A0"; font-size: 0.9em; }
+.bi-ban::before,
+.bi-slash-circle::before,
+.bi-slash-circle-fill::before,
+.bi-shield-slash::before,
+.bi-shield-x::before,
+.bi-person-x::before { content: "\2298"; font-size: 1.1em; font-weight: bold; }
+.bi-fire::before { content: "\25B2"; font-size: 1em; }
+.bi-sunrise::before { content: "\2600"; font-size: 1em; }
+.bi-sunset::before { content: "\263C"; font-size: 1em; }
 .bi-plus::before,
 .bi-plus-lg::before { content: "+"; font-size: 1.2em; font-weight: 700; }
 .bi-arrow-repeat::before { content: "\21BB"; font-size: 1em; }

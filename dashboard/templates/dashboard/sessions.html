@@ -79,6 +79,7 @@
                     <th>ID</th>
                     <th>Hostname</th>
                     <th>Plan</th>
+                    <th>Amount</th>
                     <th>IP</th>
                     <th>MAC</th>
                     <th>Data Usage</th>
@@ -107,6 +108,7 @@
                             {{ session.plan.name|default:"Custom" }}
                         </span>
                     </td>
+                    <td class="font-semibold" style="color: var(--color-dark);">₱{{ session.amount_paid }}</td>
                     <td class="text-xs font-mono">{{ session.ip_address|default:"—" }}</td>
                     <td class="font-mono text-xs text-muted">{{ session.mac_address }}</td>
                     <td class="text-xs">{{ session.bandwidth_used_mb|floatformat:1 }} MB</td>
@@ -132,19 +134,27 @@
                     <td style="text-align: right;">
                         <div class="d-flex gap-xs" style="justify-content: flex-end;">
                             {% if session.status == 'active' %}
-                            <button class="action-btn action-btn-pause" title="Pause Session" onclick="openActionModal({{ session.id }}, 'pause', '{{ session.device_name|escapejs }}')">
+                            <button class="action-btn action-btn-pause" title="Pause Session" onclick="openActionModal({{ session.id }}, 'pause', '{{ session.device_name|escapejs }}', '{{ session.mac_address }}')">
                                 <i class="bi bi-pause-fill"></i>
                             </button>
                             {% elif session.status == 'paused' %}
-                            <button class="action-btn action-btn-resume" title="Resume Session" onclick="openActionModal({{ session.id }}, 'resume', '{{ session.device_name|escapejs }}')">
+                            <button class="action-btn action-btn-resume" title="Resume Session" onclick="openActionModal({{ session.id }}, 'resume', '{{ session.device_name|escapejs }}', '{{ session.mac_address }}')">
                                 <i class="bi bi-play-fill"></i>
                             </button>
                             {% endif %}
-                            <button class="action-btn action-btn-edit" title="Edit Hostname" onclick="openActionModal({{ session.id }}, 'edit', '{{ session.device_name|escapejs }}')">
-                                <i class="bi bi-pencil"></i>
+                            
+                            <button class="action-btn action-btn-edit" title="Edit Hostname" onclick="openActionModal({{ session.id }}, 'edit', '{{ session.device_name|escapejs }}', '{{ session.mac_address }}')">
+                                <i class="bi bi-pencil-square"></i>
                             </button>
-                            <button class="action-btn action-btn-delete" title="Expire / Delete" onclick="openActionModal({{ session.id }}, 'delete', '{{ session.device_name|escapejs }}')">
-                                <i class="bi bi-trash3"></i>
+
+                            {% if session.status == 'active' or session.status == 'paused' %}
+                            <button class="action-btn action-btn-disconnect" title="End Session" onclick="openActionModal({{ session.id }}, 'disconnect', '{{ session.device_name|escapejs }}', '{{ session.mac_address }}')">
+                                <i class="bi bi-stop-fill"></i>
+                            </button>
+                            {% endif %}
+
+                            <button class="action-btn action-btn-block" title="Block Device (Blacklist)" onclick="openActionModal({{ session.id }}, 'block', '{{ session.device_name|escapejs }}', '{{ session.mac_address }}')">
+                                <i class="bi bi-ban"></i>
                             </button>
                         </div>
                     </td>
@@ -197,8 +207,8 @@
 
 <style>
 .action-btn {
-    width: 30px;
-    height: 30px;
+    width: 28px;
+    height: 28px;
     border-radius: 6px;
     border: 1px solid var(--color-border, #e2e8f0);
     background: #fff;
@@ -229,7 +239,12 @@
     color: #6366f1;
     background: rgba(99,102,241,0.08);
 }
-.action-btn-delete:hover {
+.action-btn-disconnect:hover {
+    border-color: #ea580c;
+    color: #ea580c;
+    background: rgba(234,88,12,0.08);
+}
+.action-btn-block:hover {
     border-color: #ef4444;
     color: #ef4444;
     background: rgba(239,68,68,0.08);
@@ -241,7 +256,7 @@
     let currentSessionId = null;
     let currentAction = null;
 
-    function openActionModal(sessionId, action, currentName = '') {
+    function openActionModal(sessionId, action, currentName = '', macAddress = '') {
         currentSessionId = sessionId;
         currentAction = action;
 
@@ -261,7 +276,7 @@
         if (action === 'pause') {
             title.innerText = 'Pause Session';
             subtitle.innerText = `Session #${sessionId} (${currentName || 'Unknown'})`;
-            icon.className = 'bi bi-pause-circle-fill';
+            icon.className = 'bi bi-pause-fill';
             iconBox.style.background = 'rgba(245,158,11,0.12)';
             iconBox.style.color = '#f59e0b';
             bodyText.innerHTML = `Are you sure you want to pause this session? Internet access will be temporarily stopped until resumed.`;
@@ -270,7 +285,7 @@
         } else if (action === 'resume') {
             title.innerText = 'Resume Session';
             subtitle.innerText = `Session #${sessionId} (${currentName || 'Unknown'})`;
-            icon.className = 'bi bi-play-circle-fill';
+            icon.className = 'bi bi-play-fill';
             iconBox.style.background = 'rgba(16,185,129,0.12)';
             iconBox.style.color = '#10b981';
             bodyText.innerHTML = `Resume internet access for this user? The remaining timer will continue counting down.`;
@@ -288,15 +303,26 @@
             confirmBtn.className = 'btn btn-primary';
             confirmBtn.innerText = 'Save Hostname';
             setTimeout(() => inputField.focus(), 100);
-        } else if (action === 'delete') {
-            title.innerText = 'Expire Session';
+        } else if (action === 'disconnect') {
+            title.innerText = 'End Active Session';
             subtitle.innerText = `Session #${sessionId} (${currentName || 'Unknown'})`;
-            icon.className = 'bi bi-trash3-fill';
+            icon.className = 'bi bi-stop-fill';
+            iconBox.style.background = 'rgba(234,88,12,0.12)';
+            iconBox.style.color = '#ea580c';
+            bodyText.innerHTML = `Disconnect this session now? The student will immediately lose active internet access.`;
+            confirmBtn.className = 'btn';
+            confirmBtn.style.background = '#ea580c';
+            confirmBtn.style.color = '#fff';
+            confirmBtn.innerText = 'End Session';
+        } else if (action === 'block') {
+            title.innerText = 'Block Device from WiFi';
+            subtitle.innerText = `MAC: ${macAddress || 'Unknown'}`;
+            icon.className = 'bi bi-ban';
             iconBox.style.background = 'rgba(239,68,68,0.12)';
             iconBox.style.color = '#ef4444';
-            bodyText.innerHTML = `Are you sure you want to expire and remove this session? The device will be disconnected immediately.`;
+            bodyText.innerHTML = `Are you sure you want to <strong>blacklist and block</strong> this device (<code>${macAddress}</code>)? It will be permanently disconnected and denied WiFi access.`;
             confirmBtn.className = 'btn btn-danger';
-            confirmBtn.innerText = 'Confirm Expire';
+            confirmBtn.innerText = 'Confirm Block Device';
         }
 
         modal.style.display = 'flex';
