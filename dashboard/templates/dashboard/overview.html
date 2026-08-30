@@ -35,22 +35,30 @@
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
 }
 .hero-card-xl .stat-label {
     font-size: 13px;
     font-weight: 600;
     color: var(--color-gray);
-    margin-bottom: 8px;
+    margin: 0;
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
+.hero-card-xl .stat-value-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 0;
+}
 .hero-card-xl .stat-value {
-    font-size: 2.75rem;
+    font-size: 3rem;
     font-weight: 700;
-    line-height: 1.1;
+    line-height: 1;
     color: var(--color-dark);
     font-variant-numeric: tabular-nums;
+    text-align: center;
+    margin: 0;
 }
 .hero-side-group {
     display: grid;
@@ -112,27 +120,31 @@
     <div class="hero-main-group">
         <!-- Revenue Today -->
         <div class="hero-card-xl animate-fadeIn">
-            <div class="d-flex justify-content-between align-items-start">
+            <div class="d-flex justify-content-between align-items-center">
                 <div class="stat-label">Revenue Today</div>
                 <div class="static-icon" style="color: #059669; background: #ecfdf5; width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"></path><path d="M12 18V6"></path></svg>
                 </div>
             </div>
-            <div class="stat-value" id="revenue-today" style="text-align: center; margin: 12px 0 4px 0;">
-                <span style="font-size: 1.5rem; vertical-align: top; font-weight: 600;">₱</span>{{ revenue_today|default:"0" }}
+            <div class="stat-value-container">
+                <div class="stat-value" id="revenue-today">
+                    <span style="font-size: 1.6rem; vertical-align: top; font-weight: 600;">₱</span>{{ revenue_today|default:"0" }}
+                </div>
             </div>
         </div>
 
         <!-- Connected Users -->
         <div class="hero-card-xl animate-fadeIn" style="animation-delay: 80ms">
-            <div class="d-flex justify-content-between align-items-start">
+            <div class="d-flex justify-content-between align-items-center">
                 <div class="stat-label">Active Users</div>
                 <div class="static-icon" style="color: #2563eb; background: #eff6ff; width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
                 </div>
             </div>
-            <div class="stat-value" id="connected-users" style="text-align: center; margin: 12px 0 4px 0;">
-                {{ total_connected|default:"0" }}
+            <div class="stat-value-container">
+                <div class="stat-value" id="connected-users">
+                    {{ total_connected|default:"0" }}
+                </div>
             </div>
         </div>
     </div>
