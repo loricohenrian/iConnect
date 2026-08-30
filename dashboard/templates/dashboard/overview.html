@@ -312,9 +312,10 @@
         <table id="recent-sessions-table">
             <thead>
                 <tr>
-                    <th>Device</th>
+                    <th>Hostname</th>
                     <th>Amount</th>
                     <th>Time In</th>
+                    <th>Remaining</th>
                     <th>Status</th>
                 </tr>
             </thead>
@@ -327,6 +328,13 @@
                     </td>
                     <td class="font-semibold">₱{{ session.amount_paid }}</td>
                     <td>{{ session.time_in|date:"M d, h:i A" }}</td>
+                    <td class="text-xs font-mono">
+                        {% if session.status == 'expired' %}
+                            00:00:00
+                        {% else %}
+                            {{ session.time_remaining_display }}
+                        {% endif %}
+                    </td>
                     <td>
                         {% if session.status == 'active' %}
                             <span class="badge badge-active">Active</span>
