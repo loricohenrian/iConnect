@@ -328,7 +328,7 @@
                     </td>
                     <td class="font-semibold">₱{{ session.amount_paid }}</td>
                     <td>{{ session.time_in|date:"M d, h:i A" }}</td>
-                    <td class="text-xs font-mono">
+                    <td class="text-xs font-mono {% if session.status == 'active' %}countdown-cell{% endif %}" data-remaining="{{ session.time_remaining_seconds|floatformat:0 }}" data-status="{{ session.status }}">
                         {% if session.status == 'expired' %}
                             00:00:00
                         {% else %}
@@ -361,4 +361,34 @@
 {% endblock %}
 
 {% block dashboard_js %}
+<script>
+(function() {
+    function formatTime(totalSeconds) {
+        const h = Math.floor(totalSeconds / 3600);
+        const m = Math.floor((totalSeconds % 3600) / 60);
+        const s = totalSeconds % 60;
+        return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+    }
+
+    function tickCountdowns() {
+        document.querySelectorAll('.countdown-cell').forEach(function(cell) {
+            let remaining = parseInt(cell.getAttribute('data-remaining'), 10);
+            if (isNaN(remaining) || remaining <= 0) {
+                cell.textContent = '00:00:00';
+                cell.classList.remove('countdown-cell');
+                return;
+            }
+            remaining -= 1;
+            cell.setAttribute('data-remaining', remaining);
+            cell.textContent = formatTime(remaining);
+            if (remaining <= 0) {
+                cell.textContent = '00:00:00';
+                cell.classList.remove('countdown-cell');
+            }
+        });
+    }
+
+    setInterval(tickCountdowns, 1000);
+})();
+</script>
 {% endblock %}
