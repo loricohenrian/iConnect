@@ -1720,14 +1720,14 @@ def gamification_view(request):
                 settings_obj.points_per_streak_day = int(request.POST.get("points_per_streak_day", 5))
                 settings_obj.points_per_peso = int(request.POST.get("points_per_peso", 1))
                 settings_obj.save()
-                messages.success(request, "Gamification settings updated successfully.")
+                messages.success(request, "Gamification point rules updated successfully.")
             except ValueError:
-                messages.error(request, "Invalid input for settings. Must be numbers.")
+                messages.error(request, "Invalid input for settings. Values must be numbers.")
                 
         elif action == "add_prize" or action == "edit_prize":
             try:
                 prize_id = request.POST.get("prize_id")
-                name = request.POST.get("name")
+                name = request.POST.get("name", "").strip()
                 minutes = int(request.POST.get("minutes_reward", 0))
                 weight = int(request.POST.get("probability_weight", 10))
                 is_active = request.POST.get("is_active") == "on"
@@ -1752,7 +1752,7 @@ def gamification_view(request):
                     prize.pause_limit = pause_limit
                     prize.pause_duration_limit = pause_duration_limit
                     prize.save()
-                    messages.success(request, "Prize updated successfully.")
+                    messages.success(request, f'Prize "{name}" updated successfully.')
                 else:
                     SpinPrize.objects.create(
                         name=name,
@@ -1764,20 +1764,32 @@ def gamification_view(request):
                         pause_limit=pause_limit,
                         pause_duration_limit=pause_duration_limit
                     )
-                    messages.success(request, "New prize added successfully.")
+                    messages.success(request, f'New prize "{name}" added to wheel.')
             except ValueError:
-                messages.error(request, "Invalid input for prize details.")
+                messages.error(request, "Invalid input for prize parameters.")
             except SpinPrize.DoesNotExist:
-                messages.error(request, "Prize not found.")
+                messages.error(request, "Prize record not found.")
                 
         return redirect("dashboard:gamification")
 
-    prizes = SpinPrize.objects.all().order_by("-is_active", "-probability_weight")
+    prizes = list(SpinPrize.objects.all().order_by("-is_active", "-probability_weight"))
+    active_prizes_count = sum(1 for p in prizes if p.is_active)
+    total_prizes_count = len(prizes)
+    total_active_weight = sum(p.probability_weight for p in prizes if p.is_active) or 1
+
+    for p in prizes:
+        if p.is_active:
+            p.chance_pct = round((p.probability_weight / total_active_weight) * 100, 1)
+        else:
+            p.chance_pct = 0.0
     
     context = {
         "active_page": "gamification",
         "settings": settings_obj,
         "prizes": prizes,
+        "active_prizes_count": active_prizes_count,
+        "total_prizes_count": total_prizes_count,
+        "total_active_weight": total_active_weight,
     }
     return render(request, "dashboard/gamification.html", context)
 
