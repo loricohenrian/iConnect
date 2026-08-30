@@ -384,6 +384,23 @@ def coin_inserted(request):
         if assigned_request:
             mac_address = assigned_request.mac_address
 
+    # Reject coin insertion if no active request exists for unscoped coin insertion
+    if not mac_address and not assigned_request:
+        audit_logger.warning(
+            "event=coin_rejected_no_active_request amount=%s denomination=%s ip=%s",
+            amount,
+            denomination,
+            _client_ip(request),
+        )
+        return Response(
+            {
+                "status": "rejected",
+                "error": "No active coin slot request",
+                "message": "Coin rejected: Coinslot is locked until a user taps 'Request Coin Slot' on the portal.",
+            },
+            status=status.HTTP_409_CONFLICT,
+        )
+
     session = None
     voucher_code = None
     if mac_address:
@@ -442,6 +459,37 @@ def coin_inserted(request):
         },
         status=status.HTTP_201_CREATED,
     )
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def coinslot_status(request):
+    """
+    Check if the physical coinslot should be enabled (active request in queue).
+    Used by GPIO script / relay controller to enable or inhibit the coin selector.
+    """
+    active_req = _active_coin_request_for_unscoped_insert()
+    if active_req:
+        now = timezone.now()
+        remaining_seconds = 0
+        if active_req.expires_at and active_req.expires_at > now:
+            remaining_seconds = int((active_req.expires_at - now).total_seconds())
+        return Response({
+            "status": "success",
+            "enabled": True,
+            "active_request_id": active_req.id,
+            "mac_address": active_req.mac_address,
+            "remaining_seconds": remaining_seconds,
+            "expires_at": active_req.expires_at,
+        })
+    return Response({
+        "status": "success",
+        "enabled": False,
+        "active_request_id": None,
+        "mac_address": None,
+        "remaining_seconds": 0,
+        "expires_at": None,
+    })
 
 
 @api_view(["POST"])

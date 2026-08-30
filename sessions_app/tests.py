@@ -229,14 +229,14 @@ class SessionApiTests(TestCase):
     def test_coin_inserted_requires_device_api_key(self):
         no_key = self.client.post(
             reverse("sessions_app:coin-inserted"),
-            {"amount": 5, "denomination": 5},
+            {"amount": 5, "denomination": 5, "mac_address": self.mac_one},
             format="json",
         )
         self.assertEqual(no_key.status_code, 401)
 
         with_key = self.client.post(
             reverse("sessions_app:coin-inserted"),
-            {"amount": 5, "denomination": 5},
+            {"amount": 5, "denomination": 5, "mac_address": self.mac_one},
             format="json",
             HTTP_X_DEVICE_API_KEY="test-device-key",
         )
@@ -252,7 +252,7 @@ class SessionApiTests(TestCase):
         cache.clear()
         first = self.client.post(
             reverse("sessions_app:coin-inserted"),
-            {"amount": 5, "denomination": 5},
+            {"amount": 5, "denomination": 5, "mac_address": self.mac_one},
             format="json",
             HTTP_X_DEVICE_API_KEY="test-device-key",
         )
@@ -260,7 +260,7 @@ class SessionApiTests(TestCase):
 
         second = self.client.post(
             reverse("sessions_app:coin-inserted"),
-            {"amount": 5, "denomination": 5},
+            {"amount": 5, "denomination": 5, "mac_address": self.mac_one},
             format="json",
             HTTP_X_DEVICE_API_KEY="test-device-key",
         )
@@ -278,13 +278,53 @@ class SessionApiTests(TestCase):
     def test_coin_inserted_rejects_amount_denomination_mismatch(self):
         response = self.client.post(
             reverse("sessions_app:coin-inserted"),
-            {"amount": 10, "denomination": 5},
+            {"amount": 10, "denomination": 5, "mac_address": self.mac_one},
             format="json",
             HTTP_X_DEVICE_API_KEY="test-device-key",
         )
 
         self.assertEqual(response.status_code, 400)
         self.assertIn("amount", response.json())
+
+    @override_settings(
+        PISONET_DEVICE_API_KEY="test-device-key",
+        CACHES={
+            "default": {
+                "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+                "LOCATION": "coin-unscoped-test",
+            }
+        },
+    )
+    def test_unscoped_coin_insert_rejected_when_no_active_request(self):
+        # No request created, coin sent unscoped (no mac_address)
+        response = self.client.post(
+            reverse("sessions_app:coin-inserted"),
+            {"amount": 5, "denomination": 5},
+            format="json",
+            HTTP_X_DEVICE_API_KEY="test-device-key",
+        )
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(CoinEvent.objects.count(), 0)
+
+    @override_settings(PISONET_DEVICE_API_KEY="test-device-key")
+    def test_coinslot_status_lifecycle(self):
+        # Initially no request -> disabled
+        res_initial = self.client.get(reverse("sessions_app:coinslot-status"))
+        self.assertEqual(res_initial.status_code, 200)
+        self.assertFalse(res_initial.json()["enabled"])
+
+        # User requests coin slot -> enabled
+        req_res = self.client.post(
+            reverse("sessions_app:session-start-request"),
+            {"mac_address": self.mac_one, "plan_id": self.plan.id},
+            format="json",
+        )
+        self.assertEqual(req_res.status_code, 201)
+
+        res_active = self.client.get(reverse("sessions_app:coinslot-status"))
+        self.assertEqual(res_active.status_code, 200)
+        self.assertTrue(res_active.json()["enabled"])
+        self.assertEqual(res_active.json()["mac_address"], self.mac_one)
 
     def test_public_endpoints_stay_public_under_global_drf_defaults(self):
         responses = {

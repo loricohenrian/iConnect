@@ -7,8 +7,9 @@ from . import views
 app_name = 'sessions_app'
 
 urlpatterns = [
-    # Coin detection
+    # Coin detection & control
     path('coin-inserted/', views.coin_inserted, name='coin-inserted'),
+    path('coinslot/status/', views.coinslot_status, name='coinslot-status'),
 
     # Session management
     path('session/start/request/', views.session_start_request, name='session-start-request'),
