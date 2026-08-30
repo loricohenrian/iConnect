@@ -5,37 +5,49 @@
 
 {% block dashboard_content %}
 
-<div class="grid-2">
+<div class="grid-2" style="align-items: start;">
+    <!-- Update Email Card -->
     <div class="chart-card animate-fadeIn">
-        <h3 class="card-title mb-md"><i class="bi bi-envelope"></i> Update Email</h3>
+        <h3 class="chart-title mb-md">Update Email</h3>
 
         {% if email_message %}
-        <div class="alert alert-success">{{ email_message }}</div>
+        <div class="alert alert-success">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+            {{ email_message }}
+        </div>
         {% endif %}
         {% if email_error %}
-        <div class="alert alert-danger">{{ email_error }}</div>
+        <div class="alert alert-danger">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+            {{ email_error }}
+        </div>
         {% endif %}
 
         <form method="POST" action="">
             {% csrf_token %}
             <input type="hidden" name="action" value="update_email">
 
-            <div class="form-group">
-                <label class="form-label" for="admin-email">Email</label>
+            <div class="form-group mb-md">
+                <label class="form-label" for="admin-email">Admin Email Address</label>
                 <input id="admin-email" type="email" class="form-input" name="email" value="{{ request.user.email }}" required>
             </div>
 
-            <button type="submit" class="btn btn-primary">
-                <i class="bi bi-check2-circle"></i> Save Email
+            <button type="submit" class="btn btn-primary btn-sm">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                Save Email
             </button>
         </form>
     </div>
 
-    <div class="chart-card animate-fadeIn" style="animation-delay: 100ms">
-        <h3 class="card-title mb-md"><i class="bi bi-key"></i> Change Password</h3>
+    <!-- Change Password Card -->
+    <div class="chart-card animate-fadeIn">
+        <h3 class="chart-title mb-md">Change Password</h3>
 
         {% if password_message %}
-        <div class="alert alert-success">{{ password_message }}</div>
+        <div class="alert alert-success">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+            {{ password_message }}
+        </div>
         {% endif %}
 
         {% if password_form.non_field_errors %}
@@ -48,35 +60,37 @@
             {% csrf_token %}
             <input type="hidden" name="action" value="change_password">
 
-            <div class="form-group">
+            <div class="form-group mb-sm">
                 <label class="form-label" for="id_old_password">Current Password</label>
                 {{ password_form.old_password }}
                 {% if password_form.old_password.errors %}
-                <div class="text-xs" style="color: var(--color-danger);">{{ password_form.old_password.errors }}</div>
+                <div class="text-xs mt-xs" style="color: var(--color-danger);">{{ password_form.old_password.errors }}</div>
                 {% endif %}
             </div>
 
-            <div class="form-group">
+            <div class="form-group mb-sm">
                 <label class="form-label" for="id_new_password1">New Password</label>
                 {{ password_form.new_password1 }}
                 {% if password_form.new_password1.errors %}
-                <div class="text-xs" style="color: var(--color-danger);">{{ password_form.new_password1.errors }}</div>
+                <div class="text-xs mt-xs" style="color: var(--color-danger);">{{ password_form.new_password1.errors }}</div>
                 {% endif %}
             </div>
 
-            <div class="form-group">
+            <div class="form-group mb-md">
                 <label class="form-label" for="id_new_password2">Confirm New Password</label>
                 {{ password_form.new_password2 }}
                 {% if password_form.new_password2.errors %}
-                <div class="text-xs" style="color: var(--color-danger);">{{ password_form.new_password2.errors }}</div>
+                <div class="text-xs mt-xs" style="color: var(--color-danger);">{{ password_form.new_password2.errors }}</div>
                 {% endif %}
             </div>
 
-            <button type="submit" class="btn btn-primary">
-                <i class="bi bi-shield-lock"></i> Update Password
+            <button type="submit" class="btn btn-primary btn-sm">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                Update Password
             </button>
         </form>
     </div>
 </div>
 
 {% endblock %}
+

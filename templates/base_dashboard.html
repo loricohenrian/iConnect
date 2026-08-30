@@ -23,15 +23,15 @@
             <div class="nav-section">
                 <div class="nav-section-title">Main</div>
                 <a href="{% url 'dashboard:overview' %}" class="nav-item {% if active_page == 'overview' %}active{% endif %}" id="nav-overview">
-                    <i class="bi bi-grid-1x2"></i>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
                     <span>Dashboard</span>
                 </a>
                 <a href="{% url 'dashboard:revenue' %}" class="nav-item {% if active_page == 'revenue' %}active{% endif %}" id="nav-revenue">
-                    <i class="bi bi-cash-coin"></i>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"></path><path d="M12 6v12"></path></svg>
                     <span>Revenue</span>
                 </a>
                 <a href="{% url 'dashboard:sessions' %}" class="nav-item {% if active_page == 'sessions' %}active{% endif %}" id="nav-sessions">
-                    <i class="bi bi-people"></i>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
                     <span>Users</span>
                 </a>
             </div>
@@ -39,15 +39,15 @@
             <div class="nav-section">
                 <div class="nav-section-title">Analytics</div>
                 <a href="{% url 'dashboard:heatmap' %}" class="nav-item {% if active_page == 'heatmap' %}active{% endif %}" id="nav-heatmap">
-                    <i class="bi bi-calendar-range"></i>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
                     <span>Peak Hours</span>
                 </a>
                 <a href="{% url 'dashboard:analytics' %}" class="nav-item {% if active_page == 'analytics' %}active{% endif %}" id="nav-analytics">
-                    <i class="bi bi-graph-up"></i>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
                     <span>Analytics</span>
                 </a>
                 <a href="{% url 'dashboard:roi' %}" class="nav-item {% if active_page == 'roi' %}active{% endif %}" id="nav-roi">
-                    <i class="bi bi-pie-chart"></i>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 12 2v10z"></path></svg>
                     <span>ROI Tracker</span>
                 </a>
             </div>
@@ -55,49 +55,49 @@
             <div class="nav-section">
                 <div class="nav-section-title">Management</div>
                 <a href="{% url 'dashboard:reports' %}" class="nav-item {% if active_page == 'reports' %}active{% endif %}" id="nav-reports">
-                    <i class="bi bi-file-earmark-arrow-down"></i>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
                     <span>Reports</span>
                 </a>
                 <a href="{% url 'dashboard:announcements' %}" class="nav-item {% if active_page == 'announcements' %}active{% endif %}" id="nav-announcements">
-                    <i class="bi bi-megaphone"></i>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
                     <span>Announcements</span>
                 </a>
                 <a href="{% url 'dashboard:logs' %}" class="nav-item {% if active_page == 'logs' %}active{% endif %}" id="nav-logs">
-                    <i class="bi bi-journal-text"></i>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
                     <span>System Logs</span>
                 </a>
                 <a href="{% url 'dashboard:security' %}" class="nav-item {% if active_page == 'security' %}active{% endif %}" id="nav-security">
-                    <i class="bi bi-shield-lock"></i>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
                     <span>Security</span>
                     {% if new_security_alerts_count > 0 %}
                     <span class="badge" style="margin-left: auto; font-size: 11px; padding: 2px 6px; border-radius: 10px; background: #ef4444; color: #fff; font-weight: 700;">{{ new_security_alerts_count }}</span>
                     {% endif %}
                 </a>
                 <a href="{% url 'dashboard:plans' %}" class="nav-item {% if active_page == 'plans' %}active{% endif %}" id="nav-plans">
-                    <i class="bi bi-tags"></i>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
                     <span>WiFi Rates</span>
                 </a>
                 <a href="{% url 'dashboard:settings' %}" class="nav-item {% if active_page == 'settings' %}active{% endif %}" id="nav-settings">
-                    <i class="bi bi-gear-fill"></i>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
                     <span>Settings</span>
                 </a>
                 <a href="{% url 'dashboard:account' %}" class="nav-item {% if active_page == 'account' %}active{% endif %}" id="nav-account">
-                    <i class="bi bi-person"></i>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
                     <span>Account</span>
                 </a>
                 <a href="{% url 'dashboard:gamification' %}" class="nav-item {% if active_page == 'gamification' %}active{% endif %}" id="nav-gamification">
-                    <i class="bi bi-controller"></i>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 2 18 2 18 6 6 6 6 2"></polygon><line x1="3" y1="6" x2="21" y2="6"></line><line x1="12" y1="18" x2="12" y2="22"></line><line x1="8" y1="22" x2="16" y2="22"></line><path d="M12 6a7 7 0 0 0-7 7c0 3 2 5 7 5s7-2 7-5a7 7 0 0 0-7-7z"></path></svg>
                     <span>Gamification</span>
                 </a>
                 <form method="post" action="{% url 'dashboard:logout' %}" class="nav-item-form" id="nav-logout-form">
                     {% csrf_token %}
                     <button type="submit" class="nav-item nav-item-btn" id="nav-logout">
-                        <i class="bi bi-box-arrow-right"></i>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
                         <span>Logout</span>
                     </button>
                 </form>
                 <a href="/admin/" class="nav-item" id="nav-django-admin">
-                    <i class="bi bi-gear"></i>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>
                     <span>Django Admin</span>
                 </a>
             </div>
@@ -117,7 +117,7 @@
         <header class="topbar">
             <div class="d-flex align-items-center gap-md">
                 <button class="hamburger" id="sidebar-toggle" aria-label="Toggle menu">
-                    <i class="bi bi-list"></i>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
                 </button>
                 <h1 class="page-title">{% block topbar_title %}Overview{% endblock %}</h1>
             </div>

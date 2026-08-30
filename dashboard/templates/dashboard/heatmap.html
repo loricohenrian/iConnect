@@ -7,15 +7,17 @@
 
 <div class="chart-card animate-fadeIn">
     <div class="chart-header">
-        <h3 class="chart-title">Usage Heatmap — Last 7 Days</h3>
-        <p class="text-small text-muted">Shows when students use WiFi the most</p>
+        <div>
+            <h3 class="chart-title">Usage Heatmap — Last 7 Days</h3>
+            <span class="text-xs text-muted">Traffic intensity by hour and day of week</span>
+        </div>
+        <span class="badge badge-active">Live Sync</span>
     </div>
 
-    <div class="heatmap-grid" id="heatmap-container">
+    <div class="heatmap-grid mt-sm" id="heatmap-container">
         <!-- Populated by JavaScript -->
-        <div class="text-center p-xl" style="grid-column: 1 / -1;">
-            <div class="spinner spinner-lg"></div>
-            <p class="text-small text-muted mt-md">Loading heatmap data...</p>
+        <div class="text-center p-xl" style="grid-column: 1 / -1; padding: 32px 0;">
+            <p class="text-xs text-muted">Loading heatmap data...</p>
         </div>
     </div>
 
@@ -32,28 +34,40 @@
 </div>
 
 <!-- Peak Hours Summary -->
-<div class="grid-3 mt-lg">
-    <div class="chart-card animate-fadeIn" style="animation-delay: 200ms">
-        <h3 class="card-title mb-md"><i class="bi bi-sunrise"></i> Morning Peak</h3>
+<div class="grid-3 mt-md">
+    <div class="chart-card animate-fadeIn">
+        <div class="d-flex align-items-center justify-content-between mb-sm">
+            <h3 class="chart-title">Morning Peak</h3>
+            <div style="color: #d97706;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v6"></path><path d="M4.93 10.93l4.24 4.24"></path><path d="M2 18h20"></path><path d="M20 10l-4 4"></path><path d="m4.93 4.93 4.24 4.24"></path><path d="m14.83 9.17 4.24-4.24"></path><path d="M14.83 14.83l4.24 4.24"></path></svg>
+            </div>
+        </div>
         <div id="morning-peak">
-            <div class="skeleton skeleton-text"></div>
-            <div class="skeleton skeleton-text"></div>
+            <p class="text-xs text-muted">Analyzing...</p>
         </div>
     </div>
 
-    <div class="chart-card animate-fadeIn" style="animation-delay: 300ms">
-        <h3 class="card-title mb-md"><i class="bi bi-sunset"></i> Afternoon Peak</h3>
+    <div class="chart-card animate-fadeIn">
+        <div class="d-flex align-items-center justify-content-between mb-sm">
+            <h3 class="chart-title">Afternoon Peak</h3>
+            <div style="color: #ea580c;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 18a5 5 0 0 0-10 0"></path><line x1="12" y1="2" x2="12" y2="9"></line><line x1="4.22" y1="10.22" x2="5.64" y2="11.64"></line><line x1="1" y1="18" x2="3" y2="18"></line><line x1="21" y1="18" x2="23" y2="18"></line><line x1="18.36" y1="11.64" x2="19.78" y2="10.22"></line><line x1="23" y1="22" x2="1" y2="22"></line><polyline points="8 6 12 2 16 6"></polyline></svg>
+            </div>
+        </div>
         <div id="afternoon-peak">
-            <div class="skeleton skeleton-text"></div>
-            <div class="skeleton skeleton-text"></div>
+            <p class="text-xs text-muted">Analyzing...</p>
         </div>
     </div>
 
-    <div class="chart-card animate-fadeIn" style="animation-delay: 400ms">
-        <h3 class="card-title mb-md"><i class="bi bi-fire" style="color: var(--color-danger, #e11d48);"></i> Busiest Peak Overall</h3>
+    <div class="chart-card animate-fadeIn">
+        <div class="d-flex align-items-center justify-content-between mb-sm">
+            <h3 class="chart-title">Busiest Hour</h3>
+            <div style="color: var(--color-danger);">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+            </div>
+        </div>
         <div id="overall-peak">
-            <div class="skeleton skeleton-text"></div>
-            <div class="skeleton skeleton-text"></div>
+            <p class="text-xs text-muted">Analyzing...</p>
         </div>
     </div>
 </div>

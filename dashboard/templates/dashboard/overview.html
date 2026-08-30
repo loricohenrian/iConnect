@@ -5,306 +5,174 @@
 
 {% block dashboard_content %}
 
-<style>
-/* Modern Layout Overrides */
-.dashboard-hero-layout {
-    display: grid;
-    grid-template-columns: 1.6fr 1fr;
-    gap: var(--space-xl);
-    margin-bottom: var(--space-xl);
-}
-@media (max-width: 1024px) {
-    .dashboard-hero-layout {
-        grid-template-columns: 1fr;
-    }
-}
-.hero-main-group {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--space-lg);
-}
-.hero-card-xl {
-    background: var(--color-light, #ffffff);
-    border-radius: 16px;
-    padding: 1.5rem;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
-    border: none;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    position: relative;
-    overflow: hidden;
-}
-.hero-card-xl .stat-label {
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: var(--color-gray);
-    margin-bottom: 0.5rem;
-}
-.hero-card-xl .stat-value {
-    font-size: 3.5rem;
-    font-weight: 400;
-    line-height: 1;
-    font-variant-numeric: tabular-nums;
-}
-.hero-side-group {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--space-md);
-    align-content: start;
-}
-.stat-card-compact {
-    background: var(--color-light, #ffffff);
-    border-radius: 12px;
-    padding: 1.5rem;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
-    border: none;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-.stat-card-compact-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 0.9rem;
-    color: var(--color-gray);
-    font-weight: 600;
-}
-.stat-card-compact-value {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--color-dark);
-}
-.sys-strip-container {
-    background: var(--color-light, #ffffff);
-    border-radius: 16px;
-    padding: 1.5rem;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
-    border: none;
-    margin-bottom: var(--space-xl);
-}
-.sys-strip-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: var(--space-xl);
-}
-@media (max-width: 768px) {
-    .sys-strip-grid {
-        grid-template-columns: 1fr;
-        gap: var(--space-lg);
-    }
-}
-.static-icon {
-    color: var(--color-gray);
-    font-size: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-</style>
-
-<!-- Hero Section (60/40 Split) -->
-<div class="dashboard-hero-layout">
-    
-    <!-- Left: 60% Hero Metrics -->
-    <div class="hero-main-group">
-        <!-- Revenue Today (Huge) -->
-        <div class="hero-card-xl animate-fadeIn">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; position: relative;">
-                <div class="stat-label" style="font-weight: 800; color: var(--color-dark);">Revenue Today</div>
-                <div class="static-icon">
-                    <i class="bi bi-cash-coin"></i>
-                </div>
-            </div>
-            <div class="stat-value" id="revenue-today" style="color: var(--color-dark);">
-                <span style="font-size: 1.5rem; vertical-align: top;">₱</span>{{ revenue_today|default:"0" }}
-            </div>
+<div class="stats-grid animate-fadeIn">
+    <!-- Revenue Today -->
+    <div class="stat-card">
+        <div class="stat-info">
+            <div class="stat-label">Revenue Today</div>
+            <div class="stat-value" id="revenue-today">₱{{ revenue_today|default:"0" }}</div>
         </div>
-
-        <!-- Connected Users (Huge) -->
-        <div class="hero-card-xl animate-fadeIn" style="animation-delay: 100ms">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; position: relative;">
-                <div class="stat-label" style="font-weight: 800; color: var(--color-dark);">Active Users</div>
-                <div class="static-icon">
-                    <i class="bi bi-people"></i>
-                </div>
-            </div>
-            <div class="stat-value" id="connected-users" style="color: var(--color-dark);">
-                {{ total_connected|default:"0" }}
-            </div>
+        <div class="static-icon" style="color: #059669; background: #ecfdf5; width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"></path><path d="M12 18V6"></path></svg>
         </div>
     </div>
 
-    <!-- Right: 40% Secondary Metrics Grid (2x2) -->
-    <div class="hero-side-group">
-        <!-- Sessions Today -->
-        <div class="stat-card-compact animate-fadeIn" style="animation-delay: 200ms">
-            <div class="stat-card-compact-header" style="color: var(--color-dark);">
-                <span>Sessions Today</span>
-                <div class="static-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16">
-                        <path d="M8 3.5a.5.5 0 0 0-1 0V9a.5.5 0 0 0 .252.434l3.5 2a.5.5 0 0 0 .496-.868L8 8.71z"/>
-                        <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16m7-8A7 7 0 1 1 1 8a7 7 0 0 1 14 0"/>
-                    </svg>
-                </div>
-            </div>
-            <div class="stat-card-compact-value" id="sessions-today" style="color: var(--color-dark);">{{ sessions_today|default:"0" }}</div>
+    <!-- Active Users -->
+    <div class="stat-card">
+        <div class="stat-info">
+            <div class="stat-label">Active Users</div>
+            <div class="stat-value" id="connected-users">{{ total_connected|default:"0" }}</div>
         </div>
-
-        <!-- Internet Status -->
-        <div class="stat-card-compact animate-fadeIn" style="animation-delay: 250ms">
-            <div class="stat-card-compact-header" style="color: var(--color-dark);">
-                <span>Internet</span>
-                <div class="static-icon">
-                    <div id="sys-internet-dot" style="width: 14px; height: 14px; border-radius: 50%; background: #94A3B8;"></div>
-                </div>
-            </div>
-            <div class="stat-card-compact-value" id="sys-internet-text" style="color: var(--color-dark);">Checking...</div>
-        </div>
-
-        <!-- Temperature -->
-        <div class="stat-card-compact animate-fadeIn" style="animation-delay: 300ms">
-            <div class="stat-card-compact-header" style="color: var(--color-dark);">
-                <span>Temperature</span>
-                <div class="static-icon">
-                    <i class="bi bi-thermometer-half"></i>
-                </div>
-            </div>
-            <div class="stat-card-compact-value" id="sys-cpu-temp" style="color: var(--color-dark);">—</div>
-        </div>
-
-        <!-- ROI Progress -->
-        <div class="stat-card-compact animate-fadeIn" style="animation-delay: 350ms">
-            <div class="stat-card-compact-header" style="color: var(--color-dark);">
-                <span>ROI Progress</span>
-                <div class="static-icon">
-                    <i class="bi bi-pie-chart"></i>
-                </div>
-            </div>
-            <div class="stat-card-compact-value" id="roi-progress" style="color: {% if roi_percentage|add:0 < 0 %}var(--color-danger){% elif roi_percentage|add:0 > 0 %}var(--color-success){% else %}var(--color-dark){% endif %};">{{ roi_percentage|default:"0" }}%</div>
+        <div class="static-icon" style="color: #2563eb; background: #eff6ff; width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
         </div>
     </div>
 
+    <!-- Sessions Today -->
+    <div class="stat-card">
+        <div class="stat-info">
+            <div class="stat-label">Sessions Today</div>
+            <div class="stat-value" id="sessions-today">{{ sessions_today|default:"0" }}</div>
+        </div>
+        <div class="static-icon" style="color: #7c3aed; background: #f5f3ff; width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+        </div>
+    </div>
+
+    <!-- ROI Progress -->
+    <div class="stat-card">
+        <div class="stat-info">
+            <div class="stat-label">ROI Progress</div>
+            <div class="stat-value" id="roi-progress" style="color: {% if roi_percentage|add:0 < 0 %}var(--color-danger){% elif roi_percentage|add:0 > 0 %}var(--color-success){% else %}var(--color-dark){% endif %};">{{ roi_percentage|default:"0" }}%</div>
+        </div>
+        <div class="static-icon" style="color: #0891b2; background: #ecfeff; width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 12 2v10z"></path></svg>
+        </div>
+    </div>
 </div>
 
-<!-- System Resources Strip -->
-<div class="sys-strip-container animate-fadeIn" style="animation-delay: 400ms;">
-    <div class="sys-strip-grid">
-        <!-- Disk Card -->
+<!-- System Hardware & Status Strip -->
+<div class="chart-card animate-fadeIn">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-lg);">
+        <!-- Disk -->
         <div>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <div style="font-weight: 600; font-size: 13px; color: var(--color-dark);">Disk Usage</div>
-                <div style="font-size: 12px; color: var(--color-gray);"><span id="sys-disk-used">—</span> / <span id="sys-disk-total">—</span> (<span id="sys-disk-pct">0%</span>)</div>
+            <div class="d-flex justify-content-between align-items-center mb-xs">
+                <span class="text-xs font-semibold">Disk Usage</span>
+                <span class="text-xs text-muted"><span id="sys-disk-used">—</span> / <span id="sys-disk-total">—</span> (<span id="sys-disk-pct">0%</span>)</span>
             </div>
-            <div class="progress-bar-bg" style="height: 6px;">
+            <div class="progress-bar-bg">
                 <div id="sys-disk-bar" class="progress-bar-fill progress-success"></div>
             </div>
         </div>
 
-        <!-- CPU Card -->
+        <!-- CPU Load -->
         <div>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <div style="font-weight: 600; font-size: 13px; color: var(--color-dark);">CPU Load</div>
-                <div style="font-size: 12px; color: var(--color-gray);"><span id="sys-cpu-count">—</span> cores (<span id="sys-cpu-pct">0%</span>)</div>
+            <div class="d-flex justify-content-between align-items-center mb-xs">
+                <span class="text-xs font-semibold">CPU Load</span>
+                <span class="text-xs text-muted"><span id="sys-cpu-count">—</span> cores (<span id="sys-cpu-pct">0%</span>)</span>
             </div>
-            <div class="progress-bar-bg" style="height: 6px;">
+            <div class="progress-bar-bg">
                 <div id="sys-cpu-bar" class="progress-bar-fill progress-success"></div>
             </div>
         </div>
 
-        <!-- RAM Card -->
+        <!-- RAM Usage -->
         <div>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <div style="font-weight: 600; font-size: 13px; color: var(--color-dark);">RAM Usage</div>
-                <div style="font-size: 12px; color: var(--color-gray);"><span id="sys-ram-used">—</span> / <span id="sys-ram-total">—</span> (<span id="sys-ram-pct">0%</span>)</div>
+            <div class="d-flex justify-content-between align-items-center mb-xs">
+                <span class="text-xs font-semibold">RAM Usage</span>
+                <span class="text-xs text-muted"><span id="sys-ram-used">—</span> / <span id="sys-ram-total">—</span> (<span id="sys-ram-pct">0%</span>)</span>
             </div>
-            <div class="progress-bar-bg" style="height: 6px;">
+            <div class="progress-bar-bg">
                 <div id="sys-ram-bar" class="progress-bar-fill progress-success"></div>
+            </div>
+        </div>
+
+        <!-- Internet Status & Temp -->
+        <div class="d-flex align-items-center justify-content-between" style="padding-left: var(--space-xs);">
+            <div>
+                <span class="text-xs font-semibold d-block">Internet Connection</span>
+                <div class="d-flex align-items-center gap-xs mt-xs">
+                    <span id="sys-internet-dot" style="width: 8px; height: 8px; border-radius: 50%; background: #94A3B8; display: inline-block;"></span>
+                    <span class="text-xs font-semibold" id="sys-internet-text">Checking...</span>
+                </div>
+            </div>
+            <div style="text-align: right;">
+                <span class="text-xs font-semibold d-block">Board Temp</span>
+                <span class="text-xs font-mono font-semibold mt-xs d-block" id="sys-cpu-temp">—</span>
             </div>
         </div>
     </div>
 </div>
 
-<div class="stats-grid" style="grid-template-columns: repeat(3, 1fr);">
+<!-- Secondary Metrics Grid -->
+<div class="grid-3 animate-fadeIn">
     <!-- Revenue This Week Card -->
-    <div class="chart-card animate-fadeIn" style="animation-delay: 400ms; margin-bottom: 0;">
-        <div class="chart-header" style="margin-bottom: 1.25rem;">
+    <div class="chart-card mb-0">
+        <div class="chart-header">
             <div>
-                <h3 class="chart-title" style="margin-bottom: 2px; color: var(--color-dark);">Revenue This Week</h3>
-                <span class="text-xs text-muted" style="color: var(--color-dark) !important;">Since {{ start_of_week_date }}</span>
+                <h3 class="chart-title">Revenue This Week</h3>
+                <span class="text-xs text-muted">Since {{ start_of_week_date }}</span>
             </div>
-            <span class="badge" style="background: rgba(0,0,0,0.05); color: var(--color-dark); font-size: 0.75rem; padding: 4px 10px;">
-                <i class="bi bi-calendar-week" style="margin-right: 4px;"></i>Weekly
-            </span>
+            <span class="badge badge-info">Weekly</span>
         </div>
-        <div class="d-flex align-items-center justify-content-between">
+        <div class="d-flex align-items-center justify-content-between mt-sm">
             <div>
-                <div style="font-size: 2.25rem; font-weight: 400; color: var(--color-dark); line-height: 1.1; font-variant-numeric: tabular-nums;">
-                    <span style="font-size: 0.6em; vertical-align: baseline;">₱</span>{{ revenue_this_week|default:"0" }}
-                </div>
-                <div class="text-small text-muted mt-xs" style="color: var(--color-dark) !important;">Total coin collection for current week</div>
+                <div class="stat-value" style="font-size: 26px;">₱{{ revenue_this_week|default:"0" }}</div>
+                <div class="text-xs text-muted mt-xs">Coin collections for week</div>
             </div>
-            <div class="static-icon">
-                <i class="bi bi-wallet2"></i>
+            <div style="color: #64748b;">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
             </div>
         </div>
     </div>
 
     <!-- Revenue This Month Card -->
-    <div class="chart-card animate-fadeIn" style="animation-delay: 500ms; margin-bottom: 0;">
-        <div class="chart-header" style="margin-bottom: 1.25rem;">
+    <div class="chart-card mb-0">
+        <div class="chart-header">
             <div>
-                <h3 class="chart-title" style="margin-bottom: 2px; color: var(--color-dark);">Revenue This Month</h3>
-                <span class="text-xs text-muted" style="color: var(--color-dark) !important;">{{ current_month_name }}</span>
+                <h3 class="chart-title">Revenue This Month</h3>
+                <span class="text-xs text-muted">{{ current_month_name }}</span>
             </div>
-            <span class="badge" style="background: rgba(0,0,0,0.05); color: var(--color-dark); font-size: 0.75rem; padding: 4px 10px;">
-                <i class="bi bi-calendar-month" style="margin-right: 4px;"></i>Monthly
-            </span>
+            <span class="badge badge-info">Monthly</span>
         </div>
-        <div class="d-flex align-items-center justify-content-between">
+        <div class="d-flex align-items-center justify-content-between mt-sm">
             <div>
-                <div style="font-size: 2.25rem; font-weight: 400; color: var(--color-dark); line-height: 1.1; font-variant-numeric: tabular-nums;">
-                    <span style="font-size: 0.6em; vertical-align: baseline;">₱</span>{{ revenue_this_month|default:"0" }}
-                </div>
-                <div class="text-small text-muted mt-xs" style="color: var(--color-dark) !important;">Total coin collection for {{ current_month_name }}</div>
+                <div class="stat-value" style="font-size: 26px;">₱{{ revenue_this_month|default:"0" }}</div>
+                <div class="text-xs text-muted mt-xs">Total collection this month</div>
             </div>
-            <div class="static-icon">
-                <i class="bi bi-wallet2"></i>
+            <div style="color: #64748b;">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>
             </div>
         </div>
     </div>
 
     <!-- Live Network Usage -->
-    <div class="chart-card animate-fadeIn" style="animation-delay: 650ms; margin-bottom: 0;">
-        <div class="chart-header" style="margin-bottom: 1.25rem;">
+    <div class="chart-card mb-0">
+        <div class="chart-header">
             <div>
-                <h3 class="chart-title" style="margin-bottom: 2px; color: var(--color-dark);">Live Network Usage</h3>
-                <span class="text-xs text-muted" id="live-network-meta" style="color: var(--color-dark) !important;">Waiting for live update...</span>
+                <h3 class="chart-title">Live Network</h3>
+                <span class="text-xs text-muted" id="live-network-meta">Live updates</span>
             </div>
-            <span class="badge" style="background: rgba(0,0,0,0.05); color: var(--color-dark); font-size: 0.75rem; padding: 4px 10px;">
-                <i class="bi bi-arrow-repeat" style="margin-right: 4px;"></i>Auto
-            </span>
+            <span class="badge badge-active">Realtime</span>
         </div>
-        <div class="d-flex flex-column gap-md">
+        <div class="d-flex flex-column gap-sm mt-sm">
             <div class="d-flex justify-content-between align-items-center">
-                <span class="text-small text-muted font-medium" style="color: var(--color-dark) !important;">Active Users Right Now</span>
-                <span class="font-bold text-lg" style="color: var(--color-dark);" id="live-active-users">0</span>
+                <span class="text-xs text-muted">Active Users</span>
+                <span class="font-semibold text-small" id="live-active-users">0</span>
             </div>
-            <div style="width: 100%; height: 1px; background: var(--color-border); margin: 4px 0;"></div>
             <div class="d-flex justify-content-between align-items-center">
-                <span class="text-small text-muted font-medium" style="color: var(--color-dark) !important;">Total Bandwidth In Use</span>
-                <span class="font-bold text-lg" style="color: var(--color-dark);" id="live-total-bandwidth">0 MB</span>
+                <span class="text-xs text-muted">Bandwidth In Use</span>
+                <span class="font-semibold text-small" id="live-total-bandwidth">0 MB</span>
             </div>
         </div>
     </div>
 </div>
 
 <!-- Recent Sessions Table -->
-<div class="chart-card mt-lg animate-fadeIn" style="animation-delay: 700ms">
+<div class="chart-card mt-md animate-fadeIn">
     <div class="chart-header">
-        <h3 class="chart-title" style="color: var(--color-dark);">Recent Sessions</h3>
-        <a href="{% url 'dashboard:sessions' %}" class="btn btn-sm" style="background: rgba(0,0,0,0.05); color: var(--color-dark); border: none;">View All</a>
+        <h3 class="chart-title">Recent Sessions</h3>
+        <a href="{% url 'dashboard:sessions' %}" class="btn btn-sm btn-secondary">View All</a>
     </div>
 
     {% if recent_sessions %}
@@ -312,7 +180,7 @@
         <table id="recent-sessions-table">
             <thead>
                 <tr>
-                    <th>Hostname</th>
+                    <th>Hostname / Device</th>
                     <th>Plan</th>
                     <th>Amount</th>
                     <th>Time In</th>
@@ -325,15 +193,15 @@
                 <tr>
                     <td>
                         <div class="font-semibold">{{ session.device_name|default:"Unknown" }}</div>
-                        <div class="text-xs text-muted">{{ session.mac_address }}</div>
+                        <div class="text-xs text-muted font-mono">{{ session.mac_address }}</div>
                     </td>
                     <td>
-                        <span class="badge" style="background: rgba(123, 45, 59, 0.08); color: var(--color-dark, #7b2d3b); font-weight: 600;">
+                        <span class="badge badge-info">
                             {{ session.plan.name|default:"Custom" }}
                         </span>
                     </td>
                     <td class="font-semibold">₱{{ session.amount_paid }}</td>
-                    <td>{{ session.time_in|date:"M d, h:i A" }}</td>
+                    <td class="text-xs text-muted">{{ session.time_in|date:"M d, h:i A" }}</td>
                     <td class="text-xs font-mono {% if session.status == 'active' %}countdown-cell{% endif %}" data-remaining="{{ session.time_remaining_seconds|floatformat:0 }}" data-status="{{ session.status }}">
                         {% if session.status == 'expired' %}
                             00:00:00
@@ -357,7 +225,7 @@
     </div>
     {% else %}
     <div class="empty-state">
-        <i class="bi bi-clock-history"></i>
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin: 0 auto 8px auto; display: block; color: var(--color-gray);"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
         <p>No sessions yet</p>
         <small>Data will appear here once students start using the system</small>
     </div>

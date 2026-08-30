@@ -6,121 +6,121 @@
 {% block topbar_actions %}
 <div class="d-flex align-items-center gap-sm">
     <a href="{% url 'dashboard:export_sessions_csv' %}?period={{ period }}&start_date={{ start_date }}&end_date={{ end_date }}&status={{ status_filter }}" class="btn btn-secondary btn-sm">
-        <i class="bi bi-download"></i> Export CSV
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        Export CSV
     </a>
     <button type="button" class="btn btn-danger btn-sm" onclick="showResetModal()">
-        <i class="bi bi-trash"></i> Reset Sales
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+        Reset Sales
     </button>
 </div>
 {% endblock %}
 
 {% block dashboard_content %}
 
-<!-- Row 1: Metrics -->
-<div class="stats-grid" style="grid-template-columns: repeat(3, 1fr);">
+<!-- Row 1: Top Metrics -->
+<div class="grid-3 animate-fadeIn">
     <!-- Total Revenue -->
-    <div class="chart-card animate-fadeIn" style="animation-delay: 100ms; margin-bottom: 0;">
-        <div class="d-flex align-items-center justify-content-between mb-sm">
-            <span class="text-xs text-muted font-semibold text-uppercase tracking-wider">Total Revenue</span>
-            <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(0,0,0,0.05); color: var(--color-dark); display: flex; align-items: center; justify-content: center; font-size: 20px;">
-                <i class="bi bi-cash-coin"></i>
-            </div>
+    <div class="stat-card">
+        <div class="stat-info">
+            <div class="stat-label">Total Revenue</div>
+            <div class="stat-value">₱{{ total_sales|default:"0" }}</div>
         </div>
-        <div style="font-size: 2.5rem; color: var(--color-dark); line-height: 1.1; font-variant-numeric: tabular-nums;">
-            <span style="font-size: 0.6em; vertical-align: baseline;">₱</span>{{ total_sales|default:"0" }}
+        <div class="static-icon" style="color: #059669; background: #ecfdf5; width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"></path><path d="M12 18V6"></path></svg>
         </div>
     </div>
     
     <!-- Sessions -->
-    <div class="chart-card animate-fadeIn" style="animation-delay: 200ms; margin-bottom: 0;">
-        <div class="d-flex align-items-center justify-content-between mb-sm">
-            <span class="text-xs text-muted font-semibold text-uppercase tracking-wider">Sessions</span>
-            <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(0,0,0,0.05); color: var(--color-dark); display: flex; align-items: center; justify-content: center; font-size: 20px;">
-                <i class="bi bi-wifi"></i>
+    <div class="stat-card">
+        <div class="stat-info">
+            <div class="stat-label">Total Sessions</div>
+            <div class="stat-value">
+                <span>{{ total_sessions|default:"0" }}</span>
+                {% if total_sessions|add:0 > 0 and total_sales|add:0 == 0 %}
+                    <span style="font-size: 11px; color: var(--color-warning); font-weight: 600; text-transform: uppercase;">(Pending)</span>
+                {% endif %}
             </div>
         </div>
-        <div style="font-size: 2.5rem; color: var(--color-dark); line-height: 1.1; font-variant-numeric: tabular-nums; display: flex; align-items: baseline; gap: 8px;">
-            <span>{{ total_sessions|default:"0" }}</span>
-            {% if total_sessions|add:0 > 0 and total_sales|add:0 == 0 %}
-                <span style="font-size: 1rem; color: var(--color-warning); font-weight: 500;">(pending)</span>
-            {% endif %}
+        <div class="static-icon" style="color: #2563eb; background: #eff6ff; width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"></path><path d="M1.42 9a16 16 0 0 1 21.16 0"></path><path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path><line x1="12" y1="20" x2="12.01" y2="20"></line></svg>
         </div>
     </div>
     
     <!-- Avg Transaction -->
-    <div class="chart-card animate-fadeIn" style="animation-delay: 300ms; margin-bottom: 0;">
-        <div class="d-flex align-items-center justify-content-between mb-sm">
-            <span class="text-xs text-muted font-semibold text-uppercase tracking-wider">Avg. Transaction</span>
-            <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(0,0,0,0.05); color: var(--color-dark); display: flex; align-items: center; justify-content: center; font-size: 20px;">
-                <i class="bi bi-calculator"></i>
-            </div>
+    <div class="stat-card">
+        <div class="stat-info">
+            <div class="stat-label">Avg. Transaction</div>
+            <div class="stat-value">₱{{ avg_transaction|default:"0" }}</div>
         </div>
-        <div style="font-size: 2.5rem; color: var(--color-dark); line-height: 1.1; font-variant-numeric: tabular-nums;">
-            <span style="font-size: 0.6em; vertical-align: baseline;">₱</span>{{ avg_transaction|default:"0" }}
+        <div class="static-icon" style="color: #7c3aed; background: #f5f3ff; width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"></rect><line x1="8" y1="6" x2="16" y2="6"></line><line x1="16" y1="14" x2="16" y2="18"></line><path d="M8 10h.01"></path><path d="M12 10h.01"></path><path d="M16 10h.01"></path><path d="M8 14h.01"></path><path d="M12 14h.01"></path><path d="M8 18h.01"></path><path d="M12 18h.01"></path></svg>
         </div>
     </div>
 </div>
 
 <!-- Row 2: Chart & Filters -->
-<div class="dashboard-hero-layout mt-lg" style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; align-items: stretch;">
-    <!-- Left: 66% Chart -->
-    <div class="hero-main-group" style="height: 100%;">
-        <div class="chart-card animate-fadeIn" style="height: 100%; margin-bottom: 0; display: flex; flex-direction: column;">
-            <h3 class="chart-title mb-md" style="color: var(--color-dark);">Sales Breakdown by Plan</h3>
-            <div class="chart-wrapper" style="flex: 1; min-height: 250px;">
-                <canvas id="plan-sales-chart"></canvas>
-            </div>
+<div class="grid-2 mt-md" style="grid-template-columns: 1.8fr 1.2fr;">
+    <!-- Sales Breakdown Chart -->
+    <div class="chart-card mb-0">
+        <div class="chart-header">
+            <h3 class="chart-title">Sales Breakdown by Plan</h3>
+            <span class="text-xs text-muted">Revenue per plan</span>
+        </div>
+        <div class="chart-wrapper" style="min-height: 240px;">
+            <canvas id="plan-sales-chart"></canvas>
         </div>
     </div>
 
-    <!-- Right: 40% Filters -->
-    <div class="sys-strip-grid">
-        <div class="chart-card animate-fadeIn" style="margin-bottom: 0;">
-            <h3 class="chart-title mb-md" style="color: var(--color-dark);">Date Range Filter</h3>
+    <!-- Date Range Filters -->
+    <div class="chart-card mb-0">
+        <div class="chart-header">
+            <h3 class="chart-title">Date Range Filter</h3>
+            <span class="text-xs text-muted">Select interval</span>
+        </div>
+        
+        <form method="GET" action="{% url 'dashboard:revenue' %}">
+            <!-- Quick Ranges -->
+            <div class="d-flex flex-wrap gap-xs mb-md">
+                <button type="submit" name="period" value="today" class="btn btn-sm {% if period == 'today' %}btn-primary{% else %}btn-secondary{% endif %}">Today</button>
+                <button type="submit" name="period" value="week" class="btn btn-sm {% if period == 'week' %}btn-primary{% else %}btn-secondary{% endif %}">Week</button>
+                <button type="submit" name="period" value="month" class="btn btn-sm {% if period == 'month' %}btn-primary{% else %}btn-secondary{% endif %}">Month</button>
+                <button type="submit" name="period" value="year" class="btn btn-sm {% if period == 'year' %}btn-primary{% else %}btn-secondary{% endif %}">Year</button>
+                <button type="submit" name="period" value="all" class="btn btn-sm {% if period == 'all' %}btn-primary{% else %}btn-secondary{% endif %}">All Time</button>
+            </div>
             
-            <form method="GET" action="{% url 'dashboard:revenue' %}">
-                <!-- Quick Ranges -->
-                <div class="d-flex flex-wrap gap-sm mb-md">
-                    <button type="submit" name="period" value="today" class="btn btn-sm {% if period == 'today' %}btn-primary{% else %}btn-secondary{% endif %}">Today</button>
-                    <button type="submit" name="period" value="week" class="btn btn-sm {% if period == 'week' %}btn-primary{% else %}btn-secondary{% endif %}">This Week</button>
-                    <button type="submit" name="period" value="month" class="btn btn-sm {% if period == 'month' %}btn-primary{% else %}btn-secondary{% endif %}">This Month</button>
-                    <button type="submit" name="period" value="year" class="btn btn-sm {% if period == 'year' %}btn-primary{% else %}btn-secondary{% endif %}">This Year</button>
-                    <button type="submit" name="period" value="all" class="btn btn-sm {% if period == 'all' %}btn-primary{% else %}btn-secondary{% endif %}">All Time</button>
-                </div>
-                
-                <div style="width: 100%; height: 1px; background: var(--color-border); margin: 16px 0;"></div>
-                
-                <!-- Custom Range -->
-                <div class="text-xs text-muted mb-sm font-semibold">CUSTOM RANGE</div>
-                <input type="hidden" name="period" value="custom" id="custom-period-input" {% if period != 'custom' %}disabled{% endif %}>
-                
-                <div class="form-group mb-sm">
-                    <label class="form-label" style="color: var(--color-dark);">From Date</label>
+            <!-- Custom Range -->
+            <input type="hidden" name="period" value="custom" id="custom-period-input" {% if period != 'custom' %}disabled{% endif %}>
+            
+            <div class="grid-2 mb-sm">
+                <div class="form-group">
+                    <label class="form-label">From Date</label>
                     <input type="date" name="start_date" class="form-input" value="{{ start_date }}" onchange="enableCustomPeriod()">
                 </div>
-                <div class="form-group mb-md">
-                    <label class="form-label" style="color: var(--color-dark);">To Date</label>
+                <div class="form-group">
+                    <label class="form-label">To Date</label>
                     <input type="date" name="end_date" class="form-input" value="{{ end_date }}" onchange="enableCustomPeriod()">
                 </div>
-                
-                <button type="submit" class="btn btn-primary" style="width: 100%;">
-                    <i class="bi bi-funnel"></i> Apply Filter
-                </button>
-            </form>
-        </div>
+            </div>
+            
+            <button type="submit" class="btn btn-primary btn-sm w-100 mt-xs">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+                Apply Custom Range
+            </button>
+        </form>
     </div>
 </div>
 
-<!-- Row 3: Sessions List -->
-<div class="chart-card mt-lg animate-fadeIn" style="animation-delay: 400ms">
+<!-- Row 3: Filtered Sessions List -->
+<div class="chart-card mt-md animate-fadeIn">
     <div class="chart-header">
-        <h3 class="chart-title" style="color: var(--color-dark);">Filtered Sessions</h3>
-        <form method="GET" action="" class="d-flex gap-sm">
+        <h3 class="chart-title">Filtered Sessions</h3>
+        <form method="GET" action="" class="d-flex gap-sm align-items-center">
             <input type="hidden" name="period" value="{{ period }}">
             <input type="hidden" name="start_date" value="{{ start_date }}">
             <input type="hidden" name="end_date" value="{{ end_date }}">
             
-            <select name="status" class="form-input" style="width: 140px; padding: 4px 8px; height: 32px; font-size: 13px;" onchange="this.form.submit()">
+            <select name="status" class="form-input" style="width: 130px; padding: 4px 8px; height: 30px; font-size: 12px;" onchange="this.form.submit()">
                 <option value="">All Statuses</option>
                 <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
                 <option value="expired" {% if status_filter == 'expired' %}selected{% endif %}>Expired</option>
@@ -135,7 +135,7 @@
             <thead>
                 <tr>
                     <th>ID</th>
-                    <th>Hostname</th>
+                    <th>Hostname / Device</th>
                     <th>Plan</th>
                     <th>Date & Time</th>
                     <th>IP Address</th>
@@ -147,23 +147,23 @@
             <tbody>
                 {% for session in sessions %}
                 <tr>
-                    <td class="text-muted">#{{ session.id }}</td>
+                    <td class="text-xs text-muted">#{{ session.id }}</td>
                     <td>
-                        <div class="font-semibold" style="color: var(--color-dark);">{{ session.device_name|default:"Unknown" }}</div>
+                        <div class="font-semibold">{{ session.device_name|default:"Unknown" }}</div>
                         <div class="font-mono text-xs text-muted">{{ session.mac_address }}</div>
                     </td>
                     <td>
-                        <span class="badge" style="background: rgba(123, 45, 59, 0.08); color: var(--color-dark, #7b2d3b); font-weight: 600;">
+                        <span class="badge badge-info">
                             {{ session.plan.name|default:"Custom" }}
                         </span>
                     </td>
                     <td>
-                        <div class="font-medium" style="color: var(--color-dark);">{{ session.time_in|date:"M d, Y" }}</div>
+                        <div>{{ session.time_in|date:"M d, Y" }}</div>
                         <div class="text-xs text-muted">{{ session.time_in|date:"h:i A" }}</div>
                     </td>
-                    <td class="font-mono text-sm">{{ session.ip_address|default:"-" }}</td>
+                    <td class="font-mono text-xs">{{ session.ip_address|default:"-" }}</td>
                     <td>{{ session.duration_minutes_purchased }}m</td>
-                    <td class="font-bold" style="color: var(--color-dark);">₱{{ session.amount_paid }}</td>
+                    <td class="font-semibold">₱{{ session.amount_paid }}</td>
                     <td>
                         {% if session.status == 'active' %}
                             <span class="badge badge-active">Active</span>
@@ -179,9 +179,9 @@
         </table>
     </div>
 
-    <!-- Pagination -->
-    <div class="d-flex justify-content-between align-items-center mt-md" style="padding-top: var(--space-md); border-top: 1px solid var(--color-border);">
-        <div class="text-small text-muted">
+    <!-- Minimal Pagination -->
+    <div class="d-flex justify-content-between align-items-center mt-md">
+        <div class="text-xs text-muted">
             Showing {{ sessions.start_index }} to {{ sessions.end_index }} of {{ sessions.paginator.count }} sessions
         </div>
         <div class="d-flex gap-xs">
@@ -201,24 +201,26 @@
 
     {% else %}
     <div class="empty-state">
-        <i class="bi bi-clock-history"></i>
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin: 0 auto 8px auto; display: block; color: var(--color-gray);"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
         <p>No sessions found for this date range.</p>
     </div>
     {% endif %}
 </div>
 
 <!-- Reset Sales Modal -->
-<div id="resetModal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5);">
-    <div class="modal-content" style="background-color: #fff; margin: 15% auto; padding: 24px; border-radius: 12px; max-width: 500px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
-        <h2 style="color: var(--color-danger); margin-top: 0;"><i class="bi bi-exclamation-triangle-fill"></i> Reset Sales Data</h2>
+<div id="resetModal" class="modal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="chart-card animate-fadeIn" style="width: 100%; max-width: 440px; margin: 16px;">
+        <h3 class="card-title mb-sm" style="color: var(--color-danger); display: flex; align-items: center; gap: 8px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+            Reset Sales Data
+        </h3>
         
-        <p style="margin: 16px 0; color: var(--color-dark); font-size: 15px;">
-            You are about to permanently delete all sales and session records for the currently selected date range (<strong>{% if period == 'all' %}All Time{% elif start_date %}{{ start_date }}{% else %}Beginning{% endif %} to {% if end_date %}{{ end_date }}{% else %}Now{% endif %}</strong>).
+        <p class="text-small text-muted mb-md">
+            You are about to permanently delete all sales and session records for the selected period (<strong>{% if period == 'all' %}All Time{% elif start_date %}{{ start_date }}{% else %}Beginning{% endif %} to {% if end_date %}{{ end_date }}{% else %}Now{% endif %}</strong>).
         </p>
 
-        <div style="background: rgba(245,158,11,0.1); border-left: 4px solid var(--color-warning); padding: 12px; margin-bottom: 20px; border-radius: 4px;">
-            <strong style="color: var(--color-dark);"><i class="bi bi-shield-exclamation"></i> IMPORTANT: Did you back up your data?</strong><br>
-            <span style="font-size: 13px; color: var(--color-dark);">We strongly recommend exporting a CSV backup before resetting. You cannot undo this action.</span>
+        <div class="alert alert-warning mb-md">
+            <span class="text-xs">Export a CSV backup first. This action cannot be undone.</span>
         </div>
 
         <form method="POST" action="{% url 'dashboard:revenue' %}">
@@ -227,16 +229,16 @@
             <input type="hidden" name="start_date" value="{{ start_date }}">
             <input type="hidden" name="end_date" value="{{ end_date }}">
             
-            <div class="form-group" style="margin-bottom: 24px;">
-                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--color-dark);">
+            <div class="form-group mb-lg">
+                <label class="d-flex align-items-center gap-xs text-xs" style="cursor: pointer;">
                     <input type="checkbox" id="backup-confirm" required>
-                    <span style="font-weight: 500;">Yes, I have backed up my data and understand this is permanent.</span>
+                    <span>I understand this is permanent and cannot be undone.</span>
                 </label>
             </div>
 
             <div class="d-flex justify-content-end gap-sm">
-                <button type="button" class="btn btn-secondary" onclick="hideResetModal()">Cancel</button>
-                <button type="submit" class="btn btn-danger">Confirm Reset</button>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="hideResetModal()">Cancel</button>
+                <button type="submit" class="btn btn-danger btn-sm">Confirm Reset</button>
             </div>
         </form>
     </div>

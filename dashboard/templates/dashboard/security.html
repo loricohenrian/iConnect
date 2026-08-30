@@ -7,65 +7,79 @@
 
 {% if action_message %}
 <div class="alert alert-success">
-    <i class="bi bi-check-circle"></i> {{ action_message }}
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+    {{ action_message }}
 </div>
 {% endif %}
 {% if action_error %}
 <div class="alert alert-danger">
-    <i class="bi bi-exclamation-triangle"></i> {{ action_error }}
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+    {{ action_error }}
 </div>
 {% endif %}
 
 <div class="stats-grid">
+    <!-- New Alerts -->
     <div class="stat-card animate-fadeIn">
         <div class="stat-info">
             <div class="stat-label">New Alerts</div>
             <div class="stat-value">{{ counts.new }}</div>
         </div>
-        <div class="stat-icon-wrap"><i class="bi bi-exclamation-circle"></i></div>
+        <div class="static-icon" style="color: #d97706; background: #fffbeb; width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+        </div>
     </div>
-    <div class="stat-card animate-fadeIn" style="animation-delay: 100ms">
+
+    <!-- Blocked -->
+    <div class="stat-card animate-fadeIn">
         <div class="stat-info">
             <div class="stat-label">Blocked</div>
             <div class="stat-value">{{ counts.blocked }}</div>
         </div>
-        <div class="stat-icon-wrap"><i class="bi bi-shield-fill-x"></i></div>
+        <div class="static-icon" style="color: var(--color-danger); background: #fef2f2; width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><line x1="9.5" y1="9.5" x2="14.5" y2="14.5"></line><line x1="14.5" y1="9.5" x2="9.5" y2="14.5"></line></svg>
+        </div>
     </div>
-    <div class="stat-card animate-fadeIn" style="animation-delay: 200ms">
+
+    <!-- False Positive -->
+    <div class="stat-card animate-fadeIn">
         <div class="stat-info">
             <div class="stat-label">False Positive</div>
             <div class="stat-value">{{ counts.false_positive }}</div>
         </div>
-        <div class="stat-icon-wrap"><i class="bi bi-check2-circle"></i></div>
+        <div class="static-icon" style="color: #059669; background: #ecfdf5; width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+        </div>
     </div>
-    <div class="stat-card animate-fadeIn" style="animation-delay: 300ms">
+
+    <!-- Cleared -->
+    <div class="stat-card animate-fadeIn">
         <div class="stat-info">
             <div class="stat-label">Cleared</div>
             <div class="stat-value">{{ counts.cleared }}</div>
         </div>
-        <div class="stat-icon-wrap"><i class="bi bi-shield-check"></i></div>
+        <div class="static-icon" style="color: #2563eb; background: #eff6ff; width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><polyline points="9 12 11 14 15 10"></polyline></svg>
+        </div>
     </div>
 </div>
 
-<div class="filter-bar">
-    <form method="GET" action="" class="d-flex gap-md flex-wrap w-100">
-        <input type="search" name="search" value="{{ search }}" placeholder="Search MAC, IP, reason..." class="form-input search-input">
-        <select name="status" class="form-input" onchange="this.form.submit()">
-            <option value="">All Statuses</option>
-            {% for value, label in status_choices %}
-            <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
-            {% endfor %}
-        </select>
-        <button type="submit" class="btn btn-primary btn-sm">
-            <i class="bi bi-search"></i> Filter
-        </button>
-    </form>
-</div>
-
-<div class="chart-card">
+<div class="chart-card animate-fadeIn">
     <div class="chart-header">
-        <h3 class="chart-title">Suspicious Devices</h3>
-        <span class="badge badge-info">{{ suspicious_devices|length }} record{{ suspicious_devices|length|pluralize }}</span>
+        <h3 class="chart-title">Suspicious Devices & Clone Alerts</h3>
+        
+        <form method="GET" action="" class="d-flex gap-xs align-items-center flex-wrap">
+            <input type="search" name="search" value="{{ search }}" placeholder="Search MAC, IP..." class="form-input" style="width: 180px; padding: 4px 8px; height: 30px; font-size: 12px;">
+            <select name="status" class="form-input" style="width: 130px; padding: 4px 8px; height: 30px; font-size: 12px;" onchange="this.form.submit()">
+                <option value="">All Statuses</option>
+                {% for value, label in status_choices %}
+                <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-primary btn-sm" style="padding: 4px 10px; height: 30px;">
+                Filter
+            </button>
+        </form>
     </div>
 
     {% if suspicious_devices %}
@@ -74,27 +88,27 @@
             <thead>
                 <tr>
                     <th>MAC / IP</th>
-                    <th>Reason</th>
-                    <th>Detections</th>
+                    <th>Reason / Evidence</th>
+                    <th>Count</th>
                     <th>Status</th>
                     <th>Last Seen</th>
-                    <th>Actions</th>
+                    <th style="text-align: right;">Actions</th>
                 </tr>
             </thead>
             <tbody>
                 {% for incident in suspicious_devices %}
                 <tr>
                     <td>
-                        <div class="font-semibold">{{ incident.mac_address }}</div>
-                        <div class="text-xs text-muted">{{ incident.last_ip_address|default:"No IP" }}</div>
+                        <div class="font-semibold font-mono text-xs">{{ incident.mac_address }}</div>
+                        <div class="text-xs text-muted font-mono">{{ incident.last_ip_address|default:"No IP" }}</div>
                     </td>
                     <td>
-                        <div class="font-semibold">{{ incident.reason|title }}</div>
+                        <div class="font-semibold text-xs">{{ incident.reason|title }}</div>
                         {% if incident.evidence %}
-                        <div class="text-xs text-muted">{{ incident.evidence|truncatechars:100 }}</div>
+                        <div class="text-xs text-muted">{{ incident.evidence|truncatechars:80 }}</div>
                         {% endif %}
                     </td>
-                    <td>{{ incident.detection_count }}</td>
+                    <td class="font-semibold">{{ incident.detection_count }}</td>
                     <td>
                         {% if incident.status == 'blocked' %}
                         <span class="badge badge-expired">Blocked</span>
@@ -110,8 +124,8 @@
                         <div>{{ incident.last_detected_at|date:"M d, h:i A" }}</div>
                         <div class="text-xs text-muted">First: {{ incident.first_detected_at|date:"M d" }}</div>
                     </td>
-                    <td>
-                        <div class="d-flex gap-sm flex-wrap">
+                    <td style="text-align: right;">
+                        <div class="d-flex gap-xs justify-content-end flex-wrap">
                             {% if incident.status != 'blocked' %}
                             <form method="POST" action="">
                                 {% csrf_token %}
@@ -133,7 +147,7 @@
                                 {% csrf_token %}
                                 <input type="hidden" name="action" value="false_positive">
                                 <input type="hidden" name="incident_id" value="{{ incident.id }}">
-                                <button type="submit" class="btn btn-sm btn-secondary">False Positive</button>
+                                <button type="submit" class="btn btn-sm btn-secondary">Trust</button>
                             </form>
                             {% endif %}
 
@@ -142,7 +156,7 @@
                                 {% csrf_token %}
                                 <input type="hidden" name="action" value="clear">
                                 <input type="hidden" name="incident_id" value="{{ incident.id }}">
-                                <button type="submit" class="btn btn-sm btn-secondary">Clear</button>
+                                <button type="submit" class="btn btn-sm btn-outline">Clear</button>
                             </form>
                             {% endif %}
                         </div>
@@ -154,11 +168,12 @@
     </div>
     {% else %}
     <div class="empty-state">
-        <i class="bi bi-shield-check"></i>
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin: 0 auto 8px auto; display: block; color: var(--color-gray);"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><polyline points="9 12 11 14 15 10"></polyline></svg>
         <p>No suspicious devices recorded</p>
-        <small>Detected clone/mismatch events will appear here automatically</small>
+        <small>Detected clone or spoofing events will appear here automatically</small>
     </div>
     {% endif %}
 </div>
 
 {% endblock %}
+

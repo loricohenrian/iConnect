@@ -1,99 +1,108 @@
 {% extends "base_dashboard.html" %}
 
 {% block page_title %}System Logs{% endblock %}
-{% block topbar_title %}System Logs{% endblock %}
+{% block topbar_title %}System & Audit Logs{% endblock %}
 
 {% block dashboard_content %}
-<div class="row">
-    <div class="col-12">
-        <div class="card mb-md">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h2>Coin Insertion History</h2>
-                <form method="get" action="{% url 'dashboard:logs' %}" class="d-flex gap-sm">
-                    <input type="text" name="mac" placeholder="Search MAC Address" value="{{ search_mac }}" class="form-input">
-                    <button type="submit" class="btn btn-primary"><i class="bi bi-search"></i> Search</button>
-                    {% if search_mac %}
-                    <a href="{% url 'dashboard:logs' %}" class="btn btn-outline">Clear</a>
-                    {% endif %}
-                </form>
-            </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>Timestamp</th>
-                                <th>MAC Address</th>
-                                <th>Amount</th>
-                                <th>Status</th>
-                                <th>Session / Plan</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for event in coin_events %}
-                            <tr>
-                                <td>{{ event.timestamp|date:"M d, Y H:i:s" }}</td>
-                                <td><code>{{ event.mac_address|default:"N/A" }}</code></td>
-                                <td><span class="badge badge-success">₱{{ event.amount }}</span></td>
-                                <td>
-                                    <span class="badge badge-success">Processed</span>
-                                </td>
-                                <td>
-                                    {% if event.session %}
-                                    <a href="{% url 'dashboard:sessions' %}?mac={{ event.session.mac_address }}">Session #{{ event.session.id }}</a>
-                                    {% else %}
-                                    <span class="text-muted">None</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% empty %}
-                            <tr>
-                                <td colspan="5" class="text-center py-md text-muted">
-                                    {% if search_mac %}
-                                    No coin events found for MAC address "{{ search_mac }}".
-                                    {% else %}
-                                    No coin events recorded yet.
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            {% if coin_events.has_other_pages %}
-            <div class="card-footer text-center">
-                <div class="pagination">
-                    {% if coin_events.has_previous %}
-                    <a href="?page={{ coin_events.previous_page_number }}{% if search_mac %}&mac={{ search_mac }}{% endif %}" class="btn btn-sm btn-outline">&laquo; Prev</a>
-                    {% endif %}
-                    
-                    <span class="mx-md">Page {{ coin_events.number }} of {{ coin_events.paginator.num_pages }}</span>
-                    
-                    {% if coin_events.has_next %}
-                    <a href="?page={{ coin_events.next_page_number }}{% if search_mac %}&mac={{ search_mac }}{% endif %}" class="btn btn-sm btn-outline">Next &raquo;</a>
-                    {% endif %}
-                </div>
-            </div>
+
+<!-- Coin Insertion History -->
+<div class="chart-card animate-fadeIn">
+    <div class="chart-header">
+        <div>
+            <h3 class="chart-title">Coin Insertion History</h3>
+            <span class="text-xs text-muted">Raw coin acceptor hardware events</span>
+        </div>
+        <form method="get" action="{% url 'dashboard:logs' %}" class="d-flex gap-xs align-items-center">
+            <input type="text" name="mac" placeholder="Search MAC Address" value="{{ search_mac }}" class="form-input" style="width: 170px; padding: 4px 8px; height: 30px; font-size: 12px;">
+            <button type="submit" class="btn btn-primary btn-sm" style="padding: 4px 10px; height: 30px;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                Search
+            </button>
+            {% if search_mac %}
+            <a href="{% url 'dashboard:logs' %}" class="btn btn-secondary btn-sm" style="padding: 4px 10px; height: 30px;">Clear</a>
+            {% endif %}
+        </form>
+    </div>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>MAC Address</th>
+                    <th>Amount</th>
+                    <th>Hardware Status</th>
+                    <th>Session Link</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for event in coin_events %}
+                <tr>
+                    <td class="text-xs text-muted">{{ event.timestamp|date:"M d, Y H:i:s" }}</td>
+                    <td><span class="font-mono text-xs font-semibold">{{ event.mac_address|default:"N/A" }}</span></td>
+                    <td class="font-semibold" style="color: #059669;">₱{{ event.amount }}</td>
+                    <td>
+                        <span class="badge badge-active">Processed</span>
+                    </td>
+                    <td>
+                        {% if event.session %}
+                        <a href="{% url 'dashboard:sessions' %}?mac={{ event.session.mac_address }}" class="text-xs font-semibold" style="color: var(--color-primary); text-decoration: none;">
+                            Session #{{ event.session.id }}
+                        </a>
+                        {% else %}
+                        <span class="text-xs text-muted">Standalone</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="text-center text-muted" style="padding: 24px;">
+                        {% if search_mac %}
+                        No coin events found for MAC address "{{ search_mac }}".
+                        {% else %}
+                        No coin events recorded yet.
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if coin_events.has_other_pages %}
+    <div class="d-flex justify-content-between align-items-center mt-md">
+        <span class="text-xs text-muted">Page {{ coin_events.number }} of {{ coin_events.paginator.num_pages }}</span>
+        <div class="d-flex gap-xs">
+            {% if coin_events.has_previous %}
+            <a href="?page={{ coin_events.previous_page_number }}{% if search_mac %}&mac={{ search_mac }}{% endif %}" class="btn btn-sm btn-secondary">&laquo; Prev</a>
+            {% endif %}
+            
+            {% if coin_events.has_next %}
+            <a href="?page={{ coin_events.next_page_number }}{% if search_mac %}&mac={{ search_mac }}{% endif %}" class="btn btn-sm btn-secondary">Next &raquo;</a>
             {% endif %}
         </div>
     </div>
+    {% endif %}
 </div>
 
-<div class="row">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <h2>System Audit Log (Last 500 lines)</h2>
-            </div>
-            <div class="card-body">
-                <div class="terminal-view" style="background: #1e1e1e; color: #00ff00; padding: 15px; border-radius: 5px; height: 400px; overflow-y: auto; font-family: monospace; font-size: 13px;">
-                    {% for line in audit_log_lines %}
-                        <div style="white-space: pre-wrap; word-break: break-all; margin-bottom: 2px;">{{ line }}</div>
-                    {% endfor %}
-                </div>
-            </div>
+<!-- System Audit Log -->
+<div class="chart-card mt-md animate-fadeIn">
+    <div class="chart-header">
+        <div>
+            <h3 class="chart-title">System Audit Log</h3>
+            <span class="text-xs text-muted">Realtime background service journal (Last 500 lines)</span>
         </div>
+        <span class="badge badge-info">systemd</span>
+    </div>
+    
+    <div style="background: #0f172a; color: #38bdf8; padding: 14px 16px; border-radius: 8px; height: 360px; overflow-y: auto; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; line-height: 1.5;">
+        {% for line in audit_log_lines %}
+            <div style="white-space: pre-wrap; word-break: break-all; margin-bottom: 2px;">{{ line }}</div>
+        {% empty %}
+            <div style="color: #64748b;">No system journal entries found.</div>
+        {% endfor %}
     </div>
 </div>
+
 {% endblock %}
+
