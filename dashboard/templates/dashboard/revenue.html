@@ -135,9 +135,9 @@
             <thead>
                 <tr>
                     <th>ID</th>
+                    <th>Hostname</th>
                     <th>Date & Time</th>
                     <th>IP Address</th>
-                    <th>MAC Address</th>
                     <th>Duration</th>
                     <th>Amount</th>
                     <th>Status</th>
@@ -148,11 +148,14 @@
                 <tr>
                     <td class="text-muted">#{{ session.id }}</td>
                     <td>
+                        <div class="font-semibold" style="color: var(--color-dark);">{{ session.device_name|default:"Unknown" }}</div>
+                        <div class="font-mono text-xs text-muted">{{ session.mac_address }}</div>
+                    </td>
+                    <td>
                         <div class="font-medium" style="color: var(--color-dark);">{{ session.time_in|date:"M d, Y" }}</div>
                         <div class="text-xs text-muted">{{ session.time_in|date:"h:i A" }}</div>
                     </td>
                     <td class="font-mono text-sm">{{ session.ip_address|default:"-" }}</td>
-                    <td class="font-mono text-sm">{{ session.mac_address }}</td>
                     <td>{{ session.duration_minutes_purchased }}m</td>
                     <td class="font-bold" style="color: var(--color-dark);">₱{{ session.amount_paid }}</td>
                     <td>
@@ -272,8 +275,10 @@
                 datasets: [{
                     label: 'Revenue (₱)',
                     data: planData,
-                    backgroundColor: '#1e293b',
-                    borderRadius: 4,
+                    backgroundColor: '#7b2d3b',
+                    hoverBackgroundColor: '#991b1b',
+                    borderRadius: 6,
+                    maxBarThickness: 48,
                 }]
             },
             options: {
