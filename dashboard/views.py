@@ -900,41 +900,85 @@ def heatmap(request):
 @user_passes_test(_is_dashboard_admin, login_url='dashboard:login')
 def analytics_view(request):
     """User behavior analytics page with diagnostic & prescriptive insights."""
-    today = timezone.localdate()
-    month_ago = today - timedelta(days=30)
-    week_ago = today - timedelta(days=7)
+    period = request.GET.get('period', 'month')
+    custom_start = request.GET.get('start_date')
+    custom_end = request.GET.get('end_date')
 
-    # Plan popularity
-    plan_stats = Session.objects.filter(
-        time_in__date__gte=month_ago,
-        status__in=['active', 'expired', 'paused']
-    ).values('plan__name').annotate(
+    today = timezone.localdate()
+    now = timezone.now()
+
+    start_date = None
+    end_date = None
+
+    if period == 'custom':
+        if custom_start:
+            start_date = parse_date(custom_start)
+        if custom_end:
+            end_date = parse_date(custom_end)
+    elif period == 'today':
+        start_date = today
+        end_date = today
+    elif period == 'week':
+        start_date = today - timedelta(days=today.weekday())
+        end_date = today
+    elif period == 'month':
+        start_date = today - timedelta(days=30)
+        end_date = today
+    elif period == 'year':
+        start_date = today.replace(month=1, day=1)
+        end_date = today
+    elif period == 'all':
+        pass
+    else:
+        period = 'month'
+        start_date = today - timedelta(days=30)
+        end_date = today
+
+    # Base sessions queryset
+    sessions_qs = Session.objects.filter(status__in=['active', 'expired', 'paused'])
+    if start_date:
+        sessions_qs = sessions_qs.filter(time_in__date__gte=start_date)
+    if end_date:
+        sessions_qs = sessions_qs.filter(time_in__date__lte=end_date)
+
+    # 1. Plan Popularity & Performance (Exclude ₱0 spin prizes and unassigned plans)
+    commercial_sessions = sessions_qs.filter(plan__isnull=False, amount_paid__gt=0).exclude(plan__name__startswith="Prize:")
+    plan_stats = commercial_sessions.values('plan__name').annotate(
         count=Count('id'),
         total_revenue=Sum('amount_paid'),
         avg_duration=Avg('duration_minutes_purchased')
     ).order_by('-count')
 
-    # Average session duration
-    avg_duration = Session.objects.filter(
-        time_in__date__gte=month_ago,
-        status__in=['active', 'expired', 'paused']
-    ).aggregate(avg=Avg('duration_minutes_purchased'))['avg'] or 0
-
-    # Most popular plan
+    # Top plan
     top_plan = plan_stats[0]['plan__name'] if plan_stats else 'N/A'
 
-    # ── Diagnostic Analytics ──
-    # Peak hour (which hour has most sessions)
+    # Average session duration
+    avg_duration = commercial_sessions.aggregate(avg=Avg('duration_minutes_purchased'))['avg'] or 0
+
+    # Total sessions and unique devices in period
+    total_sessions_count = sessions_qs.count()
+    unique_devices = sessions_qs.values('mac_address').distinct().count()
+
+    # Retention: devices with >1 session in period
+    from django.db.models import Count as CountAgg
+    returning_devices = sessions_qs.values('mac_address').annotate(
+        sessions_count=CountAgg('id')
+    ).filter(sessions_count__gt=1).count()
+    retention_rate = round((returning_devices / unique_devices) * 100, 1) if unique_devices > 0 else 0
+
+    # Avg revenue per session
+    avg_rev_per_session = sessions_qs.aggregate(avg=Avg('amount_paid'))['avg'] or 0
+
+    # Diagnostic: Peak Hour
     from django.db.models.functions import ExtractHour, ExtractWeekDay
     import zoneinfo
     tz_info = zoneinfo.ZoneInfo(settings.TIME_ZONE)
-    peak_hour_data = Session.objects.filter(
-        time_in__date__gte=month_ago
-    ).annotate(
+    peak_hour_data = sessions_qs.annotate(
         hour=ExtractHour('time_in', tzinfo=tz_info)
     ).values('hour').annotate(
         count=Count('id')
     ).order_by('-count').first()
+
     peak_hour_val = peak_hour_data['hour'] if peak_hour_data else None
     if peak_hour_val is not None:
         h = int(peak_hour_val)
@@ -944,24 +988,17 @@ def analytics_view(request):
     else:
         peak_hour = 'N/A'
 
-    # Peak day of week
+    # Diagnostic: Peak Day of Week
     day_names = ['', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-    peak_day_data = Session.objects.filter(
-        time_in__date__gte=month_ago
-    ).annotate(
+    peak_day_data = sessions_qs.annotate(
         weekday=ExtractWeekDay('time_in')
     ).values('weekday').annotate(
         count=Count('id')
     ).order_by('-count').first()
     peak_day = day_names[peak_day_data['weekday']] if peak_day_data else 'N/A'
 
-    # Avg revenue per session
-    avg_rev_per_session = Session.objects.filter(
-        time_in__date__gte=month_ago,
-        status__in=['active', 'expired', 'paused']
-    ).aggregate(avg=Avg('amount_paid'))['avg'] or 0
-
-    # Revenue growth (this week vs last week)
+    # Revenue Growth benchmark (this week vs last week)
+    week_ago = today - timedelta(days=7)
     this_week_rev = Session.objects.filter(
         time_in__date__gte=week_ago,
         status__in=['active', 'expired', 'paused']
@@ -976,61 +1013,51 @@ def analytics_view(request):
     else:
         revenue_growth = 100 if this_week_rev > 0 else 0
 
-    # Sessions this month
-    total_sessions_month = Session.objects.filter(
-        time_in__date__gte=month_ago
-    ).count()
-
-    # Unique devices this month
-    unique_devices = Session.objects.filter(
-        time_in__date__gte=month_ago
-    ).values('mac_address').distinct().count()
-
-    # Retention: devices with >1 session
-    from django.db.models import Count as CountAgg
-    returning_devices = Session.objects.filter(
-        time_in__date__gte=month_ago
-    ).values('mac_address').annotate(
-        sessions=CountAgg('id')
-    ).filter(sessions__gt=1).count()
-    retention_rate = round((returning_devices / unique_devices) * 100, 1) if unique_devices > 0 else 0
-
-    # ── Prescriptive Insights ──
+    # Prescriptive Insights
     insights = []
-    if peak_hour_data:
+    if peak_hour_data and peak_hour != 'N/A':
         insights.append({
             'title': 'Optimize for Peak Hours',
-            'text': f"Your busiest hour is {peak_hour}. Consider offering time-limited promotions during off-peak hours to spread demand.",
+            'text': f"Your busiest traffic occurs around {peak_hour}. Consider promoting special study bundles or off-peak rates to balance solar power and bandwidth demand.",
             'type': 'tip'
         })
     if revenue_growth < 0:
         insights.append({
-            'title': 'Revenue Declining',
-            'text': f"Revenue dropped {abs(revenue_growth)}% vs last week. Consider adding a new plan or running a coin-back promotion.",
+            'title': 'Weekly Revenue Adjustment',
+            'text': f"Revenue dipped {abs(revenue_growth)}% compared to last week. Consider introducing a new high-value plan or launching a promo announcement.",
             'type': 'warning'
         })
-    elif revenue_growth > 20:
+    elif revenue_growth > 15:
         insights.append({
-            'title': 'Strong Growth',
-            'text': f"Revenue grew {revenue_growth}% this week — great momentum! Keep current pricing strategy.",
+            'title': 'Strong Growth Momentum',
+            'text': f"Weekly revenue grew +{revenue_growth}% — excellent student adoption! Your current rate tiers are performing effectively.",
             'type': 'success'
         })
-    if retention_rate < 30:
+    if retention_rate > 0 and retention_rate < 35:
         insights.append({
-            'title': 'Low Retention',
-            'text': f"Only {retention_rate}% of users return. Consider longer plans or loyalty discounts to increase retention.",
+            'title': 'Student Retention Opportunity',
+            'text': f"{retention_rate}% of connected devices are returning users. Adding loyalty point rewards or daily streak bonuses can boost repeat visits.",
             'type': 'warning'
         })
+    elif retention_rate >= 50:
+        insights.append({
+            'title': 'High Student Loyalty',
+            'text': f"{retention_rate}% of devices return regularly, showing solid student retention and campus demand.",
+            'type': 'success'
+        })
     if top_plan != 'N/A' and plan_stats and len(plan_stats) > 1:
-        top_pct = round((plan_stats[0]['count'] / total_sessions_month) * 100) if total_sessions_month > 0 else 0
-        if top_pct > 70:
+        top_pct = round((plan_stats[0]['count'] / total_sessions_count) * 100) if total_sessions_count > 0 else 0
+        if top_pct > 65:
             insights.append({
-                'title': 'Over-reliance on One Plan',
-                'text': f"{top_plan} accounts for {top_pct}% of sessions. Diversify by promoting other plans.",
+                'title': 'Single Plan Dominance',
+                'text': f"{top_plan} accounts for {top_pct}% of total purchases. Consider adjusting intermediate plan durations to encourage variety.",
                 'type': 'info'
             })
 
     context = {
+        'period': period,
+        'start_date': start_date.strftime('%Y-%m-%d') if start_date else '',
+        'end_date': end_date.strftime('%Y-%m-%d') if end_date else '',
         'plan_stats': plan_stats,
         'avg_duration': round(avg_duration, 1),
         'top_plan': top_plan,
@@ -1038,7 +1065,7 @@ def analytics_view(request):
         'peak_day': peak_day,
         'avg_rev_per_session': round(avg_rev_per_session, 1),
         'revenue_growth': revenue_growth,
-        'total_sessions_month': total_sessions_month,
+        'total_sessions': total_sessions_count,
         'unique_devices': unique_devices,
         'retention_rate': retention_rate,
         'insights': insights,

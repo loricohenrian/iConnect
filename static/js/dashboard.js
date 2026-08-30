@@ -114,11 +114,13 @@ function initSessionsChart(canvasId, data) {
             datasets: [{
                 label: 'Sessions',
                 data: data.values || [],
-                borderColor: '#1A73E8',
-                backgroundColor: 'rgba(26, 115, 232, 0.1)',
+                borderColor: '#7b2d3b',
+                backgroundColor: 'rgba(123, 45, 59, 0.08)',
                 fill: true,
-                tension: 0.3,
-                pointBackgroundColor: '#1A73E8',
+                tension: 0.35,
+                pointBackgroundColor: '#7b2d3b',
+                pointBorderColor: '#ffffff',
+                pointBorderWidth: 2,
                 pointRadius: 4,
                 pointHoverRadius: 6,
             }]
@@ -167,13 +169,15 @@ function initPlanChart(canvasId, data) {
         return null;
     }
 
+    const brandColors = ['#7b2d3b', '#991b1b', '#ea580c', '#d97706', '#6366f1', '#10b981', '#0ea5e9'];
+
     return new Chart(ctx, {
         type: 'doughnut',
         data: {
             labels: data.labels || [],
             datasets: [{
                 data: data.values || [],
-                backgroundColor: ['#1A73E8', '#0EA5E9', '#06B6D4', '#10B981'],
+                backgroundColor: brandColors.slice(0, (data.values || []).length || 1),
                 borderWidth: 0,
                 spacing: 2,
             }]
