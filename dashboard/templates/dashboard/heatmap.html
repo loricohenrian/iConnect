@@ -32,7 +32,7 @@
 </div>
 
 <!-- Peak Hours Summary -->
-<div class="grid-2 mt-lg">
+<div class="grid-3 mt-lg">
     <div class="chart-card animate-fadeIn" style="animation-delay: 200ms">
         <h3 class="card-title mb-md"><i class="bi bi-sunrise"></i> Morning Peak</h3>
         <div id="morning-peak">
@@ -48,6 +48,14 @@
             <div class="skeleton skeleton-text"></div>
         </div>
     </div>
+
+    <div class="chart-card animate-fadeIn" style="animation-delay: 400ms">
+        <h3 class="card-title mb-md"><i class="bi bi-fire" style="color: var(--color-danger, #e11d48);"></i> Busiest Peak Overall</h3>
+        <div id="overall-peak">
+            <div class="skeleton skeleton-text"></div>
+            <div class="skeleton skeleton-text"></div>
+        </div>
+    </div>
 </div>
 
 {% endblock %}
@@ -58,8 +66,10 @@ async function loadHeatmap() {
     const data = await fetchHeatmapData();
     initHeatmap('heatmap-container', data);
 
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const morningPeak = document.getElementById('morning-peak');
     const afternoonPeak = document.getElementById('afternoon-peak');
+    const overallPeak = document.getElementById('overall-peak');
 
     const morningData = data.filter(d => d.hour >= 6 && d.hour < 12);
     const afternoonData = data.filter(d => d.hour >= 12 && d.hour < 18);
@@ -67,20 +77,43 @@ async function loadHeatmap() {
     const morningTotal = morningData.reduce((sum, d) => sum + d.count, 0);
     const afternoonTotal = afternoonData.reduce((sum, d) => sum + d.count, 0);
 
-    const morningBest = morningData.sort((a, b) => b.count - a.count)[0];
-    const afternoonBest = afternoonData.sort((a, b) => b.count - a.count)[0];
+    const morningBest = [...morningData].sort((a, b) => b.count - a.count)[0];
+    const afternoonBest = [...afternoonData].sort((a, b) => b.count - a.count)[0];
+    const overallBest = [...data].filter(d => d.count > 0).sort((a, b) => b.count - a.count)[0];
+    const totalWeeklySessions = data.reduce((sum, d) => sum + d.count, 0);
+
+    function formatHour(h) {
+        const h12 = h % 12 || 12;
+        const ampm = h >= 12 ? 'PM' : 'AM';
+        return `${h12}:00 ${ampm}`;
+    }
 
     morningPeak.innerHTML = `
         <p class="stat-value">${morningTotal} sessions</p>
         <p class="text-small text-muted mt-xs">6:00 AM — 12:00 PM</p>
-        ${morningBest ? `<p class="text-small text-muted">Busiest: ${morningBest.hour}:00 (${morningBest.count} sessions)</p>` : ''}
+        ${morningBest && morningBest.count > 0 ? `<p class="text-small text-muted">Busiest: ${days[morningBest.weekday - 1]} @ ${formatHour(morningBest.hour)} (${morningBest.count} sessions)</p>` : '<p class="text-small text-muted">No morning traffic yet</p>'}
     `;
 
     afternoonPeak.innerHTML = `
         <p class="stat-value">${afternoonTotal} sessions</p>
         <p class="text-small text-muted mt-xs">12:00 PM — 6:00 PM</p>
-        ${afternoonBest ? `<p class="text-small text-muted">Busiest: ${afternoonBest.hour}:00 (${afternoonBest.count} sessions)</p>` : ''}
+        ${afternoonBest && afternoonBest.count > 0 ? `<p class="text-small text-muted">Busiest: ${days[afternoonBest.weekday - 1]} @ ${formatHour(afternoonBest.hour)} (${afternoonBest.count} sessions)</p>` : '<p class="text-small text-muted">No afternoon traffic yet</p>'}
     `;
+
+    if (overallBest && overallBest.count > 0) {
+        const dayName = days[overallBest.weekday - 1] || 'Day';
+        overallPeak.innerHTML = `
+            <p class="stat-value">${overallBest.count} sessions</p>
+            <p class="text-small text-muted mt-xs">Peak: <strong>${dayName} @ ${formatHour(overallBest.hour)}</strong></p>
+            <p class="text-small text-muted">Weekly Total: ${totalWeeklySessions} sessions</p>
+        `;
+    } else {
+        overallPeak.innerHTML = `
+            <p class="stat-value">0 sessions</p>
+            <p class="text-small text-muted mt-xs">Peak: None yet</p>
+            <p class="text-small text-muted">Awaiting traffic</p>
+        `;
+    }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
