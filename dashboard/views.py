@@ -1294,7 +1294,7 @@ def plans_view(request):
             return redirect('dashboard:plans')
 
     context = {
-        'plans': Plan.objects.all().order_by('price', 'id'),
+        'plans': Plan.objects.filter(price__gt=0).order_by('price', 'id'),
         'active_page': 'plans',
         'error_message': error_message,
     }

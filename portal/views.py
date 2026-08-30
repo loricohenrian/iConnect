@@ -549,6 +549,9 @@ def api_execute_spin(request):
                     except ImportError:
                         pass
 
+                    prev_session = Session.objects.filter(mac_address=mac_address).exclude(device_name="Spin Winner").exclude(device_name="").order_by("-time_in").first()
+                    dev_name = prev_session.device_name if prev_session and prev_session.device_name else "Spin Winner"
+
                     new_session = Session.objects.create(
                         mac_address=mac_address,
                         plan=hidden_plan, # Apply the prize's network limits
@@ -557,7 +560,7 @@ def api_execute_spin(request):
                         amount_paid=0,
                         status="active",
                         ip_address=ip_address,
-                        device_name="Spin Winner"
+                        device_name=dev_name
                     )
                     
                     rate_kbps = int(selected_prize.speed_limit * 1024) if selected_prize.speed_limit else None
