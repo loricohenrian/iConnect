@@ -23,10 +23,16 @@
             <option value="year" {% if period == 'year' %}selected{% endif %}>This Year</option>
             <option value="all" {% if period == 'all' %}selected{% endif %}>All Time</option>
         </select>
-        <a href="{% url 'dashboard:export_sessions_csv' %}?status={{ status_filter }}&search={{ search }}&period={{ period }}" class="btn btn-sm btn-secondary" id="export-csv-btn">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-            Export CSV
-        </a>
+        <div class="d-flex align-items-center gap-sm ms-auto" style="margin-left: auto;">
+            <button type="button" class="btn btn-sm" id="pause-all-btn" onclick="openPauseAllModal()" style="background: rgba(245, 158, 11, 0.12); color: #d97706; border: 1px solid rgba(245, 158, 11, 0.35); font-weight: 600; font-size: 13px; padding: 6px 14px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; border-radius: 6px;" title="Pause all currently active sessions">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5zm5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5z"/></svg>
+                Pause All
+            </button>
+            <a href="{% url 'dashboard:export_sessions_csv' %}?status={{ status_filter }}&search={{ search }}&period={{ period }}" class="btn btn-sm btn-secondary" id="export-csv-btn" style="font-size: 13px; padding: 6px 14px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                Export CSV
+            </a>
+        </div>
     </form>
 </div>
 
@@ -339,6 +345,33 @@
         modal.style.display = 'flex';
     }
 
+    function openPauseAllModal() {
+        currentSessionId = 'all';
+        currentAction = 'pause_all';
+
+        const modal = document.getElementById('sessionActionModal');
+        const title = document.getElementById('modalTitle');
+        const subtitle = document.getElementById('modalSubtitle');
+        const iconBox = document.getElementById('modalIconContainer');
+        const bodyText = document.getElementById('modalBodyText');
+        const inputContainer = document.getElementById('modalInputContainer');
+        const confirmBtn = document.getElementById('modalConfirmBtn');
+
+        inputContainer.style.display = 'none';
+        iconBox.innerHTML = modalIcons.pause;
+        iconBox.style.background = 'rgba(245,158,11,0.12)';
+        iconBox.style.color = '#f59e0b';
+        title.innerText = 'Pause All Active Sessions';
+        subtitle.innerText = 'Global Administrator Action';
+        bodyText.innerHTML = `Are you sure you want to <strong>pause all currently active sessions</strong>? Internet access will be temporarily stopped for all active users until their sessions are resumed.`;
+        confirmBtn.className = 'btn btn-warning';
+        confirmBtn.style.background = '#f59e0b';
+        confirmBtn.style.color = '#fff';
+        confirmBtn.innerText = 'Pause All Active';
+
+        modal.style.display = 'flex';
+    }
+
     function closeActionModal() {
         document.getElementById('sessionActionModal').style.display = 'none';
         currentSessionId = null;
@@ -348,16 +381,43 @@
     function submitActionModal() {
         if (!currentSessionId || !currentAction) return;
 
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        const confirmBtn = document.getElementById('modalConfirmBtn');
+        confirmBtn.disabled = true;
+        confirmBtn.innerText = 'Processing...';
+
+        if (currentAction === 'pause_all') {
+            fetch('/dashboard/sessions/pause-all/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert(data.error || 'Failed to pause sessions');
+                    confirmBtn.disabled = false;
+                    confirmBtn.innerText = 'Pause All Active';
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert('An error occurred.');
+                confirmBtn.disabled = false;
+                confirmBtn.innerText = 'Pause All Active';
+            });
+            return;
+        }
+
         let body = null;
         if (currentAction === 'edit') {
             const newName = document.getElementById('modalInputDeviceName').value.trim();
             body = JSON.stringify({ device_name: newName });
         }
-
-        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-        const confirmBtn = document.getElementById('modalConfirmBtn');
-        confirmBtn.disabled = true;
-        confirmBtn.innerText = 'Processing...';
 
         fetch(`/dashboard/sessions/${currentSessionId}/${currentAction}/`, {
             method: 'POST',

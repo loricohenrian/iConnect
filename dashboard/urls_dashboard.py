@@ -44,6 +44,7 @@ urlpatterns = [
     path('account/', views.account_view, name='account'),
     path('security/', views.security_view, name='security'),
     path('logs/', views.logs_view, name='logs'),
+    path('sessions/pause-all/', views.admin_pause_all_sessions, name='pause_all_sessions'),
     path('sessions/<int:session_id>/<str:action>/', views.admin_session_action, name='session_action'),
     path('settings/backup/', views.backup_database, name='backup_database'),
     path('issues/', views.issues_view, name='issues'),

@@ -1743,6 +1743,43 @@ from django.views.decorators.http import require_POST
 
 @user_passes_test(_is_dashboard_admin, login_url='dashboard:login')
 @require_POST
+def admin_pause_all_sessions(request):
+    """Admin endpoint to pause all currently active sessions at once."""
+    from django.http import JsonResponse
+    from django.utils import timezone
+    from sessions_app.models import Session
+
+    active_sessions = Session.objects.filter(status='active')
+    count = active_sessions.count()
+    if count == 0:
+        return JsonResponse({'success': False, 'error': 'No active sessions to pause.'})
+
+    now = timezone.now()
+    for session in active_sessions:
+        session.status = "paused"
+        session.paused_at = now
+        session.pause_count += 1
+        session.save(update_fields=["status", "paused_at", "pause_count"])
+        try:
+            from sessions_app.iptables import block_device
+            block_device(session.mac_address)
+        except Exception as e:
+            logging.error(f"Failed to block device {session.mac_address} on bulk pause: {e}")
+
+    audit_logger.info(
+        "event=pause_all_sessions user=%s count=%d ip=%s",
+        request.user.username, count, _client_ip(request)
+    )
+
+    return JsonResponse({
+        'success': True,
+        'paused_count': count,
+        'message': f'Successfully paused {count} active session(s).'
+    })
+
+
+@user_passes_test(_is_dashboard_admin, login_url='dashboard:login')
+@require_POST
 def admin_session_action(request, session_id, action):
     """Admin endpoint to pause, resume, edit, or delete a session from the dashboard."""
     import json

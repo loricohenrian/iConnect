@@ -179,6 +179,34 @@ class DashboardSecurityTests(TestCase):
         self.assertIn("Session ID,MAC Address,IP Address", content)
         self.assertIn("AA:BB:CC:DD:EE:99", content)
 
+    def test_admin_pause_all_sessions(self):
+        User = get_user_model()
+        user = User.objects.create_user(
+            username="pause_all_admin",
+            password="admin123",
+            is_staff=True,
+            is_superuser=True,
+        )
+        self.client.login(username=user.username, password="admin123")
+
+        # Create two active sessions and one expired session
+        s1 = Session.objects.create(mac_address="11:11:11:11:11:11", amount_paid=5, duration_minutes_purchased=30, status="active")
+        s2 = Session.objects.create(mac_address="22:22:22:22:22:22", amount_paid=10, duration_minutes_purchased=60, status="active")
+        s3 = Session.objects.create(mac_address="33:33:33:33:33:33", amount_paid=5, duration_minutes_purchased=30, status="expired")
+
+        resp = self.client.post("/dashboard/sessions/pause-all/")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertTrue(data["success"])
+        self.assertEqual(data["paused_count"], 2)
+
+        s1.refresh_from_db()
+        s2.refresh_from_db()
+        s3.refresh_from_db()
+        self.assertEqual(s1.status, "paused")
+        self.assertEqual(s2.status, "paused")
+        self.assertEqual(s3.status, "expired")
+
     def test_issues_view_and_management(self):
         from dashboard.models import IssueReport
         User = get_user_model()
