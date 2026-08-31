@@ -445,7 +445,7 @@ function renderPlans(plans) {
                     : "";
 
             const speedHtml = plan.speed_limit
-                ? `<div class="plan-speed" style="font-size:12px;color:var(--text-secondary);margin-top:4px;text-transform:none;"><span style="text-transform:none">\u2193</span>${plan.speed_limit}${plan.speed_limit_upload ? ' / <span style="text-transform:none">\u2191</span>' + plan.speed_limit_upload : ''} Mbps</div>`
+                ? `<div class="plan-speed">Up to ↓${plan.speed_limit}${plan.speed_limit_upload ? ' / ↑' + plan.speed_limit_upload : ''} Mbps</div>`
                 : '';
 
             return `
