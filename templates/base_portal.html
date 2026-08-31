@@ -160,7 +160,8 @@ function toggleSpinHelp() {
 }
 
 function loadSpinData() {
-    fetch('/api/spin-data/')
+    const clientMac = localStorage.getItem('iconnect_mac') || '';
+    fetch('/api/spin-data/?mac=' + encodeURIComponent(clientMac))
         .then(r => r.json())
         .then(data => {
             if (!data.enabled) return;
@@ -231,16 +232,24 @@ function executeSpin() {
     resultEl.style.display = 'none';
     errorEl.style.display = 'none';
 
+    const clientMac = localStorage.getItem('iconnect_mac') || '';
+
     fetch('/api/execute_spin/', {
         method: 'POST',
         headers: {
             'X-CSRFToken': getCookie('csrftoken') || '',
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'X-MAC-Address': clientMac
         },
-        body: JSON.stringify({})
+        body: JSON.stringify({ mac_address: clientMac })
     })
-    .then(r => r.json())
-    .then(data => {
+    .then(async (r) => {
+        let data;
+        try {
+            data = await r.json();
+        } catch (e) {
+            throw new Error('Server returned non-JSON response');
+        }
         if (data.status === 'success') {
             // Animate wheel
             const fullSpins = 360 * 5;
@@ -348,7 +357,8 @@ function getCookie(name) {
 
 // On page load, check if spin is enabled and show FAB
 document.addEventListener('DOMContentLoaded', () => {
-    fetch('/api/spin-data/')
+    const clientMac = localStorage.getItem('iconnect_mac') || '';
+    fetch('/api/spin-data/?mac=' + encodeURIComponent(clientMac))
         .then(r => r.json())
         .then(data => {
             if (data.enabled) {

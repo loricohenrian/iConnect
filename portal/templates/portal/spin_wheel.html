@@ -97,16 +97,24 @@
                 resultContainer.style.display = "none";
                 spinBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Spinning...';
 
+                const clientMac = localStorage.getItem('iconnect_mac') || '';
+
                 fetch("/api/execute_spin/", {
                     method: "POST",
                     headers: {
                         "X-CSRFToken": getCookie("csrftoken") || "",
-                        "Content-Type": "application/json"
+                        "Content-Type": "application/json",
+                        "X-MAC-Address": clientMac
                     },
-                    body: JSON.stringify({})
+                    body: JSON.stringify({ mac_address: clientMac })
                 })
-                .then(res => res.json())
-                .then(data => {
+                .then(async res => {
+                    let data;
+                    try {
+                        data = await res.json();
+                    } catch (e) {
+                        throw new Error('Server returned non-JSON response');
+                    }
                     if (data.status === "success") {
                         const fullSpins = 360 * 5;
                         const targetDeg = data.prize.mid_deg;
@@ -137,7 +145,8 @@
                     }
                 })
                 .catch(err => {
-                    alert("Network error occurred.");
+                    console.error("Spin error:", err);
+                    alert("Network error occurred. Please try again.");
                     spinBtn.disabled = false;
                     spinBtn.innerHTML = '<i class="bi bi-play-circle-fill"></i> SPIN!';
                     isSpinning = false;

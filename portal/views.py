@@ -57,17 +57,35 @@ def _mac_from_arp(ip_address):
 
 def _get_mac_address(request):
     stored_mac = _normalize_mac(request.session.get(SESSION_MAC_KEY, ""))
-    query_mac = _normalize_mac(request.GET.get("mac", ""))
+    query_mac = _normalize_mac(request.GET.get("mac", "") or request.GET.get("mac_address", ""))
+    header_mac = _normalize_mac(request.META.get("HTTP_X_MAC_ADDRESS", ""))
 
-    if stored_mac and query_mac and query_mac != stored_mac:
+    post_mac = ""
+    if request.method == "POST":
+        post_mac = _normalize_mac(request.POST.get("mac_address", "") or request.POST.get("mac", ""))
+        if not post_mac and request.body:
+            try:
+                import json
+                body_data = json.loads(request.body.decode('utf-8'))
+                if isinstance(body_data, dict):
+                    post_mac = _normalize_mac(body_data.get("mac_address", "") or body_data.get("mac", ""))
+            except Exception:
+                pass
+
+    explicit_mac = query_mac or header_mac or post_mac
+
+    if stored_mac and explicit_mac and explicit_mac != stored_mac:
         return stored_mac
 
-    if query_mac and not stored_mac:
-        request.session[SESSION_MAC_KEY] = query_mac
-        return query_mac
+    if explicit_mac and not stored_mac:
+        request.session[SESSION_MAC_KEY] = explicit_mac
+        return explicit_mac
 
     if stored_mac:
         return stored_mac
+
+    if explicit_mac:
+        return explicit_mac
 
     # Auto-detect from ARP table if no MAC available yet
     client_ip = _client_ip(request)
@@ -433,6 +451,7 @@ def spin_wheel_view(request):
 
 from django.views.decorators.csrf import csrf_exempt
 
+@csrf_exempt
 def api_execute_spin(request):
     """API endpoint to execute a spin, deduct points, and award prize."""
     import json
