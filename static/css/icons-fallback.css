@@ -49,12 +49,18 @@
 .bi-shield-exclamation::before { content: "\26A0"; font-size: 1em; }
 .bi-lock::before { content: "\2616"; font-size: 1em; }
 .bi-wifi-off::before { content: "\2298"; font-size: 1em; }
+.bi-people-fill::before { content: "\263A"; font-size: 1em; }
+.bi-disc::before,
+.bi-disc-fill::before { content: "\25CE"; font-size: 1.1em; }
 
 /* ─── Checks, Crosses, Actions ─── */
 .bi-check2::before,
 .bi-check-circle::before,
 .bi-check2-circle::before { content: "\2713"; font-size: 1em; }
-.bi-x-circle::before { content: "\2717"; font-size: 1em; }
+.bi-x::before,
+.bi-x-lg::before,
+.bi-x-circle::before,
+.bi-x-circle-fill::before { content: "\2715"; font-size: 1.1em; font-weight: bold; }
 .bi-list::before { content: "\2630"; font-size: 1em; }
 .bi-search::before { content: "\2315"; font-size: 1em; }
 
