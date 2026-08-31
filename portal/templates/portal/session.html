@@ -143,17 +143,8 @@
         {% endfor %}
     </div>
 
-    <div class="d-flex" style="flex-direction: column; gap: 8px;">
-        <button type="button" class="btn btn-secondary w-100" id="extend-request-btn" disabled>
-            <i class="bi bi-hourglass-split"></i> Request Coin Slot
-        </button>
-        <button type="button" class="btn btn-primary w-100" id="extend-now-btn" disabled>
-            <i class="bi bi-plus-circle"></i> Extend Now
-        </button>
-    </div>
-
     {% if enable_family_pass %}
-    <div class="mt-3 text-center" style="margin-top: 20px;">
+    <div class="mt-4 text-center" style="margin-top: 24px; margin-bottom: 20px;">
         <button type="button" class="btn" id="btn-group-plan" onclick="openGroupPlanModal()" style="border-radius: 16px; padding: 14px 24px; font-weight: 600; width: 100%; border: 2px solid var(--color-primary); color: var(--color-primary); background: var(--color-white); display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s; cursor: pointer;">
             <i class="bi bi-people-fill"></i> Buy Group Plan
         </button>
@@ -163,12 +154,21 @@
     </div>
     {% else %}
     <!-- Have a group code button -->
-    <div class="text-center" style="margin-top: 14px;">
+    <div class="text-center" style="margin-top: 14px; margin-bottom: 20px;">
         <button type="button" class="btn btn-link" id="btn-show-join-group" onclick="openJoinGroupModal()" style="font-size: 14px; color: var(--color-gray); text-decoration: none; padding: 6px 12px; display: inline-block; cursor: pointer;">
             Have a group code? Enter it here
         </button>
     </div>
     {% endif %}
+
+    <div class="d-flex" style="flex-direction: column; gap: 8px;">
+        <button type="button" class="btn btn-secondary w-100" id="extend-request-btn" disabled>
+            <i class="bi bi-hourglass-split"></i> Request Coin Slot
+        </button>
+        <button type="button" class="btn btn-primary w-100" id="extend-now-btn" disabled>
+            <i class="bi bi-plus-circle"></i> Extend Now
+        </button>
+    </div>
 
     <div id="extend-flow-message" class="alert alert-info mt-md" style="display:none;"></div>
     <p id="extend-flow-meta" class="text-small text-muted mt-md" style="margin-bottom:0;"></p>
