@@ -198,8 +198,8 @@
         </div>
     </div>
 
-    {% else %}
-    <div class="empty-state">
+    {% if not sessions %}
+    <div class="empty-state" id="revenue-empty-state">
         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin: 0 auto 8px auto; display: block; color: var(--color-gray);"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
         <p>No sessions found for this date range.</p>
     </div>

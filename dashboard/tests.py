@@ -41,6 +41,11 @@ class DashboardSecurityTests(TestCase):
         response = self.client.get("/api/dashboard/stats/")
         self.assertEqual(response.status_code, 200)
 
+        # Test HTML template rendering for main pages
+        for path in ["/dashboard/", "/dashboard/revenue/", "/dashboard/sessions/"]:
+            page_resp = self.client.get(path)
+            self.assertEqual(page_resp.status_code, 200, f"Failed rendering {path}")
+
     def test_logout_requires_post(self):
         response = self.client.get("/dashboard/logout/")
         self.assertEqual(response.status_code, 405)
