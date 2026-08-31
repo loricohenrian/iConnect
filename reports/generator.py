@@ -184,9 +184,9 @@ def generate_report(report_type='daily', period='today'):
         plan_data = [['Plan', 'Sessions', 'Revenue']]
         for p in plan_stats:
             plan_data.append([
-                p['plan__name'],
+                p['plan__name'] or 'Custom',
                 str(p['count']),
-                f'₱{p["revenue"]:,}',
+                f"₱{p['revenue'] or 0:,}",
             ])
 
         plan_table = Table(plan_data, colWidths=[7*cm, 4*cm, 4*cm])
@@ -250,10 +250,10 @@ def generate_csv_report(report_type='daily', period='today'):
     writer.writerow(['Plan Name', 'Price', 'Sessions', 'Revenue'])
     for row in data['plan_stats']:
         writer.writerow([
-            row['plan__name'],
-            row['plan__price'],
+            row['plan__name'] or 'Custom',
+            row['plan__price'] if row['plan__price'] is not None else '—',
             row['count'],
-            row['revenue'],
+            row['revenue'] or 0,
         ])
     writer.writerow([])
 
@@ -266,13 +266,13 @@ def generate_csv_report(report_type='daily', period='today'):
         writer.writerow([
             session.id,
             session.mac_address,
-            session.plan.name,
+            session.plan.name if session.plan else 'Custom',
             session.amount_paid,
             session.duration_minutes_purchased,
             session.status,
             session.time_in.strftime('%m/%d/%Y %H:%M') if session.time_in else '',
             session.time_out.strftime('%m/%d/%Y %H:%M') if session.time_out else '',
-            session.bandwidth_used_mb,
+            round(session.bandwidth_used_mb, 2) if session.bandwidth_used_mb is not None else 0,
         ])
 
     return response

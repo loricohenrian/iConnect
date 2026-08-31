@@ -1,4 +1,4 @@
-﻿from pathlib import Path
+from pathlib import Path
 
 from django.contrib.auth import get_user_model
 from django.conf import settings
@@ -58,7 +58,20 @@ class ReportAccessTests(TestCase):
         logged_in = self.client.login(username=self.user.username, password=self.password)
         self.assertTrue(logged_in)
 
-        response = self.client.get("/reports/generate/?format=csv")
-        self.assertEqual(response.status_code, 200)
+        # Create test session with no plan (custom coin session)
+        from sessions_app.models import Session
+        Session.objects.create(
+            mac_address="AA:BB:CC:DD:EE:FF",
+            ip_address="10.10.10.55",
+            amount_paid=10,
+            duration_minutes_purchased=60,
+            status="active",
+            plan=None,
+        )
+
+        for format_type in ["csv", "pdf"]:
+            for period in ["today", "week", "month"]:
+                response = self.client.get(f"/reports/generate/?type=weekly&period={period}&format={format_type}")
+                self.assertEqual(response.status_code, 200)
 
 
