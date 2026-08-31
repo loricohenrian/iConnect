@@ -8,8 +8,8 @@ const MAC_ADDRESS_RE = /^([0-9A-F]{2}:){5}[0-9A-F]{2}$/;
 class SessionTimer {
     constructor(elementId, totalSeconds) {
         this.element = document.getElementById(elementId);
-        this.serverSeconds = totalSeconds;
-        this.startedAt = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
+        this.serverSeconds = Math.max(0, Number(totalSeconds) || 0);
+        this.startedAt = this._now();
         this.interval = null;
         this.onExpire = null;
         this.onWarning = null;
@@ -19,19 +19,25 @@ class SessionTimer {
         this.isPaused = false;
     }
 
+    _now() {
+        return (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
+    }
+
     get remaining() {
         if (this.isPaused) {
             return Math.max(0, this.serverSeconds);
         }
-        const now = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
-        const elapsed = (now - this.startedAt) / 1000;
+        const elapsed = (this._now() - this.startedAt) / 1000;
         return Math.max(0, this.serverSeconds - elapsed);
     }
 
     setRemaining(seconds) {
-        this.serverSeconds = seconds;
-        this.startedAt = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
+        this.serverSeconds = Math.max(0, Number(seconds) || 0);
+        this.startedAt = this._now();
         this.isPaused = false;
+        this.warningShown = this.remaining <= 300;
+        this.oneMinWarningShown = this.remaining <= 60;
+        this.expiredNotified = false;
         this.update();
     }
 
@@ -40,7 +46,7 @@ class SessionTimer {
         this.serverSeconds = this.remaining;
         this.stop();
         this.update();
-        _hideTimerBanner();
+        if (typeof _hideTimerBanner === "function") _hideTimerBanner();
     }
 
     start() {
@@ -127,14 +133,6 @@ class SessionTimer {
                 this.element.style.animation = 'pulse-urgent 1s ease-in-out infinite';
             }
         }
-    }
-
-    setRemaining(seconds) {
-        this.serverSeconds = Math.max(0, seconds);
-        this.startedAt = Date.now();
-        this.warningShown = this.remaining <= 300;
-        this.oneMinWarningShown = this.remaining <= 60;
-        this.update();
     }
 }
 
