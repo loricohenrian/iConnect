@@ -363,6 +363,9 @@ function initPlanSelection() {
             const requestBtn = document.getElementById("request-slot-btn");
             if (requestBtn) {
                 requestBtn.disabled = false;
+                setTimeout(() => {
+                    requestBtn.scrollIntoView({ behavior: "smooth", block: "center" });
+                }, 80);
             }
 
             if (typeof window.onPortalPlanSelected === "function") {
@@ -1044,6 +1047,9 @@ function initExtendSessionFlow(macAddress) {
             card.classList.add("selected");
             extendPlanInput.value = card.dataset.planId;
             extendRequestBtn.disabled = false;
+            setTimeout(() => {
+                extendRequestBtn.scrollIntoView({ behavior: "smooth", block: "center" });
+            }, 80);
 
             if (state.planId && state.planId !== Number(card.dataset.planId)) {
                 clearPolling();
