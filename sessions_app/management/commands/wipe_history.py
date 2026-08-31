@@ -25,9 +25,7 @@ class Command(BaseCommand):
             Session, CoinEvent, PurchaseTransaction,
             CoinInsertRequest, DeviceProfile, SessionGroup
         )
-        from dashboard.models import (
-            DailyRevenueSummary, DailyAnalyticsSnapshot
-        )
+        from dashboard.models import DailyRevenueSummary
 
         with transaction.atomic():
             s_count = Session.objects.all().count()
@@ -49,12 +47,11 @@ class Command(BaseCommand):
             SessionGroup.objects.all().delete()
 
             DailyRevenueSummary.objects.all().delete()
-            DailyAnalyticsSnapshot.objects.all().delete()
 
         # Flush iptables client rules
         try:
-            from sessions_app.iptables import flush_all_rules, enforce_firewall_baseline
-            flush_all_rules()
+            from sessions_app.iptables import flush_rules, enforce_firewall_baseline
+            flush_rules()
             enforce_firewall_baseline()
             self.stdout.write(self.style.SUCCESS("Flushed active firewall rules and restored baseline."))
         except Exception as e:
