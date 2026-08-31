@@ -173,7 +173,7 @@ class DashboardSecurityTests(TestCase):
 
         response = self.client.get("/dashboard/sessions/export/?period=all")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response["Content-Type"], "text/csv")
+        self.assertIn("text/csv", response["Content-Type"])
         self.assertIn("attachment; filename=", response["Content-Disposition"])
         content = response.content.decode("utf-8")
         self.assertIn("Session ID,MAC Address,IP Address", content)

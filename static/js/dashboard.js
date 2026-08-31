@@ -484,6 +484,31 @@ async function generateReport(button, type, period, format = 'pdf') {
     }, 2000);
 }
 
+async function generateCustomReport(button, format = 'pdf') {
+    const startInput = document.getElementById('custom-report-start');
+    const endInput = document.getElementById('custom-report-end');
+    const startDate = startInput ? startInput.value.trim() : '';
+    const endDate = endInput ? endInput.value.trim() : '';
+
+    if (!startDate && !endDate) {
+        alert('Please select at least a Start Date or End Date for the custom report.');
+        return;
+    }
+
+    const btn = button;
+    const origText = btn.textContent;
+    btn.innerHTML = '<span class="spinner"></span> Generating...';
+    btn.disabled = true;
+
+    const url = `/reports/generate/?type=custom&period=custom&format=${format}&start_date=${encodeURIComponent(startDate)}&end_date=${encodeURIComponent(endDate)}`;
+    window.location.href = url;
+
+    setTimeout(() => {
+        btn.textContent = origText;
+        btn.disabled = false;
+    }, 2000);
+}
+
 // ============================================
 // Utility
 // ============================================

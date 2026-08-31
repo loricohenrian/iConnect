@@ -76,29 +76,56 @@ def get_styles():
     return styles
 
 
-def resolve_period(report_type='daily', period='today'):
+from django.utils.dateparse import parse_date
+
+
+def resolve_period(report_type='daily', period='today', start_date='', end_date=''):
     """Resolve date window and label for report generation."""
     today = timezone.now().date()
+    s_date = today
+    e_date = today
+
+    if period == 'custom' or start_date or end_date:
+        if start_date:
+            parsed_s = parse_date(start_date)
+            if parsed_s:
+                s_date = parsed_s
+        else:
+            s_date = today
+
+        if end_date:
+            parsed_e = parse_date(end_date)
+            if parsed_e:
+                e_date = parsed_e
+        else:
+            e_date = today
+
+        period_label = f'{s_date.strftime("%b %d, %Y")} — {e_date.strftime("%b %d, %Y")}'
+        return s_date, e_date, period_label
 
     if period == 'today' or report_type == 'daily':
-        start_date = today
+        s_date = today
+        e_date = today
         period_label = today.strftime('%B %d, %Y')
     elif period == 'week' or report_type == 'weekly':
-        start_date = today - timedelta(days=7)
-        period_label = f'{start_date.strftime("%b %d")} — {today.strftime("%b %d, %Y")}'
+        s_date = today - timedelta(days=7)
+        e_date = today
+        period_label = f'{s_date.strftime("%b %d")} — {today.strftime("%b %d, %Y")}'
     else:
-        start_date = today - timedelta(days=30)
-        period_label = f'{start_date.strftime("%b %d")} — {today.strftime("%b %d, %Y")}'
+        s_date = today - timedelta(days=30)
+        e_date = today
+        period_label = f'{s_date.strftime("%b %d")} — {today.strftime("%b %d, %Y")}'
 
-    return start_date, period_label
+    return s_date, e_date, period_label
 
 
-def get_report_data(report_type='daily', period='today'):
+def get_report_data(report_type='daily', period='today', start_date='', end_date=''):
     """Collect reusable report aggregates and row-level data."""
-    start_date, period_label = resolve_period(report_type, period)
+    s_date, e_date, period_label = resolve_period(report_type, period, start_date, end_date)
     sessions = Session.objects.filter(
-        time_in__date__gte=start_date,
-        status__in=['active', 'expired']
+        time_in__date__gte=s_date,
+        time_in__date__lte=e_date,
+        status__in=['active', 'expired', 'paused']
     ).select_related('plan').order_by('-time_in')
 
     total_revenue = sessions.aggregate(total=Sum('amount_paid'))['total'] or 0
@@ -120,18 +147,20 @@ def get_report_data(report_type='daily', period='today'):
     }
 
 
-def generate_report(report_type='daily', period='today'):
+def generate_report(report_type='daily', period='today', start_date='', end_date=''):
     """
     Generate a PDF report.
 
     Args:
-        report_type: 'daily', 'weekly', or 'monthly'
-        period: 'today', 'week', or 'month'
+        report_type: 'daily', 'weekly', 'monthly', or 'custom'
+        period: 'today', 'week', 'month', or 'custom'
+        start_date: 'YYYY-MM-DD' (optional)
+        end_date: 'YYYY-MM-DD' (optional)
 
     Returns:
         HttpResponse with PDF content
     """
-    data = get_report_data(report_type, period)
+    data = get_report_data(report_type, period, start_date, end_date)
     period_label = data['period_label']
     total_revenue = data['total_revenue']
     total_sessions = data['total_sessions']
@@ -225,9 +254,9 @@ def generate_report(report_type='daily', period='today'):
     return response
 
 
-def generate_csv_report(report_type='daily', period='today'):
+def generate_csv_report(report_type='daily', period='today', start_date='', end_date=''):
     """Generate a CSV report with summary, plan breakdown, and session rows."""
-    data = get_report_data(report_type, period)
+    data = get_report_data(report_type, period, start_date, end_date)
     sessions = data['sessions']
 
     response = HttpResponse(content_type='text/csv; charset=utf-8')

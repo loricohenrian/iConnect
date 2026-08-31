@@ -74,4 +74,8 @@ class ReportAccessTests(TestCase):
                 response = self.client.get(f"/reports/generate/?type=weekly&period={period}&format={format_type}")
                 self.assertEqual(response.status_code, 200)
 
+            # Test custom date range
+            custom_resp = self.client.get(f"/reports/generate/?type=custom&period=custom&format={format_type}&start_date=2026-08-01&end_date=2026-08-31")
+            self.assertEqual(custom_resp.status_code, 200)
+
 

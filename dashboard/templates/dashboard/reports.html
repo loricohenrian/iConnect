@@ -204,7 +204,7 @@
         </div>
 
         <!-- 2. Spreadsheet CSV Exports -->
-        <div>
+        <div class="mb-md">
             <div class="text-xs font-semibold text-muted text-uppercase mb-xs" style="letter-spacing: 0.5px;">📊 Period CSV Spreadsheets</div>
             <div class="d-flex gap-sm flex-wrap">
                 <button class="btn btn-secondary btn-sm" onclick="generateReport(this, 'daily', 'today', 'csv')" id="btn-daily-report-csv" style="padding: 6px 12px; font-size: 13px;">
@@ -218,6 +218,29 @@
                 <button class="btn btn-secondary btn-sm" onclick="generateReport(this, 'monthly', 'month', 'csv')" id="btn-monthly-report-csv" style="padding: 6px 12px; font-size: 13px;">
                     <svg width="14" height="14" viewBox="0 0 16 16" fill="#10b981" style="vertical-align: -1px; margin-right: 4px;"><path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2M9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5z"/></svg>
                     Monthly CSV
+                </button>
+            </div>
+        </div>
+
+        <!-- 3. Custom Date Range Export -->
+        <div class="pt-sm" style="border-top: 1px solid var(--color-border);">
+            <div class="text-xs font-semibold text-muted text-uppercase mb-xs" style="letter-spacing: 0.5px;">📅 Custom Date Range Export</div>
+            <div class="d-flex gap-sm flex-wrap align-items-center">
+                <div class="d-flex align-items-center gap-xs">
+                    <label class="text-xs text-muted" style="margin: 0;">From:</label>
+                    <input type="date" id="custom-report-start" class="form-input" style="padding: 4px 8px; font-size: 12px; height: 32px; border-radius: 6px;">
+                </div>
+                <div class="d-flex align-items-center gap-xs">
+                    <label class="text-xs text-muted" style="margin: 0;">To:</label>
+                    <input type="date" id="custom-report-end" class="form-input" style="padding: 4px 8px; font-size: 12px; height: 32px; border-radius: 6px;">
+                </div>
+                <button class="btn btn-secondary btn-sm" onclick="generateCustomReport(this, 'pdf')" id="btn-custom-report-pdf" style="padding: 6px 12px; font-size: 13px;">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="#ef4444" style="vertical-align: -1px; margin-right: 4px;"><path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2M9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5z"/></svg>
+                    Custom PDF
+                </button>
+                <button class="btn btn-secondary btn-sm" onclick="generateCustomReport(this, 'csv')" id="btn-custom-report-csv" style="padding: 6px 12px; font-size: 13px;">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="#10b981" style="vertical-align: -1px; margin-right: 4px;"><path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2M9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5z"/></svg>
+                    Custom CSV
                 </button>
             </div>
         </div>

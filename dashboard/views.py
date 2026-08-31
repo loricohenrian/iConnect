@@ -921,9 +921,10 @@ def export_sessions_csv(request):
             Q(ip_address__icontains=search)
         )
 
-    response = HttpResponse(content_type='text/csv')
+    response = HttpResponse(content_type='text/csv; charset=utf-8')
     filename = f"iconnect_sessions_{today.strftime('%Y%m%d')}.csv"
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    response.write('\ufeff') # UTF-8 BOM for Microsoft Excel
 
     writer = csv.writer(response)
     writer.writerow([
@@ -963,9 +964,10 @@ def export_revenue_csv(request):
     summaries = DailyRevenueSummary.objects.all().order_by('-date')
     today = timezone.localdate()
 
-    response = HttpResponse(content_type='text/csv')
+    response = HttpResponse(content_type='text/csv; charset=utf-8')
     filename = f"iconnect_revenue_summary_{today.strftime('%Y%m%d')}.csv"
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    response.write('\ufeff') # UTF-8 BOM for Microsoft Excel
 
     writer = csv.writer(response)
     writer.writerow([
