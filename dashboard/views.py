@@ -1630,13 +1630,17 @@ def security_view(request):
 
 @user_passes_test(_is_dashboard_admin, login_url='dashboard:login')
 def account_view(request):
-    """Dashboard account settings for admin email and password."""
+    """Dashboard account settings for admin email, password, and multi-admin management."""
     if not request.user.is_authenticated:
         return redirect(f'/admin/login/?next={request.path}')
 
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
     email_message = ''
     email_error = ''
     password_message = ''
+    admin_message = ''
+    admin_error = ''
     password_form = PasswordChangeForm(request.user)
 
     if request.method == 'POST':
@@ -1647,22 +1651,76 @@ def account_view(request):
                 request.user.email = email
                 request.user.save(update_fields=['email'])
                 email_message = 'Email updated successfully.'
+                audit_logger.info("event=admin_email_updated user=%s email=%s", request.user.username, email)
             else:
                 email_error = 'Email cannot be empty.'
+
         elif action == 'change_password':
             password_form = PasswordChangeForm(request.user, request.POST)
             if password_form.is_valid():
                 user = password_form.save()
                 update_session_auth_hash(request, user)
                 password_message = 'Password updated successfully.'
+                audit_logger.info("event=admin_password_updated user=%s", request.user.username)
                 password_form = PasswordChangeForm(request.user)
+
+        elif action == 'create_admin':
+            new_username = request.POST.get('new_username', '').strip()
+            new_email = request.POST.get('new_email', '').strip()
+            new_password = request.POST.get('new_password', '').strip()
+            new_role = request.POST.get('new_role', 'staff')
+
+            if not new_username:
+                admin_error = 'Username cannot be empty.'
+            elif len(new_password) < 6:
+                admin_error = 'Password must be at least 6 characters long.'
+            elif User.objects.filter(username__iexact=new_username).exists():
+                admin_error = f'Username "{new_username}" is already taken.'
+            else:
+                is_superuser = (new_role == 'superuser')
+                new_user = User.objects.create_user(
+                    username=new_username,
+                    email=new_email,
+                    password=new_password,
+                    is_staff=True,
+                    is_superuser=is_superuser,
+                )
+                admin_message = f'Admin account "{new_username}" created successfully.'
+                audit_logger.info(
+                    "event=admin_created creator=%s created_user=%s is_superuser=%s",
+                    request.user.username, new_username, is_superuser
+                )
+
+        elif action == 'delete_admin':
+            target_id = request.POST.get('target_user_id')
+            try:
+                target_user = User.objects.get(id=target_id, is_staff=True)
+                if target_user.id == request.user.id:
+                    admin_error = 'You cannot delete your own active administrator account.'
+                elif target_user.is_superuser and User.objects.filter(is_superuser=True, is_staff=True).count() <= 1:
+                    admin_error = 'Cannot delete the only remaining Superadmin account.'
+                else:
+                    deleted_name = target_user.username
+                    target_user.delete()
+                    admin_message = f'Admin account "{deleted_name}" deleted successfully.'
+                    audit_logger.info(
+                        "event=admin_deleted by=%s deleted_user=%s",
+                        request.user.username, deleted_name
+                    )
+            except User.DoesNotExist:
+                admin_error = 'User not found.'
+
+    admin_users = User.objects.filter(is_staff=True).order_by('-is_superuser', 'username')
 
     context = {
         'active_page': 'account',
         'email_message': email_message,
         'email_error': email_error,
         'password_message': password_message,
+        'admin_message': admin_message,
+        'admin_error': admin_error,
         'password_form': password_form,
+        'admin_users': admin_users,
     }
     return render(request, 'dashboard/account.html', context)
 

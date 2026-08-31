@@ -222,6 +222,46 @@ class DashboardSecurityTests(TestCase):
         self.assertIn("attachment; filename=", resp["Content-Disposition"])
         self.assertTrue(len(resp.content) > 0)
 
+    def test_admin_user_create_and_delete(self):
+        User = get_user_model()
+        user = User.objects.create_user(
+            username="master_admin",
+            password="admin123",
+            is_staff=True,
+            is_superuser=True,
+        )
+        self.client.login(username=user.username, password="admin123")
+
+        # 1. Create a new staff operator
+        create_resp = self.client.post("/dashboard/account/", {
+            "action": "create_admin",
+            "new_username": "technician_bob",
+            "new_email": "bob@tech.com",
+            "new_password": "bobpassword123",
+            "new_role": "staff",
+        })
+        self.assertEqual(create_resp.status_code, 200)
+        self.assertTrue(User.objects.filter(username="technician_bob").exists())
+        bob = User.objects.get(username="technician_bob")
+        self.assertTrue(bob.is_staff)
+        self.assertFalse(bob.is_superuser)
+
+        # 2. Cannot delete yourself
+        del_self_resp = self.client.post("/dashboard/account/", {
+            "action": "delete_admin",
+            "target_user_id": str(user.id),
+        })
+        self.assertEqual(del_self_resp.status_code, 200)
+        self.assertTrue(User.objects.filter(id=user.id).exists())
+
+        # 3. Delete technician_bob
+        del_bob_resp = self.client.post("/dashboard/account/", {
+            "action": "delete_admin",
+            "target_user_id": str(bob.id),
+        })
+        self.assertEqual(del_bob_resp.status_code, 200)
+        self.assertFalse(User.objects.filter(username="technician_bob").exists())
+
     def test_issues_view_and_management(self):
         from dashboard.models import IssueReport
         User = get_user_model()

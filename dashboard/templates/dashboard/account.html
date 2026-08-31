@@ -92,5 +92,176 @@
     </div>
 </div>
 
+<!-- Administrator Accounts Management -->
+<div class="chart-card mt-lg animate-fadeIn">
+    <div class="chart-header">
+        <div>
+            <h3 class="chart-title">Administrator Accounts</h3>
+            <span class="text-xs text-muted">Manage operators and technicians who have access to this dashboard</span>
+        </div>
+        <button type="button" class="btn btn-primary btn-sm" onclick="openAddAdminModal()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7.5" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="23" y1="11" x2="17" y2="11"></line></svg>
+            + Add New Admin
+        </button>
+    </div>
+
+    {% if admin_message %}
+    <div class="alert alert-success mt-sm mb-md">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+        {{ admin_message }}
+    </div>
+    {% endif %}
+
+    {% if admin_error %}
+    <div class="alert alert-danger mt-sm mb-md">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+        {{ admin_error }}
+    </div>
+    {% endif %}
+
+    <div class="table-container mt-sm">
+        <table>
+            <thead>
+                <tr>
+                    <th>Username</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Date Joined</th>
+                    <th>Last Login</th>
+                    <th style="text-align: right;">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in admin_users %}
+                <tr>
+                    <td>
+                        <div class="d-flex align-items-center gap-xs">
+                            <div style="width: 28px; height: 28px; border-radius: 50%; background: var(--color-primary-light, rgba(79,70,229,0.1)); color: var(--color-primary); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px;">
+                                {{ u.username|slice:":1"|upper }}
+                            </div>
+                            <span class="font-semibold text-sm">{{ u.username }}</span>
+                            {% if u.id == request.user.id %}
+                            <span class="badge badge-active" style="font-size: 10px; padding: 2px 6px;">You</span>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td class="text-xs text-muted">{{ u.email|default:"No email set" }}</td>
+                    <td>
+                        {% if u.is_superuser %}
+                        <span class="badge badge-active" style="background: rgba(16,185,129,0.15); color: #059669;">Superadmin</span>
+                        {% else %}
+                        <span class="badge badge-info" style="background: rgba(59,130,246,0.15); color: #2563eb;">Staff Operator</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-xs text-muted">{{ u.date_joined|date:"M d, Y" }}</td>
+                    <td class="text-xs text-muted">{{ u.last_login|date:"M d, Y H:i"|default:"Never" }}</td>
+                    <td style="text-align: right;">
+                        {% if u.id != request.user.id %}
+                        <button type="button" class="btn btn-secondary btn-sm" style="color: var(--color-danger); border-color: rgba(239,68,68,0.25); padding: 3px 8px; font-size: 11px;" onclick="openDeleteAdminModal('{{ u.id }}', '{{ u.username|escapejs }}')">
+                            Delete
+                        </button>
+                        {% else %}
+                        <span class="text-xs text-muted" style="font-style: italic;">Current session</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Add Admin Modal -->
+<div id="addAdminModal" style="display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.65); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center; padding: 16px;">
+    <div class="card animate-fadeIn" style="max-width: 440px; width: 100%; padding: 24px; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3); background: var(--color-card-bg, #ffffff);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700;">Add New Administrator</h3>
+            <button type="button" onclick="closeAddAdminModal()" style="background: none; border: none; font-size: 20px; color: var(--color-muted); cursor: pointer;">&times;</button>
+        </div>
+        
+        <form method="POST" action="">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="create_admin">
+
+            <div class="form-group mb-sm">
+                <label class="form-label">Username <span style="color: var(--color-danger);">*</span></label>
+                <input type="text" name="new_username" class="form-input" placeholder="e.g. technician1" required autocomplete="off">
+            </div>
+
+            <div class="form-group mb-sm">
+                <label class="form-label">Email Address (Optional)</label>
+                <input type="email" name="new_email" class="form-input" placeholder="tech@example.com" autocomplete="off">
+            </div>
+
+            <div class="form-group mb-sm">
+                <label class="form-label">Password <span style="color: var(--color-danger);">*</span></label>
+                <input type="password" name="new_password" class="form-input" placeholder="Minimum 6 characters" minlength="6" required autocomplete="new-password">
+            </div>
+
+            <div class="form-group mb-md">
+                <label class="form-label">Account Role</label>
+                <select name="new_role" class="form-input">
+                    <option value="staff">Staff Operator (Dashboard access)</option>
+                    <option value="superuser">Superadmin (Full system privileges)</option>
+                </select>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 8px;">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="closeAddAdminModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary btn-sm">Create Account</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Delete Admin Confirmation Modal -->
+<div id="deleteAdminModal" style="display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.65); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center; padding: 16px;">
+    <div class="card animate-fadeIn" style="max-width: 400px; width: 100%; padding: 24px; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3); background: var(--color-card-bg, #ffffff);">
+        <div style="text-align: center; margin-bottom: 16px;">
+            <div style="width: 48px; height: 48px; border-radius: 50%; background: rgba(239,68,68,0.12); color: #ef4444; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+            </div>
+            <h3 style="margin: 0 0 6px; font-size: 1.15rem; font-weight: 700;">Delete Administrator?</h3>
+            <p style="margin: 0; font-size: 13px; color: var(--color-muted);" id="deleteAdminText">Are you sure you want to delete this administrator account?</p>
+        </div>
+
+        <form method="POST" action="">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="delete_admin">
+            <input type="hidden" name="target_user_id" id="deleteTargetUserId" value="">
+
+            <div style="display: flex; justify-content: center; gap: 10px; margin-top: 20px;">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="closeDeleteAdminModal()" style="min-width: 90px;">Cancel</button>
+                <button type="submit" class="btn btn-danger btn-sm" style="min-width: 100px;">Delete Admin</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openAddAdminModal() {
+    document.getElementById('addAdminModal').style.display = 'flex';
+}
+function closeAddAdminModal() {
+    document.getElementById('addAdminModal').style.display = 'none';
+}
+
+function openDeleteAdminModal(userId, username) {
+    document.getElementById('deleteTargetUserId').value = userId;
+    document.getElementById('deleteAdminText').innerHTML = `Are you sure you want to delete admin <strong>"${username}"</strong>? They will immediately lose dashboard access.`;
+    document.getElementById('deleteAdminModal').style.display = 'flex';
+}
+function closeDeleteAdminModal() {
+    document.getElementById('deleteAdminModal').style.display = 'none';
+}
+
+window.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeAddAdminModal();
+        closeDeleteAdminModal();
+    }
+});
+</script>
+
 {% endblock %}
 
