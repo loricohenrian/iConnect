@@ -793,20 +793,20 @@
     transform: translateX(-50%);
     width: calc(100% - 48px);
     max-width: 260px;
-    background: rgba(45, 31, 31, 0.94);
+    background: var(--color-primary);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.18);
     border-radius: 100px;
     display: flex;
     justify-content: space-around;
     padding: 5px;
-    box-shadow: 0 12px 30px rgba(45, 31, 31, 0.25);
+    box-shadow: 0 10px 25px rgba(123, 45, 59, 0.35);
     z-index: 1000;
 }
 
 .portal-nav a {
-    color: rgba(255, 255, 255, 0.45);
+    color: rgba(255, 255, 255, 0.65);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -819,7 +819,7 @@
 
 .portal-nav a.active {
     color: var(--color-white);
-    background: rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.22);
 }
 
 .portal-nav a i {
