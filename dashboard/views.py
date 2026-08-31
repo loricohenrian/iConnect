@@ -2050,12 +2050,62 @@ from django.http import FileResponse, Http404
 
 @user_passes_test(_is_dashboard_admin, login_url='dashboard:login')
 def backup_database(request):
-    db_path = settings.BASE_DIR / 'db.sqlite3'
-    if not os.path.exists(db_path):
-        raise Http404("Database file not found.")
-        
-    response = FileResponse(open(db_path, 'rb'), as_attachment=True, filename='db_backup.sqlite3')
-    return response
+    import io
+    import sqlite3
+    from pathlib import Path
+    from django.core.management import call_command
+    from django.http import HttpResponse
+
+    # 1. Check configured database name
+    db_config = settings.DATABASES.get('default', {})
+    db_name = db_config.get('NAME')
+    
+    candidate_paths = []
+    if db_name:
+        candidate_paths.append(Path(db_name))
+    candidate_paths.extend([
+        Path(settings.BASE_DIR) / 'db.sqlite3',
+        Path(settings.BASE_DIR) / 'pisowifi' / 'db.sqlite3',
+        Path(settings.BASE_DIR).parent / 'db.sqlite3',
+        Path('/opt/iconnect/pisowifi/db.sqlite3'),
+        Path('/opt/iconnect/db.sqlite3'),
+    ])
+
+    found_path = None
+    for p in candidate_paths:
+        try:
+            if p and p.is_file() and p.stat().st_size > 0:
+                found_path = p
+                break
+        except Exception:
+            continue
+
+    if found_path:
+        try:
+            with open(found_path, 'rb') as f:
+                content = f.read()
+
+            response = HttpResponse(content, content_type='application/x-sqlite3')
+            timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
+            response['Content-Disposition'] = f'attachment; filename="iconnect_backup_{timestamp}.sqlite3"'
+            audit_logger.info("event=database_backup_download user=%s size=%d", request.user.username, len(content))
+            return response
+        except Exception as e:
+            logger.error(f"Error reading SQLite backup file: {e}")
+
+    # Fallback: Django JSON dumpdata backup
+    try:
+        buffer = io.StringIO()
+        call_command('dumpdata', stdout=buffer, exclude=['contenttypes', 'auth.permission'])
+        json_data = buffer.getvalue().encode('utf-8')
+        response = HttpResponse(json_data, content_type='application/json')
+        timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
+        response['Content-Disposition'] = f'attachment; filename="iconnect_backup_{timestamp}.json"'
+        audit_logger.info("event=database_backup_dumpdata user=%s size=%d", request.user.username, len(json_data))
+        return response
+    except Exception as e:
+        logger.error(f"Dumpdata backup failed: {e}")
+        raise Http404("Database backup could not be generated.")
 
 
 @user_passes_test(_is_dashboard_admin, login_url='dashboard:login')

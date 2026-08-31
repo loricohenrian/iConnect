@@ -207,6 +207,21 @@ class DashboardSecurityTests(TestCase):
         self.assertEqual(s2.status, "paused")
         self.assertEqual(s3.status, "expired")
 
+    def test_backup_database_download(self):
+        User = get_user_model()
+        user = User.objects.create_user(
+            username="backup_admin",
+            password="admin123",
+            is_staff=True,
+            is_superuser=True,
+        )
+        self.client.login(username=user.username, password="admin123")
+
+        resp = self.client.get("/dashboard/settings/backup/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("attachment; filename=", resp["Content-Disposition"])
+        self.assertTrue(len(resp.content) > 0)
+
     def test_issues_view_and_management(self):
         from dashboard.models import IssueReport
         User = get_user_model()
