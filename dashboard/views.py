@@ -1829,7 +1829,7 @@ def issues_view(request):
 
     reports = IssueReport.objects.all()
 
-    if status_filter in ['pending', 'in_progress', 'resolved']:
+    if status_filter in ['pending', 'resolved']:
         reports = reports.filter(status=status_filter)
 
     if category_filter in dict(IssueReport.CATEGORY_CHOICES).keys():
@@ -1845,7 +1845,6 @@ def issues_view(request):
     # Stats
     total_count = IssueReport.objects.count()
     pending_count = IssueReport.objects.filter(status='pending').count()
-    in_progress_count = IssueReport.objects.filter(status='in_progress').count()
     resolved_count = IssueReport.objects.filter(status='resolved').count()
 
     paginator = Paginator(reports, 15)
@@ -1860,7 +1859,6 @@ def issues_view(request):
         'search_query': search_query,
         'total_count': total_count,
         'pending_count': pending_count,
-        'in_progress_count': in_progress_count,
         'resolved_count': resolved_count,
         'categories': IssueReport.CATEGORY_CHOICES,
     }
@@ -1875,7 +1873,7 @@ def update_issue_status(request, issue_id):
     new_status = request.POST.get('status')
     admin_notes = request.POST.get('admin_notes')
 
-    if new_status in ['pending', 'in_progress', 'resolved']:
+    if new_status in ['pending', 'resolved']:
         issue.status = new_status
         if new_status == 'resolved':
             issue.resolved_at = timezone.now()

@@ -26,17 +26,6 @@
         </div>
     </div>
 
-    <!-- In Progress -->
-    <div class="stat-card animate-fadeIn">
-        <div class="stat-info">
-            <div class="stat-label">In Progress</div>
-            <div class="stat-value" style="color: #2563eb;">{{ in_progress_count }}</div>
-        </div>
-        <div class="static-icon" style="color: #2563eb; background: #eff6ff; width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-        </div>
-    </div>
-
     <!-- Resolved -->
     <div class="stat-card animate-fadeIn">
         <div class="stat-info">
@@ -78,7 +67,6 @@
             <select name="status" class="form-input" style="width: 130px; padding: 4px 8px; height: 32px; font-size: 12px;" onchange="this.form.submit()">
                 <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Status</option>
                 <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
-                <option value="in_progress" {% if status_filter == 'in_progress' %}selected{% endif %}>In Progress</option>
                 <option value="resolved" {% if status_filter == 'resolved' %}selected{% endif %}>Resolved</option>
             </select>
 
@@ -107,8 +95,6 @@
                     <td>
                         {% if report.status == 'pending' %}
                         <span class="badge" style="background: #fef3c7; color: #b45309; font-weight: 700; padding: 3px 8px; border-radius: 6px; font-size: 11px;">Pending</span>
-                        {% elif report.status == 'in_progress' %}
-                        <span class="badge" style="background: #dbeafe; color: #1d4ed8; font-weight: 700; padding: 3px 8px; border-radius: 6px; font-size: 11px;">In Progress</span>
                         {% else %}
                         <span class="badge" style="background: #dcfce7; color: #15803d; font-weight: 700; padding: 3px 8px; border-radius: 6px; font-size: 11px;">Resolved</span>
                         {% endif %}
