@@ -223,6 +223,18 @@ class Session(models.Model):
         secs = seconds % 60
         return f"{hours:02d}:{minutes:02d}:{secs:02d}"
 
+    @property
+    def duration_display(self):
+        """Return human readable purchased duration (e.g. '9 hrs 20 mins')."""
+        mins = self.duration_minutes_purchased or 0
+        if mins >= 60:
+            hours = mins // 60
+            remaining_mins = mins % 60
+            if remaining_mins > 0:
+                return f"{hours} hr{'s' if hours > 1 else ''} {remaining_mins} min{'s' if remaining_mins > 1 else ''}"
+            return f"{hours} hr{'s' if hours > 1 else ''}"
+        return f"{mins} mins"
+
     def extend_session(self, additional_minutes):
         """Extend the session by adding more time."""
         if not self.time_in:

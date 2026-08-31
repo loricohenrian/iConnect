@@ -1147,12 +1147,18 @@ function initExtendSessionFlow(macAddress) {
 
                 // Update amount paid and duration display in real-time
                 if (data.session) {
-                    const amountEl = document.querySelector('.detail-row .detail-value');
+                    const amountEl = document.getElementById("session-amount-paid") || document.querySelector('.detail-row .detail-value');
                     if (amountEl) amountEl.textContent = `₱${data.session.amount_paid}`;
-                    const detailRows = document.querySelectorAll('.detail-row');
-                    if (detailRows.length >= 2) {
-                        const durationEl = detailRows[1].querySelector('.detail-value');
-                        if (durationEl) durationEl.textContent = `${data.session.duration_minutes_purchased} mins`;
+                    const durationEl = document.getElementById("session-duration-display");
+                    if (durationEl) {
+                        const mins = data.session.duration_minutes_purchased || 0;
+                        if (mins >= 60) {
+                            const hrs = Math.floor(mins / 60);
+                            const remMins = mins % 60;
+                            durationEl.textContent = remMins > 0 ? `${hrs} hr${hrs > 1 ? 's' : ''} ${remMins} min${remMins > 1 ? 's' : ''}` : `${hrs} hr${hrs > 1 ? 's' : ''}`;
+                        } else {
+                            durationEl.textContent = `${mins} mins`;
+                        }
                     }
                 }
 

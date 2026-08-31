@@ -77,19 +77,25 @@
     <!-- Session Details (inside timer container) -->
     <div class="session-details-inline mt-md">
         <div class="detail-row">
-            <span class="detail-label">Amount Paid</span>
-            <span class="detail-value">₱{{ session.amount_paid }}</span>
+            <span class="detail-label"><i class="bi bi-wallet2"></i> Amount Paid</span>
+            <span class="detail-value" id="session-amount-paid">₱{{ session.amount_paid }}</span>
         </div>
         <div class="detail-row">
-            <span class="detail-label">Duration</span>
-            <span class="detail-value">{{ session.duration_minutes_purchased }} mins</span>
+            <span class="detail-label"><i class="bi bi-clock-history"></i> Total Duration</span>
+            <span class="detail-value" id="session-duration-display">{{ session.duration_display }}</span>
         </div>
+        {% if session.plan and session.plan.speed_limit %}
         <div class="detail-row">
-            <span class="detail-label">Started</span>
+            <span class="detail-label"><i class="bi bi-speedometer2"></i> Speed Limit</span>
+            <span class="detail-value">↓{{ session.plan.speed_limit }}{% if session.plan.speed_limit_upload %} / ↑{{ session.plan.speed_limit_upload }}{% endif %} Mbps</span>
+        </div>
+        {% endif %}
+        <div class="detail-row">
+            <span class="detail-label"><i class="bi bi-play-circle"></i> Started</span>
             <span class="detail-value">{{ session.time_in|date:"h:i A" }}</span>
         </div>
         <div class="detail-row">
-            <span class="detail-label">Device</span>
+            <span class="detail-label"><i class="bi bi-phone"></i> Device</span>
             <span class="detail-value text-xs">{{ mac_address }}</span>
         </div>
     </div>
