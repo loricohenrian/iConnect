@@ -637,6 +637,8 @@ def apply_network_settings():
         _ensure_root_qdisc(lan)
         
         if settings_obj.enable_sqm:
+            _run_command(['modprobe', 'sch_cake'], ignore_errors=True)
+            _run_command(['modprobe', 'sch_htb'], ignore_errors=True)
             isp_dl = f"{settings_obj.isp_download_speed}mbit"
             isp_ul = f"{settings_obj.isp_upload_speed}mbit"
             
