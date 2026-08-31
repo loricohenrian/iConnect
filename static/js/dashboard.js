@@ -715,6 +715,10 @@ async function refreshSessionsLive() {
                     ? '<span class="badge" style="background: #fee2e2; color: #dc2626; font-size: 10px; padding: 1px 5px; border-radius: 4px; font-weight: 700;" title="Flagged for Suspicious Activity">⚠️ Alert</span>' 
                     : '';
 
+                const groupHtml = s.group_code 
+                    ? `<div class="text-xs" style="color: #6366F1; margin-top: 2px;">Group: ${escapeHtml(s.group_code)}</div>` 
+                    : '';
+
                 let actionsHtml = '';
                 if (s.status === 'active') {
                     actionsHtml += `<button class="action-btn action-btn-pause" title="Pause Session" onclick="openActionModal(${s.id}, 'pause', '${escapeHtml(s.device_name)}', '${escapeHtml(s.mac_address)}')">
@@ -736,6 +740,10 @@ async function refreshSessionsLive() {
                     </button>`;
                 }
 
+                actionsHtml += `<button class="action-btn action-btn-block" title="Block Device (Blacklist)" onclick="openActionModal(${s.id}, 'block', '${escapeHtml(s.device_name)}', '${escapeHtml(s.mac_address)}')">
+                    <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M15 8a6.973 6.973 0 0 0-1.71-4.584l-9.874 9.874A7 7 0 0 0 15 8M2.71 12.584l9.874-9.874A7 7 0 0 0 1 8a6.973 6.973 0 0 0 1.71 4.584M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0"/></svg>
+                </button>`;
+
                 return `<tr>
                     <td>#${s.id}</td>
                     <td title="${escapeHtml(s.device_name)}" style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
@@ -743,6 +751,7 @@ async function refreshSessionsLive() {
                             <span>${escapeHtml(s.device_name || 'Unknown')}</span>
                             ${alertBadge}
                         </div>
+                        ${groupHtml}
                     </td>
                     <td>
                         <span class="badge" style="background: rgba(123, 45, 59, 0.08); color: var(--color-dark, #7b2d3b); font-weight: 600;">
@@ -758,8 +767,8 @@ async function refreshSessionsLive() {
                     </td>
                     <td>${badgeHtml}</td>
                     <td class="text-xs">${escapeHtml(s.time_in)}</td>
-                    <td class="text-xs">—</td>
-                    <td class="text-xs">—</td>
+                    <td class="text-xs">${escapeHtml(s.time_out || '—')}</td>
+                    <td class="text-xs">${s.duration_minutes_purchased}m</td>
                     <td style="text-align: right;">
                         <div class="d-flex gap-xs" style="justify-content: flex-end;">
                             ${actionsHtml}
