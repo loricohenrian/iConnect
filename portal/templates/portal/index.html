@@ -236,7 +236,7 @@
         const observer = new MutationObserver(() => {
             const msg = flowMessage.innerText;
             // When the coin slot is active, start the timer
-            if (msg.includes("Insert coins now")) {
+            if (msg.includes("Insert coins now") || msg.includes("Minimum reached")) {
                 if (!countdownInterval) {
                     countdownEndTime = Date.now() + (COUNTDOWN_SECONDS * 1000);
                     countdownContainer.style.display = 'block';

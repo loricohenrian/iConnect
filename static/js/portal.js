@@ -625,12 +625,12 @@ function setStartFlowMessage(message, type = "info") {
     messageEl.style.display = "block";
 }
 
-function setStartFlowMeta(metaText) {
+function setStartFlowMeta(metaHtml) {
     const metaEl = document.getElementById("start-flow-meta");
     if (!metaEl) {
         return;
     }
-    metaEl.textContent = metaText || "";
+    metaEl.innerHTML = metaHtml || "";
 }
 
 function formatCoinRequestMeta(coinRequest) {
@@ -642,15 +642,26 @@ function formatCoinRequestMeta(coinRequest) {
     const credited = Number(coinRequest.credited_amount || 0);
     const expected = Number(coinRequest.expected_amount || 0);
 
-    const parts = [];
-    if (status) {
-        parts.push(`Status: ${status}`);
-    }
-    if (expected > 0) {
-        parts.push(`Payment: ₱${credited} / ₱${expected}`);
+    let statusBadge = "";
+    if (status === "ACTIVE") {
+        statusBadge = `<span style="background:#10B981; color:#fff; padding:2px 8px; border-radius:6px; font-weight:700; font-size:11px; letter-spacing:0.5px; display:inline-block;">ACTIVE</span>`;
+    } else if (status === "PENDING") {
+        statusBadge = `<span style="background:#F59E0B; color:#fff; padding:2px 8px; border-radius:6px; font-weight:700; font-size:11px; letter-spacing:0.5px; display:inline-block;">PENDING</span>`;
+    } else if (status === "COMPLETED") {
+        statusBadge = `<span style="background:#3B82F6; color:#fff; padding:2px 8px; border-radius:6px; font-weight:700; font-size:11px; letter-spacing:0.5px; display:inline-block;">READY</span>`;
+    } else {
+        statusBadge = `<span style="background:#64748B; color:#fff; padding:2px 8px; border-radius:6px; font-weight:700; font-size:11px; letter-spacing:0.5px; display:inline-block;">${status}</span>`;
     }
 
-    return parts.join(" | ");
+    const parts = [];
+    if (status) {
+        parts.push(`Status: ${statusBadge}`);
+    }
+    if (expected > 0) {
+        parts.push(`Payment: <strong>₱${credited} / ₱${expected}</strong>`);
+    }
+
+    return parts.join(" &nbsp;|&nbsp; ");
 }
 
 function coinRequestStatusMessage(coinRequest, context = "start") {
@@ -970,7 +981,7 @@ function initExtendSessionFlow(macAddress) {
 
     const setExtendMeta = (text) => {
         const el = document.getElementById("extend-flow-meta");
-        if (el) el.textContent = text || "";
+        if (el) el.innerHTML = text || "";
     };
 
     const clearPolling = () => {
