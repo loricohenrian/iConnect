@@ -862,16 +862,14 @@ def session_join_group(request):
     if SuspiciousDevice.objects.filter(mac_address=mac_address, is_blocked=True).exists():
         return Response({"error": "Your device has been blocked by the administrator."}, status=status.HTTP_403_FORBIDDEN)
 
-    # Already has an active session
-    existing = Session.objects.filter(mac_address=mac_address, status="active").first()
-    if existing:
-        return Response({"error": "Device already has an active session."}, status=status.HTTP_409_CONFLICT)
+    # Check if there is an existing active or paused session
+    existing_session = Session.objects.filter(mac_address=mac_address, status__in=["active", "paused"]).first()
 
     if not _ensure_firewall_ready_for_session_start():
         return Response({"error": "Firewall is not ready. Please retry shortly."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
     max_sessions = getattr(settings, "PISONET_MAX_CONCURRENT_SESSIONS", 20)
-    if Session.objects.filter(status="active").count() >= max_sessions:
+    if not existing_session and Session.objects.filter(status="active").count() >= max_sessions:
         return Response({"error": "Network is currently full."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
     group = SessionGroup.objects.filter(group_code=group_code, status="active").select_related("plan").first()
@@ -907,24 +905,39 @@ def session_join_group(request):
                     status=status.HTTP_409_CONFLICT,
                 )
 
-            # Each device gets the FULL plan duration — fully independent session
-            session = Session.objects.create(
-                mac_address=mac_address,
-                plan=group_plan,
-                session_group=group,
-                time_in=timezone.now(),
-                duration_minutes_purchased=group_plan.duration_minutes,
-                amount_paid=0,
-                ip_address=ip_address,
-                device_name=device_name,
-                status="active",
-            )
+            if existing_session:
+                # Extend existing active or paused session
+                existing_session.duration_minutes_purchased += group_plan.duration_minutes
+                existing_session.session_group = locked_group
+                if ip_address:
+                    existing_session.ip_address = ip_address
+                existing_session.save(update_fields=["duration_minutes_purchased", "session_group", "ip_address"])
+                session = existing_session
 
-            dl_kbps = int(group_plan.speed_limit * 1024) if group_plan.speed_limit else None
-            ul_kbps = int(group_plan.speed_limit_upload * 1024) if group_plan.speed_limit_upload else dl_kbps
+                if session.status == "active":
+                    dl_kbps = int(group_plan.speed_limit * 1024) if group_plan.speed_limit else None
+                    ul_kbps = int(group_plan.speed_limit_upload * 1024) if group_plan.speed_limit_upload else dl_kbps
+                    if not iptables.allow_device(mac_address, rate_kbps=dl_kbps, upload_kbps=ul_kbps):
+                        raise RuntimeError("Failed to update firewall rules for this device")
+            else:
+                # Each device gets the FULL plan duration — fully independent session
+                session = Session.objects.create(
+                    mac_address=mac_address,
+                    plan=group_plan,
+                    session_group=locked_group,
+                    time_in=timezone.now(),
+                    duration_minutes_purchased=group_plan.duration_minutes,
+                    amount_paid=0,
+                    ip_address=ip_address,
+                    device_name=device_name,
+                    status="active",
+                )
 
-            if not iptables.allow_device(mac_address, rate_kbps=dl_kbps, upload_kbps=ul_kbps):
-                raise RuntimeError("Failed to allow internet access for this device")
+                dl_kbps = int(group_plan.speed_limit * 1024) if group_plan.speed_limit else None
+                ul_kbps = int(group_plan.speed_limit_upload * 1024) if group_plan.speed_limit_upload else dl_kbps
+
+                if not iptables.allow_device(mac_address, rate_kbps=dl_kbps, upload_kbps=ul_kbps):
+                    raise RuntimeError("Failed to allow internet access for this device")
 
             # Increment redeemed count atomically (row is locked)
             locked_group.redeemed_count += 1
@@ -940,21 +953,28 @@ def session_join_group(request):
                 slot_value = locked_group.total_price / locked_group.max_devices
                 DeviceProfile.add_spending_points(mac_address, slot_value)
 
-
     except RuntimeError as exc:
         return Response({"error": str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
     # Clear rate limit on success
     cache.delete(cache_key)
 
+    is_extension = bool(existing_session)
+    msg = (
+        f"Group pass redeemed! +{group_plan.duration_display} added to your session."
+        if is_extension
+        else "Successfully joined group pass. Your session has started."
+    )
+
     return Response(
         {
             "status": "success",
-            "message": "Successfully joined group pass. Your session has started.",
+            "message": msg,
             "session": SessionSerializer(session).data,
             "session_group": group.group_code,
+            "extended": is_extension,
         },
-        status=status.HTTP_201_CREATED,
+        status=status.HTTP_200_OK if is_extension else status.HTTP_201_CREATED,
     )
 
 

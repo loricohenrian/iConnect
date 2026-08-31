@@ -907,67 +907,6 @@ function initProductionStartFlow(macAddress) {
     });
 
     
-    const btnShowJoin = document.getElementById("btn-show-join-group");
-    const joinModal = document.getElementById("joinGroupModal");
-    const btnCancelJoin = document.getElementById("btn-cancel-join");
-    const btnSubmitJoin = document.getElementById("btn-submit-join");
-    const joinCodeInput = document.getElementById("join-group-code");
-    const joinError = document.getElementById("join-group-error");
-
-    if (btnShowJoin && joinModal) {
-        btnShowJoin.addEventListener("click", () => {
-            joinModal.style.display = "flex";
-            joinCodeInput.value = "";
-            joinError.style.display = "none";
-            joinCodeInput.focus();
-        });
-
-        btnCancelJoin.addEventListener("click", () => {
-            joinModal.style.display = "none";
-        });
-
-        btnSubmitJoin.addEventListener("click", async () => {
-            const code = joinCodeInput.value.trim().toUpperCase();
-            if (!code || code.length !== 6) {
-                joinError.textContent = "Please enter a valid 6-character code.";
-                joinError.style.display = "block";
-                return;
-            }
-
-            btnSubmitJoin.disabled = true;
-            btnSubmitJoin.textContent = "Joining...";
-            joinError.style.display = "none";
-
-            try {
-                const response = await fetch("/api/session/join-group/", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "X-CSRFToken": getCSRFToken(),
-                    },
-                    body: JSON.stringify({
-                        mac_address: macAddress,
-                        group_code: code,
-                    }),
-                });
-                const data = await parseJsonSafe(response);
-
-                if (response.ok) {
-                    window.location.href = buildPortalUrl("/session/", macAddress);
-                } else {
-                    joinError.textContent = data.error || "Failed to join group.";
-                    joinError.style.display = "block";
-                }
-            } catch (error) {
-                joinError.textContent = "Network error while joining group.";
-                joinError.style.display = "block";
-            } finally {
-                btnSubmitJoin.disabled = false;
-                btnSubmitJoin.textContent = "Join";
-            }
-        });
-    }
-
     window.onPortalPlanSelected = (planIdValue) => {
         const nextPlanId = Number.parseInt(planIdValue, 10);
         if (!Number.isInteger(nextPlanId) || nextPlanId <= 0) {
@@ -1333,11 +1272,84 @@ function buildPortalUrl(path, macAddress, extraParams = {}) {
     return `${url.pathname}${url.search}`;
 }
 
+function initJoinGroupFlow(macAddress) {
+    const btnShowJoin = document.getElementById("btn-show-join-group");
+    const joinModal = document.getElementById("joinGroupModal");
+    const btnCancelJoin = document.getElementById("btn-cancel-join");
+    const btnSubmitJoin = document.getElementById("btn-submit-join");
+    const joinCodeInput = document.getElementById("join-group-code");
+    const joinError = document.getElementById("join-group-error");
+
+    if (!btnShowJoin || !joinModal || !btnCancelJoin || !btnSubmitJoin || !joinCodeInput) {
+        return;
+    }
+
+    btnShowJoin.addEventListener("click", () => {
+        joinModal.style.display = "flex";
+        joinCodeInput.value = "";
+        if (joinError) joinError.style.display = "none";
+        joinCodeInput.focus();
+    });
+
+    btnCancelJoin.addEventListener("click", () => {
+        joinModal.style.display = "none";
+    });
+
+    btnSubmitJoin.addEventListener("click", async () => {
+        const code = joinCodeInput.value.trim().toUpperCase();
+        if (!code || code.length !== 6) {
+            if (joinError) {
+                joinError.textContent = "Please enter a valid 6-character code.";
+                joinError.style.display = "block";
+            }
+            return;
+        }
+
+        btnSubmitJoin.disabled = true;
+        btnSubmitJoin.textContent = "Redeeming...";
+        if (joinError) joinError.style.display = "none";
+
+        try {
+            const currentMac = macAddress || getMacAddress();
+            const response = await fetch("/api/session/join-group/", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": getCSRFToken(),
+                },
+                body: JSON.stringify({
+                    mac_address: currentMac,
+                    group_code: code,
+                }),
+            });
+            const data = await parseJsonSafe(response);
+
+            if (response.ok) {
+                window.location.href = buildPortalUrl("/session/", currentMac);
+            } else {
+                if (joinError) {
+                    joinError.textContent = data.error || "Failed to redeem group pass.";
+                    joinError.style.display = "block";
+                }
+            }
+        } catch (error) {
+            if (joinError) {
+                joinError.textContent = "Network error while redeeming group pass.";
+                joinError.style.display = "block";
+            }
+        } finally {
+            btnSubmitJoin.disabled = false;
+            btnSubmitJoin.textContent = "Redeem Code";
+        }
+    });
+}
+
 document.addEventListener("DOMContentLoaded", () => {
     const macAddress = getMacAddress();
 
     initPlanSelection();
     initProductionStartFlow(macAddress);
+    initJoinGroupFlow(macAddress);
     initVoucherInput();
     initExtendSessionFlow(macAddress);
     initPortalRealtime();
