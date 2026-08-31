@@ -437,53 +437,95 @@ function renderPlans(plans) {
         insertCoinsSection.style.display = "";
     }
 
-    planGrid.innerHTML = plans
-        .map((plan) => {
-            const popularBadge =
-                plan.is_most_popular
-                    ? '<div class="plan-popular">Popular</div>'
-                    : "";
+    if (planGrid) {
+        planGrid.innerHTML = plans
+            .map((plan) => {
+                const popularBadge =
+                    plan.is_most_popular
+                        ? '<div class="plan-popular">Popular</div>'
+                        : "";
 
-            const speedHtml = plan.speed_limit
-                ? `<div class="plan-speed">Up to ↓${plan.speed_limit}${plan.speed_limit_upload ? ' / ↑' + plan.speed_limit_upload : ''} Mbps</div>`
-                : '';
+                const speedHtml = plan.speed_limit
+                    ? `<div class="plan-speed">Up to ↓${plan.speed_limit}${plan.speed_limit_upload ? ' / ↑' + plan.speed_limit_upload : ''} Mbps</div>`
+                    : '';
 
-            return `
-                <div class="plan-card" data-plan-id="${plan.id}" id="plan-${plan.id}">
-                    ${popularBadge}
-                    <div class="plan-price">₱${plan.price}</div>
-                    <div class="plan-duration">${escapeHtml(plan.duration_display)}</div>
-                    ${speedHtml}
-                </div>
-            `;
-        })
-        .join("");
+                return `
+                    <div class="plan-card" data-plan-id="${plan.id}" id="plan-${plan.id}">
+                        ${popularBadge}
+                        <div class="plan-price">₱${plan.price}</div>
+                        <div class="plan-duration">${escapeHtml(plan.duration_display)}</div>
+                        ${speedHtml}
+                    </div>
+                `;
+            })
+            .join("");
 
-    initPlanSelection();
+        initPlanSelection();
 
-    const selectedCard = selectedPlanId
-        ? document.querySelector(`.plan-card[data-plan-id="${selectedPlanId}"]`)
-        : null;
+        const selectedCard = selectedPlanId
+            ? document.querySelector(`.plan-card[data-plan-id="${selectedPlanId}"]`)
+            : null;
 
-    if (selectedCard) {
-        selectedCard.classList.add("selected");
-        if (requestBtn) {
-            requestBtn.disabled = false;
+        if (selectedCard) {
+            selectedCard.classList.add("selected");
+            if (requestBtn) {
+                requestBtn.disabled = false;
+            }
+            if (startBtn && startBtn.dataset.readyToStart !== "1") {
+                startBtn.disabled = true;
+            }
+        } else {
+            if (selectedPlanInput) {
+                selectedPlanInput.value = "";
+            }
+            if (requestBtn) {
+                requestBtn.disabled = true;
+            }
+            if (startBtn) {
+                startBtn.disabled = true;
+                startBtn.dataset.readyToStart = "0";
+            }
         }
-        if (startBtn && startBtn.dataset.readyToStart !== "1") {
-            startBtn.disabled = true;
-        }
-    } else {
-        if (selectedPlanInput) {
-            selectedPlanInput.value = "";
-        }
-        if (requestBtn) {
-            requestBtn.disabled = true;
-        }
-        if (startBtn) {
-            startBtn.disabled = true;
-            startBtn.dataset.readyToStart = "0";
-        }
+    }
+
+    // Also sync extend plan grid if on extend session page
+    const extendPlanGrid = document.getElementById("extend-plan-grid");
+    if (extendPlanGrid) {
+        const extendPlanInput = document.getElementById("extend-plan");
+        const currentExtendPlanId = extendPlanInput ? extendPlanInput.value : "";
+
+        extendPlanGrid.innerHTML = plans
+            .map((plan) => {
+                const speedHtml = plan.speed_limit
+                    ? `<div class="plan-speed">Up to ↓${plan.speed_limit}${plan.speed_limit_upload ? ' / ↑' + plan.speed_limit_upload : ''} Mbps</div>`
+                    : '';
+
+                const isSelected = String(plan.id) === String(currentExtendPlanId) ? 'selected' : '';
+
+                return `
+                    <div class="plan-card extend-plan-card ${isSelected}" data-plan-id="${plan.id}" data-plan-minutes="${plan.duration_minutes}">
+                        <div class="plan-price">₱${plan.price}</div>
+                        <div class="plan-duration">+${escapeHtml(plan.duration_display)}</div>
+                        ${speedHtml}
+                    </div>
+                `;
+            })
+            .join("");
+
+        // Re-attach extend card click listeners
+        const extendCards = extendPlanGrid.querySelectorAll(".extend-plan-card");
+        const extendRequestBtn = document.getElementById("extend-request-btn");
+        const extendNowBtn = document.getElementById("extend-now-btn");
+
+        extendCards.forEach((card) => {
+            card.addEventListener("click", () => {
+                extendCards.forEach((c) => c.classList.remove("selected"));
+                card.classList.add("selected");
+                if (extendPlanInput) extendPlanInput.value = card.dataset.planId;
+                if (extendRequestBtn) extendRequestBtn.disabled = false;
+                if (extendNowBtn) extendNowBtn.disabled = true;
+            });
+        });
     }
 }
 
@@ -546,7 +588,7 @@ function initPortalRealtime() {
             clearInterval(liveDataIntervalId);
         }
 
-        const intervalMs = document.hidden ? 60000 : 15000;
+        const intervalMs = document.hidden ? 30000 : 3000;
         liveDataIntervalId = setInterval(syncPortalLiveData, intervalMs);
     };
 

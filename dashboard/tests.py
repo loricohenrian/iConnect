@@ -127,9 +127,9 @@ class DashboardSecurityTests(TestCase):
             mac_address="AA:BB:CC:DD:EE:11",
             plan=plan,
             duration_minutes_purchased=30,
-            remaining_minutes=0,
+            remaining_minutes=30,
             amount_paid=5,
-            status="expired",
+            status="active",
         )
 
         response = self.client.post(
@@ -139,7 +139,7 @@ class DashboardSecurityTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Cannot delete this plan because it is already used by existing sessions")
+        self.assertContains(response, "Cannot delete this plan")
         self.assertTrue(Plan.objects.filter(id=plan.id).exists())
 
     def test_export_sessions_csv_requires_admin(self):
@@ -213,4 +213,68 @@ class DashboardSecurityTests(TestCase):
         del_resp = self.client.post(f"/dashboard/issues/{report.id}/delete/")
         self.assertEqual(del_resp.status_code, 302)
         self.assertFalse(IssueReport.objects.filter(id=report.id).exists())
+
+    def test_realtime_apis(self):
+        from decimal import Decimal
+        from sessions_app.models import CoinEvent
+        User = get_user_model()
+        user = User.objects.create_user(
+            username="live_admin",
+            password="admin123",
+            is_staff=True,
+            is_superuser=True,
+        )
+        self.client.login(username=user.username, password="admin123")
+
+        plan = Plan.objects.create(
+            name="1 Hour Plan",
+            price=Decimal("10.00"),
+            duration_minutes=60,
+            speed_limit=Decimal("10.0"),
+            speed_limit_upload=Decimal("5.0"),
+            is_active=True,
+        )
+
+        session = Session.objects.create(
+            device_name="Test Phone",
+            mac_address="AA:BB:CC:DD:EE:FF",
+            ip_address="10.10.10.50",
+            plan=plan,
+            amount_paid=Decimal("10.00"),
+            duration_minutes_purchased=60,
+            status="active",
+        )
+
+        CoinEvent.objects.create(
+            session=session,
+            amount=10,
+            denomination=10,
+        )
+
+        # 1. Test dashboard stats API with recent_sessions
+        resp = self.client.get("/api/dashboard/stats/")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertIn("recent_sessions", data)
+        self.assertGreaterEqual(len(data["recent_sessions"]), 1)
+        self.assertEqual(data["recent_sessions"][0]["mac_address"], "AA:BB:CC:DD:EE:FF")
+        self.assertEqual(data["recent_sessions"][0]["plan_name"], "1 Hour Plan")
+
+        # 2. Test revenue live API
+        rev_resp = self.client.get("/api/dashboard/revenue/live/?period=today")
+        self.assertEqual(rev_resp.status_code, 200)
+        rev_data = rev_resp.json()
+        self.assertIn("total_sales", rev_data)
+        self.assertIn("sessions", rev_data)
+        self.assertEqual(rev_data["total_sessions"], 1)
+        self.assertEqual(rev_data["sessions"][0]["mac_address"], "AA:BB:CC:DD:EE:FF")
+
+        # 3. Test sessions live API
+        sess_resp = self.client.get("/api/dashboard/sessions/live/?period=today")
+        self.assertEqual(sess_resp.status_code, 200)
+        sess_data = sess_resp.json()
+        self.assertIn("connected_users", sess_data)
+        self.assertIn("sessions", sess_data)
+        self.assertEqual(sess_data["connected_users"], 1)
+        self.assertEqual(sess_data["sessions"][0]["mac_address"], "AA:BB:CC:DD:EE:FF")
 

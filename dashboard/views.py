@@ -205,6 +205,23 @@ def dashboard_stats_api(request):
     # Sessions today
     sessions_today = Session.objects.filter(time_in__date=today).count()
 
+    # Recent sessions (latest 10)
+    recent_qs = Session.objects.select_related('plan').order_by('-time_in')[:10]
+    recent_sessions_data = []
+    for s in recent_qs:
+        recent_sessions_data.append({
+            'id': s.id,
+            'device_name': s.device_name or 'Unknown',
+            'mac_address': s.mac_address,
+            'plan_name': s.plan.name if s.plan else 'Custom',
+            'amount_paid': str(s.amount_paid),
+            'time_in': s.time_in.strftime('%b %d, %I:%M %p') if s.time_in else '-',
+            'time_remaining_seconds': max(0, int(s.time_remaining_seconds)),
+            'time_remaining_display': s.time_remaining_display,
+            'status': s.status,
+            'status_display': s.get_status_display(),
+        })
+
     # Solar savings
     system_watts = getattr(settings, 'PISONET_SYSTEM_WATTAGE', 18)
     elec_rate = getattr(settings, 'PISONET_ELECTRICITY_RATE', 11.0)
@@ -223,6 +240,7 @@ def dashboard_stats_api(request):
         'sessions_today': sessions_today,
         'daily_revenue': list(daily_revenue),
         'solar_savings_today': round(daily_savings, 2),
+        'recent_sessions': recent_sessions_data,
     })
 
 
@@ -420,6 +438,184 @@ def revenue_data_api(request):
         },
         'plan_breakdown': list(plan_stats),
         'period': period,
+    })
+
+
+@api_view(['GET'])
+def revenue_live_api(request):
+    """
+    GET /api/dashboard/revenue/live/ — Real-time revenue statistics, chart data, and filtered sessions
+    """
+    if not _is_dashboard_admin(request.user):
+        return Response({'detail': 'Authentication required.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+    period = request.GET.get('period', 'today')
+    custom_start = request.GET.get('start_date')
+    custom_end = request.GET.get('end_date')
+
+    today = timezone.localdate()
+    start_date = None
+    end_date = None
+
+    if period == 'custom':
+        if custom_start:
+            start_date = parse_date(custom_start)
+        if custom_end:
+            end_date = parse_date(custom_end)
+    elif period == 'today':
+        start_date = today
+        end_date = today
+    elif period == 'week':
+        start_date = today - timedelta(days=today.weekday())
+        end_date = today
+    elif period == 'month':
+        start_date = today.replace(day=1)
+        end_date = today
+    elif period == 'year':
+        start_date = today.replace(month=1, day=1)
+        end_date = today
+    elif period == 'all':
+        pass
+    else:
+        period = 'today'
+        start_date = today
+        end_date = today
+
+    sessions_qs = Session.objects.select_related('plan').all().order_by('-time_in')
+    coins_qs = CoinEvent.objects.all()
+    purchases_qs = PurchaseTransaction.objects.all()
+
+    if start_date:
+        sessions_qs = sessions_qs.filter(time_in__date__gte=start_date)
+        coins_qs = coins_qs.filter(timestamp__date__gte=start_date)
+        purchases_qs = purchases_qs.filter(timestamp__date__gte=start_date)
+    if end_date:
+        sessions_qs = sessions_qs.filter(time_in__date__lte=end_date)
+        coins_qs = coins_qs.filter(timestamp__date__lte=end_date)
+        purchases_qs = purchases_qs.filter(timestamp__date__lte=end_date)
+
+    total_sales = coins_qs.aggregate(total=Sum('amount'))['total'] or 0
+    total_sessions = sessions_qs.count()
+    avg_transaction = round(total_sales / total_sessions, 2) if total_sessions > 0 else 0
+
+    plan_stats = purchases_qs.values('plan__name').annotate(
+        revenue=Sum('amount')
+    ).order_by('-revenue')
+
+    plan_labels = [p['plan__name'] for p in plan_stats]
+    plan_data = [float(p['revenue'] or 0) for p in plan_stats]
+
+    status_filter = request.GET.get('status', '')
+    if status_filter:
+        sessions_qs = sessions_qs.filter(status=status_filter)
+
+    page = request.GET.get('page', 1)
+    paginator = Paginator(sessions_qs, 20)
+    try:
+        sessions_page = paginator.page(page)
+    except PageNotAnInteger:
+        sessions_page = paginator.page(1)
+    except EmptyPage:
+        sessions_page = paginator.page(paginator.num_pages)
+
+    sessions_data = []
+    for s in sessions_page:
+        sessions_data.append({
+            'id': s.id,
+            'device_name': s.device_name or 'Unknown',
+            'mac_address': s.mac_address,
+            'plan_name': s.plan.name if s.plan else 'Custom',
+            'time_in_date': s.time_in.strftime('%b %d, %Y') if s.time_in else '-',
+            'time_in_time': s.time_in.strftime('%I:%M %p') if s.time_in else '-',
+            'ip_address': s.ip_address or '-',
+            'duration_minutes_purchased': s.duration_minutes_purchased,
+            'amount_paid': str(s.amount_paid),
+            'status': s.status,
+            'status_display': s.get_status_display(),
+        })
+
+    return Response({
+        'total_sales': float(total_sales),
+        'total_sessions': total_sessions,
+        'avg_transaction': float(avg_transaction),
+        'plan_labels': plan_labels,
+        'plan_data': plan_data,
+        'sessions': sessions_data,
+        'start_index': sessions_page.start_index() if total_sessions > 0 else 0,
+        'end_index': sessions_page.end_index() if total_sessions > 0 else 0,
+        'total_count': paginator.count,
+        'page': sessions_page.number,
+        'num_pages': paginator.num_pages,
+    })
+
+
+@api_view(['GET'])
+def sessions_live_api(request):
+    """
+    GET /api/dashboard/sessions/live/ — Real-time active, paused, and connected session list & stats
+    """
+    if not _is_dashboard_admin(request.user):
+        return Response({'detail': 'Authentication required.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+    status_filter = request.GET.get('status', '')
+    search = request.GET.get('search', '')
+    period = request.GET.get('period', 'today')
+
+    sessions = Session.objects.select_related('plan').all()
+
+    now = timezone.now()
+    today = timezone.localdate()
+    if period == 'today' or not period:
+        sessions = sessions.filter(
+            Q(time_in__date=today) | Q(status__in=['active', 'paused'])
+        )
+    elif period == 'week':
+        sessions = sessions.filter(time_in__gte=now - timedelta(days=7))
+    elif period == 'month':
+        sessions = sessions.filter(time_in__gte=now - timedelta(days=30))
+    elif period == 'year':
+        sessions = sessions.filter(time_in__gte=now - timedelta(days=365))
+
+    total_users = sessions.count()
+    connected_users = sessions.filter(status='active').count()
+    paused_users = sessions.filter(status='paused').count()
+    disconnected_users = sessions.filter(status='expired').count()
+
+    if status_filter:
+        sessions = sessions.filter(status=status_filter)
+    if search:
+        sessions = sessions.filter(
+            Q(mac_address__icontains=search) |
+            Q(device_name__icontains=search) |
+            Q(ip_address__icontains=search)
+        )
+
+    suspicious_macs = set(SuspiciousDevice.objects.filter(status='new').values_list('mac_address', flat=True))
+
+    session_list = []
+    for s in sessions[:100]:
+        session_list.append({
+            'id': s.id,
+            'device_name': s.device_name or 'Unknown',
+            'mac_address': s.mac_address,
+            'ip_address': s.ip_address or '-',
+            'plan_name': s.plan.name if s.plan else 'Custom',
+            'amount_paid': str(s.amount_paid),
+            'time_in': s.time_in.strftime('%b %d, %Y %I:%M %p') if s.time_in else '-',
+            'time_remaining_seconds': max(0, int(s.time_remaining_seconds)),
+            'time_remaining_display': s.time_remaining_display,
+            'bandwidth_used_mb': round(s.bandwidth_used_mb, 1),
+            'status': s.status,
+            'status_display': s.get_status_display(),
+            'is_suspicious': s.mac_address in suspicious_macs,
+        })
+
+    return Response({
+        'total_users': total_users,
+        'connected_users': connected_users,
+        'paused_users': paused_users,
+        'disconnected_users': disconnected_users,
+        'sessions': session_list,
     })
 
 

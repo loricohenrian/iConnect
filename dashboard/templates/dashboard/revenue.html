@@ -24,7 +24,7 @@
     <div class="stat-card">
         <div class="stat-info">
             <div class="stat-label">Total Revenue</div>
-            <div class="stat-value">₱{{ total_sales|default:"0" }}</div>
+            <div class="stat-value" id="revenue-total-sales">₱{{ total_sales|default:"0" }}</div>
         </div>
         <div class="static-icon" style="color: #059669; background: #ecfdf5; width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"></path><path d="M12 18V6"></path></svg>
@@ -35,7 +35,7 @@
     <div class="stat-card">
         <div class="stat-info">
             <div class="stat-label">Total Sessions</div>
-            <div class="stat-value">
+            <div class="stat-value" id="revenue-total-sessions">
                 <span>{{ total_sessions|default:"0" }}</span>
                 {% if total_sessions|add:0 > 0 and total_sales|add:0 == 0 %}
                     <span style="font-size: 11px; color: var(--color-warning); font-weight: 600; text-transform: uppercase;">(Pending)</span>
@@ -51,7 +51,7 @@
     <div class="stat-card">
         <div class="stat-info">
             <div class="stat-label">Avg. Transaction</div>
-            <div class="stat-value">₱{{ avg_transaction|default:"0" }}</div>
+            <div class="stat-value" id="revenue-avg-transaction">₱{{ avg_transaction|default:"0" }}</div>
         </div>
         <div class="static-icon" style="color: #7c3aed; background: #f5f3ff; width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"></rect><line x1="8" y1="6" x2="16" y2="6"></line><line x1="16" y1="14" x2="16" y2="18"></line><path d="M8 10h.01"></path><path d="M12 10h.01"></path><path d="M16 10h.01"></path><path d="M8 14h.01"></path><path d="M12 14h.01"></path><path d="M8 18h.01"></path><path d="M12 18h.01"></path></svg>
@@ -129,9 +129,8 @@
         </form>
     </div>
 
-    {% if sessions %}
-    <div class="table-container">
-        <table>
+    <div class="table-container" id="revenue-table-container" style="{% if not sessions %}display: none;{% endif %}">
+        <table id="revenue-sessions-table">
             <thead>
                 <tr>
                     <th>ID</th>
@@ -144,7 +143,7 @@
                     <th>Status</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody id="revenue-sessions-tbody">
                 {% for session in sessions %}
                 <tr>
                     <td class="text-xs text-muted">#{{ session.id }}</td>
@@ -180,11 +179,11 @@
     </div>
 
     <!-- Minimal Pagination -->
-    <div class="d-flex justify-content-between align-items-center mt-md">
-        <div class="text-xs text-muted">
-            Showing {{ sessions.start_index }} to {{ sessions.end_index }} of {{ sessions.paginator.count }} sessions
+    <div class="d-flex justify-content-between align-items-center mt-md" id="revenue-pagination-wrapper" style="{% if not sessions %}display: none;{% endif %}">
+        <div class="text-xs text-muted" id="revenue-pagination-info">
+            {% if sessions %}Showing {{ sessions.start_index }} to {{ sessions.end_index }} of {{ sessions.paginator.count }} sessions{% endif %}
         </div>
-        <div class="d-flex gap-xs">
+        <div class="d-flex gap-xs" id="revenue-pagination-controls">
             {% if sessions.has_previous %}
                 <a href="?page=1&period={{ period }}&start_date={{ start_date }}&end_date={{ end_date }}&status={{ status_filter }}" class="btn btn-sm btn-secondary">&laquo;</a>
                 <a href="?page={{ sessions.previous_page_number }}&period={{ period }}&start_date={{ start_date }}&end_date={{ end_date }}&status={{ status_filter }}" class="btn btn-sm btn-secondary">Prev</a>

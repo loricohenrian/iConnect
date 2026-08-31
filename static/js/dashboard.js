@@ -259,6 +259,69 @@ function updateROIProgress(percentage) {
 }
 
 // ============================================
+// HTML Escaping Utility
+// ============================================
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+// ============================================
+// Recent Sessions Dynamic Table Renderer
+// ============================================
+function renderRecentSessions(sessions) {
+    const table = document.getElementById('recent-sessions-table');
+    if (!table || !Array.isArray(sessions)) return;
+
+    const tbody = table.querySelector('tbody');
+    if (!tbody) return;
+
+    if (sessions.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted" style="padding: 24px;">No recent sessions found</td></tr>';
+        return;
+    }
+
+    const rowsHtml = sessions.map(s => {
+        let badgeHtml = '';
+        if (s.status === 'active') {
+            badgeHtml = '<span class="badge badge-active">Active</span>';
+        } else if (s.status === 'expired') {
+            badgeHtml = '<span class="badge badge-expired">Expired</span>';
+        } else {
+            badgeHtml = `<span class="badge badge-paused">${escapeHtml(s.status_display || s.status)}</span>`;
+        }
+
+        const countdownClass = s.status === 'active' ? 'countdown-cell' : '';
+        const timeRemainingText = s.status === 'expired' ? '00:00:00' : escapeHtml(s.time_remaining_display || '00:00:00');
+
+        return `<tr>
+            <td>
+                <div class="font-semibold">${escapeHtml(s.device_name || 'Unknown')}</div>
+                <div class="text-xs text-muted font-mono">${escapeHtml(s.mac_address)}</div>
+            </td>
+            <td>
+                <span class="badge badge-info">${escapeHtml(s.plan_name || 'Custom')}</span>
+            </td>
+            <td class="font-semibold">₱${escapeHtml(s.amount_paid)}</td>
+            <td class="text-xs text-muted">${escapeHtml(s.time_in)}</td>
+            <td class="text-xs font-mono ${countdownClass}" data-remaining="${s.time_remaining_seconds}" data-status="${escapeHtml(s.status)}">
+                ${timeRemainingText}
+            </td>
+            <td>
+                ${badgeHtml}
+            </td>
+        </tr>`;
+    }).join('');
+
+    tbody.innerHTML = rowsHtml;
+}
+
+// ============================================
 // Dashboard Stats Refresh
 // ============================================
 async function refreshDashboardStats() {
@@ -275,6 +338,11 @@ async function refreshDashboardStats() {
 
         // Update ROI progress bar
         updateROIProgress(data.roi_percentage);
+
+        // Update recent sessions table in real time
+        if (data.recent_sessions) {
+            renderRecentSessions(data.recent_sessions);
+        }
 
         return data;
     } catch (err) {
@@ -508,19 +576,226 @@ function setBar(id, pct) {
 }
 
 // ============================================
+// Real-time Revenue Page Monitor
+// ============================================
+let revenueChartInstance = null;
+
+async function refreshRevenueLive() {
+    try {
+        const queryParams = window.location.search;
+        const response = await fetch(`/api/dashboard/revenue/live/${queryParams}`);
+        if (!response.ok) return;
+        const data = await response.json();
+
+        // Update Top Metric Cards
+        const totalSalesEl = document.getElementById('revenue-total-sales');
+        if (totalSalesEl) totalSalesEl.textContent = '₱' + Number(data.total_sales).toLocaleString();
+
+        const totalSessionsEl = document.getElementById('revenue-total-sessions');
+        if (totalSessionsEl) {
+            let pendingNotice = (data.total_sessions > 0 && data.total_sales === 0) 
+                ? ' <span style="font-size: 11px; color: var(--color-warning); font-weight: 600; text-transform: uppercase;">(Pending)</span>' 
+                : '';
+            totalSessionsEl.innerHTML = `<span>${data.total_sessions}</span>${pendingNotice}`;
+        }
+
+        const avgTransEl = document.getElementById('revenue-avg-transaction');
+        if (avgTransEl) avgTransEl.textContent = '₱' + Number(data.avg_transaction).toLocaleString();
+
+        // Update Chart if present
+        const chartCanvas = document.getElementById('plan-sales-chart');
+        if (chartCanvas && typeof Chart !== 'undefined') {
+            if (!revenueChartInstance) {
+                revenueChartInstance = Chart.getChart(chartCanvas);
+            }
+            if (revenueChartInstance && data.plan_labels && data.plan_data) {
+                revenueChartInstance.data.labels = data.plan_labels;
+                revenueChartInstance.data.datasets[0].data = data.plan_data;
+                revenueChartInstance.update('none'); // Update without flickering animation
+            }
+        }
+
+        // Update Filtered Sessions Table
+        const tbody = document.getElementById('revenue-sessions-tbody');
+        const container = document.getElementById('revenue-table-container');
+        const pagWrapper = document.getElementById('revenue-pagination-wrapper');
+        const pagInfo = document.getElementById('revenue-pagination-info');
+
+        if (tbody && Array.isArray(data.sessions)) {
+            if (data.sessions.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted" style="padding: 24px;">No sessions found for this date range.</td></tr>';
+            } else {
+                if (container) container.style.display = '';
+                if (pagWrapper) pagWrapper.style.display = 'flex';
+                if (pagInfo) {
+                    pagInfo.textContent = `Showing ${data.start_index} to ${data.end_index} of ${data.total_count} sessions`;
+                }
+
+                tbody.innerHTML = data.sessions.map(s => {
+                    let badgeHtml = '';
+                    if (s.status === 'active') {
+                        badgeHtml = '<span class="badge badge-active">Active</span>';
+                    } else if (s.status === 'expired') {
+                        badgeHtml = '<span class="badge badge-expired">Expired</span>';
+                    } else {
+                        badgeHtml = `<span class="badge badge-paused">${escapeHtml(s.status_display || s.status)}</span>`;
+                    }
+
+                    return `<tr>
+                        <td class="text-xs text-muted">#${s.id}</td>
+                        <td>
+                            <div class="font-semibold">${escapeHtml(s.device_name || 'Unknown')}</div>
+                            <div class="font-mono text-xs text-muted">${escapeHtml(s.mac_address)}</div>
+                        </td>
+                        <td>
+                            <span class="badge badge-info">${escapeHtml(s.plan_name || 'Custom')}</span>
+                        </td>
+                        <td>
+                            <div>${escapeHtml(s.time_in_date)}</div>
+                            <div class="text-xs text-muted">${escapeHtml(s.time_in_time)}</div>
+                        </td>
+                        <td class="font-mono text-xs">${escapeHtml(s.ip_address)}</td>
+                        <td>${s.duration_minutes_purchased}m</td>
+                        <td class="font-semibold">₱${escapeHtml(s.amount_paid)}</td>
+                        <td>${badgeHtml}</td>
+                    </tr>`;
+                }).join('');
+            }
+        }
+    } catch (err) {
+        console.error('Failed to refresh live revenue:', err);
+    }
+}
+
+function initRevenueLiveMonitoring() {
+    if (document.getElementById('revenue-total-sales') || document.getElementById('revenue-sessions-table')) {
+        refreshRevenueLive();
+        setInterval(refreshRevenueLive, 3000);
+    }
+}
+
+// ============================================
+// Real-time Sessions / Users Page Monitor
+// ============================================
+async function refreshSessionsLive() {
+    try {
+        const queryParams = window.location.search;
+        const response = await fetch(`/api/dashboard/sessions/live/${queryParams}`);
+        if (!response.ok) return;
+        const data = await response.json();
+
+        // Update Top Stat Cards
+        setText('sessions-total-users', data.total_users || 0);
+        setText('sessions-connected-users', data.connected_users || 0);
+        setText('sessions-paused-users', data.paused_users || 0);
+        setText('sessions-expired-users', data.disconnected_users || 0);
+
+        // Update Sessions Table
+        const tbody = document.getElementById('sessions-tbody');
+        if (tbody && Array.isArray(data.sessions)) {
+            if (data.sessions.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="13" class="text-center text-muted" style="padding: 24px;">No sessions found matching filters</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = data.sessions.map(s => {
+                let badgeHtml = '';
+                if (s.status === 'active') {
+                    badgeHtml = '<span class="badge badge-active">Active</span>';
+                } else if (s.status === 'expired') {
+                    badgeHtml = '<span class="badge badge-expired">Expired</span>';
+                } else {
+                    badgeHtml = `<span class="badge badge-paused">${escapeHtml(s.status_display || s.status)}</span>`;
+                }
+
+                const countdownClass = s.status === 'active' ? 'countdown-cell' : '';
+                const timeRemainingText = s.status === 'expired' ? '00:00:00' : escapeHtml(s.time_remaining_display || '00:00:00');
+
+                const alertBadge = s.is_suspicious 
+                    ? '<span class="badge" style="background: #fee2e2; color: #dc2626; font-size: 10px; padding: 1px 5px; border-radius: 4px; font-weight: 700;" title="Flagged for Suspicious Activity">⚠️ Alert</span>' 
+                    : '';
+
+                let actionsHtml = '';
+                if (s.status === 'active') {
+                    actionsHtml += `<button class="action-btn action-btn-pause" title="Pause Session" onclick="openActionModal(${s.id}, 'pause', '${escapeHtml(s.device_name)}', '${escapeHtml(s.mac_address)}')">
+                        <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5zm5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5z"/></svg>
+                    </button>`;
+                } else if (s.status === 'paused') {
+                    actionsHtml += `<button class="action-btn action-btn-resume" title="Resume Session" onclick="openActionModal(${s.id}, 'resume', '${escapeHtml(s.device_name)}', '${escapeHtml(s.mac_address)}')">
+                        <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z"/></svg>
+                    </button>`;
+                }
+
+                actionsHtml += `<button class="action-btn action-btn-edit" title="Edit Hostname" onclick="openActionModal(${s.id}, 'edit', '${escapeHtml(s.device_name)}', '${escapeHtml(s.mac_address)}')">
+                    <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708zm.646 6.061L9.793 2.5 3.293 9H3.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.207zm-7.468 7.468A.5.5 0 0 1 6 13.5V13h-.5a.5.5 0 0 1-.5-.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.5-.5V10h-.5a.5.5 0 0 1-.175-.032l-.179.178a.5.5 0 0 0-.11.168l-2 5a.5.5 0 0 0 .65.65l5-2a.5.5 0 0 0 .168-.11z"/></svg>
+                </button>`;
+
+                if (s.status === 'active' || s.status === 'paused') {
+                    actionsHtml += `<button class="action-btn action-btn-disconnect" title="End Session" onclick="openActionModal(${s.id}, 'disconnect', '${escapeHtml(s.device_name)}', '${escapeHtml(s.mac_address)}')">
+                        <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M5 3.5h6A1.5 1.5 0 0 1 12.5 5v6a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 11V5A1.5 1.5 0 0 1 5 3.5z"/></svg>
+                    </button>`;
+                }
+
+                return `<tr>
+                    <td>#${s.id}</td>
+                    <td title="${escapeHtml(s.device_name)}" style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        <div class="font-semibold d-flex align-items-center gap-xs">
+                            <span>${escapeHtml(s.device_name || 'Unknown')}</span>
+                            ${alertBadge}
+                        </div>
+                    </td>
+                    <td>
+                        <span class="badge" style="background: rgba(123, 45, 59, 0.08); color: var(--color-dark, #7b2d3b); font-weight: 600;">
+                            ${escapeHtml(s.plan_name || 'Custom')}
+                        </span>
+                    </td>
+                    <td class="font-semibold" style="color: var(--color-dark);">₱${escapeHtml(s.amount_paid)}</td>
+                    <td class="text-xs font-mono">${escapeHtml(s.ip_address)}</td>
+                    <td class="font-mono text-xs text-muted">${escapeHtml(s.mac_address)}</td>
+                    <td class="text-xs">${Number(s.bandwidth_used_mb || 0).toFixed(1)} MB</td>
+                    <td class="text-xs font-mono ${countdownClass}" data-remaining="${s.time_remaining_seconds}" data-status="${escapeHtml(s.status)}">
+                        ${timeRemainingText}
+                    </td>
+                    <td>${badgeHtml}</td>
+                    <td class="text-xs">${escapeHtml(s.time_in)}</td>
+                    <td class="text-xs">—</td>
+                    <td class="text-xs">—</td>
+                    <td style="text-align: right;">
+                        <div class="d-flex gap-xs" style="justify-content: flex-end;">
+                            ${actionsHtml}
+                        </div>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+    } catch (err) {
+        console.error('Failed to refresh live sessions:', err);
+    }
+}
+
+function initSessionsLiveMonitoring() {
+    if (document.getElementById('sessions-table') || document.getElementById('sessions-connected-users')) {
+        refreshSessionsLive();
+        setInterval(refreshSessionsLive, 3000);
+    }
+}
+
+// ============================================
 // Initialize
 // ============================================
 document.addEventListener('DOMContentLoaded', () => {
     initSidebar();
     initOverviewLiveMonitoring();
+    initRevenueLiveMonitoring();
+    initSessionsLiveMonitoring();
 
-    // Auto-refresh stats on Overview / Dashboard
+    // Auto-refresh stats on Overview / Dashboard every 3s
     if (document.getElementById('revenue-today') || document.querySelector('.dashboard-hero-layout') || document.querySelector('.sys-strip-container') || document.querySelector('.stats-grid')) {
         refreshDashboardStats();
-        setInterval(refreshDashboardStats, 10000);
+        setInterval(refreshDashboardStats, 3000);
 
         // System stats (CPU, RAM, Disk, Temp, Internet)
         refreshSystemStats();
-        setInterval(refreshSystemStats, 10000);
+        setInterval(refreshSystemStats, 5000);
     }
 });
