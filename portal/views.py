@@ -154,10 +154,24 @@ def index(request):
         from sessions_app.models import DeviceProfile
         device_profile = DeviceProfile.record_connection(mac_address)
 
-    # Connection slots
-    from dashboard.models import SystemSettings; max_slots = SystemSettings.get_settings().max_concurrent_sessions
+    # Connection slots & Internet Check
+    from dashboard.models import SystemSettings
+    from django.core.cache import cache
+
+    settings_obj = SystemSettings.get_settings()
+    max_slots = settings_obj.max_concurrent_sessions
     active_count = Session.objects.filter(status='active').count()
     available_slots = max(0, max_slots - active_count)
+
+    is_internet_offline = False
+    if settings_obj.enable_internet_check:
+        cached_status = cache.get("internet_status_ok")
+        if cached_status is None:
+            from sessions_app.tasks import check_internet_status
+            check_internet_status()
+            cached_status = cache.get("internet_status_ok")
+        if cached_status is False:
+            is_internet_offline = True
 
     context = {
         "plans": plans,
@@ -173,11 +187,12 @@ def index(request):
         "slots_active": active_count,
         "slots_max": max_slots,
         "slots_available": available_slots,
-        "insert_coin_countdown_seconds": SystemSettings.get_settings().insert_coin_countdown_seconds,
-        "enable_family_pass": SystemSettings.get_settings().enable_family_pass,
-        "family_pass_base_rate": SystemSettings.get_settings().family_pass_base_rate,
-        "family_pass_device_rate": SystemSettings.get_settings().family_pass_device_rate,
-        "family_pass_max_devices": SystemSettings.get_settings().family_pass_max_devices,
+        "insert_coin_countdown_seconds": settings_obj.insert_coin_countdown_seconds,
+        "enable_family_pass": settings_obj.enable_family_pass,
+        "family_pass_base_rate": settings_obj.family_pass_base_rate,
+        "family_pass_device_rate": settings_obj.family_pass_device_rate,
+        "family_pass_max_devices": settings_obj.family_pass_max_devices,
+        "is_internet_offline": is_internet_offline,
     }
     return render(request, "portal/index.html", context)
 

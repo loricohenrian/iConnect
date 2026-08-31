@@ -24,6 +24,16 @@
 </div>
 {% else %}
 
+{% if is_internet_offline %}
+<div class="alert alert-danger animate-fadeIn mb-md" style="display: flex; align-items: center; gap: 12px; border-left: 4px solid #ef4444; background: #fee2e2; color: #b91c1c; padding: 12px 16px; border-radius: 8px;">
+    <i class="bi bi-wifi-off" style="font-size: 24px; line-height: 1;"></i>
+    <div>
+        <strong style="font-size: 14px;">Internet Service is Currently Offline</strong><br>
+        <span class="text-xs" style="color: #991b1b;">Coin insertion is temporarily paused to protect your coins. Service will resume automatically once ISP connection recovers.</span>
+    </div>
+</div>
+{% endif %}
+
 {% if balance > 0 %}
 <div class="balance-card mt-md">
     <div class="balance-label">Your Balance</div>

@@ -416,12 +416,13 @@ def auto_resume_connected_sessions():
 @shared_task
 def check_internet_status():
     """
-    Ping a reliable external server (8.8.8.8) to check if the ISP is online.
-    Caches the result so the API endpoints can quickly check.
+    Check if the ISP is online using fast TCP probe (8.8.8.8:53 / 1.1.1.1:53) + ping fallback.
+    Caches the result so the API endpoints and portal can quickly check.
     """
+    import socket
+    import subprocess
     from dashboard.models import SystemSettings
     from django.core.cache import cache
-    import subprocess
 
     settings_obj = SystemSettings.get_settings()
     if not settings_obj.enable_internet_check:
@@ -429,15 +430,29 @@ def check_internet_status():
         cache.set("internet_status_ok", True, timeout=120)
         return 'Internet checking disabled'
 
-    try:
-        # ICMP ping fallback
-        res = subprocess.run(
-            ["ping", "-c", "1", "-W", "2", "8.8.8.8"],
-            capture_output=True, timeout=3,
-        )
-        is_online = (res.returncode == 0)
-    except Exception:
-        is_online = False
+    is_online = False
+    # Fast TCP probe to DNS port 53 (reliable and non-blocking)
+    for host in ("8.8.8.8", "1.1.1.1"):
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.settimeout(1.5)
+            s.connect((host, 53))
+            s.close()
+            is_online = True
+            break
+        except Exception:
+            continue
+
+    if not is_online:
+        try:
+            # ICMP ping fallback
+            res = subprocess.run(
+                ["ping", "-c", "1", "-W", "2", "8.8.8.8"],
+                capture_output=True, timeout=3,
+            )
+            is_online = (res.returncode == 0)
+        except Exception:
+            is_online = False
 
     cache.set("internet_status_ok", is_online, timeout=120)
     
