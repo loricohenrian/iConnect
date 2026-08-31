@@ -108,7 +108,7 @@
         <button type="button" class="btn" id="btn-group-plan" style="border-radius: 16px; padding: 14px 24px; font-weight: 600; width: 100%; border: 2px solid var(--color-primary); color: var(--color-primary); background: var(--color-white); display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s;">
             <i class="bi bi-people-fill"></i> Buy Group Plan
         </button>
-        <button type="button" class="btn btn-link" id="btn-show-join-group" style="font-size: 14px; color: var(--color-gray); text-decoration: none; padding: 8px; margin-top: 12px; display: inline-block;">
+        <button type="button" class="btn btn-link" id="btn-show-join-group" onclick="openJoinGroupModal()" style="font-size: 14px; color: var(--color-gray); text-decoration: none; padding: 8px; margin-top: 12px; display: inline-block; cursor: pointer;">
             Have a group code? Enter it here
         </button>
     </div>
@@ -172,11 +172,32 @@
         </div>
         <div id="join-group-error" class="alert alert-danger" style="display:none; padding: 8px; font-size: 13px;"></div>
         <div class="d-flex" style="gap: 8px;">
-            <button type="button" class="btn btn-secondary flex-grow-1" id="btn-cancel-join">Cancel</button>
+            <button type="button" class="btn btn-secondary flex-grow-1" id="btn-cancel-join" onclick="closeJoinGroupModal()">Cancel</button>
             <button type="button" class="btn btn-primary flex-grow-1" id="btn-submit-join">Join</button>
         </div>
     </div>
 </div>
+
+<script>
+    function openJoinGroupModal() {
+        const modal = document.getElementById('joinGroupModal');
+        const input = document.getElementById('join-group-code');
+        const error = document.getElementById('join-group-error');
+        if (modal) {
+            modal.style.display = 'flex';
+            if (input) {
+                input.value = '';
+                input.focus();
+            }
+            if (error) error.style.display = 'none';
+        }
+    }
+
+    function closeJoinGroupModal() {
+        const modal = document.getElementById('joinGroupModal');
+        if (modal) modal.style.display = 'none';
+    }
+</script>
 
 <div class="mt-md" id="start-session-panel">
     <div class="card">
