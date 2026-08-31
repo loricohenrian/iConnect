@@ -1599,6 +1599,18 @@ if (btnGroupRequestSlot) {
                         window.startPolling();
                     }
                 }
+
+                // Smooth scroll to the flow message & action button
+                setTimeout(() => {
+                    const targetEl = document.getElementById("extend-flow-message") ||
+                                     document.getElementById("start-flow-message") ||
+                                     document.getElementById("extend-now-btn") ||
+                                     document.getElementById("start-session-btn") ||
+                                     document.getElementById("coin-countdown-container");
+                    if (targetEl) {
+                        targetEl.scrollIntoView({ behavior: "smooth", block: "center" });
+                    }
+                }, 80);
                 
             } else {
                 alert(data.error || "Failed to request coin slot.");
