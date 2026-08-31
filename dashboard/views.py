@@ -1677,19 +1677,25 @@ def account_view(request):
             elif User.objects.filter(username__iexact=new_username).exists():
                 admin_error = f'Username "{new_username}" is already taken.'
             else:
-                is_superuser = (new_role == 'superuser')
-                new_user = User.objects.create_user(
-                    username=new_username,
-                    email=new_email,
-                    password=new_password,
-                    is_staff=True,
-                    is_superuser=is_superuser,
-                )
-                admin_message = f'Admin account "{new_username}" created successfully.'
-                audit_logger.info(
-                    "event=admin_created creator=%s created_user=%s is_superuser=%s",
-                    request.user.username, new_username, is_superuser
-                )
+                try:
+                    is_superuser = (new_role == 'superuser')
+                    new_user = User.objects.create_user(
+                        username=new_username,
+                        email=new_email,
+                        password=new_password,
+                    )
+                    new_user.is_staff = True
+                    new_user.is_superuser = is_superuser
+                    new_user.is_active = True
+                    new_user.save()
+
+                    admin_message = f'Admin account "{new_username}" created successfully.'
+                    audit_logger.info(
+                        "event=admin_created creator=%s created_user=%s is_superuser=%s",
+                        request.user.username, new_username, is_superuser
+                    )
+                except Exception as e:
+                    admin_error = f'Error creating account: {e}'
 
         elif action == 'delete_admin':
             target_id = request.POST.get('target_user_id')
@@ -1709,6 +1715,8 @@ def account_view(request):
                     )
             except User.DoesNotExist:
                 admin_error = 'User not found.'
+            except Exception as e:
+                admin_error = f'Error deleting account: {e}'
 
     admin_users = User.objects.filter(is_staff=True).order_by('-is_superuser', 'username')
 
