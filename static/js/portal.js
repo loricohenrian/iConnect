@@ -1032,6 +1032,10 @@ function initExtendSessionFlow(macAddress) {
         pollRequestStatus();
     };
 
+    // EXPORT TO GLOBAL SCOPE FOR GROUP PLAN FLOW ON EXTEND PAGE
+    window.applyCoinRequestState = applyCoinRequestState;
+    window.startPolling = startPolling;
+
     // Plan selection in extend grid
     const extendCards = extendPlanGrid.querySelectorAll(".extend-plan-card");
     extendCards.forEach((card) => {
@@ -1568,15 +1572,14 @@ if (btnGroupRequestSlot) {
                     flowMessage.className = "alert alert-warning";
                     flowMessage.innerHTML = `<strong>Insert coins now!</strong><br>Please insert exactly ₱${data.coin_request.expected_amount}.`;
                 }
-                if(flowMeta) {
-                    flowMeta.innerText = `Pending Amount: ₱${data.coin_request.expected_amount}`;
-                }
-                
+                btnGroupRequestSlot.disabled = false;
+                btnGroupRequestSlot.innerHTML = `<i class="bi bi-hourglass-split"></i> Request Coin Slot`;
+
                 if (window.applyCoinRequestState && window.startPolling) {
                     window.applyCoinRequestState(data.coin_request);
-                    window.startPolling();
-                } else {
-                    window.location.reload(); // Fallback
+                    if (!data.coin_request.ready_to_start) {
+                        window.startPolling();
+                    }
                 }
                 
             } else {
