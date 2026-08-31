@@ -152,12 +152,23 @@
         </button>
     </div>
 
+    {% if enable_family_pass %}
+    <div class="mt-3 text-center" style="margin-top: 20px;">
+        <button type="button" class="btn" id="btn-group-plan" onclick="openGroupPlanModal()" style="border-radius: 16px; padding: 14px 24px; font-weight: 600; width: 100%; border: 2px solid var(--color-primary); color: var(--color-primary); background: var(--color-white); display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s; cursor: pointer;">
+            <i class="bi bi-people-fill"></i> Buy Group Plan
+        </button>
+        <button type="button" class="btn btn-link" id="btn-show-join-group" onclick="openJoinGroupModal()" style="font-size: 14px; color: var(--color-gray); text-decoration: none; padding: 8px; margin-top: 12px; display: inline-block; cursor: pointer;">
+            Have a group code? Enter it here
+        </button>
+    </div>
+    {% else %}
     <!-- Have a group code button -->
     <div class="text-center" style="margin-top: 14px;">
         <button type="button" class="btn btn-link" id="btn-show-join-group" onclick="openJoinGroupModal()" style="font-size: 14px; color: var(--color-gray); text-decoration: none; padding: 6px 12px; display: inline-block; cursor: pointer;">
             Have a group code? Enter it here
         </button>
     </div>
+    {% endif %}
 
     <div id="extend-flow-message" class="alert alert-info mt-md" style="display:none;"></div>
     <p id="extend-flow-meta" class="text-small text-muted mt-md" style="margin-bottom:0;"></p>
@@ -165,6 +176,44 @@
         <div style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 4px;">Time remaining to insert coins</div>
         <div id="coin-countdown-display" style="font-size: 1.5rem; font-weight: bold; font-family: monospace; color: var(--text-primary);">02:00</div>
         <button type="button" class="btn btn-outline mt-sm" id="btn-cancel-coin-request" style="font-size: 14px; padding: 6px 16px; margin-top: 12px; border-radius: 8px;">Cancel Request</button>
+    </div>
+</div>
+
+<!-- Group Plan Modal -->
+<div id="groupPlanModal" class="modal-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:2000; align-items:center; justify-content:center;">
+    <div class="card animate-fadeIn" style="width: 90%; max-width: 400px; margin: auto;">
+        <h3 class="mb-sm"><i class="bi bi-people-fill"></i> Group Plan</h3>
+        <p class="text-small text-muted mb-md">Buy a plan for multiple people.</p>
+        
+        <div class="form-group mb-md">
+            <label class="form-label">1. Choose a Plan</label>
+            <select id="group-plan-select" class="form-input w-100" style="padding: 10px; font-size: 14px;">
+                {% for plan in plans %}
+                    <option value="{{ plan.id }}" data-price="{{ plan.price }}">₱{{ plan.price }} - {{ plan.duration_display }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="form-group mb-md" style="display: flex; justify-content: space-between; align-items: center;">
+            <label class="form-label m-0">2. How many people?</label>
+            <div style="display: flex; align-items: center; gap: 12px; background: #f9fafb; padding: 4px 8px; border-radius: 8px; border: 1px solid var(--border-color);">
+                <button type="button" id="gp-minus" style="border:none; background:#e5e7eb; border-radius:4px; width:28px; height:28px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-weight:bold; font-size: 16px;">-</button>
+                <input type="number" id="gp-device-count" data-max-slots="{{ slots_available|default:50 }}" value="2" min="2" style="font-weight:700; font-size:16px; width:48px; text-align:center; border:none; background:transparent; appearance:textfield; margin:0; padding:0; outline:none;" />
+                <button type="button" id="gp-plus" style="border:none; background:#e5e7eb; border-radius:4px; width:28px; height:28px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-weight:bold; font-size: 16px;">+</button>
+            </div>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #e5e7eb; padding-top: 12px; margin-bottom: 16px;">
+            <div style="font-weight: 600; font-size: 14px;">Total Amount:</div>
+            <div id="group-plan-price" style="font-size: 24px; font-weight: 800; color: #4f46e5;">₱0</div>
+        </div>
+        
+        <div class="d-flex" style="gap: 8px; flex-direction: column;">
+            <button type="button" class="btn btn-primary w-100" id="btn-group-request-slot">
+                <i class="bi bi-hourglass-split"></i> Request Coin Slot
+            </button>
+            <button type="button" class="btn btn-secondary w-100" id="btn-cancel-group-plan" onclick="closeGroupPlanModal()">Cancel</button>
+        </div>
     </div>
 </div>
 
@@ -185,6 +234,19 @@
 </div>
 
 <script>
+    function openGroupPlanModal() {
+        const modal = document.getElementById('groupPlanModal');
+        if (modal) {
+            modal.style.display = 'flex';
+            if (typeof updateGroupPlanPrice === 'function') updateGroupPlanPrice();
+        }
+    }
+
+    function closeGroupPlanModal() {
+        const modal = document.getElementById('groupPlanModal');
+        if (modal) modal.style.display = 'none';
+    }
+
     function openJoinGroupModal() {
         const modal = document.getElementById('joinGroupModal');
         const input = document.getElementById('join-group-code');

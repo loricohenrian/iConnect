@@ -1199,23 +1199,36 @@ def session_extend_paid(request):
             status=status.HTTP_404_NOT_FOUND,
         )
 
+    coin_req = CoinInsertRequest.objects.filter(
+        mac_address=mac_address,
+        status__in=[CoinInsertRequest.STATUS_PENDING, CoinInsertRequest.STATUS_ACTIVE],
+    ).order_by("-id").first()
+
+    is_group_pass = bool(request.data.get("is_group_pass") or (coin_req and coin_req.is_group_pass))
+    group_pass_devices = int(request.data.get("group_devices") or (coin_req.group_pass_devices if coin_req else 2))
+    expected_amount = plan.price * group_pass_devices if is_group_pass else plan.price
+
     # Check coins
     total_coins = _pending_coin_events_for_mac(mac_address).aggregate(
         total=Sum("amount")
     )["total"] or 0
 
-    if total_coins < plan.price:
+    if total_coins < expected_amount:
         try:
-            coin_request, _ = _get_or_create_start_coin_request(mac_address, request_ip, plan)
+            coin_request, _ = _get_or_create_start_coin_request(
+                mac_address, request_ip, plan,
+                is_group_pass=is_group_pass,
+                group_pass_devices=group_pass_devices
+            )
         except ValueError as exc:
             return Response(
-                {"error": str(exc), "required": plan.price, "received": total_coins},
+                {"error": str(exc), "required": expected_amount, "received": total_coins},
                 status=status.HTTP_429_TOO_MANY_REQUESTS,
             )
         return Response(
             {
-                "error": f"Insufficient payment. Need {PESO_SYMBOL}{plan.price}, received {PESO_SYMBOL}{total_coins}",
-                "required": plan.price,
+                "error": f"Insufficient payment. Need {PESO_SYMBOL}{expected_amount}, received {PESO_SYMBOL}{total_coins}",
+                "required": expected_amount,
                 "received": total_coins,
                 "coin_request": _coin_request_payload(coin_request),
             },
@@ -1225,9 +1238,36 @@ def session_extend_paid(request):
     # Extend the session
     try:
         with transaction.atomic():
-            multiplier = total_coins // plan.price
-            amount_paid = plan.price * multiplier
+            multiplier = total_coins // expected_amount if expected_amount > 0 else 1
+            amount_paid = expected_amount * multiplier
             duration_minutes = plan.duration_minutes * multiplier
+
+            session_group = None
+            if is_group_pass:
+                import random
+                import string
+                while True:
+                    code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+                    if not SessionGroup.objects.filter(group_code=code).exists():
+                        break
+
+                expiry_hours = getattr(settings_obj, 'group_code_expiry_hours', 24)
+                code_expires_at = None
+                if expiry_hours > 0:
+                    code_expires_at = timezone.now() + timedelta(hours=expiry_hours)
+
+                session_group = SessionGroup.objects.create(
+                    group_code=code,
+                    plan=plan,
+                    max_devices=group_pass_devices,
+                    redeemed_count=1,
+                    total_price=amount_paid,
+                    duration_minutes=plan.duration_minutes,
+                    time_in=timezone.now(),
+                    code_expires_at=code_expires_at,
+                    status="active"
+                )
+                active_session.session_group = session_group
 
             active_session.extend_session(duration_minutes)
             active_session.amount_paid += amount_paid
@@ -1247,6 +1287,8 @@ def session_extend_paid(request):
             update_fields = ["duration_minutes_purchased", "amount_paid", "status", "time_in"]
             if speed_changed:
                 update_fields.append("plan")
+            if is_group_pass and session_group:
+                update_fields.append("session_group")
                 
             active_session.save(update_fields=update_fields)
             
@@ -1255,7 +1297,11 @@ def session_extend_paid(request):
                 plan=plan,
                 amount=amount_paid,
             )
-            DeviceProfile.add_spending_points(mac_address, amount_paid)
+            if is_group_pass and session_group and session_group.max_devices > 0:
+                host_points_value = session_group.total_price / session_group.max_devices
+                DeviceProfile.add_spending_points(mac_address, host_points_value)
+            else:
+                DeviceProfile.add_spending_points(mac_address, amount_paid)
             
             if speed_changed:
                 dl_kbps = int(plan.speed_limit * 1024) if plan.speed_limit else None
@@ -1304,11 +1350,14 @@ def session_extend_paid(request):
         request_ip,
     )
 
+    msg = f"Group Pass created! Code: {session_group.group_code} (+{plan.duration_display} added)" if session_group else f"Session extended by {plan.duration_minutes} minutes"
+
     return Response(
         {
             "status": "success",
-            "message": f"Session extended by {plan.duration_minutes} minutes",
+            "message": msg,
             "session": SessionSerializer(active_session).data,
+            "session_group": session_group.group_code if session_group else None,
         }
     )
 

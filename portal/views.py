@@ -208,6 +208,7 @@ def session_page(request):
         "slots_active": active_count,
         "slots_max": max_slots,
         "slots_available": available_slots,
+        "enable_family_pass": SystemSettings.get_settings().enable_family_pass,
         "insert_coin_countdown_seconds": SystemSettings.get_settings().insert_coin_countdown_seconds,
     }
     

@@ -1113,6 +1113,10 @@ function initExtendSessionFlow(macAddress) {
             const data = await parseJsonSafe(response);
 
             if (response.ok) {
+                if (data.session_group) {
+                    window.location.reload();
+                    return;
+                }
                 setExtendMessage(data.message || "Session extended!", "success");
                 setExtendMeta("");
 
@@ -1546,24 +1550,26 @@ if (btnGroupRequestSlot) {
 
             const data = await parseJsonSafe(response);
             if (response.ok) {
-                groupPlanModal.style.display = "none";
-                const startSessionBtn = document.getElementById("request-slot-btn");
+                if (groupPlanModal) groupPlanModal.style.display = "none";
+                const startSessionBtn = document.getElementById("request-slot-btn") || document.getElementById("extend-request-btn");
                 const btnShowJoinGroup = document.getElementById("btn-show-join-group");
-                const planCards = document.querySelectorAll(".plan-card");
-                const startFlowMessage = document.getElementById("start-flow-message");
-                const startFlowMeta = document.getElementById("start-flow-meta");
+                const planCards = document.querySelectorAll(".plan-card, .extend-plan-card");
+                const flowMessage = document.getElementById("start-flow-message") || document.getElementById("extend-flow-message");
+                const flowMeta = document.getElementById("start-flow-meta") || document.getElementById("extend-flow-meta");
+                const extendPlanInput = document.getElementById("extend-plan");
+                if (extendPlanInput) extendPlanInput.value = planId;
                 
                 if(startSessionBtn) startSessionBtn.disabled = true;
                 if(btnShowJoinGroup) btnShowJoinGroup.disabled = true;
                 planCards.forEach(c => c.style.pointerEvents = "none");
                 
-                if(startFlowMessage) {
-                    startFlowMessage.style.display = "block";
-                    startFlowMessage.className = "alert alert-warning";
-                    startFlowMessage.innerHTML = `<strong>Insert coins now!</strong><br>Please insert exactly ₱${data.coin_request.expected_amount}.`;
+                if(flowMessage) {
+                    flowMessage.style.display = "block";
+                    flowMessage.className = "alert alert-warning";
+                    flowMessage.innerHTML = `<strong>Insert coins now!</strong><br>Please insert exactly ₱${data.coin_request.expected_amount}.`;
                 }
-                if(startFlowMeta) {
-                    startFlowMeta.innerText = `Pending Amount: ₱${data.coin_request.expected_amount}`;
+                if(flowMeta) {
+                    flowMeta.innerText = `Pending Amount: ₱${data.coin_request.expected_amount}`;
                 }
                 
                 if (window.applyCoinRequestState && window.startPolling) {
