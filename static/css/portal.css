@@ -203,21 +203,33 @@
 }
 
 .btn-link-group {
-    background: none;
-    border: none;
+    background: var(--color-primary-light);
+    color: var(--color-primary);
+    border: 1px dashed var(--color-primary);
+    border-radius: 100px;
     font-size: 13px;
-    color: var(--color-gray);
-    text-decoration: none;
-    padding: 8px 12px;
+    font-weight: 600;
+    padding: 8px 16px;
     margin-top: 10px;
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
     cursor: pointer;
-    transition: color 0.15s ease;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    box-shadow: 0 2px 6px rgba(123, 45, 59, 0.06);
 }
 
 .btn-link-group:hover {
-    color: var(--color-primary);
-    text-decoration: underline;
+    background: #eedbd5;
+    color: var(--color-primary-dark);
+    border-color: var(--color-primary-dark);
+    transform: translateY(-1px);
+}
+
+.btn-link-group:active {
+    transform: scale(0.98);
 }
 
 /* Standardized Base Buttons */
