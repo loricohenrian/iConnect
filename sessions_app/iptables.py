@@ -241,6 +241,7 @@ def enforce_firewall_baseline():
         logger.error('FORWARD default policy is not DROP after baseline enforcement')
         return False
 
+    apply_network_settings()
     logger.info('Firewall baseline verified: FORWARD policy is DROP')
     return True
 
@@ -590,16 +591,16 @@ def apply_network_settings():
         settings_obj = SystemSettings.get_settings()
         lan = _get_lan_interface()
         
-        # 1. Anti-Tethering (TTL = 1 on LAN)
-        # First remove any existing rule to avoid duplicates
+        # 1. Anti-Tethering (TTL = 1 on LAN + IPv6 HopLimit = 1)
         _run_command(['iptables', '-t', 'mangle', '-D', 'POSTROUTING', '-o', lan, '-j', 'TTL', '--ttl-set', '1'], ignore_errors=True)
-        for _ in range(20):
-            if not _run_command(['iptables', '-t', 'mangle', '-D', 'POSTROUTING', '-o', lan, '-j', 'TTL', '--ttl-set', '1'], ignore_errors=True):
-                break
+        _run_command(['iptables', '-t', 'mangle', '-D', 'FORWARD', '-o', lan, '-j', 'TTL', '--ttl-set', '1'], ignore_errors=True)
+        _run_command(['ip6tables', '-t', 'mangle', '-D', 'POSTROUTING', '-o', lan, '-j', 'HL', '--hl-set', '1'], ignore_errors=True)
             
         if settings_obj.enable_anti_tethering:
             _run_command(['iptables', '-t', 'mangle', '-A', 'POSTROUTING', '-o', lan, '-j', 'TTL', '--ttl-set', '1'])
-            logger.info("Anti-Tethering (TTL=1) enabled on LAN")
+            _run_command(['iptables', '-t', 'mangle', '-A', 'FORWARD', '-o', lan, '-j', 'TTL', '--ttl-set', '1'], ignore_errors=True)
+            _run_command(['ip6tables', '-t', 'mangle', '-A', 'POSTROUTING', '-o', lan, '-j', 'HL', '--hl-set', '1'], ignore_errors=True)
+            logger.info("Anti-Tethering (TTL=1 / HL=1) enabled on LAN")
         else:
             logger.info("Anti-Tethering disabled")
             
