@@ -59,7 +59,7 @@
     <!-- Operating Expenses -->
     <div class="stat-card animate-fadeIn" style="animation-delay: 80ms">
         <div class="stat-info">
-            <div class="stat-label">Operating Expenses (OPEX)</div>
+            <div class="stat-label">Operating Expenses</div>
             <div class="stat-value" style="color: #ef4444;">₱{{ total_expenses|default:"0" }}</div>
         </div>
         <div class="static-icon" style="background: rgba(239,68,68,0.12); color: #ef4444; width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
@@ -70,7 +70,7 @@
     <!-- Net Profit -->
     <div class="stat-card animate-fadeIn" style="animation-delay: 160ms">
         <div class="stat-info">
-            <div class="stat-label">Net Profit (EBITDA)</div>
+            <div class="stat-label">Net Profit</div>
             <div class="stat-value" style="color: {% if net_profit >= 0 %}#059669{% else %}#ef4444{% endif %};">₱{{ net_profit|default:"0" }}</div>
         </div>
         <div class="static-icon" style="background: {% if net_profit >= 0 %}rgba(5,150,105,0.12){% else %}rgba(239,68,68,0.12){% endif %}; color: {% if net_profit >= 0 %}#059669{% else %}#ef4444{% endif %}; width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
@@ -81,7 +81,7 @@
     <!-- Capital Investment -->
     <div class="stat-card animate-fadeIn" style="animation-delay: 240ms">
         <div class="stat-info">
-            <div class="stat-label">Capital Investment (CAPEX)</div>
+            <div class="stat-label">Capital Investment</div>
             <div class="stat-value" style="color: #7b2d3b;">₱{{ total_investment|default:"0" }}</div>
         </div>
         <div class="static-icon" style="background: rgba(123,45,59,0.12); color: #7b2d3b; width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
@@ -161,13 +161,13 @@
     </div>
 </div>
 
-<!-- Bottom Section: Side-by-Side Cost Management (CAPEX vs OPEX) -->
+<!-- Bottom Section: Side-by-Side Cost Management -->
 <div class="grid-2 mb-md">
-    <!-- Capital Investment Breakdown (CAPEX) -->
+    <!-- Capital Investment Breakdown -->
     <div class="chart-card animate-fadeIn" style="animation-delay: 400ms">
         <div class="chart-header">
             <div>
-                <h3 class="chart-title">1. Capital Investment (CAPEX)</h3>
+                <h3 class="chart-title">1. Capital Investment</h3>
                 <div class="text-xs text-muted">One-time hardware, solar & build expenses</div>
             </div>
             <button type="button" class="btn btn-sm btn-primary" onclick="openAddCostModal()">
@@ -221,11 +221,11 @@
         {% endif %}
     </div>
 
-    <!-- Recurring Operating Expenses (OPEX) -->
+    <!-- Recurring Operating Expenses -->
     <div class="chart-card animate-fadeIn" style="animation-delay: 450ms">
         <div class="chart-header">
             <div>
-                <h3 class="chart-title">2. Operating Expenses (OPEX)</h3>
+                <h3 class="chart-title">2. Operating Expenses</h3>
                 <div class="text-xs text-muted">Recurring ISP bill, electricity & maintenance</div>
             </div>
             <button type="button" class="btn btn-sm btn-primary" onclick="openAddExpenseModal()">
@@ -290,7 +290,7 @@
                 <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor"><path d="M6.5 1A1.5 1.5 0 0 0 5 2.5V3H1.5A1.5 1.5 0 0 0 0 4.5v1.384l7.614 2.03a1.5 1.5 0 0 0 .772 0L16 5.884V4.5A1.5 1.5 0 0 0 14.5 3H11v-.5A1.5 1.5 0 0 0 9.5 1zm0 1h3a.5.5 0 0 1 .5.5V3H6v-.5a.5.5 0 0 1 .5-.5M0 12.5A1.5 1.5 0 0 0 1.5 14h13a1.5 1.5 0 0 0 1.5-1.5V6.85L8.129 8.947a.5.5 0 0 1-.258 0L0 6.85z"/></svg>
             </div>
             <div>
-                <h3 style="margin:0; font-size: 17px; color: var(--color-dark);">Add Capital Investment (CAPEX)</h3>
+                <h3 style="margin:0; font-size: 17px; color: var(--color-dark);">Add Capital Investment</h3>
                 <span class="text-xs text-muted">One-time hardware and assembly costs</span>
             </div>
         </div>
@@ -321,7 +321,7 @@
                 <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor"><path d="M1.5 0A1.5 1.5 0 0 0 0 1.5v13A1.5 1.5 0 0 0 1.5 16h13a1.5 1.5 0 0 0 1.5-1.5V2.914a1.5 1.5 0 0 0-.44-1.06L14.147.439A1.5 1.5 0 0 0 13.086 0zM4 3.5a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5M4 6.5a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5M4 9.5a.5.5 0 0 1 .5-.5h4a.5.5 0 0 1 0 1h-4a.5.5 0 0 1-.5-.5"/></svg>
             </div>
             <div>
-                <h3 style="margin:0; font-size: 17px; color: var(--color-dark);">Add Operating Expense (OPEX)</h3>
+                <h3 style="margin:0; font-size: 17px; color: var(--color-dark);">Add Operating Expense</h3>
                 <span class="text-xs text-muted">Recurring operational and maintenance costs</span>
             </div>
         </div>
@@ -388,7 +388,7 @@ document.addEventListener('DOMContentLoaded', () => {
     new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: ['Capital (CAPEX)', 'Gross Revenue', 'Expenses (OPEX)', 'Net Profit'],
+            labels: ['Capital Investment', 'Gross Revenue', 'Operating Expenses', 'Net Profit'],
             datasets: [{
                 data: [
                     {{ total_investment|default:"0" }},
