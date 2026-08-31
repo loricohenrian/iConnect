@@ -591,16 +591,41 @@ def apply_network_settings():
         settings_obj = SystemSettings.get_settings()
         lan = _get_lan_interface()
         
-        # 1. Anti-Tethering (TTL = 1 on LAN + IPv6 HopLimit = 1)
+        # 1. Anti-Tethering (Subnet TTL=1 + Inbound Routed Hop Drop + IPv6 HopLimit=1)
+        portal_ip = getattr(settings, 'PISONET_PORTAL_IP', '').strip() or '10.10.10.1'
+        subnet = '.'.join(portal_ip.split('.')[:3]) + '.0/24'
+
+        # Load kernel modules if available
+        _run_command(['modprobe', 'xt_HL'], ignore_errors=True)
+        _run_command(['modprobe', 'xt_hl'], ignore_errors=True)
+        _run_command(['modprobe', 'ipt_TTL'], ignore_errors=True)
+        _run_command(['modprobe', 'ip6t_HL'], ignore_errors=True)
+
+        # Clean old rules
+        _run_command(['iptables', '-t', 'mangle', '-D', 'POSTROUTING', '-d', subnet, '-j', 'TTL', '--ttl-set', '1'], ignore_errors=True)
+        _run_command(['iptables', '-t', 'mangle', '-D', 'FORWARD', '-d', subnet, '-j', 'TTL', '--ttl-set', '1'], ignore_errors=True)
         _run_command(['iptables', '-t', 'mangle', '-D', 'POSTROUTING', '-o', lan, '-j', 'TTL', '--ttl-set', '1'], ignore_errors=True)
         _run_command(['iptables', '-t', 'mangle', '-D', 'FORWARD', '-o', lan, '-j', 'TTL', '--ttl-set', '1'], ignore_errors=True)
-        _run_command(['ip6tables', '-t', 'mangle', '-D', 'POSTROUTING', '-o', lan, '-j', 'HL', '--hl-set', '1'], ignore_errors=True)
-            
+        _run_command(['iptables', '-t', 'mangle', '-D', 'PREROUTING', '-s', subnet, '-m', 'ttl', '--ttl-eq', '63', '-j', 'DROP'], ignore_errors=True)
+        _run_command(['iptables', '-t', 'mangle', '-D', 'PREROUTING', '-s', subnet, '-m', 'ttl', '--ttl-eq', '127', '-j', 'DROP'], ignore_errors=True)
+        _run_command(['iptables', '-t', 'mangle', '-D', 'PREROUTING', '-s', subnet, '-m', 'ttl', '--ttl-eq', '254', '-j', 'DROP'], ignore_errors=True)
+        _run_command(['ip6tables', '-t', 'mangle', '-D', 'POSTROUTING', '-j', 'HL', '--hl-set', '1'], ignore_errors=True)
+
         if settings_obj.enable_anti_tethering:
-            _run_command(['iptables', '-t', 'mangle', '-A', 'POSTROUTING', '-o', lan, '-j', 'TTL', '--ttl-set', '1'])
-            _run_command(['iptables', '-t', 'mangle', '-A', 'FORWARD', '-o', lan, '-j', 'TTL', '--ttl-set', '1'], ignore_errors=True)
-            _run_command(['ip6tables', '-t', 'mangle', '-A', 'POSTROUTING', '-o', lan, '-j', 'HL', '--hl-set', '1'], ignore_errors=True)
-            logger.info("Anti-Tethering (TTL=1 / HL=1) enabled on LAN")
+            # Downstream: Set TTL=1 for all client traffic so tethered phones cannot route packets
+            _run_command(['iptables', '-t', 'mangle', '-A', 'POSTROUTING', '-d', subnet, '-j', 'TTL', '--ttl-set', '1'])
+            _run_command(['iptables', '-t', 'mangle', '-A', 'FORWARD', '-d', subnet, '-j', 'TTL', '--ttl-set', '1'], ignore_errors=True)
+            if lan:
+                _run_command(['iptables', '-t', 'mangle', '-A', 'POSTROUTING', '-o', lan, '-j', 'TTL', '--ttl-set', '1'], ignore_errors=True)
+
+            # Upstream: Drop packets originating from tethered devices (TTL already decremented by 1 before reaching router)
+            _run_command(['iptables', '-t', 'mangle', '-A', 'PREROUTING', '-s', subnet, '-m', 'ttl', '--ttl-eq', '63', '-j', 'DROP'], ignore_errors=True)
+            _run_command(['iptables', '-t', 'mangle', '-A', 'PREROUTING', '-s', subnet, '-m', 'ttl', '--ttl-eq', '127', '-j', 'DROP'], ignore_errors=True)
+            _run_command(['iptables', '-t', 'mangle', '-A', 'PREROUTING', '-s', subnet, '-m', 'ttl', '--ttl-eq', '254', '-j', 'DROP'], ignore_errors=True)
+
+            # IPv6: Set HopLimit=1
+            _run_command(['ip6tables', '-t', 'mangle', '-A', 'POSTROUTING', '-j', 'HL', '--hl-set', '1'], ignore_errors=True)
+            logger.info("Anti-Tethering (Subnet TTL=1 + Inbound TTL Drop) enabled on %s (%s)", lan, subnet)
         else:
             logger.info("Anti-Tethering disabled")
             
