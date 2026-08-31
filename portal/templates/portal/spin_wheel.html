@@ -4,7 +4,7 @@
 
 {% block portal_content %}
 <div class="animate-fadeIn text-center">
-    <h2 class="mb-sm"><i class="bi bi-controller"></i> Spin to Win</h2>
+    <h2 class="mb-sm"><i class="bi bi-disc" style="color:var(--color-primary);"></i> Spin to Win</h2>
     <p class="text-muted text-small mb-lg">
         Spins left today: <strong>{{ remaining_spins }}</strong><br>
         Your points: <strong>{{ device_profile.points }}</strong><br>
@@ -20,12 +20,12 @@
     <!-- Wheel Container -->
     <div class="wheel-container mb-xl" style="position: relative; width: 280px; height: 280px; margin: 0 auto; {% if not can_spin %}opacity: 0.6;{% endif %}">
         <!-- Pointer -->
-        <div style="position: absolute; top: -15px; left: 50%; transform: translateX(-50%); z-index: 10; width: 30px; height: 30px; background: #DC2626; clip-path: polygon(50% 100%, 0 0, 100% 0);"></div>
+        <div style="position: absolute; top: -15px; left: 50%; transform: translateX(-50%); z-index: 10; width: 30px; height: 30px; background: var(--color-primary); clip-path: polygon(50% 100%, 0 0, 100% 0);"></div>
         
     <!-- The Wheel -->
         <div id="wheel" style="
-            width: 100%; height: 100%; border-radius: 50%; border: 4px solid var(--border-color);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            width: 100%; height: 100%; border-radius: 50%; border: 3px solid var(--color-border);
+            box-shadow: 0 4px 15px rgba(45,31,31,0.1);
             transition: transform 4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             background: conic-gradient(
                 {% for prize in prizes %}
@@ -64,20 +64,20 @@
     <div class="d-flex gap-sm mb-lg">
         <a href="/" class="btn btn-secondary w-100"><i class="bi bi-arrow-left"></i> Back</a>
         {% if can_spin %}
-        <button id="spin-btn" class="btn btn-primary w-100" style="background: linear-gradient(135deg, #10B981 0%, #059669 100%); border: none;">
+        <button id="spin-btn" class="btn btn-primary w-100">
             <i class="bi bi-play-circle-fill"></i> SPIN!
         </button>
         {% else %}
-        <button class="btn btn-primary w-100" style="background: #6B7280; border: none; cursor: not-allowed; opacity: 0.7;" disabled>
+        <button class="btn btn-primary w-100" disabled>
             <i class="bi bi-play-circle-fill"></i> SPIN!
         </button>
         {% endif %}
     </div>
 
     <!-- MAC Randomization Notice -->
-    <div style="background: rgba(var(--primary-color-rgb), 0.05); border: 1px dashed rgba(var(--primary-color-rgb), 0.3); border-radius: 8px; padding: 1rem; text-align: left; font-size: 0.85rem; color: var(--text-secondary);">
-        <i class="bi bi-info-circle text-primary" style="margin-right: 0.5rem;"></i>
-        <strong>Tip:</strong> Turn off "Randomized MAC" in your WiFi settings for this network to keep your points saved permanently!
+    <div class="alert alert-info" style="text-align: left;">
+        <i class="bi bi-info-circle" style="font-size: 16px;"></i>
+        <span><strong>Tip:</strong> Turn off "Randomized MAC" in your WiFi settings for this network to keep your points saved permanently!</span>
     </div>
 </div>
 

@@ -195,24 +195,25 @@ function _showTimerBanner(message, type) {
     banner.id = 'timer-alert-banner';
     banner.innerHTML = `<span>${message}</span><button onclick="this.parentElement.remove()" style="background:none;border:none;color:inherit;font-size:18px;cursor:pointer;padding:0 0 0 12px;">✕</button>`;
 
-    let bgColor, textColor, borderColor;
+    let bgColor, textColor;
     if (type === 'warning') {
-        bgColor = 'linear-gradient(135deg, #F59E0B, #D97706)';
-        textColor = '#fff';
+        bgColor = '#FFFBEB';
+        textColor = '#92400E';
     } else if (type === 'danger') {
-        bgColor = 'linear-gradient(135deg, #EF4444, #DC2626)';
-        textColor = '#fff';
+        bgColor = '#FEF2F2';
+        textColor = '#991B1B';
     } else {
-        bgColor = 'linear-gradient(135deg, #6B7280, #4B5563)';
-        textColor = '#fff';
+        bgColor = '#7B2D3B';
+        textColor = '#FFFFFF';
     }
 
     banner.style.cssText = `
         position: fixed; top: 0; left: 0; right: 0; z-index: 9999;
         background: ${bgColor}; color: ${textColor};
-        padding: 12px 16px; font-size: 14px; font-weight: 600;
+        padding: 10px 16px; font-size: 13px; font-weight: 600;
         text-align: center; display: flex; align-items: center;
-        justify-content: center; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        justify-content: center; box-shadow: 0 2px 8px rgba(45, 31, 31, 0.1);
+        border-bottom: 1px solid rgba(0, 0, 0, 0.08);
         animation: slideDown 0.4s ease-out;
     `;
 
@@ -227,7 +228,7 @@ function _showTimerBanner(message, type) {
             }
             @keyframes pulse-urgent {
                 0%, 100% { transform: scale(1); }
-                50% { transform: scale(1.05); }
+                50% { transform: scale(1.03); }
             }
         `;
         document.head.appendChild(style);
@@ -261,37 +262,24 @@ function _showExpiredModal(macAddress) {
 
     const modal = document.createElement('div');
     modal.id = 'expired-modal-overlay';
-    modal.style.cssText = `
-        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-        background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(6px);
-        z-index: 10000; display: flex; align-items: center; justify-content: center;
-        padding: 20px; animation: slideDown 0.3s ease-out;
-    `;
+    modal.className = 'modal-overlay';
+    modal.style.display = 'flex';
 
     modal.innerHTML = `
-        <div style="
-            background: #ffffff; border-radius: 20px; padding: 32px 24px;
-            max-width: 380px; width: 100%; text-align: center;
-            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.35);
-        ">
+        <div class="modal-card animate-fadeIn text-center" style="max-width: 360px;">
             <div style="
-                width: 68px; height: 68px; background: rgba(239, 68, 68, 0.12);
-                color: #EF4444; border-radius: 50%; display: flex;
-                align-items: center; justify-content: center; font-size: 34px;
-                margin: 0 auto 18px; border: 1px solid rgba(239, 68, 68, 0.2);
+                width: 56px; height: 56px; background: #FEF2F2;
+                color: #DC2626; border-radius: 50%; display: flex;
+                align-items: center; justify-content: center; font-size: 26px;
+                margin: 0 auto 14px; border: 1px solid #FEE2E2;
             ">
                 <i class="bi bi-wifi-off"></i>
             </div>
-            <h3 style="margin: 0 0 10px; font-size: 22px; font-weight: 700; color: #0F172A;">Session Expired</h3>
-            <p style="margin: 0 0 24px; color: #64748B; font-size: 14px; line-height: 1.5;">
+            <h3 style="margin: 0 0 8px; font-size: 1.15rem; font-weight: 700; color: var(--color-dark);">Session Expired</h3>
+            <p style="margin: 0 0 20px; color: var(--color-gray); font-size: 13px; line-height: 1.45;">
                 Your WiFi time has run out. Insert coins to start a new session and stay connected.
             </p>
-            <button onclick="window.location.href = buildPortalUrl('/', '${macAddress}', { expired: 1 })" style="
-                width: 100%; padding: 14px 20px; background: linear-gradient(135deg, #2563EB, #1D4ED8);
-                color: #ffffff; border: none; border-radius: 12px; font-size: 15px;
-                font-weight: 600; cursor: pointer; transition: all 0.2s;
-                box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
-            ">
+            <button onclick="window.location.href = buildPortalUrl('/', '${macAddress}', { expired: 1 })" class="btn btn-primary w-100">
                 Start New Session
             </button>
         </div>
@@ -539,35 +527,17 @@ function _updateSlotsIndicator(slots) {
     const { active, max: maxSlots, available } = slots;
 
     // Update text
+    // Update text
     if (available > 0) {
         text.textContent = `${available} / ${maxSlots} slots available`;
     } else {
         text.textContent = 'Full — please try again shortly';
     }
 
-    // Update colors based on availability
-    let bgColor, textColor, dotColor, borderColor;
-    if (available > 5) {
-        bgColor = 'rgba(16,185,129,0.1)';
-        textColor = '#059669';
-        dotColor = '#10B981';
-        borderColor = 'rgba(16,185,129,0.2)';
-    } else if (available > 0) {
-        bgColor = 'rgba(245,158,11,0.1)';
-        textColor = '#D97706';
-        dotColor = '#F59E0B';
-        borderColor = 'rgba(245,158,11,0.2)';
-    } else {
-        bgColor = 'rgba(239,68,68,0.1)';
-        textColor = '#DC2626';
-        dotColor = '#EF4444';
-        borderColor = 'rgba(239,68,68,0.2)';
-    }
-
-    badge.style.background = bgColor;
-    badge.style.color = textColor;
-    badge.style.borderColor = borderColor;
-    dot.style.background = dotColor;
+    // Update classes based on availability
+    badge.className = 'slots-badge ' + (available > 5 ? 'available' : (available > 0 ? 'low' : 'full'));
+    badge.removeAttribute('style');
+    dot.removeAttribute('style');
 }
 
 function initPortalRealtime() {

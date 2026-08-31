@@ -42,19 +42,19 @@
 </div>
 
 {% if page_obj.has_other_pages %}
-<div style="display: flex; justify-content: center; align-items: center; gap: 16px; margin-top: 24px; margin-bottom: 24px;">
+<div class="pagination-container">
     {% if page_obj.has_previous %}
-        <a href="?page={{ page_obj.previous_page_number }}" style="padding: 8px 16px; border-radius: 8px; text-decoration: none; border: 1px solid var(--color-primary); color: var(--color-primary); font-weight: 600; font-size: 14px;">Previous</a>
+        <a href="?page={{ page_obj.previous_page_number }}" class="pagination-btn">Previous</a>
     {% else %}
-        <button style="padding: 8px 16px; border-radius: 8px; opacity: 0.5; cursor: not-allowed; border: 1px solid #ccc; color: #999; font-weight: 600; font-size: 14px; background: transparent;" disabled>Previous</button>
+        <button class="pagination-btn" disabled>Previous</button>
     {% endif %}
     
-    <span style="font-weight: 600; font-size: 14px; color: var(--color-gray);">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    <span style="font-weight: 600; font-size: 13px; color: var(--color-gray);">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
     
     {% if page_obj.has_next %}
-        <a href="?page={{ page_obj.next_page_number }}" style="padding: 8px 16px; border-radius: 8px; text-decoration: none; border: 1px solid var(--color-primary); color: var(--color-primary); font-weight: 600; font-size: 14px;">Next</a>
+        <a href="?page={{ page_obj.next_page_number }}" class="pagination-btn">Next</a>
     {% else %}
-        <button style="padding: 8px 16px; border-radius: 8px; opacity: 0.5; cursor: not-allowed; border: 1px solid #ccc; color: #999; font-weight: 600; font-size: 14px; background: transparent;" disabled>Next</button>
+        <button class="pagination-btn" disabled>Next</button>
     {% endif %}
 </div>
 {% endif %}
