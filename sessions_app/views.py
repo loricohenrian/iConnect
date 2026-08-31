@@ -752,6 +752,7 @@ def session_start(request):
                     group_code=code,
                     plan=plan,
                     max_devices=group_pass_devices,
+                    redeemed_count=1,
                     total_price=amount_paid,
                     duration_minutes=plan.duration_minutes if plan else actual_duration,
                     time_in=timezone.now(),
