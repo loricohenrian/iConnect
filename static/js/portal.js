@@ -647,7 +647,9 @@ function coinRequestStatusMessage(coinRequest, context = "start") {
     }
     if (status === "active") {
         if (coinRequest.ready_to_start) {
-            return "Minimum reached! Insert more coins for more time, or tap Connect Now.";
+            return context === "extend"
+                ? "Minimum reached! Insert more coins for more time, or tap Extend Now."
+                : "Minimum reached! Insert more coins for more time, or tap Connect Now.";
         }
         return "Insert coins now. Your device currently owns the coin slot window.";
     }
@@ -1105,6 +1107,7 @@ function initExtendSessionFlow(macAddress) {
             const data = await parseJsonSafe(response);
 
             if (response.ok) {
+                clearPolling();
                 if (data.session_group) {
                     window.location.reload();
                     return;

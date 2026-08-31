@@ -1189,15 +1189,22 @@ def session_extend_paid(request):
     request_ip = _client_ip(request)
     active_session = Session.objects.filter(
         mac_address=mac_address,
-        status="active",
-        ip_address=request_ip,
-    ).select_related("plan").first()
+        status__in=["active", "paused"],
+    ).select_related("plan").order_by("-id").first()
+
+    if not active_session:
+        active_session = Session.objects.filter(
+            mac_address=mac_address,
+        ).select_related("plan").order_by("-id").first()
 
     if not active_session:
         return Response(
             {"error": "No active session found for this device"},
             status=status.HTTP_404_NOT_FOUND,
         )
+
+    if request_ip and request_ip != "127.0.0.1":
+        active_session.ip_address = request_ip
 
     coin_req = CoinInsertRequest.objects.filter(
         mac_address=mac_address,
@@ -1285,6 +1292,8 @@ def session_extend_paid(request):
                 speed_changed = True
 
             update_fields = ["duration_minutes_purchased", "amount_paid", "status", "time_in"]
+            if active_session.ip_address:
+                update_fields.append("ip_address")
             if speed_changed:
                 update_fields.append("plan")
             if is_group_pass and session_group:
@@ -1303,9 +1312,12 @@ def session_extend_paid(request):
             else:
                 DeviceProfile.add_spending_points(mac_address, amount_paid)
             
-            if speed_changed:
-                dl_kbps = int(plan.speed_limit * 1024) if plan.speed_limit else None
-                ul_kbps = int(plan.speed_limit_upload * 1024) if plan.speed_limit_upload else dl_kbps
+            dl_kbps = int(plan.speed_limit * 1024) if plan.speed_limit else None
+            ul_kbps = int(plan.speed_limit_upload * 1024) if plan.speed_limit_upload else dl_kbps
+
+            if active_session.status == "active":
+                iptables.allow_device(mac_address, rate_kbps=dl_kbps, upload_kbps=ul_kbps)
+            elif speed_changed:
                 iptables.apply_bandwidth_limit(mac_address, rate_kbps=dl_kbps, upload_kbps=ul_kbps)
 
             used_amount = 0
@@ -1335,9 +1347,10 @@ def session_extend_paid(request):
                 completed_at=timezone.now(),
             )
     except Exception as exc:
+        audit_logger.error("event=session_extend_paid_error mac=%s error=%s", mac_address, exc)
         return Response(
             {"error": str(exc)},
-            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
     _activate_next_coin_request()
