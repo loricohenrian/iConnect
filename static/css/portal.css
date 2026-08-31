@@ -203,33 +203,27 @@
 }
 
 .btn-link-group {
-    background: var(--color-primary-light);
-    color: var(--color-primary);
-    border: 1px dashed var(--color-primary);
-    border-radius: 100px;
+    background: none;
+    border: none;
     font-size: 13px;
-    font-weight: 600;
-    padding: 8px 16px;
-    margin-top: 10px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
+    font-weight: 500;
+    color: #2563eb; /* Clean blue */
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    padding: 6px 10px;
+    margin-top: 8px;
+    display: inline-block;
     cursor: pointer;
-    transition: all 0.2s ease;
-    text-decoration: none;
-    box-shadow: 0 2px 6px rgba(123, 45, 59, 0.06);
+    transition: color 0.15s ease;
 }
 
 .btn-link-group:hover {
-    background: #eedbd5;
-    color: var(--color-primary-dark);
-    border-color: var(--color-primary-dark);
-    transform: translateY(-1px);
+    color: #1d4ed8;
+    text-decoration: underline;
 }
 
 .btn-link-group:active {
-    transform: scale(0.98);
+    color: #1e40af;
 }
 
 /* Standardized Base Buttons */
