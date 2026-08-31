@@ -1166,7 +1166,7 @@ def session_extend_paid(request):
     POST /api/session/extend-paid/
     Body: { "mac_address": "...", "plan_id": ... }
     """
-    mac_address = request.data.get("mac_address", "").upper()
+    mac_address = request.data.get("mac_address", "").upper().strip()
     plan_id = request.data.get("plan_id")
 
     from dashboard.models import SystemSettings
@@ -1187,8 +1187,8 @@ def session_extend_paid(request):
         )
 
     try:
-        plan = Plan.objects.get(id=plan_id, is_active=True)
-    except Plan.DoesNotExist:
+        plan = Plan.objects.get(id=int(plan_id), is_active=True)
+    except (Plan.DoesNotExist, ValueError, TypeError):
         return Response(
             {"error": "Invalid plan"},
             status=status.HTTP_400_BAD_REQUEST,
@@ -1206,9 +1206,14 @@ def session_extend_paid(request):
         ).select_related("plan").order_by("-id").first()
 
     if not active_session:
-        return Response(
-            {"error": "No active session found for this device"},
-            status=status.HTTP_404_NOT_FOUND,
+        active_session = Session.objects.create(
+            mac_address=mac_address,
+            plan=plan,
+            time_in=timezone.now(),
+            duration_minutes_purchased=0,
+            amount_paid=0,
+            ip_address=request_ip,
+            status="active",
         )
 
     if request_ip and request_ip != "127.0.0.1":
@@ -1320,13 +1325,16 @@ def session_extend_paid(request):
             else:
                 DeviceProfile.add_spending_points(mac_address, amount_paid)
             
-            dl_kbps = int(plan.speed_limit * 1024) if plan.speed_limit else None
-            ul_kbps = int(plan.speed_limit_upload * 1024) if plan.speed_limit_upload else dl_kbps
+            try:
+                dl_kbps = int(plan.speed_limit * 1024) if plan.speed_limit else None
+                ul_kbps = int(plan.speed_limit_upload * 1024) if plan.speed_limit_upload else dl_kbps
 
-            if active_session.status == "active":
-                iptables.allow_device(mac_address, rate_kbps=dl_kbps, upload_kbps=ul_kbps)
-            elif speed_changed:
-                iptables.apply_bandwidth_limit(mac_address, rate_kbps=dl_kbps, upload_kbps=ul_kbps)
+                if active_session.status == "active":
+                    iptables.allow_device(mac_address, rate_kbps=dl_kbps, upload_kbps=ul_kbps)
+                elif speed_changed:
+                    iptables.apply_bandwidth_limit(mac_address, rate_kbps=dl_kbps, upload_kbps=ul_kbps)
+            except Exception as e:
+                audit_logger.warning("iptables_extend_warning mac=%s error=%s", mac_address, e)
 
             used_amount = 0
             for event in _pending_coin_events_for_mac(mac_address):

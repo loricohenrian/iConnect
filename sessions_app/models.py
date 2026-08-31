@@ -588,17 +588,20 @@ class DeviceProfile(models.Model):
     def add_spending_points(cls, mac_address, amount_spent):
         if not mac_address or amount_spent <= 0:
             return None
-        from dashboard.models import SystemSettings
-        settings_obj = SystemSettings.get_settings()
-        
-        if not settings_obj.enable_spin_wheel or settings_obj.points_per_peso <= 0:
-            return None
+        try:
+            from dashboard.models import SystemSettings
+            settings_obj = SystemSettings.get_settings()
             
-        profile, _ = cls.objects.get_or_create(mac_address=mac_address)
-        points_earned = amount_spent * settings_obj.points_per_peso
-        profile.points += points_earned
-        profile.save(update_fields=['points'])
-        return profile
+            if not settings_obj.enable_spin_wheel or settings_obj.points_per_peso <= 0:
+                return None
+                
+            profile, _ = cls.objects.get_or_create(mac_address=mac_address)
+            points_earned = int(round(float(amount_spent) * float(settings_obj.points_per_peso)))
+            profile.points += points_earned
+            profile.save(update_fields=['points'])
+            return profile
+        except Exception:
+            return None
 
 class SpinPrize(models.Model):
     name = models.CharField(max_length=50, help_text="Prize Name (e.g. '30 Mins', 'Try Again')")

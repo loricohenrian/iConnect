@@ -961,6 +961,14 @@ function initExtendSessionFlow(macAddress) {
     const applyCoinRequestState = (coinRequest) => {
         state.requestId = coinRequest ? coinRequest.id : null;
         state.readyToStart = Boolean(coinRequest && coinRequest.ready_to_start);
+        if (coinRequest) {
+            state.isGroupPass = Boolean(coinRequest.is_group_pass);
+            state.groupDevices = coinRequest.group_pass_devices || null;
+            if (coinRequest.plan_id) {
+                state.planId = coinRequest.plan_id;
+                if (extendPlanInput) extendPlanInput.value = coinRequest.plan_id;
+            }
+        }
 
         setExtendMessage(
             coinRequestStatusMessage(coinRequest, "extend"),
@@ -987,9 +995,10 @@ function initExtendSessionFlow(macAddress) {
     const pollRequestStatus = async () => {
         if (!state.requestId || state.pollInFlight) return;
         state.pollInFlight = true;
+        const currentMac = macAddress || getMacAddress();
         try {
             const response = await fetch(
-                `/api/session/start/request-status/?request_id=${encodeURIComponent(state.requestId)}&mac_address=${encodeURIComponent(macAddress)}`
+                `/api/session/start/request-status/?request_id=${encodeURIComponent(state.requestId)}&mac_address=${encodeURIComponent(currentMac)}`
             );
             const data = await parseJsonSafe(response);
             if (!response.ok) {
@@ -1037,6 +1046,8 @@ function initExtendSessionFlow(macAddress) {
             clearPolling();
             state.requestId = null;
             state.readyToStart = false;
+            state.isGroupPass = false;
+            state.groupDevices = null;
             extendNowBtn.disabled = true;
             setExtendMessage("", "info");
             setExtendMeta("");
@@ -1046,9 +1057,14 @@ function initExtendSessionFlow(macAddress) {
 
     // Request coin slot for extend
     extendRequestBtn.addEventListener("click", async () => {
-        const planId = Number(extendPlanInput.value);
+        const planId = Number(extendPlanInput.value) || state.planId;
+        const currentMac = macAddress || getMacAddress();
         if (!planId) {
             setExtendMessage("Select a plan first.", "warning");
+            return;
+        }
+        if (!currentMac) {
+            setExtendMessage("Device identity missing. Please refresh.", "warning");
             return;
         }
 
@@ -1059,7 +1075,7 @@ function initExtendSessionFlow(macAddress) {
             const response = await fetch("/api/session/start/request/", {
                 method: "POST",
                 headers: { "Content-Type": "application/json", "X-CSRFToken": getCSRFToken() },
-                body: JSON.stringify({ mac_address: macAddress, plan_id: planId }),
+                body: JSON.stringify({ mac_address: currentMac, plan_id: planId }),
             });
             const data = await parseJsonSafe(response);
 
@@ -1086,7 +1102,12 @@ function initExtendSessionFlow(macAddress) {
 
     // Extend now button
     extendNowBtn.addEventListener("click", async () => {
-        const planId = Number(extendPlanInput.value);
+        const planId = Number(extendPlanInput.value) || state.planId;
+        const currentMac = macAddress || getMacAddress();
+        if (!currentMac) {
+            setExtendMessage("Device MAC missing. Please refresh.", "warning");
+            return;
+        }
         if (!planId || !state.readyToStart) {
             setExtendMessage("Insert coins first.", "warning");
             return;
@@ -1099,7 +1120,12 @@ function initExtendSessionFlow(macAddress) {
             const response = await fetch("/api/session/extend-paid/", {
                 method: "POST",
                 headers: { "Content-Type": "application/json", "X-CSRFToken": getCSRFToken() },
-                body: JSON.stringify({ mac_address: macAddress, plan_id: planId }),
+                body: JSON.stringify({
+                    mac_address: currentMac,
+                    plan_id: planId,
+                    is_group_pass: state.isGroupPass,
+                    group_devices: state.groupDevices,
+                }),
             });
             const data = await parseJsonSafe(response);
 
@@ -1133,6 +1159,8 @@ function initExtendSessionFlow(macAddress) {
                 // Reset extend state
                 state.requestId = null;
                 state.planId = null;
+                state.isGroupPass = false;
+                state.groupDevices = null;
                 state.readyToStart = false;
                 extendCards.forEach((c) => c.classList.remove("selected"));
                 extendPlanInput.value = "";

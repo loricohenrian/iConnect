@@ -613,3 +613,56 @@ class SessionApiTests(TestCase):
         self.assertEqual(response.status_code, 403)
         self.assertIn("blocked", response.json()["error"].lower())
 
+    @patch("sessions_app.views.iptables.allow_device", return_value=True)
+    def test_session_extend_paid_success(self, allow_device_mock):
+        session = Session.objects.create(
+            mac_address=self.mac_one,
+            plan=self.plan,
+            duration_minutes_purchased=30,
+            amount_paid=5,
+            status="active",
+        )
+        CoinEvent.objects.create(amount=5, denomination=5, mac_address=self.mac_one)
+
+        response = self.client.post(
+            reverse("sessions_app:session-extend-paid"),
+            {"mac_address": self.mac_one, "plan_id": self.plan.id},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        session.refresh_from_db()
+        self.assertEqual(session.duration_minutes_purchased, 60)
+        self.assertEqual(session.amount_paid, 10)
+
+    @patch("sessions_app.views.iptables.allow_device", return_value=True)
+    def test_session_extend_paid_twice(self, allow_device_mock):
+        session = Session.objects.create(
+            mac_address=self.mac_one,
+            plan=self.plan,
+            duration_minutes_purchased=30,
+            amount_paid=5,
+            status="active",
+        )
+        # First extension
+        CoinEvent.objects.create(amount=5, denomination=5, mac_address=self.mac_one)
+        res1 = self.client.post(
+            reverse("sessions_app:session-extend-paid"),
+            {"mac_address": self.mac_one, "plan_id": self.plan.id},
+            format="json",
+        )
+        self.assertEqual(res1.status_code, 200)
+
+        # Second extension
+        CoinEvent.objects.create(amount=5, denomination=5, mac_address=self.mac_one)
+        res2 = self.client.post(
+            reverse("sessions_app:session-extend-paid"),
+            {"mac_address": self.mac_one, "plan_id": self.plan.id},
+            format="json",
+        )
+        self.assertEqual(res2.status_code, 200)
+        session.refresh_from_db()
+        self.assertEqual(session.duration_minutes_purchased, 90)
+        self.assertEqual(session.amount_paid, 15)
+
+
