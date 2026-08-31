@@ -9,7 +9,7 @@ class SessionTimer {
     constructor(elementId, totalSeconds) {
         this.element = document.getElementById(elementId);
         this.serverSeconds = totalSeconds;
-        this.startedAt = Date.now();
+        this.startedAt = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
         this.interval = null;
         this.onExpire = null;
         this.onWarning = null;
@@ -23,13 +23,14 @@ class SessionTimer {
         if (this.isPaused) {
             return Math.max(0, this.serverSeconds);
         }
-        const elapsed = (Date.now() - this.startedAt) / 1000;
+        const now = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
+        const elapsed = (now - this.startedAt) / 1000;
         return Math.max(0, this.serverSeconds - elapsed);
     }
 
     setRemaining(seconds) {
         this.serverSeconds = seconds;
-        this.startedAt = Date.now();
+        this.startedAt = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
         this.isPaused = false;
         this.update();
     }
