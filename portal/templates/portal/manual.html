@@ -166,4 +166,129 @@
     </div>
 </div>
 
+<!-- Report Issue / Message Operator Section -->
+<div class="extend-section animate-fadeIn mt-xl mb-lg" style="animation-delay: 800ms;">
+    <h3 style="display: flex; align-items: center; gap: 8px; font-size: 16px; margin-bottom: 6px; color: var(--color-dark);">
+        <i class="bi bi-chat-square-dots-fill" style="color:var(--color-primary);"></i> Report Issue / Message Operator
+    </h3>
+    <p style="font-size: 12px; color: var(--color-gray); margin-bottom: 16px; line-height: 1.4;">
+        Coin got stuck or having internet trouble? Send a direct message to the WiFi operator below.
+    </p>
+
+    <div id="report-alert-box" style="display: none; padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 14px; font-weight: 500;"></div>
+
+    <form id="report-issue-form">
+        {% csrf_token %}
+        <div style="margin-bottom: 12px;">
+            <label style="font-size: 12px; font-weight: 600; color: var(--color-dark); display: block; margin-bottom: 4px;">
+                Problem Category
+            </label>
+            <select id="report-category" class="voucher-input" style="width: 100%; padding: 10px 12px; font-size: 13px; border-radius: 8px; background: #fff; border: 1px solid var(--color-border); color: var(--color-dark);">
+                <option value="coin_stuck">🪙 Coin Stuck / Not Credited</option>
+                <option value="no_internet">🌐 No Internet / Slow Connection</option>
+                <option value="timer_issue">⏳ Timer / Session Ended Early</option>
+                <option value="group_pass">👥 Group Pass Issue</option>
+                <option value="other" selected>💬 Other Question / Feedback</option>
+            </select>
+        </div>
+
+        <div style="margin-bottom: 12px;">
+            <label style="font-size: 12px; font-weight: 600; color: var(--color-dark); display: block; margin-bottom: 4px;">
+                Message / Details <span style="color: var(--color-danger);">*</span>
+            </label>
+            <textarea id="report-message" required rows="3" class="voucher-input" style="width: 100%; padding: 10px 12px; font-size: 13px; border-radius: 8px; background: #fff; border: 1px solid var(--color-border); resize: vertical; color: var(--color-dark); font-family: inherit;" placeholder="Describe what happened (e.g., inserted ₱5 but slot didn't register)..."></textarea>
+        </div>
+
+        <div style="margin-bottom: 16px;">
+            <label style="font-size: 12px; font-weight: 600; color: var(--color-dark); display: block; margin-bottom: 4px;">
+                Contact Info <span style="font-weight: 400; color: var(--color-gray);">(Optional)</span>
+            </label>
+            <input type="text" id="report-contact" class="voucher-input" style="width: 100%; padding: 10px 12px; font-size: 13px; border-radius: 8px; background: #fff; border: 1px solid var(--color-border); color: var(--color-dark);" placeholder="Phone number or Name">
+        </div>
+
+        <button type="submit" id="btn-submit-report" class="btn btn-primary" style="width: 100%; padding: 12px; font-weight: 700; font-size: 14px; border-radius: 10px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+            <i class="bi bi-send-fill"></i> Send Message
+        </button>
+    </form>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const form = document.getElementById("report-issue-form");
+    const alertBox = document.getElementById("report-alert-box");
+    const submitBtn = document.getElementById("btn-submit-report");
+
+    if (!form) return;
+
+    form.addEventListener("submit", async function(e) {
+        e.preventDefault();
+
+        const messageEl = document.getElementById("report-message");
+        const categoryEl = document.getElementById("report-category");
+        const contactEl = document.getElementById("report-contact");
+
+        const message = messageEl.value.trim();
+        const category = categoryEl.value;
+        const contactInfo = contactEl.value.trim();
+
+        if (!message) {
+            showAlert("Please describe your problem before submitting.", "danger");
+            return;
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Sending...';
+        alertBox.style.display = "none";
+
+        try {
+            const mac = localStorage.getItem("iconnect_mac") || "";
+            const csrf = (document.cookie.split(';').find(c => c.trim().startsWith('csrftoken=')) || '').split('=')[1] || '';
+
+            const response = await fetch("/api/report-issue/", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": csrf,
+                },
+                body: JSON.stringify({
+                    category: category,
+                    message: message,
+                    contact_info: contactInfo,
+                    mac_address: mac,
+                }),
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                showAlert("✅ " + (data.message || "Your report has been sent to the operator!"), "success");
+                form.reset();
+            } else {
+                showAlert("⚠️ " + (data.error || "Failed to send report. Please retry."), "danger");
+            }
+        } catch (err) {
+            showAlert("⚠️ Network error. Please check your connection and try again.", "danger");
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="bi bi-send-fill"></i> Send Message';
+        }
+    });
+
+    function showAlert(msg, type) {
+        alertBox.style.display = "block";
+        alertBox.textContent = msg;
+        if (type === "success") {
+            alertBox.style.background = "#DCFCE7";
+            alertBox.style.color = "#166534";
+            alertBox.style.border = "1px solid #86EFAC";
+        } else {
+            alertBox.style.background = "#FEE2E2";
+            alertBox.style.color = "#991B1B";
+            alertBox.style.border = "1px solid #FCA5A5";
+        }
+    }
+});
+</script>
+
 {% endblock %}
+

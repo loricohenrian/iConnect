@@ -24,7 +24,7 @@ from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
-from .models import Announcement, RevenueGoal, ProjectCost, DailyRevenueSummary, SystemSettings
+from .models import Announcement, RevenueGoal, ProjectCost, DailyRevenueSummary, SystemSettings, IssueReport
 from .serializers import AnnouncementSerializer, RevenueGoalSerializer, ProjectCostSerializer
 from sessions_app import iptables
 from sessions_app.models import Session, CoinEvent, Plan, WhitelistedDevice, SuspiciousDevice, PurchaseTransaction
@@ -1818,4 +1818,86 @@ def backup_database(request):
         
     response = FileResponse(open(db_path, 'rb'), as_attachment=True, filename='db_backup.sqlite3')
     return response
+
+
+@user_passes_test(_is_dashboard_admin, login_url='dashboard:login')
+def issues_view(request):
+    """View and manage customer issue tickets and operator messages."""
+    status_filter = request.GET.get('status', 'all')
+    category_filter = request.GET.get('category', 'all')
+    search_query = request.GET.get('q', '').strip()
+
+    reports = IssueReport.objects.all()
+
+    if status_filter in ['pending', 'in_progress', 'resolved']:
+        reports = reports.filter(status=status_filter)
+
+    if category_filter in dict(IssueReport.CATEGORY_CHOICES).keys():
+        reports = reports.filter(category=category_filter)
+
+    if search_query:
+        reports = reports.filter(
+            Q(mac_address__icontains=search_query) |
+            Q(contact_info__icontains=search_query) |
+            Q(message__icontains=search_query)
+        )
+
+    # Stats
+    total_count = IssueReport.objects.count()
+    pending_count = IssueReport.objects.filter(status='pending').count()
+    in_progress_count = IssueReport.objects.filter(status='in_progress').count()
+    resolved_count = IssueReport.objects.filter(status='resolved').count()
+
+    paginator = Paginator(reports, 15)
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
+
+    context = {
+        'active_page': 'issues',
+        'reports': page_obj,
+        'status_filter': status_filter,
+        'category_filter': category_filter,
+        'search_query': search_query,
+        'total_count': total_count,
+        'pending_count': pending_count,
+        'in_progress_count': in_progress_count,
+        'resolved_count': resolved_count,
+        'categories': IssueReport.CATEGORY_CHOICES,
+    }
+    return render(request, 'dashboard/issues.html', context)
+
+
+@user_passes_test(_is_dashboard_admin, login_url='dashboard:login')
+@require_POST
+def update_issue_status(request, issue_id):
+    """Update issue status or operator notes."""
+    issue = get_object_or_404(IssueReport, id=issue_id)
+    new_status = request.POST.get('status')
+    admin_notes = request.POST.get('admin_notes')
+
+    if new_status in ['pending', 'in_progress', 'resolved']:
+        issue.status = new_status
+        if new_status == 'resolved':
+            issue.resolved_at = timezone.now()
+        else:
+            issue.resolved_at = None
+
+    if admin_notes is not None:
+        issue.admin_notes = admin_notes.strip()
+
+    issue.save()
+    messages.success(request, f'Ticket #{issue.id} updated.')
+    return redirect(request.META.get('HTTP_REFERER') or 'dashboard:issues')
+
+
+@user_passes_test(_is_dashboard_admin, login_url='dashboard:login')
+@require_POST
+def delete_issue(request, issue_id):
+    """Delete an issue ticket."""
+    issue = get_object_or_404(IssueReport, id=issue_id)
+    issue_num = issue.id
+    issue.delete()
+    messages.success(request, f'Ticket #{issue_num} deleted.')
+    return redirect(request.META.get('HTTP_REFERER') or 'dashboard:issues')
+
 

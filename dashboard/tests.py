@@ -135,6 +135,7 @@ class DashboardSecurityTests(TestCase):
         response = self.client.post(
             "/dashboard/plans/",
             {"action": "delete", "plan_id": str(plan.id)},
+            follow=True,
         )
 
         self.assertEqual(response.status_code, 200)
@@ -172,3 +173,44 @@ class DashboardSecurityTests(TestCase):
         content = response.content.decode("utf-8")
         self.assertIn("Session ID,MAC Address,IP Address", content)
         self.assertIn("AA:BB:CC:DD:EE:99", content)
+
+    def test_issues_view_and_management(self):
+        from dashboard.models import IssueReport
+        User = get_user_model()
+        user = User.objects.create_user(
+            username="issue_admin",
+            password="admin123",
+            is_staff=True,
+            is_superuser=True,
+        )
+        self.client.login(username=user.username, password="admin123")
+
+        report = IssueReport.objects.create(
+            mac_address="22:33:44:55:66:77",
+            contact_info="09991234567",
+            category="coin_stuck",
+            message="Machine took 10 pesos without time",
+            status="pending",
+        )
+
+        response = self.client.get("/dashboard/issues/")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Machine took 10 pesos without time")
+        self.assertContains(response, "22:33:44:55:66:77")
+
+        # Update status to resolved
+        update_resp = self.client.post(
+            f"/dashboard/issues/{report.id}/update/",
+            {"status": "resolved", "admin_notes": "Added 2 hours manual time"},
+        )
+        self.assertEqual(update_resp.status_code, 302)
+        report.refresh_from_db()
+        self.assertEqual(report.status, "resolved")
+        self.assertEqual(report.admin_notes, "Added 2 hours manual time")
+        self.assertIsNotNone(report.resolved_at)
+
+        # Delete issue
+        del_resp = self.client.post(f"/dashboard/issues/{report.id}/delete/")
+        self.assertEqual(del_resp.status_code, 302)
+        self.assertFalse(IssueReport.objects.filter(id=report.id).exists())
+

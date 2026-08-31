@@ -2,16 +2,21 @@
 Captive portal views.
 """
 import hmac
+import logging
 import re
 
 from django.conf import settings
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.core.paginator import Paginator
+from django.views.decorators.http import require_POST
 
 from dashboard.models import Announcement
 from sessions_app import iptables
 from sessions_app.models import Plan, Session, WhitelistedDevice
+
+logger = logging.getLogger(__name__)
+audit_logger = logging.getLogger('audit')
 
 
 SESSION_MAC_KEY = "portal_mac_address"
@@ -660,4 +665,77 @@ def api_spin_data(request):
         "points_per_peso": settings_obj.points_per_peso,
         "points_per_streak": settings_obj.points_per_streak_day,
     })
+
+
+@require_POST
+def api_report_issue(request):
+    """
+    Submit customer issue report or feedback.
+    POST /api/report-issue/
+    Body: JSON or Form with { "category": "...", "message": "...", "contact_info": "...", "mac_address": "..." }
+    """
+    import json
+    from dashboard.models import IssueReport
+    from django.core.cache import cache
+
+    ip = _client_ip(request)
+    rate_limit_key = f"issue_report_rate_{ip}"
+    report_count = 0
+    try:
+        report_count = cache.get(rate_limit_key, 0) or 0
+    except Exception:
+        report_count = 0
+
+    if report_count >= 5:
+        return JsonResponse(
+            {"error": "Too many reports submitted. Please wait a few minutes."},
+            status=429,
+        )
+
+    data = {}
+    if request.content_type == "application/json":
+        try:
+            data = json.loads(request.body.decode("utf-8"))
+        except Exception:
+            data = {}
+    else:
+        data = request.POST
+
+    message = (data.get("message") or "").strip()
+    category = (data.get("category") or "other").strip()
+    contact_info = (data.get("contact_info") or "").strip()[:100]
+    mac_address = _normalize_mac(data.get("mac_address") or _get_mac_address(request))
+
+    if not message:
+        return JsonResponse({"error": "Please provide a description of the issue."}, status=400)
+
+    valid_categories = dict(IssueReport.CATEGORY_CHOICES).keys()
+    if category not in valid_categories:
+        category = "other"
+
+    report = IssueReport.objects.create(
+        mac_address=mac_address,
+        contact_info=contact_info,
+        category=category,
+        message=message[:2000],
+        status="pending",
+    )
+
+    try:
+        cache.set(rate_limit_key, report_count + 1, timeout=300)
+    except Exception:
+        pass
+
+    audit_logger.info(
+        "event=issue_reported report_id=%s category=%s mac=%s ip=%s",
+        report.id, category, mac_address or "<none>", ip,
+    )
+
+    return JsonResponse({
+        "status": "success",
+        "message": "Your report has been sent to the operator. Thank you!",
+        "report_id": report.id,
+    })
+
+
 

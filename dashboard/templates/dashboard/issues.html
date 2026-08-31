@@ -1,0 +1,205 @@
+{% extends "base_dashboard.html" %}
+
+{% block page_title %}Support Tickets{% endblock %}
+{% block topbar_title %}Customer Support & Issue Tickets{% endblock %}
+
+{% block dashboard_content %}
+
+{% if messages %}
+    {% for message in messages %}
+    <div class="alert {% if message.tags == 'error' %}alert-danger{% else %}alert-success{% endif %} animate-fadeIn">
+        {{ message }}
+    </div>
+    {% endfor %}
+{% endif %}
+
+<!-- Stats Cards -->
+<div class="stats-grid">
+    <!-- Pending -->
+    <div class="stat-card animate-fadeIn">
+        <div class="stat-info">
+            <div class="stat-label">Pending / New</div>
+            <div class="stat-value" style="color: #d97706;">{{ pending_count }}</div>
+        </div>
+        <div class="static-icon" style="color: #d97706; background: #fffbeb; width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+        </div>
+    </div>
+
+    <!-- In Progress -->
+    <div class="stat-card animate-fadeIn">
+        <div class="stat-info">
+            <div class="stat-label">In Progress</div>
+            <div class="stat-value" style="color: #2563eb;">{{ in_progress_count }}</div>
+        </div>
+        <div class="static-icon" style="color: #2563eb; background: #eff6ff; width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+        </div>
+    </div>
+
+    <!-- Resolved -->
+    <div class="stat-card animate-fadeIn">
+        <div class="stat-info">
+            <div class="stat-label">Resolved</div>
+            <div class="stat-value" style="color: #059669;">{{ resolved_count }}</div>
+        </div>
+        <div class="static-icon" style="color: #059669; background: #ecfdf5; width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+        </div>
+    </div>
+
+    <!-- Total Tickets -->
+    <div class="stat-card animate-fadeIn">
+        <div class="stat-info">
+            <div class="stat-label">Total Reports</div>
+            <div class="stat-value">{{ total_count }}</div>
+        </div>
+        <div class="static-icon" style="color: var(--color-primary); background: #fdf2f4; width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+        </div>
+    </div>
+</div>
+
+<!-- Main Table Card -->
+<div class="chart-card animate-fadeIn mt-lg">
+    <div class="chart-header" style="flex-wrap: wrap; gap: 12px;">
+        <h3 class="chart-title">Support Tickets & Messages</h3>
+        
+        <form method="GET" action="" class="d-flex gap-xs align-items-center flex-wrap">
+            <input type="search" name="q" value="{{ search_query }}" placeholder="Search message, MAC..." class="form-input" style="width: 170px; padding: 5px 10px; height: 32px; font-size: 12px;">
+            
+            <select name="category" class="form-input" style="width: 150px; padding: 4px 8px; height: 32px; font-size: 12px;" onchange="this.form.submit()">
+                <option value="all">All Categories</option>
+                {% for cat_val, cat_label in categories %}
+                <option value="{{ cat_val }}" {% if category_filter == cat_val %}selected{% endif %}>{{ cat_label }}</option>
+                {% endfor %}
+            </select>
+
+            <select name="status" class="form-input" style="width: 130px; padding: 4px 8px; height: 32px; font-size: 12px;" onchange="this.form.submit()">
+                <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Status</option>
+                <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
+                <option value="in_progress" {% if status_filter == 'in_progress' %}selected{% endif %}>In Progress</option>
+                <option value="resolved" {% if status_filter == 'resolved' %}selected{% endif %}>Resolved</option>
+            </select>
+
+            <button type="submit" class="btn btn-primary btn-sm" style="padding: 4px 12px; height: 32px;">Filter</button>
+        </form>
+    </div>
+
+    {% if reports %}
+    <div class="table-responsive" style="overflow-x: auto;">
+        <table class="data-table" style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr>
+                    <th style="width: 70px;">ID</th>
+                    <th style="width: 120px;">Status</th>
+                    <th style="width: 150px;">Category</th>
+                    <th>Message</th>
+                    <th style="width: 150px;">Device / Contact</th>
+                    <th style="width: 140px;">Date</th>
+                    <th style="width: 130px; text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for report in reports %}
+                <tr>
+                    <td style="font-weight: 700; color: var(--color-gray);">#{{ report.id }}</td>
+                    <td>
+                        {% if report.status == 'pending' %}
+                        <span class="badge" style="background: #fef3c7; color: #b45309; font-weight: 700; padding: 3px 8px; border-radius: 6px; font-size: 11px;">Pending</span>
+                        {% elif report.status == 'in_progress' %}
+                        <span class="badge" style="background: #dbeafe; color: #1d4ed8; font-weight: 700; padding: 3px 8px; border-radius: 6px; font-size: 11px;">In Progress</span>
+                        {% else %}
+                        <span class="badge" style="background: #dcfce7; color: #15803d; font-weight: 700; padding: 3px 8px; border-radius: 6px; font-size: 11px;">Resolved</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span style="font-size: 12px; font-weight: 600; color: var(--color-dark);">
+                            {{ report.get_category_display }}
+                        </span>
+                    </td>
+                    <td>
+                        <div style="font-size: 13px; color: var(--color-dark); max-width: 320px; line-height: 1.4; word-break: break-word;">
+                            {{ report.message }}
+                        </div>
+                        {% if report.admin_notes %}
+                        <div style="font-size: 11px; color: var(--color-primary); background: #fdf2f4; padding: 4px 8px; border-radius: 4px; margin-top: 6px; display: inline-block;">
+                            <strong>Note:</strong> {{ report.admin_notes }}
+                        </div>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div style="font-size: 12px; font-family: monospace; font-weight: 600; color: var(--color-dark);">
+                            {{ report.mac_address|default:"Unknown MAC" }}
+                        </div>
+                        {% if report.contact_info %}
+                        <div style="font-size: 11px; color: var(--color-gray); margin-top: 2px;">
+                            {{ report.contact_info }}
+                        </div>
+                        {% endif %}
+                    </td>
+                    <td style="font-size: 12px; color: var(--color-gray);">
+                        {{ report.created_at|date:"M d, Y" }}<br>
+                        <span style="font-size: 11px;">{{ report.created_at|date:"h:i A" }}</span>
+                    </td>
+                    <td style="text-align: right;">
+                        <div style="display: flex; gap: 6px; justify-content: flex-end; align-items: center;">
+                            {% if report.status != 'resolved' %}
+                            <form method="POST" action="{% url 'dashboard:update_issue_status' report.id %}" style="display: inline;">
+                                {% csrf_token %}
+                                <input type="hidden" name="status" value="resolved">
+                                <button type="submit" class="btn btn-sm" style="background: #10b981; color: #fff; padding: 4px 8px; font-size: 11px; border-radius: 6px; border: none; font-weight: 600;" title="Mark Resolved">
+                                    ✓ Resolve
+                                </button>
+                            </form>
+                            {% else %}
+                            <form method="POST" action="{% url 'dashboard:update_issue_status' report.id %}" style="display: inline;">
+                                {% csrf_token %}
+                                <input type="hidden" name="status" value="pending">
+                                <button type="submit" class="btn btn-sm" style="background: #f59e0b; color: #fff; padding: 4px 8px; font-size: 11px; border-radius: 6px; border: none; font-weight: 600;" title="Reopen Ticket">
+                                    Reopen
+                                </button>
+                            </form>
+                            {% endif %}
+
+                            <form method="POST" action="{% url 'dashboard:delete_issue' report.id %}" onsubmit="return confirm('Delete this ticket permanently?');" style="display: inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm" style="background: #fee2e2; color: #dc2626; padding: 4px 8px; font-size: 11px; border-radius: 6px; border: none; font-weight: 600;" title="Delete">
+                                    ✕
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if reports.has_other_pages %}
+    <div class="pagination" style="display: flex; justify-content: center; gap: 8px; margin-top: 20px; padding-bottom: 8px;">
+        {% if reports.has_previous %}
+        <a href="?page={{ reports.previous_page_number }}&status={{ status_filter }}&category={{ category_filter }}&q={{ search_query }}" class="btn btn-sm btn-outline">« Prev</a>
+        {% endif %}
+        
+        <span style="font-size: 12px; align-self: center; color: var(--color-gray);">
+            Page {{ reports.number }} of {{ reports.paginator.num_pages }}
+        </span>
+
+        {% if reports.has_next %}
+        <a href="?page={{ reports.next_page_number }}&status={{ status_filter }}&category={{ category_filter }}&q={{ search_query }}" class="btn btn-sm btn-outline">Next »</a>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div style="text-align: center; padding: 48px 16px; color: var(--color-gray);">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin: 0 auto 12px auto; opacity: 0.4;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+        <p style="font-size: 14px; font-weight: 600; margin-bottom: 4px;">No issue reports found</p>
+        <p style="font-size: 12px;">Customer messages and issue submissions will appear here.</p>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}

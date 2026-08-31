@@ -46,4 +46,8 @@ urlpatterns = [
     path('logs/', views.logs_view, name='logs'),
     path('sessions/<int:session_id>/<str:action>/', views.admin_session_action, name='session_action'),
     path('settings/backup/', views.backup_database, name='backup_database'),
+    path('issues/', views.issues_view, name='issues'),
+    path('issues/<int:issue_id>/update/', views.update_issue_status, name='update_issue_status'),
+    path('issues/<int:issue_id>/delete/', views.delete_issue, name='delete_issue'),
 ]
+

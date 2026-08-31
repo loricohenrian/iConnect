@@ -250,3 +250,38 @@ class SystemSettings(models.Model):
         """Get the singleton instance, creating it if it doesn't exist."""
         obj, created = cls.objects.get_or_create(id=1)
         return obj
+
+
+class IssueReport(models.Model):
+    """Customer reports and issue tickets submitted from the captive portal."""
+    CATEGORY_CHOICES = [
+        ('coin_stuck', 'Coin Stuck / Not Credited'),
+        ('no_internet', 'No Internet / Slow Speed'),
+        ('timer_issue', 'Timer / Session Issue'),
+        ('group_pass', 'Group Pass Problem'),
+        ('other', 'Other Issue / Feedback'),
+    ]
+
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('in_progress', 'In Progress'),
+        ('resolved', 'Resolved'),
+    ]
+
+    mac_address = models.CharField(max_length=17, blank=True, null=True, help_text="Device MAC address")
+    contact_info = models.CharField(max_length=100, blank=True, help_text="Optional Contact (Phone, Name, or Messenger)")
+    category = models.CharField(max_length=30, choices=CATEGORY_CHOICES, default='other')
+    message = models.TextField(help_text="Issue description from customer")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    admin_notes = models.TextField(blank=True, help_text="Operator resolution notes")
+    created_at = models.DateTimeField(auto_now_add=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Issue Report'
+        verbose_name_plural = 'Issue Reports'
+
+    def __str__(self):
+        return f"[{self.get_status_display()}] {self.get_category_display()} ({self.mac_address or 'No MAC'})"
+
