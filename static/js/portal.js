@@ -1035,14 +1035,13 @@ function initExtendSessionFlow(macAddress) {
                 extendRequestBtn.scrollIntoView({ behavior: "smooth", block: "center" });
             }, 80);
 
-            if (state.planId && state.planId !== Number(card.dataset.planId)) {
-                clearPolling();
-                state.requestId = null;
-                state.readyToStart = false;
-                extendNowBtn.disabled = true;
-                setExtendMessage("Plan changed. Request a new coin slot.", "info");
-                setExtendMeta("");
-            }
+            // Always reset active request and buttons on card click
+            clearPolling();
+            state.requestId = null;
+            state.readyToStart = false;
+            extendNowBtn.disabled = true;
+            setExtendMessage("", "info");
+            setExtendMeta("");
             state.planId = Number(card.dataset.planId);
         });
     });
@@ -1135,6 +1134,7 @@ function initExtendSessionFlow(macAddress) {
 
                 // Reset extend state
                 state.requestId = null;
+                state.planId = null;
                 state.readyToStart = false;
                 extendCards.forEach((c) => c.classList.remove("selected"));
                 extendPlanInput.value = "";

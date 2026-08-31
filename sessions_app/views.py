@@ -247,6 +247,7 @@ def _coin_request_payload(coin_request):
         "group_pass_devices": coin_request.group_pass_devices,
         "plan_id": coin_request.plan_id,
         "ready_to_start": (
+            coin_request.status in (CoinInsertRequest.STATUS_ACTIVE, CoinInsertRequest.STATUS_COMPLETED) and
             coin_request.expected_amount > 0 and 
             coin_request.credited_amount >= coin_request.expected_amount
         ),
@@ -275,6 +276,13 @@ def _sync_coin_request_progress(coin_request):
         coin_request.status = CoinInsertRequest.STATUS_EXPIRED
         update_fields.append("status")
         transitioned = True
+
+    if (
+        coin_request.status == CoinInsertRequest.STATUS_COMPLETED
+        and credited_amount < coin_request.expected_amount
+    ):
+        coin_request.status = CoinInsertRequest.STATUS_CANCELLED
+        update_fields.append("status")
 
     if update_fields:
         # Avoid duplicate field entries in update_fields.
@@ -1341,9 +1349,9 @@ def session_extend_paid(request):
             CoinInsertRequest.objects.filter(
                 mac_address=mac_address,
                 purpose=CoinInsertRequest.PURPOSE_START,
-                status__in=[CoinInsertRequest.STATUS_PENDING, CoinInsertRequest.STATUS_ACTIVE],
+                status__in=[CoinInsertRequest.STATUS_PENDING, CoinInsertRequest.STATUS_ACTIVE, CoinInsertRequest.STATUS_COMPLETED],
             ).update(
-                status=CoinInsertRequest.STATUS_CANCELLED,
+                status=CoinInsertRequest.STATUS_COMPLETED,
                 completed_at=timezone.now(),
             )
     except Exception as exc:
