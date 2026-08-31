@@ -186,29 +186,31 @@ class Session(models.Model):
         Group-redeemed sessions are fully independent — they use the same
         elapsed-time calculation as solo sessions. No shared timer.
         """
+        time_in = self.time_in or timezone.now()
+        total_paused = self.total_paused_seconds or 0
+        total_seconds = (self.duration_minutes_purchased or 0) * 60
+
         if self.status == "paused":
             from dashboard.models import SystemSettings
             global_max_pause = SystemSettings.get_settings().global_pause_limit_hours
             max_pause_hours = self.plan.pause_duration_limit if self.plan and self.plan.pause_duration_limit > 0 else global_max_pause
+            paused_at = self.paused_at or timezone.now()
 
             if max_pause_hours > 0 and self.paused_at:
-                paused_time = (timezone.now() - self.paused_at).total_seconds()
+                paused_time = (timezone.now() - paused_at).total_seconds()
                 max_pause_seconds = max_pause_hours * 3600
                 if paused_time > max_pause_seconds:
                     effective_paused_time_this_pause = max_pause_seconds
-                    elapsed = (timezone.now() - self.time_in).total_seconds() - self.total_paused_seconds - effective_paused_time_this_pause
-                    total_seconds = self.duration_minutes_purchased * 60
+                    elapsed = (timezone.now() - time_in).total_seconds() - total_paused - effective_paused_time_this_pause
                     return max(0, total_seconds - elapsed)
 
             # When paused normally, freeze remaining time at point of pause
-            elapsed = (self.paused_at - self.time_in).total_seconds() - self.total_paused_seconds
-            total_seconds = self.duration_minutes_purchased * 60
+            elapsed = (paused_at - time_in).total_seconds() - total_paused
             return max(0, total_seconds - elapsed)
 
         if self.status != "active":
             return 0
-        elapsed = (timezone.now() - self.time_in).total_seconds() - self.total_paused_seconds
-        total_seconds = self.duration_minutes_purchased * 60
+        elapsed = (timezone.now() - time_in).total_seconds() - total_paused
         remaining = total_seconds - elapsed
         return max(0, remaining)
 
@@ -223,7 +225,9 @@ class Session(models.Model):
 
     def extend_session(self, additional_minutes):
         """Extend the session by adding more time."""
-        self.duration_minutes_purchased += additional_minutes
+        if not self.time_in:
+            self.time_in = timezone.now()
+        self.duration_minutes_purchased = (self.duration_minutes_purchased or 0) + additional_minutes
         if self.status == "expired":
             self.status = "active"
             self.time_in = timezone.now()

@@ -161,9 +161,11 @@ def _public_read_rate_limited(request, scope):
 
 
 def _pending_coin_events_for_mac(mac_address):
+    if not mac_address:
+        return CoinEvent.objects.none()
     return CoinEvent.objects.filter(
         session__isnull=True,
-        mac_address=mac_address,
+        mac_address__iexact=str(mac_address).strip(),
     ).order_by("timestamp", "id")
 
 
@@ -385,18 +387,20 @@ def coin_inserted(request):
     amount = serializer.validated_data["amount"]
     denomination = serializer.validated_data["denomination"]
     mac_address = serializer.validated_data.get("mac_address")
+    if mac_address:
+        mac_address = mac_address.upper().strip()
     assigned_request = None
 
     if not mac_address:
         assigned_request = _active_coin_request_for_unscoped_insert()
         if assigned_request:
-            mac_address = assigned_request.mac_address
+            mac_address = assigned_request.mac_address.upper().strip()
 
     session = None
     voucher_code = None
     if mac_address:
         session = Session.objects.filter(
-            mac_address=mac_address,
+            mac_address__iexact=mac_address,
             status="active",
         ).first()
 
@@ -1220,12 +1224,14 @@ def session_extend_paid(request):
         active_session.ip_address = request_ip
 
     coin_req = CoinInsertRequest.objects.filter(
-        mac_address=mac_address,
+        mac_address__iexact=mac_address,
         status__in=[CoinInsertRequest.STATUS_PENDING, CoinInsertRequest.STATUS_ACTIVE],
     ).order_by("-id").first()
 
-    is_group_pass = bool(request.data.get("is_group_pass") or (coin_req and coin_req.is_group_pass))
-    group_pass_devices = int(request.data.get("group_devices") or (coin_req.group_pass_devices if coin_req else 2))
+    is_group_pass = bool(request.data.get("is_group_pass") or (coin_req and coin_req.is_group_pass and coin_req.plan_id == plan.id))
+    group_pass_devices = int(request.data.get("group_devices") or (coin_req.group_pass_devices if (coin_req and is_group_pass) else 1))
+    if is_group_pass and group_pass_devices < 2:
+        group_pass_devices = 2
     expected_amount = plan.price * group_pass_devices if is_group_pass else plan.price
 
     # Check coins
@@ -1290,7 +1296,7 @@ def session_extend_paid(request):
                 active_session.session_group = session_group
 
             active_session.extend_session(duration_minutes)
-            active_session.amount_paid += amount_paid
+            active_session.amount_paid = (active_session.amount_paid or 0) + amount_paid
             
             # Speed Always Wins logic
             speed_changed = False
@@ -1355,7 +1361,7 @@ def session_extend_paid(request):
                 )
 
             CoinInsertRequest.objects.filter(
-                mac_address=mac_address,
+                mac_address__iexact=mac_address,
                 purpose=CoinInsertRequest.PURPOSE_START,
                 status__in=[CoinInsertRequest.STATUS_PENDING, CoinInsertRequest.STATUS_ACTIVE, CoinInsertRequest.STATUS_COMPLETED],
             ).update(
