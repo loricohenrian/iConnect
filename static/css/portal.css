@@ -376,48 +376,30 @@
     background: #F0FDF4;
 }
 
-/* Inline Session Details — Dark warm card matching bottom pill */
+/* Inline Session Details */
 .session-details-inline {
     width: 100%;
-    background: var(--color-dark); /* #2D1F1F — warm dark charcoal */
-    border-radius: 14px;
-    padding: 12px 16px;
-    margin-top: 18px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow: 0 4px 14px rgba(45, 31, 31, 0.12);
+    border-top: 1px solid var(--color-border);
+    padding-top: 12px;
+    margin-top: 16px;
 }
 
 .session-details-inline .detail-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 7px 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
-}
-
-.session-details-inline .detail-row:last-child {
-    border-bottom: none;
-    padding-bottom: 2px;
+    padding: 4px 0;
 }
 
 .session-details-inline .detail-label {
     font-size: 12px;
-    color: rgba(255, 255, 255, 0.65);
-    font-weight: 500;
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-}
-
-.session-details-inline .detail-label i {
-    font-size: 13px;
-    opacity: 0.85;
+    color: var(--color-gray);
 }
 
 .session-details-inline .detail-value {
     font-size: 12px;
     font-weight: 600;
-    color: var(--color-white);
+    color: var(--color-dark);
 }
 
 /* ============================================
