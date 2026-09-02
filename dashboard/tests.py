@@ -116,6 +116,23 @@ class DashboardSecurityTests(TestCase):
         self.assertTrue(cache_get_mock.called)
         self.assertTrue(cache_delete_mock.called)
 
+    def test_login_with_email(self):
+        User = get_user_model()
+        user = User.objects.create_user(
+            username="email_admin_user",
+            email="admin_tech@example.com",
+            password="admin123password",
+            is_staff=True,
+            is_superuser=True,
+        )
+
+        response = self.client.post(
+            "/iconnect-ops/login/",
+            {"username": "admin_tech@example.com", "password": "admin123password"},
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, "/iconnect-ops/")
+
     def test_plan_delete_shows_error_when_plan_is_in_use(self):
         User = get_user_model()
         user = User.objects.create_user(

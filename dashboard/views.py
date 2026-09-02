@@ -100,6 +100,16 @@ def dashboard_login(request):
             })
 
         user = authenticate(request, username=username, password=password)
+        if not user:
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            try:
+                user_by_email = User.objects.filter(email__iexact=username, is_active=True).first()
+                if user_by_email and user_by_email.check_password(password):
+                    user = user_by_email
+            except Exception as e:
+                logger.warning('email_login_lookup_error: %s', e)
+
         if user and user.is_staff:
             try:
                 cache.delete(lock_key)
@@ -109,7 +119,7 @@ def dashboard_login(request):
             audit_logger.info('event=dashboard_login_success user=%s ip=%s', user.username, ip)
             return redirect(next_url)
         audit_logger.warning('event=dashboard_login_failed username=%s ip=%s', username, ip)
-        error_message = 'Invalid username or password.'
+        error_message = 'Invalid username/email or password.'
 
     return render(request, 'dashboard/login.html', {
         'error_message': error_message,
