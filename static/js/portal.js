@@ -1384,6 +1384,7 @@ function initJoinGroupFlow(macAddress) {
 
         try {
             const currentMac = macAddress || getMacAddress();
+            const devName = typeof getDeviceName === 'function' ? getDeviceName() : (navigator.userAgent.includes("Android") ? "Android Phone" : (navigator.userAgent.includes("iPhone") ? "iPhone" : "User Device"));
             const response = await fetch("/api/session/join-group/", {
                 method: "POST",
                 headers: {
@@ -1393,6 +1394,7 @@ function initJoinGroupFlow(macAddress) {
                 body: JSON.stringify({
                     mac_address: currentMac,
                     group_code: code,
+                    device_name: devName,
                 }),
             });
             const data = await parseJsonSafe(response);

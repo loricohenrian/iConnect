@@ -281,6 +281,7 @@
             const timerEl = document.getElementById('session-timer');
             const mac = (timerEl ? timerEl.dataset.mac : '') || localStorage.getItem('iconnect_mac') || '';
             const csrf = (document.cookie.split(';').find(c => c.trim().startsWith('csrftoken=')) || '').split('=')[1] || '';
+            const devName = typeof getDeviceName === 'function' ? getDeviceName() : (navigator.userAgent.includes("Android") ? "Android Phone" : (navigator.userAgent.includes("iPhone") ? "iPhone" : "User Device"));
 
             const response = await fetch('/api/session/join-group/', {
                 method: 'POST',
@@ -291,6 +292,7 @@
                 body: JSON.stringify({
                     mac_address: mac,
                     group_code: code,
+                    device_name: devName,
                 }),
             });
             const data = await response.json();

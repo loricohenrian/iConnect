@@ -142,6 +142,44 @@ def _session_ip_matches_request(session, request):
     return True
 
 
+def _extract_device_name(request, passed_name=None, mac_address=None):
+    """
+    Extract a friendly device name from passed value, previous sessions, or User-Agent.
+    """
+    if passed_name and passed_name.strip() and passed_name.strip() != "Unknown":
+        return passed_name.strip()[:100]
+
+    # Check if a recognized device name exists for this MAC
+    if mac_address:
+        prev = Session.objects.filter(mac_address=mac_address).exclude(
+            device_name__in=["", "Unknown", None]
+        ).order_by("-id").first()
+        if prev and prev.device_name:
+            return prev.device_name
+
+    ua = request.META.get("HTTP_USER_AGENT", "")
+    if ua:
+        if "iPhone" in ua:
+            return "iPhone"
+        elif "iPad" in ua:
+            return "iPad"
+        elif "Android" in ua:
+            import re
+            m = re.search(r'Android[^;]*;\s*([^;)]+)', ua)
+            if m:
+                model = m.group(1).strip()
+                return model[:100] if model else "Android"
+            return "Android"
+        elif "Windows" in ua:
+            return "Windows PC"
+        elif "Macintosh" in ua:
+            return "Mac"
+        elif "Linux" in ua:
+            return "Linux"
+
+    return "Unknown"
+
+
 def _public_read_rate_limited(request, scope):
     ip = _client_ip(request)
     window_seconds = getattr(settings, "PISONET_PUBLIC_WINDOW_SECONDS", 60)
@@ -667,24 +705,7 @@ def session_start(request):
         )
 
     # Auto-detect device name
-    if not device_name:
-        ua = request.META.get("HTTP_USER_AGENT", "")
-        if "iPhone" in ua:
-            device_name = "iPhone"
-        elif "iPad" in ua:
-            device_name = "iPad"
-        elif "Android" in ua:
-            import re
-            m = re.search(r'Android[^;]*;\s*([^)]+)', ua)
-            device_name = m.group(1).strip() if m else "Android"
-        elif "Windows" in ua:
-            device_name = "Windows PC"
-        elif "Macintosh" in ua:
-            device_name = "Mac"
-        elif "Linux" in ua:
-            device_name = "Linux"
-        else:
-            device_name = "Unknown"
+    device_name = _extract_device_name(request, device_name, mac_address)
 
     plan = None
     expected_amount = 0
@@ -862,7 +883,7 @@ def session_join_group(request):
     mac_address = serializer.validated_data["mac_address"]
     group_code = serializer.validated_data["group_code"].upper()
     ip_address = _client_ip(request)
-    device_name = serializer.validated_data.get("device_name", "Unknown")
+    device_name = _extract_device_name(request, serializer.validated_data.get("device_name"), mac_address)
 
     # Rate limiting
     from django.core.cache import cache
@@ -1583,6 +1604,12 @@ def session_status(request):
                 )
 
             _session_ip_matches_request(locked_session, request)
+
+            if locked_session.device_name in [None, "", "Unknown"]:
+                detected = _extract_device_name(request, mac_address=locked_session.mac_address)
+                if detected and detected != "Unknown":
+                    locked_session.device_name = detected
+                    locked_session.save(update_fields=["device_name"])
 
             if locked_session.time_remaining_seconds <= 0:
                 locked_session.expire_session()
