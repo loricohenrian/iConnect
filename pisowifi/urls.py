@@ -1,4 +1,4 @@
-﻿"""
+"""
 iConnect URL Configuration
 """
 from django.contrib import admin
@@ -7,9 +7,6 @@ from django.conf import settings
 from django.conf.urls.static import static
 
 urlpatterns = [
-    # Django Admin
-    path('admin/', admin.site.urls),
-
     # API Endpoints
     path('api/', include('sessions_app.urls')),
     path('api/', include('dashboard.urls')),
@@ -19,8 +16,8 @@ urlpatterns = [
     # User-facing Captive Portal
     path('', include('portal.urls')),
 
-    # Admin Dashboard
-    path('dashboard/', include('dashboard.urls_dashboard')),
+    # Admin Operations Console
+    path('iconnect-ops/', include('dashboard.urls_dashboard')),
 
     # Reports
     path('reports/', include('reports.urls')),

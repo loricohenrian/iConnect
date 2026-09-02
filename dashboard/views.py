@@ -6,6 +6,7 @@ from datetime import timedelta, date
 from decimal import Decimal, InvalidOperation
 import logging
 from django.shortcuts import render, redirect, get_object_or_404
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
@@ -70,7 +71,8 @@ def dashboard_login(request):
         return redirect('dashboard:overview')
 
     error_message = ''
-    requested_next = request.GET.get('next') or request.POST.get('next') or '/dashboard/'
+    default_next = reverse('dashboard:overview')
+    requested_next = request.GET.get('next') or request.POST.get('next') or default_next
     if url_has_allowed_host_and_scheme(
         requested_next,
         allowed_hosts={request.get_host()},
@@ -78,7 +80,7 @@ def dashboard_login(request):
     ):
         next_url = requested_next
     else:
-        next_url = '/dashboard/'
+        next_url = default_next
 
     if request.method == 'POST':
         username = request.POST.get('username', '').strip()
@@ -1632,7 +1634,7 @@ def security_view(request):
 def account_view(request):
     """Dashboard account settings for admin email, password, and multi-admin management."""
     if not request.user.is_authenticated:
-        return redirect(f'/admin/login/?next={request.path}')
+        return redirect('dashboard:login')
 
     from django.contrib.auth import get_user_model
     User = get_user_model()

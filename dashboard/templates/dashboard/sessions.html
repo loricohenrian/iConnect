@@ -387,7 +387,7 @@
         confirmBtn.innerText = 'Processing...';
 
         if (currentAction === 'pause_all') {
-            fetch('/dashboard/sessions/pause-all/', {
+            fetch("{% url 'dashboard:pause_all_sessions' %}", {
                 method: 'POST',
                 headers: {
                     'X-CSRFToken': csrfToken,
@@ -419,7 +419,7 @@
             body = JSON.stringify({ device_name: newName });
         }
 
-        fetch(`/dashboard/sessions/${currentSessionId}/${currentAction}/`, {
+        fetch("{% url 'dashboard:sessions' %}" + currentSessionId + "/" + currentAction + "/", {
             method: 'POST',
             headers: {
                 'X-CSRFToken': csrfToken,

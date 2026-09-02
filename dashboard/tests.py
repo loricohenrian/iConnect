@@ -11,9 +11,9 @@ class DashboardSecurityTests(TestCase):
         self.client = APIClient()
 
     def test_dashboard_pages_redirect_when_unauthenticated(self):
-        response = self.client.get("/dashboard/")
+        response = self.client.get("/iconnect-ops/")
         self.assertEqual(response.status_code, 302)
-        self.assertIn("/dashboard/login/", response.url)
+        self.assertIn("/iconnect-ops/login/", response.url)
 
     def test_dashboard_api_requires_authentication(self):
         endpoints = [
@@ -42,12 +42,12 @@ class DashboardSecurityTests(TestCase):
         self.assertEqual(response.status_code, 200)
 
         # Test HTML template rendering for main pages
-        for path in ["/dashboard/", "/dashboard/revenue/", "/dashboard/sessions/"]:
+        for path in ["/iconnect-ops/", "/iconnect-ops/revenue/", "/iconnect-ops/sessions/"]:
             page_resp = self.client.get(path)
             self.assertEqual(page_resp.status_code, 200, f"Failed rendering {path}")
 
     def test_logout_requires_post(self):
-        response = self.client.get("/dashboard/logout/")
+        response = self.client.get("/iconnect-ops/logout/")
         self.assertEqual(response.status_code, 405)
 
     def test_login_rejects_external_next_redirect(self):
@@ -60,7 +60,7 @@ class DashboardSecurityTests(TestCase):
         )
 
         response = self.client.post(
-            "/dashboard/login/?next=https://evil.example/phish",
+            "/iconnect-ops/login/?next=https://evil.example/phish",
             {
                 "username": user.username,
                 "password": "admin123",
@@ -69,7 +69,7 @@ class DashboardSecurityTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, "/dashboard/")
+        self.assertEqual(response.url, "/iconnect-ops/")
 
     @override_settings(
         PISONET_LOGIN_MAX_ATTEMPTS=1,
@@ -83,13 +83,13 @@ class DashboardSecurityTests(TestCase):
     )
     def test_login_rate_limit_triggers(self):
         first = self.client.post(
-            "/dashboard/login/",
+            "/iconnect-ops/login/",
             {"username": "missing", "password": "badpass"},
         )
         self.assertEqual(first.status_code, 200)
 
         second = self.client.post(
-            "/dashboard/login/",
+            "/iconnect-ops/login/",
             {"username": "missing", "password": "badpass"},
         )
         self.assertEqual(second.status_code, 200)
@@ -107,12 +107,12 @@ class DashboardSecurityTests(TestCase):
         )
 
         response = self.client.post(
-            "/dashboard/login/",
+            "/iconnect-ops/login/",
             {"username": user.username, "password": "admin123"},
         )
 
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, "/dashboard/")
+        self.assertEqual(response.url, "/iconnect-ops/")
         self.assertTrue(cache_get_mock.called)
         self.assertTrue(cache_delete_mock.called)
 
@@ -138,7 +138,7 @@ class DashboardSecurityTests(TestCase):
         )
 
         response = self.client.post(
-            "/dashboard/plans/",
+            "/iconnect-ops/plans/",
             {"action": "delete", "plan_id": str(plan.id)},
             follow=True,
         )
@@ -148,9 +148,9 @@ class DashboardSecurityTests(TestCase):
         self.assertTrue(Plan.objects.filter(id=plan.id).exists())
 
     def test_export_sessions_csv_requires_admin(self):
-        response = self.client.get("/dashboard/sessions/export/")
+        response = self.client.get("/iconnect-ops/sessions/export/")
         self.assertEqual(response.status_code, 302)
-        self.assertIn("/dashboard/login/", response.url)
+        self.assertIn("/iconnect-ops/login/", response.url)
 
     def test_export_sessions_csv_returns_csv_file(self):
         User = get_user_model()
@@ -171,7 +171,7 @@ class DashboardSecurityTests(TestCase):
             status="active",
         )
 
-        response = self.client.get("/dashboard/sessions/export/?period=all")
+        response = self.client.get("/iconnect-ops/sessions/export/?period=all")
         self.assertEqual(response.status_code, 200)
         self.assertIn("text/csv", response["Content-Type"])
         self.assertIn("attachment; filename=", response["Content-Disposition"])
@@ -194,7 +194,7 @@ class DashboardSecurityTests(TestCase):
         s2 = Session.objects.create(mac_address="22:22:22:22:22:22", amount_paid=10, duration_minutes_purchased=60, status="active")
         s3 = Session.objects.create(mac_address="33:33:33:33:33:33", amount_paid=5, duration_minutes_purchased=30, status="expired")
 
-        resp = self.client.post("/dashboard/sessions/pause-all/")
+        resp = self.client.post("/iconnect-ops/sessions/pause-all/")
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
         self.assertTrue(data["success"])
@@ -217,7 +217,7 @@ class DashboardSecurityTests(TestCase):
         )
         self.client.login(username=user.username, password="admin123")
 
-        resp = self.client.get("/dashboard/settings/backup/")
+        resp = self.client.get("/iconnect-ops/settings/backup/")
         self.assertEqual(resp.status_code, 200)
         self.assertIn("attachment; filename=", resp["Content-Disposition"])
         self.assertTrue(len(resp.content) > 0)
@@ -233,7 +233,7 @@ class DashboardSecurityTests(TestCase):
         self.client.login(username=user.username, password="admin123")
 
         # 1. Create a new staff operator
-        create_resp = self.client.post("/dashboard/account/", {
+        create_resp = self.client.post("/iconnect-ops/account/", {
             "action": "create_admin",
             "new_username": "technician_bob",
             "new_email": "bob@tech.com",
@@ -247,7 +247,7 @@ class DashboardSecurityTests(TestCase):
         self.assertFalse(bob.is_superuser)
 
         # 2. Cannot delete yourself
-        del_self_resp = self.client.post("/dashboard/account/", {
+        del_self_resp = self.client.post("/iconnect-ops/account/", {
             "action": "delete_admin",
             "target_user_id": str(user.id),
         })
@@ -255,7 +255,7 @@ class DashboardSecurityTests(TestCase):
         self.assertTrue(User.objects.filter(id=user.id).exists())
 
         # 3. Delete technician_bob
-        del_bob_resp = self.client.post("/dashboard/account/", {
+        del_bob_resp = self.client.post("/iconnect-ops/account/", {
             "action": "delete_admin",
             "target_user_id": str(bob.id),
         })
@@ -281,14 +281,14 @@ class DashboardSecurityTests(TestCase):
             status="pending",
         )
 
-        response = self.client.get("/dashboard/issues/")
+        response = self.client.get("/iconnect-ops/issues/")
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Machine took 10 pesos without time")
         self.assertContains(response, "22:33:44:55:66:77")
 
         # Update status to resolved
         update_resp = self.client.post(
-            f"/dashboard/issues/{report.id}/update/",
+            f"/iconnect-ops/issues/{report.id}/update/",
             {"status": "resolved", "admin_notes": "Added 2 hours manual time"},
         )
         self.assertEqual(update_resp.status_code, 302)
@@ -298,7 +298,7 @@ class DashboardSecurityTests(TestCase):
         self.assertIsNotNone(report.resolved_at)
 
         # Delete issue
-        del_resp = self.client.post(f"/dashboard/issues/{report.id}/delete/")
+        del_resp = self.client.post(f"/iconnect-ops/issues/{report.id}/delete/")
         self.assertEqual(del_resp.status_code, 302)
         self.assertFalse(IssueReport.objects.filter(id=report.id).exists())
 
