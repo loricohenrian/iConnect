@@ -72,7 +72,7 @@
 }
 
 .sidebar-close-btn {
-    display: none;
+    display: none !important;
     background: rgba(255, 255, 255, 0.12);
     border: none;
     color: #ffffff;
@@ -714,7 +714,7 @@
     }
 
     .sidebar-close-btn {
-        display: flex;
+        display: flex !important;
     }
 
     .sidebar-overlay {
