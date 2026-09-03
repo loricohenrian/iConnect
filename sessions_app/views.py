@@ -1104,6 +1104,16 @@ def session_extend(request):
         if speed_changed:
             update_fields.append("plan")
 
+        if voucher_session.plan:
+            v_limit = voucher_session.plan.pause_limit
+            if v_limit == 0:
+                if active_session.pause_count > 0:
+                    active_session.pause_count = 0
+                    update_fields.append("pause_count")
+            elif v_limit > 0 and active_session.pause_count > 0:
+                active_session.pause_count = max(0, active_session.pause_count - v_limit)
+                update_fields.append("pause_count")
+
         active_session.save(update_fields=update_fields)
 
         if speed_changed and active_session.plan:
@@ -1338,6 +1348,16 @@ def session_extend_paid(request):
                 update_fields.append("plan")
             if is_group_pass and session_group:
                 update_fields.append("session_group")
+
+            # Additive Pause Replenishment (Zero Loophole: grants earned pauses of new plan)
+            if plan.pause_limit == 0:
+                if active_session.pause_count > 0:
+                    active_session.pause_count = 0
+                    update_fields.append("pause_count")
+            elif plan.pause_limit > 0 and active_session.pause_count > 0:
+                earned_pauses = plan.pause_limit * multiplier
+                active_session.pause_count = max(0, active_session.pause_count - earned_pauses)
+                update_fields.append("pause_count")
                 
             active_session.save(update_fields=update_fields)
             
@@ -1521,6 +1541,24 @@ def session_pause_toggle(request):
             "time_remaining_seconds": session.time_remaining_seconds,
         })
     else:
+        # Check if max pause hours exceeded
+        from dashboard.models import SystemSettings
+        sys_settings = SystemSettings.get_settings()
+        max_pause_hours = 0
+        if session.plan and session.plan.pause_duration_limit > 0:
+            max_pause_hours = session.plan.pause_duration_limit
+        elif sys_settings and sys_settings.global_pause_limit_hours > 0:
+            max_pause_hours = sys_settings.global_pause_limit_hours
+
+        if max_pause_hours > 0 and session.paused_at:
+            paused_hours = (timezone.now() - session.paused_at).total_seconds() / 3600.0
+            if paused_hours >= max_pause_hours:
+                session.expire_session()
+                return Response(
+                    {"error": f"Session has expired. Paused duration exceeded maximum limit of {max_pause_hours} hours."},
+                    status=status.HTTP_410_GONE,
+                )
+
         # Check if network is full before allowing resume
         max_sessions = getattr(settings, "PISONET_MAX_CONCURRENT_SESSIONS", 20)
         active_count = Session.objects.filter(status="active").count()
