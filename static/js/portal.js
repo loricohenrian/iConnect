@@ -1305,24 +1305,30 @@ function normalizeMacAddress(value) {
 }
 
 function getMacAddress() {
-    const timerEl = document.getElementById("session-timer");
     const wrapper = document.querySelector(".portal-wrapper");
+    const timerEl = document.getElementById("session-timer");
     const urlMac = new URLSearchParams(window.location.search).get("mac");
     const storedMac = localStorage.getItem("iconnect_mac");
 
-    const candidates = [
-        timerEl ? timerEl.dataset.mac : "",
-        wrapper ? wrapper.dataset.mac : "",
-        urlMac,
-        storedMac,
-    ];
+    // 1. Server-detected physical MAC from ARP table is the highest authority
+    const serverMac = normalizeMacAddress(wrapper ? wrapper.dataset.mac : "") ||
+                      normalizeMacAddress(timerEl ? timerEl.dataset.mac : "");
+    if (serverMac) {
+        localStorage.setItem("iconnect_mac", serverMac);
+        return serverMac;
+    }
 
-    for (const candidate of candidates) {
-        const normalized = normalizeMacAddress(candidate);
-        if (normalized) {
-            localStorage.setItem("iconnect_mac", normalized);
-            return normalized;
-        }
+    // 2. URL parameter fallback
+    const urlNormalized = normalizeMacAddress(urlMac);
+    if (urlNormalized) {
+        localStorage.setItem("iconnect_mac", urlNormalized);
+        return urlNormalized;
+    }
+
+    // 3. Stored localStorage fallback
+    const storedNormalized = normalizeMacAddress(storedMac);
+    if (storedNormalized) {
+        return storedNormalized;
     }
 
     return "";
