@@ -235,6 +235,23 @@ def session_page(request):
     from sessions_app.models import DeviceProfile
     device_profile = DeviceProfile.record_connection(mac_address)
 
+    group_code_remaining_display = None
+    group_code_remaining_seconds = 0
+    if active_session and active_session.session_group and active_session.session_group.code_expires_at:
+        rem_sec = max(0, int((active_session.session_group.code_expires_at - timezone.now()).total_seconds()))
+        group_code_remaining_seconds = rem_sec
+        if rem_sec <= 0:
+            group_code_remaining_display = "Expired"
+        else:
+            h = rem_sec // 3600
+            m = (rem_sec % 3600) // 60
+            s = rem_sec % 60
+            if h >= 24:
+                d = h // 24
+                group_code_remaining_display = f"{d}d {h % 24}h {m}m"
+            else:
+                group_code_remaining_display = f"{h}h {m}m {s}s"
+
     context = {
         "session": active_session,
         "announcements": announcements,
@@ -249,6 +266,8 @@ def session_page(request):
         "slots_available": available_slots,
         "enable_family_pass": SystemSettings.get_settings().enable_family_pass,
         "insert_coin_countdown_seconds": SystemSettings.get_settings().insert_coin_countdown_seconds,
+        "group_code_remaining_display": group_code_remaining_display,
+        "group_code_remaining_seconds": group_code_remaining_seconds,
     }
     
     # Calculate pause info for display

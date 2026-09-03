@@ -64,7 +64,9 @@
         </div>
         <div id="group-code-expiry" style="font-size: 11px; margin-top: 4px; color: var(--color-gray);">
             {% if session.session_group.code_expires_at %}
-                Code expires: <span id="group-code-expiry-timer" data-expires="{{ session.session_group.code_expires_at.isoformat }}">calculating...</span>
+                Code expires: <span id="group-code-expiry-timer" 
+                                    data-expires="{{ session.session_group.code_expires_at|date:'c' }}"
+                                    data-remaining="{{ group_code_remaining_seconds }}">{{ group_code_remaining_display|default:"calculating..." }}</span>
             {% else %}
                 Code: no expiry
             {% endif %}
@@ -367,24 +369,48 @@
         observer.observe(flowMessage, { childList: true, characterData: true, subtree: true });
     }
 
-    // Group code expiry timer
+    // Group code expiry countdown timer
     const expiryTimerEl = document.getElementById('group-code-expiry-timer');
     if (expiryTimerEl) {
         const expiryIso = expiryTimerEl.getAttribute('data-expires');
-        if (expiryIso) {
-            const expiryDate = new Date(expiryIso);
-            setInterval(() => {
-                const remaining = Math.max(0, Math.floor((expiryDate - Date.now()) / 1000));
-                if (remaining <= 0) {
-                    expiryTimerEl.innerText = "Expired";
-                } else {
-                    const h = Math.floor(remaining / 3600);
-                    const m = Math.floor((remaining % 3600) / 60);
-                    const s = remaining % 60;
-                    expiryTimerEl.innerText = `${h}h ${m}m ${s}s`;
-                }
-            }, 1000);
+        let remainingSeconds = parseInt(expiryTimerEl.getAttribute('data-remaining'), 10);
+
+        function formatExpiry(rem) {
+            if (rem <= 0) return "Expired";
+            const h = Math.floor(rem / 3600);
+            const m = Math.floor((rem % 3600) / 60);
+            const s = rem % 60;
+            if (h >= 24) {
+                const d = Math.floor(h / 24);
+                return `${d}d ${h % 24}h ${m}m`;
+            }
+            return `${h}h ${m}m ${s}s`;
         }
+
+        if (expiryIso) {
+            const expiryDate = new Date(expiryIso).getTime();
+            function tickExpiry() {
+                const now = Date.now();
+                const rem = Math.max(0, Math.floor((expiryDate - now) / 1000));
+                expiryTimerEl.innerText = formatExpiry(rem);
+                if (rem <= 0 && window.groupExpiryInterval) {
+                    clearInterval(window.groupExpiryInterval);
+                }
+            }
+            tickExpiry();
+            window.groupExpiryInterval = setInterval(tickExpiry, 1000);
+        } else if (!isNaN(remainingSeconds) && remainingSeconds > 0) {
+            function tickSeconds() {
+                expiryTimerEl.innerText = formatExpiry(remainingSeconds);
+                if (remainingSeconds <= 0 && window.groupExpiryInterval) {
+                    clearInterval(window.groupExpiryInterval);
+                }
+                remainingSeconds = Math.max(0, remainingSeconds - 1);
+            }
+            tickSeconds();
+            window.groupExpiryInterval = setInterval(tickSeconds, 1000);
+        }
+    }
 </script>
 
 {% endblock %}
