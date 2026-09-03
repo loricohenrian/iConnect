@@ -159,20 +159,25 @@
         </table>
     </div>
 
-    <!-- Pagination -->
-    {% if reports.has_other_pages %}
-    <div class="pagination" style="display: flex; justify-content: center; gap: 8px; margin-top: 20px; padding-bottom: 8px;">
-        {% if reports.has_previous %}
-        <a href="?page={{ reports.previous_page_number }}&status={{ status_filter }}&category={{ category_filter }}&q={{ search_query }}" class="btn btn-sm btn-outline">« Prev</a>
-        {% endif %}
-        
-        <span style="font-size: 12px; align-self: center; color: var(--color-gray);">
-            Page {{ reports.number }} of {{ reports.paginator.num_pages }}
-        </span>
-
-        {% if reports.has_next %}
-        <a href="?page={{ reports.next_page_number }}&status={{ status_filter }}&category={{ category_filter }}&q={{ search_query }}" class="btn btn-sm btn-outline">Next »</a>
-        {% endif %}
+    <!-- Unified Pagination -->
+    {% if reports.has_other_pages or reports.paginator.count > 0 %}
+    <div class="d-flex justify-content-between align-items-center mt-md" style="padding: 0 4px;">
+        <div class="text-xs text-muted">
+            {% if reports %}Showing {{ reports.start_index }} to {{ reports.end_index }} of {{ reports.paginator.count }} tickets{% endif %}
+        </div>
+        <div class="d-flex gap-xs">
+            {% if reports.has_previous %}
+                <a href="?page=1&status={{ status_filter }}&category={{ category_filter }}&q={{ search_query }}" class="btn btn-sm btn-secondary">&laquo;</a>
+                <a href="?page={{ reports.previous_page_number }}&status={{ status_filter }}&category={{ category_filter }}&q={{ search_query }}" class="btn btn-sm btn-secondary">Prev</a>
+            {% endif %}
+            
+            <span class="btn btn-sm btn-primary" style="pointer-events: none;">{{ reports.number }}</span>
+            
+            {% if reports.has_next %}
+                <a href="?page={{ reports.next_page_number }}&status={{ status_filter }}&category={{ category_filter }}&q={{ search_query }}" class="btn btn-sm btn-secondary">Next</a>
+                <a href="?page={{ reports.paginator.num_pages }}&status={{ status_filter }}&category={{ category_filter }}&q={{ search_query }}" class="btn btn-sm btn-secondary">&raquo;</a>
+            {% endif %}
+        </div>
     </div>
     {% endif %}
 

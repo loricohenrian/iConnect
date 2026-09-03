@@ -917,8 +917,18 @@ def sessions_view(request):
 
     suspicious_macs = set(SuspiciousDevice.objects.filter(status='new').values_list('mac_address', flat=True))
 
+    # Pagination: 25 sessions per page
+    page = request.GET.get('page', 1)
+    paginator = Paginator(sessions, 25)
+    try:
+        sessions_page = paginator.page(page)
+    except PageNotAnInteger:
+        sessions_page = paginator.page(1)
+    except EmptyPage:
+        sessions_page = paginator.page(paginator.num_pages)
+
     context = {
-        'sessions': sessions[:100],
+        'sessions': sessions_page,
         'status_filter': status_filter,
         'search': search,
         'period': period,
@@ -1667,9 +1677,19 @@ def security_view(request):
         'cleared': SuspiciousDevice.objects.filter(status=SuspiciousDevice.STATUS_CLEARED).count(),
     }
 
+    # Pagination: 20 devices per page
+    page = request.GET.get('page', 1)
+    paginator = Paginator(suspicious_devices, 20)
+    try:
+        devices_page = paginator.page(page)
+    except PageNotAnInteger:
+        devices_page = paginator.page(1)
+    except EmptyPage:
+        devices_page = paginator.page(paginator.num_pages)
+
     context = {
         'active_page': 'security',
-        'suspicious_devices': suspicious_devices,
+        'suspicious_devices': devices_page,
         'status_filter': status_filter,
         'search': search,
         'status_choices': SuspiciousDevice.STATUS_CHOICES,

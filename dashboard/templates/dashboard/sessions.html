@@ -175,6 +175,28 @@
             </tbody>
         </table>
     </div>
+    
+    <!-- Unified Pagination -->
+    {% if sessions.has_other_pages or sessions.paginator.count > 0 %}
+    <div class="d-flex justify-content-between align-items-center mt-md" style="padding: 0 4px;">
+        <div class="text-xs text-muted">
+            {% if sessions %}Showing {{ sessions.start_index }} to {{ sessions.end_index }} of {{ sessions.paginator.count }} sessions{% endif %}
+        </div>
+        <div class="d-flex gap-xs">
+            {% if sessions.has_previous %}
+                <a href="?page=1&status={{ status_filter }}&search={{ search }}&period={{ period }}" class="btn btn-sm btn-secondary">&laquo;</a>
+                <a href="?page={{ sessions.previous_page_number }}&status={{ status_filter }}&search={{ search }}&period={{ period }}" class="btn btn-sm btn-secondary">Prev</a>
+            {% endif %}
+            
+            <span class="btn btn-sm btn-primary" style="pointer-events: none;">{{ sessions.number }}</span>
+            
+            {% if sessions.has_next %}
+                <a href="?page={{ sessions.next_page_number }}&status={{ status_filter }}&search={{ search }}&period={{ period }}" class="btn btn-sm btn-secondary">Next</a>
+                <a href="?page={{ sessions.paginator.num_pages }}&status={{ status_filter }}&search={{ search }}&period={{ period }}" class="btn btn-sm btn-secondary">&raquo;</a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
 </div>
 {% else %}
 <div class="chart-card">

@@ -69,16 +69,23 @@
         </table>
     </div>
 
-    {% if coin_events.has_other_pages %}
-    <div class="d-flex justify-content-between align-items-center mt-md">
-        <span class="text-xs text-muted">Page {{ coin_events.number }} of {{ coin_events.paginator.num_pages }}</span>
+    <!-- Unified Pagination -->
+    {% if coin_events.has_other_pages or coin_events.paginator.count > 0 %}
+    <div class="d-flex justify-content-between align-items-center mt-md" style="padding: 0 4px;">
+        <div class="text-xs text-muted">
+            {% if coin_events %}Showing {{ coin_events.start_index }} to {{ coin_events.end_index }} of {{ coin_events.paginator.count }} events{% endif %}
+        </div>
         <div class="d-flex gap-xs">
             {% if coin_events.has_previous %}
-            <a href="?page={{ coin_events.previous_page_number }}{% if search_mac %}&mac={{ search_mac }}{% endif %}" class="btn btn-sm btn-secondary">&laquo; Prev</a>
+                <a href="?page=1{% if search_mac %}&mac={{ search_mac }}{% endif %}" class="btn btn-sm btn-secondary">&laquo;</a>
+                <a href="?page={{ coin_events.previous_page_number }}{% if search_mac %}&mac={{ search_mac }}{% endif %}" class="btn btn-sm btn-secondary">Prev</a>
             {% endif %}
             
+            <span class="btn btn-sm btn-primary" style="pointer-events: none;">{{ coin_events.number }}</span>
+            
             {% if coin_events.has_next %}
-            <a href="?page={{ coin_events.next_page_number }}{% if search_mac %}&mac={{ search_mac }}{% endif %}" class="btn btn-sm btn-secondary">Next &raquo;</a>
+                <a href="?page={{ coin_events.next_page_number }}{% if search_mac %}&mac={{ search_mac }}{% endif %}" class="btn btn-sm btn-secondary">Next</a>
+                <a href="?page={{ coin_events.paginator.num_pages }}{% if search_mac %}&mac={{ search_mac }}{% endif %}" class="btn btn-sm btn-secondary">&raquo;</a>
             {% endif %}
         </div>
     </div>

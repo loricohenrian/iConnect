@@ -166,6 +166,28 @@
             </tbody>
         </table>
     </div>
+
+    <!-- Unified Pagination -->
+    {% if suspicious_devices.has_other_pages or suspicious_devices.paginator.count > 0 %}
+    <div class="d-flex justify-content-between align-items-center mt-md" style="padding: 0 4px;">
+        <div class="text-xs text-muted">
+            {% if suspicious_devices %}Showing {{ suspicious_devices.start_index }} to {{ suspicious_devices.end_index }} of {{ suspicious_devices.paginator.count }} alerts{% endif %}
+        </div>
+        <div class="d-flex gap-xs">
+            {% if suspicious_devices.has_previous %}
+                <a href="?page=1&status={{ status_filter }}&search={{ search }}" class="btn btn-sm btn-secondary">&laquo;</a>
+                <a href="?page={{ suspicious_devices.previous_page_number }}&status={{ status_filter }}&search={{ search }}" class="btn btn-sm btn-secondary">Prev</a>
+            {% endif %}
+            
+            <span class="btn btn-sm btn-primary" style="pointer-events: none;">{{ suspicious_devices.number }}</span>
+            
+            {% if suspicious_devices.has_next %}
+                <a href="?page={{ suspicious_devices.next_page_number }}&status={{ status_filter }}&search={{ search }}" class="btn btn-sm btn-secondary">Next</a>
+                <a href="?page={{ suspicious_devices.paginator.num_pages }}&status={{ status_filter }}&search={{ search }}" class="btn btn-sm btn-secondary">&raquo;</a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
     {% else %}
     <div class="empty-state">
         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin: 0 auto 8px auto; display: block; color: var(--color-gray);"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><polyline points="9 12 11 14 15 10"></polyline></svg>
