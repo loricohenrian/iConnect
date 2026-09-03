@@ -278,83 +278,6 @@ async function _sendBrowserNotification(title, body, extraOptions = {}) {
     }
 }
 
-async function initExpiryNotificationUI() {
-    const container = document.getElementById('alert-optin-container');
-    const btn = document.getElementById('btn-expiry-alert');
-    const btnText = document.getElementById('alert-btn-text');
-    const subtext = document.getElementById('alert-subtext');
-
-    if (!container || !btn) return;
-
-    // Check if user previously toggled alert ON
-    const isAlertOn = (localStorage.getItem('iconnect_alert_enabled') === '1');
-
-    if (isAlertOn) {
-        btn.classList.add('active');
-        if (btnText) btnText.innerHTML = '<i class="bi bi-check-circle-fill"></i> 5-Min Alert Active';
-        if (subtext) subtext.innerText = 'Phone will vibrate & chime when 5 minutes remain';
-    } else {
-        btn.classList.remove('active');
-        if (btnText) btnText.innerHTML = '<i class="bi bi-bell-fill"></i> Turn on 5-Min Phone Alert';
-        if (subtext) subtext.innerText = 'Receive an audio chime & vibration when 5 minutes remain';
-    }
-
-    // Register Service Worker in background if supported
-    try {
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
-        }
-    } catch (e) {}
-}
-
-async function toggleExpiryAlerts() {
-    const btn = document.getElementById('btn-expiry-alert');
-    const btnText = document.getElementById('alert-btn-text');
-    const subtext = document.getElementById('alert-subtext');
-
-    const currentlyOn = (localStorage.getItem('iconnect_alert_enabled') === '1');
-
-    if (currentlyOn) {
-        // Toggle OFF
-        localStorage.setItem('iconnect_alert_enabled', '0');
-        if (btn) btn.classList.remove('active');
-        if (btnText) btnText.innerHTML = '<i class="bi bi-bell-fill"></i> Turn on 5-Min Phone Alert';
-        if (subtext) subtext.innerText = 'Receive an audio chime & vibration when 5 minutes remain';
-        return;
-    }
-
-    // Toggle ON
-    localStorage.setItem('iconnect_alert_enabled', '1');
-    if (btn) btn.classList.add('active');
-    if (btnText) btnText.innerHTML = '<i class="bi bi-check-circle-fill"></i> 5-Min Alert Active';
-    if (subtext) subtext.innerText = 'Phone will vibrate & chime when 5 minutes remain';
-
-    // 1. Play tactile audio chime immediately so user hears it work
-    _playAlertSound('warning');
-
-    // 2. Vibrate phone immediately if supported
-    if (navigator.vibrate) {
-        try { navigator.vibrate([150, 80, 150]); } catch (e) {}
-    }
-
-    // 3. Try to request Web Notification if available
-    try {
-        if ('Notification' in window && Notification.permission === 'default') {
-            Notification.requestPermission().then(perm => {
-                if (perm === 'granted') {
-                    _sendBrowserNotification(
-                        '🔔 5-Minute Alert Enabled!',
-                        'You will receive an alert with sound and vibration 5 minutes before your time ends.'
-                    );
-                }
-            }).catch(() => {});
-        } else if ('Notification' in window && Notification.permission === 'granted') {
-            _sendBrowserNotification(
-                '🔔 5-Minute Alert Enabled!',
-                'You will receive an alert with sound and vibration 5 minutes before your time ends.'
-            );
-        }
-    } catch (e) {}
 }
 
 function _showExpiredModal(macAddress) {
@@ -1549,9 +1472,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const totalSeconds = parseInt(timerEl.dataset.seconds, 10) || 0;
     const initialStatus = timerEl.dataset.status || "active";
-
-    // Initialize low-time phone notification alert UI
-    initExpiryNotificationUI();
 
     window.sessionTimer = new SessionTimer("session-timer", totalSeconds);
     window.sessionTimer.onExpire = async () => {

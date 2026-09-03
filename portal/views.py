@@ -767,44 +767,4 @@ def api_report_issue(request):
     })
 
 
-def service_worker(request):
-    """Serve the root Service Worker script for native background notifications."""
-    from django.http import HttpResponse
-    js_content = """// iConnect Background Notification Service Worker
-self.addEventListener('install', (event) => {
-    self.skipWaiting();
-});
-
-self.addEventListener('activate', (event) => {
-    event.waitUntil(self.clients.claim());
-});
-
-self.addEventListener('notificationclick', (event) => {
-    event.notification.close();
-    event.waitUntil(
-        self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-            for (const client of clientList) {
-                if (client.url.includes('/session') && 'focus' in client) {
-                    return client.focus();
-                }
-            }
-            if (self.clients.openWindow) {
-                return self.clients.openWindow('/session/');
-            }
-        })
-    );
-});
-
-self.addEventListener('message', (event) => {
-    if (event.data && event.data.type === 'SHOW_NOTIFICATION') {
-        self.registration.showNotification(event.data.title, event.data.options);
-    }
-});
-"""
-    response = HttpResponse(js_content, content_type='application/javascript')
-    response['Service-Worker-Allowed'] = '/'
-    response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-    return response
-
-
 

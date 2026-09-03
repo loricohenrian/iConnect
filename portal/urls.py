@@ -15,6 +15,5 @@ urlpatterns = [
     path('api/execute_spin/', views.api_execute_spin, name='api_execute_spin'),
     path('api/spin-data/', views.api_spin_data, name='api_spin_data'),
     path('api/report-issue/', views.api_report_issue, name='api_report_issue'),
-    path('sw.js', views.service_worker, name='service_worker'),
 ]
 

@@ -46,38 +46,6 @@
     <div style="font-size: 11px; color: var(--color-gray); margin-top: 3px; text-align: center;">
         <i class="bi bi-arrow-repeat text-primary"></i> Extending your session automatically renews your pause allowance.
     </div>
-
-    <!-- 5-Min Low-Time Expiry Alert Toggle -->
-    <div class="text-center mt-sm" id="alert-optin-container">
-        <button type="button" class="btn-expiry-alert" id="btn-expiry-alert" onclick="toggleExpiryAlerts()" style="background: rgba(123, 45, 59, 0.08); color: #7b2d3b; border: 1.5px solid rgba(123, 45, 59, 0.3); border-radius: 99px; padding: 7px 18px; font-weight: 600; font-size: 13px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; transition: all 0.2s ease; outline: none;">
-            <i class="bi bi-bell-fill" id="alert-bell-icon" style="font-size: 13px;"></i>
-            <span id="alert-btn-text">Turn on 5-Min Phone Alert</span>
-        </button>
-        <div id="alert-subtext" style="font-size: 11px; color: var(--color-gray); margin-top: 4px; text-align: center;">
-            Receive an alert when 5 minutes remain
-        </div>
-    </div>
-
-    <!-- Alert Opt-in Modal on Session Start -->
-    <div id="alertPromptModal" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 3000; align-items: center; justify-content: center; padding: 20px;">
-        <div class="modal-card animate-fadeIn text-center" style="background: #ffffff; width: 100%; max-width: 330px; border-radius: 20px; padding: 24px 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.25); border: 1px solid #e5e7eb; margin: auto;">
-            <div style="width: 52px; height: 52px; background: #FEF3C7; color: #D97706; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; margin: 0 auto 12px;">
-                <i class="bi bi-bell-fill"></i>
-            </div>
-            <h3 style="margin: 0 0 6px; font-size: 1.15rem; font-weight: 700; color: #1f2937;">Turn on 5-Min Alert?</h3>
-            <p style="margin: 0 0 18px; font-size: 12.5px; color: #6b7280; line-height: 1.45;">
-                We can chime and vibrate your phone when your timer is down to 5 minutes so you never lose connection unexpectedly.
-            </p>
-            <div style="display: flex; gap: 10px;">
-                <button type="button" class="btn btn-secondary flex-grow-1" onclick="dismissAlertPrompt()" style="padding: 10px; font-size: 13px; border-radius: 10px;">
-                    Later
-                </button>
-                <button type="button" class="btn btn-primary flex-grow-1" onclick="acceptAlertPrompt()" style="padding: 10px; font-size: 13px; font-weight: 600; border-radius: 10px; background: #7b2d3b; border-color: #7b2d3b; color: #fff;">
-                    🔔 Turn On
-                </button>
-            </div>
-        </div>
-    </div>
     
     <div id="pause-duration-warning" class="alert alert-warning" style="display: {% if session.status == 'paused' %}block{% else %}none{% endif %}; font-size: 12px; margin-top: 12px; padding: 8px 12px; border-radius: 8px; text-align: left;">
         {% if pause_max_hours > 0 %}
@@ -417,95 +385,6 @@
                 }
             }, 1000);
         }
-    }
-
-    // 5-Minute Low-Time Alert Modal & Toggle Logic
-    function initAlertPromptModal() {
-        const isPrompted = localStorage.getItem('iconnect_alert_prompted');
-        const isAlertOn = (localStorage.getItem('iconnect_alert_enabled') === '1');
-        const modal = document.getElementById('alertPromptModal');
-
-        if (isAlertOn) {
-            updateAlertButtonUI(true);
-        }
-
-        // Pop up the modal 1 second after arrival if user hasn't made a choice yet
-        if (!isPrompted && modal) {
-            setTimeout(() => {
-                modal.style.display = 'flex';
-            }, 1000);
-        }
-    }
-
-    window.dismissAlertPrompt = function() {
-        localStorage.setItem('iconnect_alert_prompted', '1');
-        const modal = document.getElementById('alertPromptModal');
-        if (modal) modal.style.display = 'none';
-    };
-
-    window.acceptAlertPrompt = function() {
-        localStorage.setItem('iconnect_alert_prompted', '1');
-        const modal = document.getElementById('alertPromptModal');
-        if (modal) modal.style.display = 'none';
-        setAlertState(true);
-    };
-
-    window.toggleExpiryAlerts = function() {
-        const isCurrentlyOn = (localStorage.getItem('iconnect_alert_enabled') === '1');
-        setAlertState(!isCurrentlyOn);
-    };
-
-    function setAlertState(turnOn) {
-        if (turnOn) {
-            localStorage.setItem('iconnect_alert_enabled', '1');
-            updateAlertButtonUI(true);
-            if (typeof _playAlertSound === 'function') {
-                _playAlertSound('warning');
-            }
-            if (navigator.vibrate) {
-                try { navigator.vibrate([150, 80, 150]); } catch(e) {}
-            }
-            if ('Notification' in window) {
-                try {
-                    if (Notification.permission === 'default') {
-                        Notification.requestPermission();
-                    }
-                } catch(e) {}
-            }
-        } else {
-            localStorage.setItem('iconnect_alert_enabled', '0');
-            updateAlertButtonUI(false);
-        }
-    }
-
-    function updateAlertButtonUI(isActive) {
-        const btn = document.getElementById('btn-expiry-alert');
-        const btnText = document.getElementById('alert-btn-text');
-        const subtext = document.getElementById('alert-subtext');
-        if (!btn) return;
-
-        if (isActive) {
-            btn.style.background = '#ecfdf5';
-            btn.style.color = '#059669';
-            btn.style.borderColor = '#10b981';
-            if (btnText) btnText.innerHTML = '<i class="bi bi-check-circle-fill"></i> 5-Min Alert Active';
-            if (subtext) subtext.innerText = 'Phone will chime & vibrate when 5 minutes remain';
-        } else {
-            btn.style.background = 'rgba(123, 45, 59, 0.08)';
-            btn.style.color = '#7b2d3b';
-            btn.style.borderColor = 'rgba(123, 45, 59, 0.3)';
-            if (btnText) btnText.innerHTML = '<i class="bi bi-bell-fill"></i> Turn on 5-Min Phone Alert';
-            if (subtext) subtext.innerText = 'Receive an alert when 5 minutes remain';
-        }
-    }
-
-    document.addEventListener('DOMContentLoaded', () => {
-        initAlertPromptModal();
-    });
-    // Fallback if DOM already loaded
-    if (document.readyState === 'complete' || document.readyState === 'interactive') {
-        initAlertPromptModal();
-    }
 </script>
 
 {% endblock %}
