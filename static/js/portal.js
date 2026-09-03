@@ -240,18 +240,125 @@ function _hideTimerBanner() {
     if (existing) existing.remove();
 }
 
-function _sendBrowserNotification(title, body) {
-    // Request permission and send browser notification
+async function _sendBrowserNotification(title, body, extraOptions = {}) {
     if (!('Notification' in window)) return;
+    if (Notification.permission !== 'granted') return;
+
+    const defaultOptions = {
+        body: body,
+        icon: '/static/icons/icon-192.png',
+        badge: '/static/icons/icon-192.png',
+        vibrate: [200, 100, 200],
+        tag: 'iconnect-expiry-alert',
+        renotify: true,
+        requireInteraction: true,
+        data: { url: '/session/' }
+    };
+    const options = Object.assign(defaultOptions, extraOptions);
+
+    // 1. Mobile Android Chrome / Samsung Internet: Requires ServiceWorker registration
+    try {
+        if ('serviceWorker' in navigator) {
+            const reg = await navigator.serviceWorker.getRegistration();
+            if (reg && reg.showNotification) {
+                return reg.showNotification(title, options);
+            }
+        }
+    } catch (e) {
+        console.warn('Service worker notification failed:', e);
+    }
+
+    // 2. Desktop fallback
+    try {
+        new Notification(title, options);
+    } catch (e) {
+        console.warn('Desktop notification fallback failed:', e);
+    }
+}
+
+async function initExpiryNotificationUI() {
+    const container = document.getElementById('alert-optin-container');
+    const btn = document.getElementById('btn-expiry-alert');
+    const btnText = document.getElementById('alert-btn-text');
+    const subtext = document.getElementById('alert-subtext');
+
+    if (!container || !btn) return;
+
+    if (!('Notification' in window)) {
+        // Not supported on this browser
+        container.style.display = 'none';
+        return;
+    }
+
+    // Register Service Worker in the background for mobile delivery
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch((e) => {
+            console.warn('SW registration warning:', e);
+        });
+    }
+
+    container.style.display = 'block';
 
     if (Notification.permission === 'granted') {
-        new Notification(title, { body, icon: '/static/images/favicon.png' });
-    } else if (Notification.permission !== 'denied') {
-        Notification.requestPermission().then(permission => {
-            if (permission === 'granted') {
-                new Notification(title, { body, icon: '/static/images/favicon.png' });
-            }
-        });
+        btn.classList.add('active');
+        if (btnText) btnText.innerHTML = '<i class="bi bi-check-circle-fill"></i> 5-Min Phone Alert Active';
+        if (subtext) subtext.innerText = 'Your phone will vibrate and alert you when 5 minutes remain';
+    } else if (Notification.permission === 'denied') {
+        btn.classList.remove('active');
+        if (btnText) btnText.innerText = 'Notifications Blocked';
+        if (subtext) subtext.innerText = 'Tap lock icon in browser address bar to allow alerts';
+    } else {
+        btn.classList.remove('active');
+        if (btnText) btnText.innerText = 'Turn on 5-Min Phone Alert';
+        if (subtext) subtext.innerText = 'Receive a notification on your phone when 5 minutes remain';
+    }
+}
+
+async function toggleExpiryAlerts() {
+    const btn = document.getElementById('btn-expiry-alert');
+    const btnText = document.getElementById('alert-btn-text');
+    const subtext = document.getElementById('alert-subtext');
+
+    if (!('Notification' in window)) {
+        alert('Notifications are not supported on this browser.');
+        return;
+    }
+
+    if (Notification.permission === 'denied') {
+        alert('Notifications are currently blocked. Tap the tune/lock icon in your browser address bar and enable Notifications for iConnect.');
+        return;
+    }
+
+    if (Notification.permission === 'granted') {
+        _playAlertSound('warning');
+        _sendBrowserNotification(
+            '🔔 5-Minute Alert is Active!',
+            'Your phone is set up! You will get an alert with sound and vibration 5 minutes before your time ends.'
+        );
+        return;
+    }
+
+    // Request permission on explicit user click gesture
+    try {
+        const perm = await Notification.requestPermission();
+        if (perm === 'granted') {
+            if (btn) btn.classList.add('active');
+            if (btnText) btnText.innerHTML = '<i class="bi bi-check-circle-fill"></i> 5-Min Phone Alert Active';
+            if (subtext) subtext.innerText = 'Your phone will vibrate and alert you when 5 minutes remain';
+
+            _playAlertSound('warning');
+            _sendBrowserNotification(
+                '🔔 Alert Enabled!',
+                'You will receive an alert with sound and vibration 5 minutes before your time ends.',
+                { vibrate: [100, 50, 100] }
+            );
+        } else if (perm === 'denied') {
+            if (btn) btn.classList.remove('active');
+            if (btnText) btnText.innerText = 'Notifications Blocked';
+            if (subtext) subtext.innerText = 'You blocked notifications. Reset in browser settings to enable.';
+        }
+    } catch (e) {
+        console.error('Error requesting notification permission:', e);
     }
 }
 
@@ -1448,10 +1555,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const totalSeconds = parseInt(timerEl.dataset.seconds, 10) || 0;
     const initialStatus = timerEl.dataset.status || "active";
 
-    // Request browser notification permission early
-    if ('Notification' in window && Notification.permission === 'default') {
-        Notification.requestPermission();
-    }
+    // Initialize low-time phone notification alert UI
+    initExpiryNotificationUI();
 
     window.sessionTimer = new SessionTimer("session-timer", totalSeconds);
     window.sessionTimer.onExpire = async () => {

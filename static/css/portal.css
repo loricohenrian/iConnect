@@ -1031,3 +1031,59 @@
 .animate-fadeIn {
     animation: fadeIn 0.3s ease-out backwards;
 }
+
+/* ============================================
+   Expiry Notification Alert Button
+   ============================================ */
+.btn-expiry-alert {
+    background: rgba(37, 99, 235, 0.06);
+    color: var(--color-primary);
+    border: 1px solid rgba(37, 99, 235, 0.2);
+    font-weight: 600;
+    font-size: 12.5px;
+    border-radius: 99px;
+    padding: 7px 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin: 8px auto 2px auto;
+}
+
+.btn-expiry-alert:hover {
+    background: rgba(37, 99, 235, 0.12);
+    transform: translateY(-1px);
+}
+
+.btn-expiry-alert:active {
+    transform: scale(0.97);
+}
+
+.btn-expiry-alert.active {
+    background: #ecfdf5;
+    color: #059669;
+    border-color: #a7f3d0;
+}
+
+.btn-expiry-alert.active #alert-bell-icon {
+    color: #059669;
+    animation: bellRing 1s ease-in-out;
+}
+
+@keyframes bellRing {
+    0%, 100% { transform: rotate(0); }
+    20%, 60% { transform: rotate(15deg); }
+    40%, 80% { transform: rotate(-15deg); }
+}
+
+.timer-critical {
+    animation: pulseCritical 1s infinite alternate;
+    color: #ef4444 !important;
+}
+
+@keyframes pulseCritical {
+    from { opacity: 1; transform: scale(1); }
+    to { opacity: 0.85; transform: scale(1.02); }
+}

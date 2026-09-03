@@ -46,6 +46,17 @@
     <div style="font-size: 11px; color: var(--color-gray); margin-top: 3px; text-align: center;">
         <i class="bi bi-arrow-repeat text-primary"></i> Extending your session automatically renews your pause allowance.
     </div>
+
+    <!-- 5-Min Low-Time Expiry Alert Toggle -->
+    <div class="text-center mt-sm" id="alert-optin-container" style="display: none;">
+        <button type="button" class="btn-expiry-alert" id="btn-expiry-alert" onclick="toggleExpiryAlerts()">
+            <i class="bi bi-bell-fill" id="alert-bell-icon"></i>
+            <span id="alert-btn-text">Turn on 5-Min Phone Alert</span>
+        </button>
+        <div id="alert-subtext" style="font-size: 11px; color: var(--color-gray); margin-top: 4px; text-align: center;">
+            Receive a notification on your phone when 5 minutes remain
+        </div>
+    </div>
     
     <div id="pause-duration-warning" class="alert alert-warning" style="display: {% if session.status == 'paused' %}block{% else %}none{% endif %}; font-size: 12px; margin-top: 12px; padding: 8px 12px; border-radius: 8px; text-align: left;">
         {% if pause_max_hours > 0 %}
