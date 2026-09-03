@@ -164,8 +164,8 @@ class SystemSettings(models.Model):
 
     # Network & Automation Features
     enable_internet_check = models.BooleanField(
-        default=False,
-        help_text="Auto-disable coin insertion when the ISP/Internet is down"
+        default=True,
+        help_text="Auto-disable coin insertion and auto-pause sessions when the ISP/Internet is down"
     )
     enable_auto_pause_resume = models.BooleanField(
         default=False,

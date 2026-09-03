@@ -1627,7 +1627,7 @@ def session_status(request):
 
     active_ann = Announcement.objects.filter(is_active=True).first()
     ann_text = active_ann.message if active_ann else None
-    isp_outage = bool(cache.get("isp_outage_active", False))
+    isp_outage = Announcement.objects.filter(is_active=True, message__contains="interrupted by our ISP").exists()
 
     if session:
         if session.status == "paused":

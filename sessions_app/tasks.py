@@ -428,15 +428,22 @@ def auto_resume_connected_sessions():
     return f'Checked {paused_sessions.count()} paused sessions, auto-resumed {resumed_count}'
 
 
+_MEMORY_STATE = {}
+
+
 def _safe_cache_get(key, default=None):
     try:
         from django.core.cache import cache
-        return cache.get(key, default)
+        val = cache.get(key)
+        if val is not None:
+            return val
     except Exception:
-        return default
+        pass
+    return _MEMORY_STATE.get(key, default)
 
 
 def _safe_cache_set(key, val, timeout=None):
+    _MEMORY_STATE[key] = val
     try:
         from django.core.cache import cache
         cache.set(key, val, timeout=timeout)
@@ -445,6 +452,7 @@ def _safe_cache_set(key, val, timeout=None):
 
 
 def _safe_cache_delete(key):
+    _MEMORY_STATE.pop(key, None)
     try:
         from django.core.cache import cache
         cache.delete(key)
@@ -483,9 +491,10 @@ def check_internet_status():
 
     if not is_online:
         try:
-            # ICMP ping fallback
+            import platform
+            ping_cmd = ["ping", "-n", "1", "-w", "2000", "8.8.8.8"] if platform.system() == "Windows" else ["ping", "-c", "1", "-W", "2", "8.8.8.8"]
             res = subprocess.run(
-                ["ping", "-c", "1", "-W", "2", "8.8.8.8"],
+                ping_cmd,
                 capture_output=True, timeout=3,
             )
             is_online = (res.returncode == 0)
@@ -502,9 +511,10 @@ def check_internet_status():
         _safe_cache_set("isp_fail_count", fail_count, timeout=300)
         logger.warning(f"Internet check probe failed ({fail_count}/2). ISP may be offline.")
 
-        # Require 2 consecutive failed probes (~45-60s) to avoid momentary glitches
-        if fail_count >= 2 and not _safe_cache_get("isp_outage_active"):
-            _safe_cache_set("isp_outage_active", True, timeout=None)
+        existing_outage = Announcement.objects.filter(is_active=True, message__contains="interrupted by our ISP").exists()
+
+        # Require 2 consecutive failed probes (~30s) to avoid momentary glitches
+        if fail_count >= 2 and not existing_outage:
             logger.error("ISP Outage confirmed! Freezing active student sessions to protect time...")
 
             # 1. Freeze all active sessions
@@ -530,8 +540,7 @@ def check_internet_status():
                 "All user timers have been FROZEN to protect your remaining time! "
                 "Your timer will automatically resume as soon as connection is restored."
             )
-            ann = Announcement.objects.create(message=ann_text, is_active=True)
-            _safe_cache_set("isp_outage_announcement_id", ann.id, timeout=None)
+            Announcement.objects.create(message=ann_text, is_active=True)
 
             # 3. Send Telegram Outage Alert
             try:
@@ -556,9 +565,9 @@ def check_internet_status():
         _safe_cache_delete("isp_fail_count")
 
         # Check if recovering from a previous outage
-        if _safe_cache_get("isp_outage_active"):
+        outage_announcements = Announcement.objects.filter(is_active=True, message__contains="interrupted by our ISP")
+        if outage_announcements.exists():
             logger.info("ISP internet connection restored! Resuming student sessions...")
-            _safe_cache_delete("isp_outage_active")
 
             # 1. Resume the sessions that were paused by this outage
             paused_ids = _safe_cache_get("isp_paused_session_ids") or []
@@ -579,13 +588,7 @@ def check_internet_status():
                 _safe_cache_delete("isp_paused_session_ids")
 
             # 2. Remove outage announcement
-            ann_id = _safe_cache_get("isp_outage_announcement_id")
-            if ann_id:
-                try:
-                    Announcement.objects.filter(id=ann_id).update(is_active=False)
-                except Exception:
-                    pass
-                _safe_cache_delete("isp_outage_announcement_id")
+            outage_announcements.update(is_active=False)
 
             # 3. Send Telegram Recovery Alert
             try:
