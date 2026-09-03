@@ -772,26 +772,36 @@ async function refreshSessionsLive() {
 
                 let actionsHtml = '';
                 if (s.status === 'active') {
-                    actionsHtml += `<button class="action-btn action-btn-pause" title="Pause Session" onclick="openActionModal(${s.id}, 'pause', '${escapeHtml(s.device_name)}', '${escapeHtml(s.mac_address)}')">
+                    actionsHtml += `<button class="action-btn action-btn-pause" title="Pause Session" 
+                        data-session-id="${s.id}" data-action="pause" data-device-name="${escapeHtml(s.device_name || '')}" data-mac="${escapeHtml(s.mac_address || '')}"
+                        onclick="openActionModal(this.dataset.sessionId, this.dataset.action, this.dataset.deviceName, this.dataset.mac)">
                         <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5zm5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5z"/></svg>
                     </button>`;
                 } else if (s.status === 'paused') {
-                    actionsHtml += `<button class="action-btn action-btn-resume" title="Resume Session" onclick="openActionModal(${s.id}, 'resume', '${escapeHtml(s.device_name)}', '${escapeHtml(s.mac_address)}')">
+                    actionsHtml += `<button class="action-btn action-btn-resume" title="Resume Session" 
+                        data-session-id="${s.id}" data-action="resume" data-device-name="${escapeHtml(s.device_name || '')}" data-mac="${escapeHtml(s.mac_address || '')}"
+                        onclick="openActionModal(this.dataset.sessionId, this.dataset.action, this.dataset.deviceName, this.dataset.mac)">
                         <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z"/></svg>
                     </button>`;
                 }
 
-                actionsHtml += `<button class="action-btn action-btn-edit" title="Edit Hostname" onclick="openActionModal(${s.id}, 'edit', '${escapeHtml(s.device_name)}', '${escapeHtml(s.mac_address)}')">
+                actionsHtml += `<button class="action-btn action-btn-edit" title="Edit Hostname" 
+                    data-session-id="${s.id}" data-action="edit" data-device-name="${escapeHtml(s.device_name || '')}" data-mac="${escapeHtml(s.mac_address || '')}"
+                    onclick="openActionModal(this.dataset.sessionId, this.dataset.action, this.dataset.deviceName, this.dataset.mac)">
                     <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708zm.646 6.061L9.793 2.5 3.293 9H3.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.207zm-7.468 7.468A.5.5 0 0 1 6 13.5V13h-.5a.5.5 0 0 1-.5-.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.5-.5V10h-.5a.5.5 0 0 1-.175-.032l-.179.178a.5.5 0 0 0-.11.168l-2 5a.5.5 0 0 0 .65.65l5-2a.5.5 0 0 0 .168-.11z"/></svg>
                 </button>`;
 
                 if (s.status === 'active' || s.status === 'paused') {
-                    actionsHtml += `<button class="action-btn action-btn-disconnect" title="End Session" onclick="openActionModal(${s.id}, 'disconnect', '${escapeHtml(s.device_name)}', '${escapeHtml(s.mac_address)}')">
+                    actionsHtml += `<button class="action-btn action-btn-disconnect" title="End Session" 
+                        data-session-id="${s.id}" data-action="disconnect" data-device-name="${escapeHtml(s.device_name || '')}" data-mac="${escapeHtml(s.mac_address || '')}"
+                        onclick="openActionModal(this.dataset.sessionId, this.dataset.action, this.dataset.deviceName, this.dataset.mac)">
                         <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M5 3.5h6A1.5 1.5 0 0 1 12.5 5v6a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 11V5A1.5 1.5 0 0 1 5 3.5z"/></svg>
                     </button>`;
                 }
 
-                actionsHtml += `<button class="action-btn action-btn-block" title="Block Device (Blacklist)" onclick="openActionModal(${s.id}, 'block', '${escapeHtml(s.device_name)}', '${escapeHtml(s.mac_address)}')">
+                actionsHtml += `<button class="action-btn action-btn-block" title="Block Device (Blacklist)" 
+                    data-session-id="${s.id}" data-action="block" data-device-name="${escapeHtml(s.device_name || '')}" data-mac="${escapeHtml(s.mac_address || '')}"
+                    onclick="openActionModal(this.dataset.sessionId, this.dataset.action, this.dataset.deviceName, this.dataset.mac)">
                     <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M15 8a6.973 6.973 0 0 0-1.71-4.584l-9.874 9.874A7 7 0 0 0 15 8M2.71 12.584l9.874-9.874A7 7 0 0 0 1 8a6.973 6.973 0 0 0 1.71 4.584M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0"/></svg>
                 </button>`;
 
