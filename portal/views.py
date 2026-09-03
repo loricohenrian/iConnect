@@ -791,4 +791,42 @@ def api_report_issue(request):
     })
 
 
+def captive_portal_probe(request):
+    """
+    Handle OS network connectivity detection probes (Android/Chrome, Apple, Windows, Firefox).
+    If the device has an active session, return the exact OS success response (e.g. HTTP 204 or Success).
+    If the device is not authenticated, redirect to the captive portal to prompt login/coin insertion.
+    """
+    mac = _get_mac_address(request)
+    client_ip = _client_ip(request)
+
+    is_active = False
+    if mac:
+        is_active = Session.objects.filter(mac_address=mac, status='active').exists()
+    elif client_ip:
+        is_active = Session.objects.filter(ip_address=client_ip, status='active').exists()
+
+    path = request.path.lower()
+
+    if is_active:
+        if 'generate_204' in path or 'gen_204' in path:
+            return HttpResponse(status=204)
+        elif 'hotspot-detect' in path:
+            return HttpResponse(
+                '<HTML><HEAD><TITLE>Success</TITLE></HEAD><BODY>Success</BODY></HTML>',
+                content_type='text/html'
+            )
+        elif 'connecttest' in path:
+            return HttpResponse('Microsoft Connect Test', content_type='text/plain')
+        elif 'ncsi' in path:
+            return HttpResponse('Microsoft NCSI', content_type='text/plain')
+        elif 'success' in path:
+            return HttpResponse('success\n', content_type='text/plain')
+        return HttpResponse(status=204)
+
+    # Not active — redirect to captive portal
+    return redirect('/')
+
+
+
 

@@ -1571,8 +1571,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const totalSeconds = parseInt(timerEl.dataset.seconds, 10) || 0;
     const initialStatus = timerEl.dataset.status || "active";
-
     window.sessionTimer = new SessionTimer("session-timer", totalSeconds);
+
+    // Probe captive connectivity check to prompt OS / Chrome to re-verify full internet access
+    if (initialStatus === "active") {
+        try {
+            fetch("/generate_204", { mode: "no-cors", cache: "no-store" }).catch(() => {});
+        } catch (e) {}
+    }
+
     window.sessionTimer.onExpire = async () => {
         // Call status API immediately to trigger server-side iptables block
         try {
