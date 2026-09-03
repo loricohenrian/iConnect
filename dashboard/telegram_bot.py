@@ -152,17 +152,18 @@ def handle_telegram_command(command_text, sender_id, sender_name="User"):
     if "@" in cmd:
         cmd = cmd.split("@")[0]
 
-    from sessions_app.models import Session
+    from sessions_app.models import Session, CoinEvent
     from dashboard.models import IssueReport
 
-    now = timezone.now()
+    # Always use local Philippine Time (Asia/Manila)
+    now = timezone.localtime(timezone.now())
 
     if cmd in ("/start", "/help"):
         msg = (
             f"👋 *Hello {sender_name}!*\n"
             f"Welcome to your *iConnect Piso WiFi Controller* 🍊📶\n\n"
             f"Here are the available remote commands:\n\n"
-            f"💰 */revenue* — Today's income & monthly sales\n"
+            f"💰 */revenue* — Today's earnings & monthly sales\n"
             f"🟢 */status* — System health, CPU temp, ISP state\n"
             f"👥 */users* — Live connected students & timers\n"
             f"⏸ */pauseall* — Emergency pause all active sessions\n"
@@ -174,27 +175,52 @@ def handle_telegram_command(command_text, sender_id, sender_name="User"):
         send_telegram_message(msg, chat_id=sender_id)
 
     elif cmd == "/revenue":
-        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        today_date = now.date()
+        month_start_date = today_date.replace(day=1)
 
-        today_paid = Session.objects.filter(time_in__gte=today_start, amount_paid__gt=0)
-        today_rev = today_paid.aggregate(total=Sum('amount_paid'))['total'] or 0
-        today_count = today_paid.count()
+        # 1. Hardware Coin Box Sales (exact cash inserted)
+        today_coins = CoinEvent.objects.filter(timestamp__date=today_date)
+        today_rev = today_coins.aggregate(total=Sum('amount'))['total'] or 0
+        today_coin_count = today_coins.count()
 
-        month_paid = Session.objects.filter(time_in__gte=month_start, amount_paid__gt=0)
-        month_rev = month_paid.aggregate(total=Sum('amount_paid'))['total'] or 0
-        month_count = month_paid.count()
+        # Fallback to Session amount_paid if no CoinEvent recorded
+        today_sessions = Session.objects.filter(time_in__date=today_date)
+        if today_rev == 0:
+            today_rev = today_sessions.aggregate(total=Sum('amount_paid'))['total'] or 0
+        today_vends = today_sessions.count()
 
-        all_time_rev = Session.objects.filter(amount_paid__gt=0).aggregate(total=Sum('amount_paid'))['total'] or 0
+        # 2. Month-to-date sales
+        month_coins = CoinEvent.objects.filter(
+            timestamp__date__gte=month_start_date,
+            timestamp__date__lte=today_date
+        )
+        month_rev = month_coins.aggregate(total=Sum('amount'))['total'] or 0
+        if month_rev == 0:
+            month_rev = Session.objects.filter(
+                time_in__date__gte=month_start_date,
+                time_in__date__lte=today_date
+            ).aggregate(total=Sum('amount_paid'))['total'] or 0
+        month_vends = Session.objects.filter(
+            time_in__date__gte=month_start_date,
+            time_in__date__lte=today_date
+        ).count()
+
+        # 3. Lifetime Total
+        lifetime_coins = CoinEvent.objects.aggregate(total=Sum('amount'))['total'] or 0
+        if lifetime_coins == 0:
+            lifetime_coins = Session.objects.aggregate(total=Sum('amount_paid'))['total'] or 0
+
+        active_users_now = Session.objects.filter(status='active').count()
 
         msg = (
             f"💰 *iConnect Revenue Report*\n"
-            f"📅 _{now.strftime('%A, %B %d, %Y - %I:%M %p')}_\n\n"
+            f"📅 _{now.strftime('%A, %B %d, %Y - %I:%M %p')} (PST)_\n\n"
             f"💵 *Today's Earnings:* `₱{today_rev:,.2f}`\n"
-            f"🎟 *Today's Paid Vends:* `{today_count} sessions`\n\n"
+            f"🎟 *Today's Vends:* `{today_vends} sessions` ({today_coin_count} coins inserted)\n\n"
             f"📈 *This Month ({now.strftime('%B')}):* `₱{month_rev:,.2f}`\n"
-            f"📦 *Month Vends:* `{month_count} sessions`\n\n"
-            f"🪙 *Total Lifetime Revenue:* `₱{all_time_rev:,.2f}`"
+            f"📦 *Month Vends:* `{month_vends} sessions`\n\n"
+            f"🪙 *Total Lifetime Revenue:* `₱{lifetime_coins:,.2f}`\n"
+            f"👥 *Active Right Now:* `{active_users_now} users`"
         )
         send_telegram_message(msg, chat_id=sender_id)
 
@@ -233,7 +259,7 @@ def handle_telegram_command(command_text, sender_id, sender_name="User"):
             f"👥 *Active Sessions:* `{active_count} / {max_slots} slots`\n"
             f"⏸ *Paused Sessions:* `{paused_count}`\n"
             f"🌡 *CPU Temperature:* `{temp_str}`\n"
-            f"🕒 *Server Time:* `{now.strftime('%I:%M:%S %p')}`"
+            f"🕒 *Server Time:* `{now.strftime('%I:%M:%S %p')} (PST)`"
         )
         send_telegram_message(msg, chat_id=sender_id)
 
@@ -300,15 +326,51 @@ def handle_telegram_command(command_text, sender_id, sender_name="User"):
         send_telegram_message("\n".join(lines), chat_id=sender_id)
 
     elif cmd == "/backup":
-        db_path = str(settings.DATABASES['default']['NAME'])
-        if os.path.exists(db_path):
-            caption = f"💾 iConnect SQLite Backup\nGenerated: {now.strftime('%Y-%m-%d %I:%M %p')}"
-            send_telegram_message("📦 Generating and uploading database backup...", chat_id=sender_id)
-            success = send_telegram_document(db_path, caption=caption, chat_id=sender_id)
+        import io
+        import gzip
+        import tempfile
+        from django.core.management import call_command
+
+        send_telegram_message("📦 Generating database backup (JSON dump)...", chat_id=sender_id)
+
+        timestamp_str = now.strftime('%Y%m%d_%H%M%S')
+        temp_dir = tempfile.gettempdir()
+        backup_file = os.path.join(temp_dir, f"iconnect_backup_{timestamp_str}.json.gz")
+
+        try:
+            buf = io.StringIO()
+            call_command(
+                'dumpdata',
+                stdout=buf,
+                exclude=['contenttypes', 'auth.permission'],
+            )
+            raw_bytes = buf.getvalue().encode('utf-8')
+            with gzip.open(backup_file, 'wb') as f:
+                f.write(raw_bytes)
+
+            caption = (
+                f"💾 *iConnect Database Backup*\n"
+                f"📅 {now.strftime('%Y-%m-%d %I:%M %p')} (PST)\n"
+                f"📦 Size: {len(raw_bytes)/1024:.1f} KB (Compressed)"
+            )
+            success = send_telegram_document(backup_file, caption=caption, chat_id=sender_id)
             if not success:
-                send_telegram_message("❌ Failed to send backup document.", chat_id=sender_id)
-        else:
-            send_telegram_message("❌ Database file not found on disk.", chat_id=sender_id)
+                send_telegram_message("❌ Failed to send backup document to Telegram.", chat_id=sender_id)
+        except Exception as e:
+            logger.error(f"Backup generation failed: {e}")
+            send_telegram_message(f"❌ Backup error: {e}", chat_id=sender_id)
+        finally:
+            if os.path.exists(backup_file):
+                try:
+                    os.remove(backup_file)
+                except Exception:
+                    pass
+
+    else:
+        send_telegram_message(
+            f"❓ Unknown command: `{cmd}`\nType /help to see the list of available commands.",
+            chat_id=sender_id
+        )
 
     else:
         send_telegram_message(
