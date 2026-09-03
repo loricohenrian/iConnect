@@ -289,6 +289,14 @@ def auto_pause_disconnected_sessions():
                 elapsed = (now - first_unreachable).total_seconds()
 
                 if elapsed >= timeout_seconds:
+                    # Respect plan pause limit: if user has exhausted pauses, do not auto-pause
+                    if session.plan and session.plan.pause_limit > 0 and session.pause_count >= session.plan.pause_limit:
+                        logger.info(
+                            f'Skipping auto-pause for session {session.id} ({session.mac_address}): '
+                            f'pause limit ({session.plan.pause_limit}) reached.'
+                        )
+                        continue
+
                     session.pause_session()
                     iptables.block_device(session.mac_address)
                     cache.delete(cache_key)
@@ -390,8 +398,15 @@ def auto_resume_connected_sessions():
 
     for session in paused_sessions:
         if _is_device_reachable(session.mac_address, session.ip_address):
-            # Device is back online — resume the session
-            
+            # Device is back online — check if max pause duration was exceeded
+            max_pause_hours = session.plan.pause_duration_limit if (session.plan and session.plan.pause_duration_limit > 0) else settings_obj.global_pause_limit_hours
+            if max_pause_hours > 0 and session.paused_at:
+                paused_hours = (timezone.now() - session.paused_at).total_seconds() / 3600.0
+                if paused_hours >= max_pause_hours:
+                    session.expire_session()
+                    logger.info(f'Expired session {session.id} for {session.mac_address} during auto-resume: exceeded {max_pause_hours}h pause limit')
+                    continue
+
             # Check if network is full before allowing resume
             from django.conf import settings
             max_sessions = getattr(settings, "PISONET_MAX_CONCURRENT_SESSIONS", 20)
