@@ -37,7 +37,7 @@
                     <th>Pause Limit</th>
                     <th>Max Pause</th>
                     <th>Status</th>
-                    <th style="text-align: right;">Actions</th>
+                    <th style="text-align: right; width: 110px;">Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -58,7 +58,7 @@
                         {% endif %}
                     </td>
                     <td style="text-align: right;">
-                        <div class="d-flex justify-content-end align-items-center gap-xs">
+                        <div class="d-flex justify-content-end align-items-center gap-xs" style="display: flex; justify-content: flex-end; align-items: center; gap: 6px;">
                             <button type="button" class="btn-action" style="color: #6366f1; width: 28px; height: 28px; border: none; background: transparent; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;" title="Edit Plan" onclick="openPlanModal('edit', {
                                 id: '{{ plan.id }}',
                                 name: '{{ plan.name|escapejs }}',

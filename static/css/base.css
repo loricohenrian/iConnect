@@ -534,7 +534,10 @@ tbody tr:last-child td {
 .d-flex { display: flex; }
 .align-items-center { align-items: center; }
 .justify-content-between { justify-content: space-between; }
+.justify-content-end { justify-content: flex-end; }
+.justify-content-center { justify-content: center; }
 .flex-column { flex-direction: column; }
+.gap-xs { gap: 4px; }
 .gap-sm { gap: 8px; }
 .gap-md { gap: 16px; }
 .w-100 { width: 100%; }
