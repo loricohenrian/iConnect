@@ -284,12 +284,6 @@ async function initExpiryNotificationUI() {
 
     if (!container || !btn) return;
 
-    if (!('Notification' in window)) {
-        // Not supported on this browser
-        container.style.display = 'none';
-        return;
-    }
-
     // Register Service Worker in the background for mobile delivery
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch((e) => {
@@ -297,7 +291,13 @@ async function initExpiryNotificationUI() {
         });
     }
 
-    container.style.display = 'block';
+    if (!('Notification' in window)) {
+        // Fallback for in-app mini webviews without Notification API
+        btn.classList.add('active');
+        if (btnText) btnText.innerHTML = '<i class="bi bi-volume-up-fill"></i> 5-Min Sound Alert Active';
+        if (subtext) subtext.innerText = 'Audio chime will alert you 5 minutes before your time ends';
+        return;
+    }
 
     if (Notification.permission === 'granted') {
         btn.classList.add('active');
