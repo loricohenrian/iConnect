@@ -197,6 +197,57 @@
         </div>
     </div>
 
+    <!-- Telegram Bot Remote Operations -->
+    <div class="chart-card animate-fadeIn" style="grid-column: 1 / -1;">
+        <div class="d-flex justify-content-between align-items-center mb-md flex-wrap gap-sm">
+            <div>
+                <h3 class="chart-title" style="display: flex; align-items: center; gap: 8px;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="color: #0088cc;"><path d="m20.665 3.717-17.73 6.837c-1.21.486-1.203 1.161-.222 1.462l4.552 1.42 10.532-6.645c.498-.303.953-.14.579.192l-8.533 7.701h-.002l-.313 4.676c.459 0 .661-.21.919-.462l2.207-2.145 4.588 3.39c.847.467 1.455.226 1.666-.787l3.007-14.167c.309-1.239-.473-1.8-1.282-1.474z"/></svg>
+                    Telegram Bot Remote Controller
+                </h3>
+                <p class="text-xs text-muted" style="margin: 0;">
+                    Manage your Piso WiFi node from your smartphone via Telegram (<a href="https://t.me/iConnect_Ops_bot" target="_blank" style="color: var(--color-primary); font-weight: 600;">@iConnect_Ops_bot</a>).
+                </p>
+            </div>
+            <button type="submit" name="test_telegram" value="1" class="btn btn-secondary btn-sm" style="font-size: 12px; display: inline-flex; align-items: center; gap: 6px;">
+                🔔 Test Ping
+            </button>
+        </div>
+
+        <div class="form-group mb-md">
+            <label class="d-flex align-items-center gap-xs text-xs font-semibold" style="cursor: pointer;">
+                <input type="checkbox" name="enable_telegram_bot" {% if settings.enable_telegram_bot %}checked{% endif %}>
+                <span>Enable Telegram Bot Remote Operations</span>
+            </label>
+        </div>
+
+        <div class="grid-2">
+            <div class="form-group">
+                <label class="form-label">Bot Token (from @BotFather)</label>
+                <input type="text" class="form-input" name="telegram_bot_token" value="{{ settings.telegram_bot_token }}" placeholder="e.g., 8946483111:AAEQBhy1vOqLFPdKIXjInvGjNrofI3TqgZg">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Authorized Admin Chat ID</label>
+                <input type="text" class="form-input" name="telegram_admin_chat_id" value="{{ settings.telegram_admin_chat_id }}" placeholder="e.g., 6261306648">
+            </div>
+        </div>
+
+        <div class="mt-sm" style="display: flex; flex-wrap: wrap; gap: 20px;">
+            <label class="d-flex align-items-center gap-xs text-xs font-semibold" style="cursor: pointer;">
+                <input type="checkbox" name="telegram_notify_tickets" {% if settings.telegram_notify_tickets %}checked{% endif %}>
+                <span>Instant Ticket Alerts (Student Stuck Coins)</span>
+            </label>
+            <label class="d-flex align-items-center gap-xs text-xs font-semibold" style="cursor: pointer;">
+                <input type="checkbox" name="telegram_notify_isp_down" {% if settings.telegram_notify_isp_down %}checked{% endif %}>
+                <span>ISP Outage & Recovery Alerts</span>
+            </label>
+            <label class="d-flex align-items-center gap-xs text-xs font-semibold" style="cursor: pointer;">
+                <input type="checkbox" name="telegram_notify_daily_summary" {% if settings.telegram_notify_daily_summary %}checked{% endif %}>
+                <span>Midnight Sales Closeout Report</span>
+            </label>
+        </div>
+    </div>
+
     <!-- Data Management -->
     <div class="chart-card animate-fadeIn" style="grid-column: 1 / -1;">
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-md">

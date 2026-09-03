@@ -428,6 +428,30 @@ def auto_resume_connected_sessions():
     return f'Checked {paused_sessions.count()} paused sessions, auto-resumed {resumed_count}'
 
 
+def _safe_cache_get(key, default=None):
+    try:
+        from django.core.cache import cache
+        return cache.get(key, default)
+    except Exception:
+        return default
+
+
+def _safe_cache_set(key, val, timeout=None):
+    try:
+        from django.core.cache import cache
+        cache.set(key, val, timeout=timeout)
+    except Exception:
+        pass
+
+
+def _safe_cache_delete(key):
+    try:
+        from django.core.cache import cache
+        cache.delete(key)
+    except Exception:
+        pass
+
+
 @shared_task
 def check_internet_status():
     """
@@ -437,12 +461,11 @@ def check_internet_status():
     import socket
     import subprocess
     from dashboard.models import SystemSettings
-    from django.core.cache import cache
 
     settings_obj = SystemSettings.get_settings()
     if not settings_obj.enable_internet_check:
         # If disabled, always assume internet is OK
-        cache.set("internet_status_ok", True, timeout=120)
+        _safe_cache_set("internet_status_ok", True, timeout=120)
         return 'Internet checking disabled'
 
     is_online = False
@@ -469,12 +492,117 @@ def check_internet_status():
         except Exception:
             is_online = False
 
-    cache.set("internet_status_ok", is_online, timeout=120)
+    _safe_cache_set("internet_status_ok", is_online, timeout=120)
     
+    from dashboard.models import Announcement
+    from sessions_app.models import Session
+
     if not is_online:
-        logger.warning('Internet check failed. ISP is offline.')
-        return 'ISP is offline'
-    
-    return 'ISP is online'
+        fail_count = (_safe_cache_get("isp_fail_count") or 0) + 1
+        _safe_cache_set("isp_fail_count", fail_count, timeout=300)
+        logger.warning(f"Internet check probe failed ({fail_count}/2). ISP may be offline.")
+
+        # Require 2 consecutive failed probes (~45-60s) to avoid momentary glitches
+        if fail_count >= 2 and not _safe_cache_get("isp_outage_active"):
+            _safe_cache_set("isp_outage_active", True, timeout=None)
+            logger.error("ISP Outage confirmed! Freezing active student sessions to protect time...")
+
+            # 1. Freeze all active sessions
+            active_sessions = list(Session.objects.filter(status="active"))
+            paused_ids = []
+            for s in active_sessions:
+                try:
+                    s.pause_session()
+                    try:
+                        from sessions_app import iptables
+                        iptables.block_device(s.mac_address)
+                    except Exception:
+                        pass
+                    paused_ids.append(s.id)
+                except Exception as e:
+                    logger.error(f"Failed to pause session {s.id} during outage: {e}")
+
+            _safe_cache_set("isp_paused_session_ids", paused_ids, timeout=None)
+
+            # 2. Automatically post announcement on captive portal
+            ann_text = (
+                "⚠️ NOTICE: Internet is temporarily interrupted by our ISP. "
+                "All user timers have been FROZEN to protect your remaining time! "
+                "Your timer will automatically resume as soon as connection is restored."
+            )
+            ann = Announcement.objects.create(message=ann_text, is_active=True)
+            _safe_cache_set("isp_outage_announcement_id", ann.id, timeout=None)
+
+            # 3. Send Telegram Outage Alert
+            try:
+                from dashboard.telegram_bot import send_telegram_message, get_telegram_config
+                cfg = get_telegram_config()
+                if cfg.get("enabled") and cfg.get("notify_isp_down"):
+                    send_telegram_message(
+                        f"🚨 *ISP OUTAGE DETECTED!*\n"
+                        f"Upstream internet connection dropped.\n\n"
+                        f"⏸ *Action Taken:* Automatically paused `{len(paused_ids)}` active student session(s) to protect customer time.\n"
+                        f"📢 Outage notice displayed on captive portal screen."
+                    )
+            except Exception as tg_err:
+                logger.warning(f"Failed to send Telegram outage alert: {tg_err}")
+
+            return f"ISP outage handled: paused {len(paused_ids)} sessions"
+
+        return f"ISP probe failed ({fail_count}/2)"
+
+    else:
+        # ISP is online
+        _safe_cache_delete("isp_fail_count")
+
+        # Check if recovering from a previous outage
+        if _safe_cache_get("isp_outage_active"):
+            logger.info("ISP internet connection restored! Resuming student sessions...")
+            _safe_cache_delete("isp_outage_active")
+
+            # 1. Resume the sessions that were paused by this outage
+            paused_ids = _safe_cache_get("isp_paused_session_ids") or []
+            resumed_count = 0
+            if paused_ids:
+                sessions_to_resume = Session.objects.filter(id__in=paused_ids, status="paused")
+                for s in sessions_to_resume:
+                    try:
+                        s.resume_session()
+                        try:
+                            from sessions_app import iptables
+                            iptables.allow_device(s.mac_address)
+                        except Exception:
+                            pass
+                        resumed_count += 1
+                    except Exception as e:
+                        logger.error(f"Failed to resume session {s.id}: {e}")
+                _safe_cache_delete("isp_paused_session_ids")
+
+            # 2. Remove outage announcement
+            ann_id = _safe_cache_get("isp_outage_announcement_id")
+            if ann_id:
+                try:
+                    Announcement.objects.filter(id=ann_id).update(is_active=False)
+                except Exception:
+                    pass
+                _safe_cache_delete("isp_outage_announcement_id")
+
+            # 3. Send Telegram Recovery Alert
+            try:
+                from dashboard.telegram_bot import send_telegram_message, get_telegram_config
+                cfg = get_telegram_config()
+                if cfg.get("enabled") and cfg.get("notify_isp_down"):
+                    send_telegram_message(
+                        f"🟢 *ISP INTERNET RESTORED!*\n"
+                        f"Upstream connection is back online.\n\n"
+                        f"▶️ *Action Taken:* Automatically resumed `{resumed_count}` student session(s).\n"
+                        f"🧹 Removed outage announcement from captive portal screen."
+                    )
+            except Exception as tg_err:
+                logger.warning(f"Failed to send Telegram recovery alert: {tg_err}")
+
+            return f"ISP restored: resumed {resumed_count} sessions"
+
+        return "ISP is online"
 
 

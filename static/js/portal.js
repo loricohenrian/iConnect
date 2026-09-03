@@ -1271,7 +1271,44 @@ function pollSessionStatus(macAddress, intervalMs = 3000) {
 
             if (data.status === "expired") {
                 window.location.href = buildPortalUrl("/", macAddress, { expired: 1 });
+                return;
             }
+
+            // Real-time synchronization of Pause / Resume / Outage state
+            const pauseWarningEl = document.getElementById("pause-duration-warning");
+            const pauseBtn = document.getElementById("pause-btn");
+
+            if (data.status === "paused") {
+                if (window.sessionTimer && !window.sessionTimer.isPaused) {
+                    window.sessionTimer.pause();
+                }
+                if (pauseBtn) {
+                    pauseBtn.classList.remove("btn-warning");
+                    pauseBtn.classList.add("btn-success");
+                    pauseBtn.innerHTML = '<i class="bi bi-play-circle-fill"></i> Resume Internet';
+                }
+                if (pauseWarningEl) {
+                    pauseWarningEl.style.display = "block";
+                }
+                if (data.isp_outage) {
+                    _showIspOutageBanner(data.announcement);
+                }
+            } else if (data.status === "active") {
+                if (window.sessionTimer && window.sessionTimer.isPaused) {
+                    window.sessionTimer.resume();
+                }
+                if (pauseBtn) {
+                    pauseBtn.classList.remove("btn-success");
+                    pauseBtn.classList.add("btn-warning");
+                    pauseBtn.innerHTML = '<i class="bi bi-pause-circle-fill"></i> Pause Session';
+                }
+                if (pauseWarningEl) {
+                    pauseWarningEl.style.display = "none";
+                }
+                _hideIspOutageBanner();
+            }
+
+            _updatePortalAnnouncement(data.announcement);
             
             if (data.group_max && data.group_redeemed !== undefined) {
                 const groupStatusEl = document.getElementById("group-plan-status");
@@ -1279,7 +1316,6 @@ function pollSessionStatus(macAddress, intervalMs = 3000) {
                     groupStatusEl.innerText = `${data.group_redeemed} / ${data.group_max} slots redeemed`;
                 }
                 
-                // If API returned live expiry update
                 if (data.group_code_expires_at) {
                     const expiryTimerEl = document.getElementById("group-code-expiry-timer");
                     if (expiryTimerEl && !expiryTimerEl.getAttribute('data-expires')) {
@@ -1291,6 +1327,48 @@ function pollSessionStatus(macAddress, intervalMs = 3000) {
             console.error("Status poll error:", error);
         }
     }, intervalMs);
+}
+
+function _showIspOutageBanner(customText) {
+    let el = document.getElementById('isp-outage-banner');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'isp-outage-banner';
+        el.className = 'alert alert-danger animate-fadeIn';
+        el.style.cssText = 'background: #fef2f2; color: #991b1b; border: 1.5px solid #f87171; padding: 10px 14px; border-radius: 10px; font-size: 12px; font-weight: 600; margin-bottom: 12px; text-align: center; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.15);';
+        const card = document.querySelector('.portal-card') || document.querySelector('.container') || document.body;
+        if (card.firstChild) {
+            card.insertBefore(el, card.firstChild);
+        } else {
+            card.appendChild(el);
+        }
+    }
+    const msg = customText || "⚠️ Internet connection is temporarily interrupted. Your timer is FROZEN to protect your time!";
+    el.innerHTML = `<i class="bi bi-wifi-off"></i> ${msg}`;
+    el.style.display = 'block';
+}
+
+function _hideIspOutageBanner() {
+    const el = document.getElementById('isp-outage-banner');
+    if (el) el.remove();
+}
+
+function _updatePortalAnnouncement(announcementText) {
+    let bar = document.getElementById('announcement-banner-top');
+    if (announcementText && !announcementText.includes("temporarily interrupted by our ISP")) {
+        if (!bar) {
+            bar = document.createElement('div');
+            bar.id = 'announcement-banner-top';
+            bar.className = 'alert alert-info';
+            bar.style.cssText = 'margin: 0 0 12px 0; font-size: 12.5px; border-radius: 8px; text-align: center;';
+            const card = document.querySelector('.portal-card') || document.querySelector('.container');
+            if (card) card.prepend(bar);
+        }
+        bar.innerHTML = `<i class="bi bi-megaphone-fill"></i> ${announcementText}`;
+        bar.style.display = 'block';
+    } else if (bar) {
+        bar.style.display = 'none';
+    }
 }
 
 function showFiveMinuteWarning() {

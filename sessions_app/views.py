@@ -1618,12 +1618,47 @@ def session_status(request):
             }
         )
 
+    from dashboard.models import Announcement, SystemSettings
+
     session = Session.objects.filter(
         mac_address=mac_address,
-        status="active",
+        status__in=["active", "paused"],
     ).first()
 
+    active_ann = Announcement.objects.filter(is_active=True).first()
+    ann_text = active_ann.message if active_ann else None
+    isp_outage = bool(cache.get("isp_outage_active", False))
+
     if session:
+        if session.status == "paused":
+            # Check if paused session exceeded global max pause hours
+            settings_obj = SystemSettings.get_settings()
+            max_pause_hours = settings_obj.global_pause_limit_hours if settings_obj else 24
+            if max_pause_hours > 0 and session.paused_at:
+                pause_age_hours = (timezone.now() - session.paused_at).total_seconds() / 3600.0
+                if pause_age_hours >= max_pause_hours:
+                    session.expire_session()
+                    blocked = iptables.block_device(session.mac_address)
+                    return Response(
+                        {
+                            "status": "expired",
+                            "message": f"Paused session expired after exceeding {max_pause_hours}h limit",
+                            "session": SessionSerializer(session).data,
+                            "access_revoked": blocked,
+                        }
+                    )
+
+            return Response(
+                {
+                    "status": "paused",
+                    "message": "Session is paused",
+                    "session": SessionSerializer(session).data,
+                    "is_whitelisted": False,
+                    "isp_outage": isp_outage,
+                    "announcement": ann_text,
+                }
+            )
+
         with transaction.atomic():
             locked_session = Session.objects.select_for_update().filter(
                 id=session.id,
@@ -1666,6 +1701,8 @@ def session_status(request):
                 "status": "active",
                 "session": SessionSerializer(locked_session).data,
                 "is_whitelisted": False,
+                "isp_outage": isp_outage,
+                "announcement": ann_text,
             }
             if locked_session.session_group:
                 grp = locked_session.session_group

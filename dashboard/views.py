@@ -1826,9 +1826,31 @@ def settings_view(request):
             if 'group_code_expiry_hours' in request.POST:
                 settings_obj.group_code_expiry_hours = max(0, int(request.POST.get('group_code_expiry_hours', 24)))
             
+            # Telegram Bot Integration
+            if 'telegram_bot_token' in request.POST or 'enable_telegram_bot' in request.POST:
+                settings_obj.enable_telegram_bot = request.POST.get('enable_telegram_bot') == 'on'
+                if request.POST.get('telegram_bot_token'):
+                    settings_obj.telegram_bot_token = request.POST.get('telegram_bot_token', '').strip()
+                if request.POST.get('telegram_admin_chat_id'):
+                    settings_obj.telegram_admin_chat_id = request.POST.get('telegram_admin_chat_id', '').strip()
+                settings_obj.telegram_notify_tickets = request.POST.get('telegram_notify_tickets') == 'on'
+                settings_obj.telegram_notify_isp_down = request.POST.get('telegram_notify_isp_down') == 'on'
+                settings_obj.telegram_notify_daily_summary = request.POST.get('telegram_notify_daily_summary') == 'on'
+
             settings_obj.save()
             message = "Settings updated successfully."
-            
+
+            # Test telegram ping if requested
+            if request.POST.get('test_telegram') == '1':
+                from dashboard.telegram_bot import send_telegram_message
+                test_sent = send_telegram_message(
+                    "🔔 *Test Notification from iConnect Admin Console!*\nYour settings are saved and Telegram alerts are connected! 🚀"
+                )
+                if test_sent:
+                    message += " (Test message sent to Telegram successfully!)"
+                else:
+                    message += " (Note: Could not send test Telegram ping, please verify token and Chat ID)."
+
             # Apply network settings immediately if on Linux
             try:
                 from sessions_app.iptables import apply_network_settings
