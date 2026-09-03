@@ -59,6 +59,7 @@ class SessionTimer {
             if (this.remaining <= 300 && this.remaining > 60 && !this.warningShown) {
                 this.warningShown = true;
                 _playAlertSound('warning');
+                if (navigator.vibrate) try { navigator.vibrate([200, 100, 200]); } catch (e) {}
                 _showTimerBanner('⚠️ 5 minutes remaining! Your session will end soon.', 'warning');
                 _sendBrowserNotification('iConnect - 5 Minutes Left', 'Your WiFi session will end in 5 minutes. Consider extending your session.');
                 if (this.onWarning) {
@@ -70,6 +71,7 @@ class SessionTimer {
             if (this.remaining <= 60 && this.remaining > 0 && !this.oneMinWarningShown) {
                 this.oneMinWarningShown = true;
                 _playAlertSound('urgent');
+                if (navigator.vibrate) try { navigator.vibrate([300, 100, 300]); } catch (e) {}
                 _showTimerBanner('🔴 1 minute remaining! Extend now to stay connected.', 'danger');
                 _sendBrowserNotification('iConnect - 1 Minute Left!', 'Your WiFi session ends in 1 minute! Insert coins to extend.');
             }
@@ -284,34 +286,25 @@ async function initExpiryNotificationUI() {
 
     if (!container || !btn) return;
 
-    // Register Service Worker in the background for mobile delivery
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch((e) => {
-            console.warn('SW registration warning:', e);
-        });
-    }
+    // Check if user previously toggled alert ON
+    const isAlertOn = (localStorage.getItem('iconnect_alert_enabled') === '1');
 
-    if (!('Notification' in window)) {
-        // Fallback for in-app mini webviews without Notification API
+    if (isAlertOn) {
         btn.classList.add('active');
-        if (btnText) btnText.innerHTML = '<i class="bi bi-volume-up-fill"></i> 5-Min Sound Alert Active';
-        if (subtext) subtext.innerText = 'Audio chime will alert you 5 minutes before your time ends';
-        return;
-    }
-
-    if (Notification.permission === 'granted') {
-        btn.classList.add('active');
-        if (btnText) btnText.innerHTML = '<i class="bi bi-check-circle-fill"></i> 5-Min Phone Alert Active';
-        if (subtext) subtext.innerText = 'Your phone will vibrate and alert you when 5 minutes remain';
-    } else if (Notification.permission === 'denied') {
-        btn.classList.remove('active');
-        if (btnText) btnText.innerText = 'Notifications Blocked';
-        if (subtext) subtext.innerText = 'Tap lock icon in browser address bar to allow alerts';
+        if (btnText) btnText.innerHTML = '<i class="bi bi-check-circle-fill"></i> 5-Min Alert Active';
+        if (subtext) subtext.innerText = 'Phone will vibrate & chime when 5 minutes remain';
     } else {
         btn.classList.remove('active');
-        if (btnText) btnText.innerText = 'Turn on 5-Min Phone Alert';
-        if (subtext) subtext.innerText = 'Receive a notification on your phone when 5 minutes remain';
+        if (btnText) btnText.innerHTML = '<i class="bi bi-bell-fill"></i> Turn on 5-Min Phone Alert';
+        if (subtext) subtext.innerText = 'Receive an audio chime & vibration when 5 minutes remain';
     }
+
+    // Register Service Worker in background if supported
+    try {
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
+        }
+    } catch (e) {}
 }
 
 async function toggleExpiryAlerts() {
@@ -319,47 +312,49 @@ async function toggleExpiryAlerts() {
     const btnText = document.getElementById('alert-btn-text');
     const subtext = document.getElementById('alert-subtext');
 
-    if (!('Notification' in window)) {
-        alert('Notifications are not supported on this browser.');
+    const currentlyOn = (localStorage.getItem('iconnect_alert_enabled') === '1');
+
+    if (currentlyOn) {
+        // Toggle OFF
+        localStorage.setItem('iconnect_alert_enabled', '0');
+        if (btn) btn.classList.remove('active');
+        if (btnText) btnText.innerHTML = '<i class="bi bi-bell-fill"></i> Turn on 5-Min Phone Alert';
+        if (subtext) subtext.innerText = 'Receive an audio chime & vibration when 5 minutes remain';
         return;
     }
 
-    if (Notification.permission === 'denied') {
-        alert('Notifications are currently blocked. Tap the tune/lock icon in your browser address bar and enable Notifications for iConnect.');
-        return;
+    // Toggle ON
+    localStorage.setItem('iconnect_alert_enabled', '1');
+    if (btn) btn.classList.add('active');
+    if (btnText) btnText.innerHTML = '<i class="bi bi-check-circle-fill"></i> 5-Min Alert Active';
+    if (subtext) subtext.innerText = 'Phone will vibrate & chime when 5 minutes remain';
+
+    // 1. Play tactile audio chime immediately so user hears it work
+    _playAlertSound('warning');
+
+    // 2. Vibrate phone immediately if supported
+    if (navigator.vibrate) {
+        try { navigator.vibrate([150, 80, 150]); } catch (e) {}
     }
 
-    if (Notification.permission === 'granted') {
-        _playAlertSound('warning');
-        _sendBrowserNotification(
-            '🔔 5-Minute Alert is Active!',
-            'Your phone is set up! You will get an alert with sound and vibration 5 minutes before your time ends.'
-        );
-        return;
-    }
-
-    // Request permission on explicit user click gesture
+    // 3. Try to request Web Notification if available
     try {
-        const perm = await Notification.requestPermission();
-        if (perm === 'granted') {
-            if (btn) btn.classList.add('active');
-            if (btnText) btnText.innerHTML = '<i class="bi bi-check-circle-fill"></i> 5-Min Phone Alert Active';
-            if (subtext) subtext.innerText = 'Your phone will vibrate and alert you when 5 minutes remain';
-
-            _playAlertSound('warning');
+        if ('Notification' in window && Notification.permission === 'default') {
+            Notification.requestPermission().then(perm => {
+                if (perm === 'granted') {
+                    _sendBrowserNotification(
+                        '🔔 5-Minute Alert Enabled!',
+                        'You will receive an alert with sound and vibration 5 minutes before your time ends.'
+                    );
+                }
+            }).catch(() => {});
+        } else if ('Notification' in window && Notification.permission === 'granted') {
             _sendBrowserNotification(
-                '🔔 Alert Enabled!',
-                'You will receive an alert with sound and vibration 5 minutes before your time ends.',
-                { vibrate: [100, 50, 100] }
+                '🔔 5-Minute Alert Enabled!',
+                'You will receive an alert with sound and vibration 5 minutes before your time ends.'
             );
-        } else if (perm === 'denied') {
-            if (btn) btn.classList.remove('active');
-            if (btnText) btnText.innerText = 'Notifications Blocked';
-            if (subtext) subtext.innerText = 'You blocked notifications. Reset in browser settings to enable.';
         }
-    } catch (e) {
-        console.error('Error requesting notification permission:', e);
-    }
+    } catch (e) {}
 }
 
 function _showExpiredModal(macAddress) {
