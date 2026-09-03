@@ -29,6 +29,10 @@ if SECRET_KEY == DEFAULT_DEV_SECRET_KEY:
 DEBUG = os.getenv('DEBUG', 'False').lower().strip() in ('true', '1', 'yes')
 ALLOWED_HOSTS = [host.strip() for host in os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1,0.0.0.0').split(',') if host.strip()]
 
+# Authentication redirects
+LOGIN_URL = '/iconnect-ops/login/'
+LOGIN_REDIRECT_URL = '/iconnect-ops/'
+
 # Session settings (admin dashboard login)
 SESSION_COOKIE_AGE = 28800  # 8 hours in seconds
 SESSION_SAVE_EVERY_REQUEST = True  # Reset timer on each request
@@ -153,8 +157,9 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
+    ] + ([
         'rest_framework.renderers.BrowsableAPIRenderer',
-    ],
+    ] if DEBUG else []),
     'DEFAULT_PARSER_CLASSES': [
         'rest_framework.parsers.JSONParser',
         'rest_framework.parsers.FormParser',

@@ -52,7 +52,7 @@ class ReportAccessTests(TestCase):
     def test_generate_report_requires_authentication(self):
         response = self.client.get("/reports/generate/")
         self.assertEqual(response.status_code, 302)
-        self.assertIn("/dashboard/login/", response.url)
+        self.assertIn("/iconnect-ops/login/", response.url)
 
     def test_generate_report_allows_staff(self):
         logged_in = self.client.login(username=self.user.username, password=self.password)

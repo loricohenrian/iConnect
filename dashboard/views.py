@@ -739,6 +739,23 @@ def revenue(request):
             purch_qs.delete()
             # Redirect to avoid form resubmission
             return redirect(f"{request.path}?reset=success&deleted={deleted_sessions}")
+        elif action == 'update_goal':
+            daily_target = request.POST.get('daily_target', '').strip()
+            weekly_target = request.POST.get('weekly_target', '').strip()
+            if daily_target != '':
+                try:
+                    d_amt = max(0, int(daily_target))
+                    RevenueGoal.objects.update_or_create(period='daily', defaults={'target_amount': d_amt})
+                except (ValueError, TypeError):
+                    pass
+            if weekly_target != '':
+                try:
+                    w_amt = max(0, int(weekly_target))
+                    RevenueGoal.objects.update_or_create(period='weekly', defaults={'target_amount': w_amt})
+                except (ValueError, TypeError):
+                    pass
+            messages.success(request, "Revenue goals updated successfully.")
+            return redirect(request.get_full_path())
 
     # Process GET parameters for date filtering
     period = request.GET.get('period', 'today')
@@ -819,6 +836,17 @@ def revenue(request):
     except EmptyPage:
         sessions_page = paginator.page(paginator.num_pages)
 
+    # Revenue Goals tracking
+    daily_goal = RevenueGoal.objects.filter(period='daily').first()
+    weekly_goal = RevenueGoal.objects.filter(period='weekly').first()
+    today_sales_for_goal = CoinEvent.objects.filter(timestamp__date=today).aggregate(total=Sum('amount'))['total'] or 0
+    week_start_for_goal = today - timedelta(days=today.weekday())
+    week_sales_for_goal = CoinEvent.objects.filter(timestamp__date__gte=week_start_for_goal).aggregate(total=Sum('amount'))['total'] or 0
+    daily_target_amt = daily_goal.target_amount if daily_goal else 0
+    weekly_target_amt = weekly_goal.target_amount if weekly_goal else 0
+    daily_progress = min(100, round((today_sales_for_goal / daily_target_amt) * 100)) if daily_target_amt > 0 else 0
+    weekly_progress = min(100, round((week_sales_for_goal / weekly_target_amt) * 100)) if weekly_target_amt > 0 else 0
+
     context = {
         'active_page': 'revenue',
         'period': period,
@@ -831,6 +859,12 @@ def revenue(request):
         'plan_data': json.dumps(plan_data),
         'sessions': sessions_page,
         'status_filter': status_filter,
+        'daily_target_amt': daily_target_amt,
+        'weekly_target_amt': weekly_target_amt,
+        'today_sales_for_goal': today_sales_for_goal,
+        'week_sales_for_goal': week_sales_for_goal,
+        'daily_progress': daily_progress,
+        'weekly_progress': weekly_progress,
     }
     return render(request, 'dashboard/revenue.html', context)
 

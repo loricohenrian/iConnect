@@ -53,3 +53,15 @@ pip-wheel-metadata/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Temporary scratch and patch scripts
+patch_*.py
+fix_*.py
+cleanup_*.py
+rewrite_*.py
+check_*.py
+temp_*.py
+test_*.py
+!*/test_*.py
+!**/tests.py
+!**/test_*.py
