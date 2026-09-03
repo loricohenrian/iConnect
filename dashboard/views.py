@@ -388,11 +388,17 @@ def revenue_data_api(request):
     period = request.query_params.get('period', 'weekly')
     today = timezone.localdate()
 
-    if period == 'daily':
+    custom_start = request.query_params.get('start_date')
+    custom_end = request.query_params.get('end_date')
+
+    if custom_start:
+        from django.utils.dateparse import parse_date
+        start_date = parse_date(custom_start)
+    elif period in ('daily', 'today'):
         start_date = today
-    elif period == 'weekly':
+    elif period in ('weekly', 'week'):
         start_date = today - timedelta(days=7)
-    elif period == 'monthly':
+    elif period in ('monthly', 'month'):
         start_date = today - timedelta(days=30)
     else:
         start_date = today - timedelta(days=365)
@@ -1267,7 +1273,7 @@ def analytics_view(request):
     if peak_hour_data and peak_hour != 'N/A':
         insights.append({
             'title': 'Optimize for Peak Hours',
-            'text': f"Your busiest traffic occurs around {peak_hour}. Consider promoting special study bundles or off-peak rates to balance solar power and bandwidth demand.",
+            'text': f"Your busiest traffic occurs around {peak_hour}. Consider offering longer study passes or promos to maximize revenue during this peak window.",
             'type': 'tip'
         })
     if revenue_growth < 0:
