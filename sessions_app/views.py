@@ -1630,6 +1630,15 @@ def session_status(request):
     isp_outage = Announcement.objects.filter(is_active=True, message__contains="interrupted by our ISP").exists()
 
     if session:
+        # If an ISP outage is active, enforce that the session is paused immediately!
+        if isp_outage and session.status == "active":
+            session.pause_session()
+            try:
+                iptables.block_device(session.mac_address)
+            except Exception:
+                pass
+            session.refresh_from_db()
+
         if session.status == "paused":
             # Check if paused session exceeded global max pause hours
             settings_obj = SystemSettings.get_settings()

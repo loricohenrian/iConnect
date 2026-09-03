@@ -161,13 +161,7 @@ def index(request):
 
     is_internet_offline = False
     if settings_obj.enable_internet_check:
-        cached_status = cache.get("internet_status_ok")
-        if cached_status is None:
-            from sessions_app.tasks import check_internet_status
-            check_internet_status()
-            cached_status = cache.get("internet_status_ok")
-        if cached_status is False:
-            is_internet_offline = True
+        is_internet_offline = Announcement.objects.filter(is_active=True, message__contains="interrupted by our ISP").exists()
 
     context = {
         "plans": plans,
@@ -205,6 +199,17 @@ def session_page(request):
         mac_address=mac_address,
         status__in=["active", "paused"],
     ).select_related("plan", "session_group").first()
+
+    if active_session:
+        # Check if ISP is currently down and enforce pause
+        isp_outage = Announcement.objects.filter(is_active=True, message__contains="interrupted by our ISP").exists()
+        if isp_outage and active_session.status == "active":
+            active_session.pause_session()
+            try:
+                iptables.block_device(active_session.mac_address)
+            except Exception:
+                pass
+            active_session.refresh_from_db()
 
     if active_session and request_ip and active_session.ip_address != request_ip:
         active_session.ip_address = request_ip

@@ -513,13 +513,22 @@ def check_internet_status():
 
         existing_outage = Announcement.objects.filter(is_active=True, message__contains="interrupted by our ISP").exists()
 
-        # Require 2 consecutive failed probes (~30s) to avoid momentary glitches
-        if fail_count >= 2 and not existing_outage:
-            logger.error("ISP Outage confirmed! Freezing active student sessions to protect time...")
+        # Confirmed outage: either 2 failed probes or outage announcement is active
+        if fail_count >= 2 or existing_outage:
+            if not existing_outage:
+                logger.error("ISP Outage confirmed! Posting announcement and freezing student sessions...")
+                # 1. Automatically post announcement on captive portal
+                ann_text = (
+                    "⚠️ NOTICE: Internet is temporarily interrupted by our ISP. "
+                    "All user timers have been FROZEN to protect your remaining time! "
+                    "Your timer will automatically resume as soon as connection is restored."
+                )
+                Announcement.objects.create(message=ann_text, is_active=True)
 
-            # 1. Freeze all active sessions
+            # 2. Freeze ALL active sessions (continuous protection during outage!)
             active_sessions = list(Session.objects.filter(status="active"))
-            paused_ids = []
+            paused_ids = _safe_cache_get("isp_paused_session_ids") or []
+            newly_paused = 0
             for s in active_sessions:
                 try:
                     s.pause_session()
@@ -528,35 +537,30 @@ def check_internet_status():
                         iptables.block_device(s.mac_address)
                     except Exception:
                         pass
-                    paused_ids.append(s.id)
+                    if s.id not in paused_ids:
+                        paused_ids.append(s.id)
+                    newly_paused += 1
                 except Exception as e:
                     logger.error(f"Failed to pause session {s.id} during outage: {e}")
 
             _safe_cache_set("isp_paused_session_ids", paused_ids, timeout=None)
 
-            # 2. Automatically post announcement on captive portal
-            ann_text = (
-                "⚠️ NOTICE: Internet is temporarily interrupted by our ISP. "
-                "All user timers have been FROZEN to protect your remaining time! "
-                "Your timer will automatically resume as soon as connection is restored."
-            )
-            Announcement.objects.create(message=ann_text, is_active=True)
+            # 3. Send Telegram Outage Alert (only once when outage starts)
+            if not existing_outage:
+                try:
+                    from dashboard.telegram_bot import send_telegram_message, get_telegram_config
+                    cfg = get_telegram_config()
+                    if cfg.get("enabled") and cfg.get("notify_isp_down"):
+                        send_telegram_message(
+                            f"🚨 *ISP OUTAGE DETECTED!*\n"
+                            f"Upstream internet connection dropped.\n\n"
+                            f"⏸ *Action Taken:* Automatically paused `{len(paused_ids)}` active student session(s) to protect customer time.\n"
+                            f"📢 Outage notice displayed on captive portal screen."
+                        )
+                except Exception as tg_err:
+                    logger.warning(f"Failed to send Telegram outage alert: {tg_err}")
 
-            # 3. Send Telegram Outage Alert
-            try:
-                from dashboard.telegram_bot import send_telegram_message, get_telegram_config
-                cfg = get_telegram_config()
-                if cfg.get("enabled") and cfg.get("notify_isp_down"):
-                    send_telegram_message(
-                        f"🚨 *ISP OUTAGE DETECTED!*\n"
-                        f"Upstream internet connection dropped.\n\n"
-                        f"⏸ *Action Taken:* Automatically paused `{len(paused_ids)}` active student session(s) to protect customer time.\n"
-                        f"📢 Outage notice displayed on captive portal screen."
-                    )
-            except Exception as tg_err:
-                logger.warning(f"Failed to send Telegram outage alert: {tg_err}")
-
-            return f"ISP outage handled: paused {len(paused_ids)} sessions"
+            return f"ISP outage active: paused {len(paused_ids)} sessions"
 
         return f"ISP probe failed ({fail_count}/2)"
 

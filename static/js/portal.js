@@ -49,6 +49,13 @@ class SessionTimer {
         if (typeof _hideTimerBanner === "function") _hideTimerBanner();
     }
 
+    resume() {
+        if (!this.isPaused) return;
+        this.isPaused = false;
+        this.startedAt = this._now();
+        this.start();
+    }
+
     start() {
         this.isPaused = false;
         this.update();
@@ -1278,14 +1285,24 @@ function pollSessionStatus(macAddress, intervalMs = 3000) {
             const pauseWarningEl = document.getElementById("pause-duration-warning");
             const pauseBtn = document.getElementById("pause-btn");
 
-            if (data.status === "paused") {
+            if (data.isp_outage || data.status === "paused") {
                 if (window.sessionTimer && !window.sessionTimer.isPaused) {
                     window.sessionTimer.pause();
+                }
+                if (data.session && data.session.time_remaining_seconds !== undefined && window.sessionTimer) {
+                    window.sessionTimer.serverSeconds = Math.max(0, data.session.time_remaining_seconds);
+                    window.sessionTimer.update();
                 }
                 if (pauseBtn) {
                     pauseBtn.classList.remove("btn-warning");
                     pauseBtn.classList.add("btn-success");
-                    pauseBtn.innerHTML = '<i class="bi bi-play-circle-fill"></i> Resume Internet';
+                    if (data.isp_outage) {
+                        pauseBtn.innerHTML = '<i class="bi bi-pause-circle-fill"></i> Frozen (No Internet)';
+                        pauseBtn.disabled = true;
+                    } else {
+                        pauseBtn.innerHTML = '<i class="bi bi-play-circle-fill"></i> Resume Internet';
+                        pauseBtn.disabled = false;
+                    }
                 }
                 if (pauseWarningEl) {
                     pauseWarningEl.style.display = "block";
@@ -1293,14 +1310,18 @@ function pollSessionStatus(macAddress, intervalMs = 3000) {
                 if (data.isp_outage) {
                     _showIspOutageBanner(data.announcement);
                 }
-            } else if (data.status === "active") {
+            } else if (data.status === "active" && !data.isp_outage) {
                 if (window.sessionTimer && window.sessionTimer.isPaused) {
                     window.sessionTimer.resume();
+                }
+                if (data.session && data.session.time_remaining_seconds !== undefined && window.sessionTimer) {
+                    window.sessionTimer.serverSeconds = Math.max(0, data.session.time_remaining_seconds);
                 }
                 if (pauseBtn) {
                     pauseBtn.classList.remove("btn-success");
                     pauseBtn.classList.add("btn-warning");
                     pauseBtn.innerHTML = '<i class="bi bi-pause-circle-fill"></i> Pause Session';
+                    pauseBtn.disabled = false;
                 }
                 if (pauseWarningEl) {
                     pauseWarningEl.style.display = "none";
