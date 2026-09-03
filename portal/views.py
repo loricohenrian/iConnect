@@ -56,6 +56,14 @@ def _mac_from_arp(ip_address):
 
 
 def _get_mac_address(request):
+    # Auto-detect from kernel ARP table first (ground truth of the physical device connection)
+    client_ip = _client_ip(request)
+    arp_mac = _mac_from_arp(client_ip)
+    if arp_mac:
+        request.session[SESSION_MAC_KEY] = arp_mac
+        return arp_mac
+
+    # Fallback for environments where ARP is unavailable (e.g. tests, loopback, proxy)
     stored_mac = _normalize_mac(request.session.get(SESSION_MAC_KEY, ""))
     query_mac = _normalize_mac(request.GET.get("mac", "") or request.GET.get("mac_address", ""))
     header_mac = _normalize_mac(request.META.get("HTTP_X_MAC_ADDRESS", ""))
@@ -74,25 +82,12 @@ def _get_mac_address(request):
 
     explicit_mac = query_mac or header_mac or post_mac
 
-    if stored_mac and explicit_mac and explicit_mac != stored_mac:
-        return stored_mac
-
-    if explicit_mac and not stored_mac:
+    if explicit_mac:
         request.session[SESSION_MAC_KEY] = explicit_mac
         return explicit_mac
 
     if stored_mac:
         return stored_mac
-
-    if explicit_mac:
-        return explicit_mac
-
-    # Auto-detect from ARP table if no MAC available yet
-    client_ip = _client_ip(request)
-    arp_mac = _mac_from_arp(client_ip)
-    if arp_mac:
-        request.session[SESSION_MAC_KEY] = arp_mac
-        return arp_mac
 
     return ""
 

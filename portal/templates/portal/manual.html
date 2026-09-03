@@ -174,14 +174,15 @@
     <!-- FAQ 1: Private / Randomized MAC -->
     <details class="faq-item animate-fadeIn">
         <summary class="faq-question">
-            <span><i class="bi bi-phone text-primary" style="margin-right: 6px;"></i> Why did my timer disappear after reconnecting?</span>
+            <span><i class="bi bi-phone text-primary" style="margin-right: 6px;"></i> Why did my timer disappear, and how do I prevent it?</span>
             <i class="bi bi-chevron-down faq-arrow"></i>
         </summary>
         <div class="faq-answer">
-            <p><strong>English:</strong> On newer iPhones (iOS 14+) and Android phones (Android 10+), your device turns on <em>"Private Wi-Fi Address"</em> or <em>"Randomized MAC"</em> by default. If your phone randomly changes its address, the system thinks you are a new device!</p>
-            <p style="margin-top: 6px;"><strong>Fix:</strong> Go to your phone's <strong>Settings &rarr; Wi-Fi &rarr; Tap the (i) or gear icon next to iConnect &rarr; Set "MAC Address Type" to "Device MAC / Phone MAC"</strong>. Reconnect and your remaining time will immediately reappear!</p>
+            <p><strong>English:</strong> Newer phones (iOS 14+ and Android 10+) enable <em>"Randomized MAC"</em> by default. Because sessions are linked to your MAC address, if your phone rotates its MAC or you switch MAC settings, the system sees a new device with 0 minutes.</p>
+            <p style="margin-top: 6px;"><strong>💡 Best Practice:</strong> Set your Wi-Fi to <strong>"Device MAC / Phone MAC" BEFORE inserting coins</strong> so your phone keeps the same permanent identity.</p>
+            <p style="margin-top: 6px;"><strong>🔄 Lost your time?</strong> If you recently toggled your Wi-Fi privacy settings, switch back to the setting you had when you inserted coins (e.g. Randomized MAC), turn Wi-Fi off and on, and your timer will return! If your phone rotated its MAC on its own, send a message using the Report form below and the operator will restore your minutes.</p>
             <hr style="border: none; border-top: 1px dashed var(--color-border); margin: 8px 0;">
-            <p class="text-muted" style="font-size: 12px;"><strong>Tagalog:</strong> Sa mga bagong iPhone at Android, naka-on ang "Randomized MAC". Palitan ito sa Wi-Fi settings ng iyong phone patungong <strong>"Device MAC"</strong> para hindi mawala ang iyong natitirang oras.</p>
+            <p class="text-muted" style="font-size: 12px;"><strong>Tagalog:</strong> Naka-on ang "Randomized MAC" sa mga bagong phone. <strong>Tip:</strong> Piliin ang <strong>"Device MAC" BAGO maghulog ng barya</strong> para permanente ang iyong identity. Kung nawala ang oras mo matapos galawin ang Wi-Fi settings, ibalik ito sa dati mong setting nung naghulog ka (at i-off/on ang Wi-Fi) para bumalik ang oras, o magpadala ng report sa ibaba para maibalik ng operator!</p>
         </div>
     </details>
 
