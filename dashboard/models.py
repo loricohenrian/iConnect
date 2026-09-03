@@ -232,6 +232,36 @@ class SystemSettings(models.Model):
         help_text="Hours after purchase before a group code can no longer be redeemed (0 = no expiry)"
     )
 
+    # Telegram Bot Integration
+    enable_telegram_bot = models.BooleanField(
+        default=True,
+        help_text="Enable Telegram bot for remote management and alerts"
+    )
+    telegram_bot_token = models.CharField(
+        max_length=150,
+        default="8946483111:AAEQBhy1vOqLFPdKIXjInvGjNrofI3TqgZg",
+        blank=True,
+        help_text="Telegram Bot Token from @BotFather"
+    )
+    telegram_admin_chat_id = models.CharField(
+        max_length=50,
+        default="6261306648",
+        blank=True,
+        help_text="Authorized Telegram Admin Chat ID"
+    )
+    telegram_notify_tickets = models.BooleanField(
+        default=True,
+        help_text="Send alerts when customer reports an issue ticket"
+    )
+    telegram_notify_isp_down = models.BooleanField(
+        default=True,
+        help_text="Send alert when ISP internet drops"
+    )
+    telegram_notify_daily_summary = models.BooleanField(
+        default=True,
+        help_text="Send daily midnight sales summary"
+    )
+
     class Meta:
         verbose_name = "System Setting"
         verbose_name_plural = "System Settings"

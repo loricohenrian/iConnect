@@ -1,0 +1,14 @@
+[Unit]
+Description=iConnect Piso WiFi Telegram Bot Remote Operations Daemon
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/iconnect/pisowifi
+ExecStart=/opt/iconnect/pisowifi/venv/bin/python manage.py run_telegram_bot
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

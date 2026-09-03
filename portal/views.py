@@ -9,6 +9,7 @@ from django.conf import settings
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.core.paginator import Paginator
+from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from dashboard.models import Announcement
@@ -759,6 +760,24 @@ def api_report_issue(request):
         "event=issue_reported report_id=%s category=%s mac=%s ip=%s",
         report.id, category, mac_address or "<none>", ip,
     )
+
+    try:
+        from dashboard.telegram_bot import send_telegram_message, get_telegram_config
+        cfg = get_telegram_config()
+        if cfg.get('enabled') and cfg.get('notify_tickets'):
+            category_name = dict(IssueReport.CATEGORY_CHOICES).get(category, category)
+            t_msg = (
+                f"🚨 *New Support Ticket #{report.id}*\n\n"
+                f"📂 *Category:* {category_name}\n"
+                f"📝 *Message:* _{report.message}_\n"
+                f"📱 *Device:* `{report.mac_address or 'Unknown MAC'}`\n"
+                f"📞 *Contact:* `{report.contact_info or 'None'}`\n"
+                f"🕒 *Time:* {timezone.now().strftime('%I:%M %p')}\n\n"
+                f"Type /tickets on Telegram or view in Admin Console."
+            )
+            send_telegram_message(t_msg)
+    except Exception as e:
+        logger.warning(f"Failed to dispatch Telegram issue alert: {e}")
 
     return JsonResponse({
         "status": "success",
