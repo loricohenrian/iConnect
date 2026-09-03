@@ -128,6 +128,10 @@ def allow_device(mac_address, rate_kbps=None, upload_kbps=None):
     if success:
         logger.info('Allowed device: %s', mac)
         _add_nat_bypass(mac)
+        # Flush stale conntrack entries from the blocked/redirect state so
+        # Chrome's connectivity probe to Google succeeds immediately instead
+        # of hitting cached NAT redirect entries that cause "No Internet".
+        _flush_conntrack(mac_address)
         apply_bandwidth_limit(mac, rate_kbps=rate_kbps, upload_kbps=upload_kbps)
     return success
 

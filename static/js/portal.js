@@ -1573,11 +1573,29 @@ document.addEventListener("DOMContentLoaded", () => {
     const initialStatus = timerEl.dataset.status || "active";
     window.sessionTimer = new SessionTimer("session-timer", totalSeconds);
 
-    // Probe captive connectivity check to prompt OS / Chrome to re-verify full internet access
+    // Probe multiple connectivity check endpoints to force the OS / browser
+    // to re-verify internet access and clear the "No Internet" indicator.
+    // Chrome relies on Google's own endpoints, not local ones.
     if (initialStatus === "active") {
-        try {
-            fetch("/generate_204", { mode: "no-cors", cache: "no-store" }).catch(() => {});
-        } catch (e) {}
+        const probeUrls = [
+            "/generate_204",                                              // local (handled by Django)
+            "http://connectivitycheck.gstatic.com/generate_204",          // Chrome / Android
+            "http://clients3.google.com/generate_204",                    // Chrome fallback
+            "http://www.msftconnecttest.com/connecttest.txt",             // Windows
+        ];
+        probeUrls.forEach(url => {
+            try {
+                fetch(url, { mode: "no-cors", cache: "no-store" }).catch(() => {});
+            } catch (e) {}
+        });
+        // Retry after 3s in case iptables wasn't fully applied yet
+        setTimeout(() => {
+            probeUrls.forEach(url => {
+                try {
+                    fetch(url, { mode: "no-cors", cache: "no-store" }).catch(() => {});
+                } catch (e) {}
+            });
+        }, 3000);
     }
 
     window.sessionTimer.onExpire = async () => {
