@@ -269,6 +269,29 @@
     </div>
 </div>
 
+<!-- Delete Prize Confirmation Modal -->
+<div id="deletePrizeModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(15,23,42,0.6); backdrop-filter: blur(4px); z-index:1000; align-items:center; justify-content:center;">
+    <div style="background:white; border-radius:14px; padding:24px 28px; width:90%; max-width:400px; box-shadow: 0 20px 60px rgba(0,0,0,0.25);">
+        <div class="d-flex align-items-center gap-sm mb-md">
+            <div style="background: #fee2e2; color: #dc2626; width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor"><path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/><path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/></svg>
+            </div>
+            <div>
+                <h3 style="margin:0; font-size: 16px; color: var(--color-dark);">Delete Wheel Prize?</h3>
+                <span class="text-xs text-muted">This will remove this prize slice from the wheel.</span>
+            </div>
+        </div>
+        <p class="text-xs text-muted mb-md">Are you sure you want to permanently delete this wheel prize slice? This action cannot be undone.</p>
+        <form method="POST" id="deletePrizeForm" action="">
+            {% csrf_token %}
+            <div class="d-flex gap-sm justify-content-end">
+                <button type="button" class="btn btn-secondary w-100" onclick="closeDeletePrizeModal()">Cancel</button>
+                <button type="submit" class="btn btn-danger w-100" style="background: #dc2626; border-color: #dc2626; color: #fff;">Confirm Delete</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block dashboard_js %}
@@ -307,10 +330,34 @@ function closePrizeModal() {
     document.getElementById('prizeModal').style.display = 'none';
 }
 
+function openDeletePrizeModal(actionUrl) {
+    const modal = document.getElementById('deletePrizeModal');
+    const form = document.getElementById('deletePrizeForm');
+    if (modal && form) {
+        form.action = actionUrl;
+        modal.style.display = 'flex';
+    }
+}
+
+function closeDeletePrizeModal() {
+    const modal = document.getElementById('deletePrizeModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
 window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
         closePrizeModal();
+        closeDeletePrizeModal();
     }
+});
+
+window.addEventListener('click', (e) => {
+    const prizeModal = document.getElementById('prizeModal');
+    const deleteModal = document.getElementById('deletePrizeModal');
+    if (e.target === prizeModal) closePrizeModal();
+    if (e.target === deleteModal) closeDeletePrizeModal();
 });
 </script>
 {% endblock %}
