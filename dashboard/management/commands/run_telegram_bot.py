@@ -60,7 +60,12 @@ class Command(BaseCommand):
                                     text = message.get("text", "")
 
                                     self.stdout.write(f"Received from {sender_name} ({sender_id}): {text}")
-                                    handle_telegram_command(text, sender_id, sender_name)
+                                    try:
+                                        handle_telegram_command(text, sender_id, sender_name)
+                                    except Exception as cmd_err:
+                                        logger.error(f"Error processing command '{text}': {cmd_err}", exc_info=True)
+                                        self.stderr.write(self.style.ERROR(f"Command error: {cmd_err}"))
+                                        send_telegram_message(f"⚠️ Error executing `{text}`: {cmd_err}", chat_id=sender_id)
 
             except urllib.error.HTTPError as he:
                 if he.code == 409:

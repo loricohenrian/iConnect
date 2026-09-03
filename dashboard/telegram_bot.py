@@ -371,9 +371,3 @@ def handle_telegram_command(command_text, sender_id, sender_name="User"):
             f"❓ Unknown command: `{cmd}`\nType /help to see the list of available commands.",
             chat_id=sender_id
         )
-
-    else:
-        send_telegram_message(
-            f"❓ Unknown command: `{cmd}`\nType /help to see the list of available commands.",
-            chat_id=sender_id
-        )
