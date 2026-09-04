@@ -179,6 +179,18 @@ class SystemSettings(models.Model):
         default=120,
         help_text="Seconds before the coin slot auto-cancels if no coins are inserted (Default: 120)"
     )
+    coin_timer_extension_seconds = models.PositiveIntegerField(
+        default=8,
+        help_text="Seconds added to the remaining countdown each time a coin is inserted (Default: 8)"
+    )
+    coin_timer_min_remaining_seconds = models.PositiveIntegerField(
+        default=15,
+        help_text="Minimum guaranteed seconds remaining on the timer after each coin is inserted (Default: 15)"
+    )
+    coin_timer_max_seconds = models.PositiveIntegerField(
+        default=180,
+        help_text="Maximum total seconds the countdown can reach to prevent slot hogging (Safety ceiling, Default: 180)"
+    )
 
     # Gamification
     enable_spin_wheel = models.BooleanField(

@@ -217,7 +217,13 @@
         <p id="start-flow-meta" class="text-small text-muted mt-md" style="margin-bottom:0;"></p>
         <div id="coin-countdown-container" class="mt-md" style="display:none; text-align:center;">
             <div style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 4px;">Time remaining to insert coins</div>
-            <div id="coin-countdown-display" style="font-size: 1.5rem; font-weight: bold; font-family: monospace; color: var(--text-primary);">02:00</div>
+            <div style="display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
+                <div id="coin-countdown-display" style="font-size: 1.6rem; font-weight: bold; font-family: monospace; color: var(--text-primary); transition: all 0.2s ease;">02:00</div>
+                <span id="coin-countdown-badge" style="display: none; background: #10B981; color: #ffffff; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 12px; box-shadow: 0 2px 4px rgba(16,185,129,0.3); transition: all 0.3s ease;">+Bonus Time! 🪙</span>
+            </div>
+            <div style="font-size: 0.75rem; color: #10B981; margin-top: 3px; font-weight: 500;">
+                <i class="bi bi-clock-history"></i> Timer extends with each coin inserted
+            </div>
             <button type="button" class="btn btn-secondary mt-sm" id="btn-cancel-coin-request" style="font-size: 13px; padding: 6px 14px; margin-top: 10px; border-radius: 8px;">Cancel Request</button>
         </div>
     </div>
@@ -238,44 +244,36 @@
 
 <script>
     const COUNTDOWN_SECONDS = {{ insert_coin_countdown_seconds|default:120 }};
-    let countdownInterval = null;
-    let countdownEndTime = 0;
-
-    // Observe changes to start-flow-message to know when to start/stop the timer
     const flowMessage = document.getElementById('start-flow-message');
     const countdownContainer = document.getElementById('coin-countdown-container');
     const countdownDisplay = document.getElementById('coin-countdown-display');
 
     if (flowMessage && countdownContainer && countdownDisplay) {
+        let fallbackInterval = null;
         const observer = new MutationObserver(() => {
             const msg = flowMessage.innerText;
-            // When the coin slot is active, start the timer
             if (msg.includes("Insert coins now") || msg.includes("Minimum reached")) {
-                if (!countdownInterval) {
-                    countdownEndTime = Date.now() + (COUNTDOWN_SECONDS * 1000);
+                if (!window.syncCoinCountdown && !fallbackInterval) {
+                    let remaining = COUNTDOWN_SECONDS;
                     countdownContainer.style.display = 'block';
-                    countdownInterval = setInterval(() => {
-                        const remaining = Math.max(0, Math.floor((countdownEndTime - Date.now()) / 1000));
+                    fallbackInterval = setInterval(() => {
+                        remaining = Math.max(0, remaining - 1);
                         const m = Math.floor(remaining / 60).toString().padStart(2, '0');
                         const s = (remaining % 60).toString().padStart(2, '0');
                         countdownDisplay.innerText = `${m}:${s}`;
-                        
                         if (remaining <= 0) {
-                            clearInterval(countdownInterval);
-                            countdownInterval = null;
-                            // The backend will automatically cancel it, portal.js will poll and see "cancelled"
+                            clearInterval(fallbackInterval);
+                            fallbackInterval = null;
                         }
                     }, 1000);
                 }
             } else {
-                if (countdownInterval) {
-                    clearInterval(countdownInterval);
-                    countdownInterval = null;
+                if (fallbackInterval) {
+                    clearInterval(fallbackInterval);
+                    fallbackInterval = null;
                 }
-                countdownContainer.style.display = 'none';
             }
         });
-        
         observer.observe(flowMessage, { childList: true, characterData: true, subtree: true });
     }
 </script>

@@ -1829,6 +1829,12 @@ def settings_view(request):
             settings_obj.enable_auto_pause_resume = request.POST.get('enable_auto_pause_resume') == 'on'
             settings_obj.auto_pause_timeout_seconds = int(request.POST.get('auto_pause_timeout_seconds', 300))
             settings_obj.insert_coin_countdown_seconds = int(request.POST.get('insert_coin_countdown_seconds', 120))
+            if 'coin_timer_extension_seconds' in request.POST:
+                settings_obj.coin_timer_extension_seconds = max(1, int(request.POST.get('coin_timer_extension_seconds', 8)))
+            if 'coin_timer_min_remaining_seconds' in request.POST:
+                settings_obj.coin_timer_min_remaining_seconds = max(5, int(request.POST.get('coin_timer_min_remaining_seconds', 15)))
+            if 'coin_timer_max_seconds' in request.POST:
+                settings_obj.coin_timer_max_seconds = max(30, int(request.POST.get('coin_timer_max_seconds', 180)))
             
             # Gamification
             settings_obj.enable_spin_wheel = request.POST.get('enable_spin_wheel') == 'on'

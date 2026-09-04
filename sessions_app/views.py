@@ -274,6 +274,11 @@ def _coin_request_payload(coin_request):
     if not coin_request:
         return None
 
+    now = timezone.now()
+    remaining_seconds = 0
+    if coin_request.status == CoinInsertRequest.STATUS_ACTIVE and coin_request.expires_at and coin_request.expires_at > now:
+        remaining_seconds = max(0, int((coin_request.expires_at - now).total_seconds()))
+
     return {
         "id": coin_request.id,
         "purpose": coin_request.purpose,
@@ -283,6 +288,7 @@ def _coin_request_payload(coin_request):
         "credited_amount": coin_request.credited_amount,
         "queue_position": _coin_request_queue_position(coin_request),
         "expires_at": coin_request.expires_at,
+        "remaining_seconds": remaining_seconds,
         "is_group_pass": coin_request.is_group_pass,
         "group_pass_devices": coin_request.group_pass_devices,
         "plan_id": coin_request.plan_id,
@@ -433,6 +439,11 @@ def coin_inserted(request):
         assigned_request = _active_coin_request_for_unscoped_insert()
         if assigned_request:
             mac_address = assigned_request.mac_address.upper().strip()
+    else:
+        assigned_request = CoinInsertRequest.objects.filter(
+            mac_address__iexact=mac_address,
+            status=CoinInsertRequest.STATUS_ACTIVE,
+        ).order_by("-id").first()
 
     session = None
     voucher_code = None
@@ -462,6 +473,23 @@ def coin_inserted(request):
     )
 
     if assigned_request:
+        if assigned_request.status == CoinInsertRequest.STATUS_ACTIVE:
+            from dashboard.models import SystemSettings
+            sys_settings = SystemSettings.get_settings()
+            ext_sec = getattr(sys_settings, 'coin_timer_extension_seconds', 8)
+            min_sec = getattr(sys_settings, 'coin_timer_min_remaining_seconds', 15)
+            max_sec = getattr(sys_settings, 'coin_timer_max_seconds', 180)
+
+            now = timezone.now()
+            current_rem = 0.0
+            if assigned_request.expires_at and assigned_request.expires_at > now:
+                current_rem = (assigned_request.expires_at - now).total_seconds()
+
+            new_rem = max(current_rem + ext_sec, float(min_sec))
+            new_rem = min(new_rem, float(max_sec))
+            assigned_request.expires_at = now + timedelta(seconds=new_rem)
+            assigned_request.save(update_fields=["expires_at"])
+
         assigned_request = _sync_coin_request_progress(assigned_request)
 
     # Only create voucher session if there's an active session AND no coin request

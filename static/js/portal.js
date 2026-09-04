@@ -735,6 +735,122 @@ function coinRequestStatusMessage(coinRequest, context = "start") {
     return "Coin request updated.";
 }
 
+let activeCoinCountdownInterval = null;
+let activeCoinCountdownEndTime = 0;
+let lastCreditedCoinAmount = null;
+
+function triggerCoinTimerBonusBadge(badge, display) {
+    if (badge) {
+        badge.innerText = "+Bonus Time! 🪙";
+        badge.style.display = "inline-block";
+        badge.style.opacity = "1";
+        badge.style.transform = "scale(1.15)";
+        setTimeout(() => {
+            badge.style.transform = "scale(1)";
+        }, 200);
+        setTimeout(() => {
+            badge.style.opacity = "0";
+            setTimeout(() => {
+                badge.style.display = "none";
+            }, 300);
+        }, 2500);
+    }
+    if (display) {
+        display.style.transition = "color 0.2s ease, transform 0.2s ease";
+        display.style.color = "#10B981";
+        display.style.transform = "scale(1.1)";
+        setTimeout(() => {
+            display.style.color = "var(--text-primary)";
+            display.style.transform = "scale(1)";
+        }, 600);
+    }
+}
+
+function updateCountdownDisplay(display) {
+    if (!display) return;
+    const remaining = Math.max(0, Math.floor((activeCoinCountdownEndTime - Date.now()) / 1000));
+    const m = Math.floor(remaining / 60).toString().padStart(2, "0");
+    const s = (remaining % 60).toString().padStart(2, "0");
+    display.innerText = `${m}:${s}`;
+    if (remaining <= 10) {
+        display.style.color = "#EF4444";
+    } else {
+        display.style.color = "var(--text-primary)";
+    }
+}
+
+function syncCoinCountdown(coinRequest) {
+    const container = document.getElementById("coin-countdown-container");
+    const display = document.getElementById("coin-countdown-display");
+    const badge = document.getElementById("coin-countdown-badge");
+
+    if (!container || !display) return;
+
+    if (!coinRequest || !["active", "pending"].includes(coinRequest.status)) {
+        if (activeCoinCountdownInterval) {
+            clearInterval(activeCoinCountdownInterval);
+            activeCoinCountdownInterval = null;
+        }
+        container.style.display = "none";
+        lastCreditedCoinAmount = null;
+        return;
+    }
+
+    if (coinRequest.status === "active") {
+        container.style.display = "block";
+        const now = Date.now();
+        let targetEndTime = 0;
+
+        if (typeof coinRequest.remaining_seconds === "number") {
+            targetEndTime = now + (coinRequest.remaining_seconds * 1000);
+        } else if (coinRequest.expires_at) {
+            targetEndTime = new Date(coinRequest.expires_at).getTime();
+        }
+
+        const currentCredited = Number(coinRequest.credited_amount || 0);
+        const prevCredited = lastCreditedCoinAmount;
+        lastCreditedCoinAmount = currentCredited;
+
+        const isCoinAdded = prevCredited !== null && currentCredited > prevCredited;
+        const isTimeExtended = targetEndTime > (activeCoinCountdownEndTime + 2000);
+
+        if (isCoinAdded || isTimeExtended) {
+            triggerCoinTimerBonusBadge(badge, display);
+        }
+
+        if (targetEndTime > 0) {
+            activeCoinCountdownEndTime = targetEndTime;
+        }
+
+        updateCountdownDisplay(display);
+
+        if (!activeCoinCountdownInterval) {
+            activeCoinCountdownInterval = setInterval(() => {
+                const remaining = Math.max(0, Math.floor((activeCoinCountdownEndTime - Date.now()) / 1000));
+                const m = Math.floor(remaining / 60).toString().padStart(2, "0");
+                const s = (remaining % 60).toString().padStart(2, "0");
+                display.innerText = `${m}:${s}`;
+
+                if (remaining <= 10) {
+                    display.style.color = "#EF4444";
+                } else {
+                    display.style.color = "var(--text-primary)";
+                }
+
+                if (remaining <= 0) {
+                    clearInterval(activeCoinCountdownInterval);
+                    activeCoinCountdownInterval = null;
+                }
+            }, 1000);
+        }
+    } else {
+        // Pending
+        container.style.display = "none";
+    }
+}
+
+window.syncCoinCountdown = syncCoinCountdown;
+
 function initProductionStartFlow(macAddress) {
     const selectedPlanInput = document.getElementById("selected-plan");
     const requestBtn = document.getElementById("request-slot-btn");
@@ -773,6 +889,8 @@ function initProductionStartFlow(macAddress) {
                 state.planId = coinRequest.plan_id;
             }
         }
+
+        syncCoinCountdown(coinRequest);
 
         setStartFlowMessage(
             coinRequestStatusMessage(coinRequest),
@@ -1041,6 +1159,8 @@ function initExtendSessionFlow(macAddress) {
                 if (extendPlanInput) extendPlanInput.value = coinRequest.plan_id;
             }
         }
+
+        syncCoinCountdown(coinRequest);
 
         setExtendMessage(
             coinRequestStatusMessage(coinRequest, "extend"),
