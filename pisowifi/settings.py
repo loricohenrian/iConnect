@@ -186,14 +186,7 @@ elif os.getenv('REDIS_URL'):
 else:
     cache_location = ''
 
-import sys
-if 'test' in sys.argv:
-    CACHES = {
-        'default': {
-            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        }
-    }
-elif cache_location.startswith('redis://') or cache_location.startswith('rediss://'):
+if cache_location.startswith('redis://') or cache_location.startswith('rediss://'):
     CACHES = {
         'default': {
             'BACKEND': 'django.core.cache.backends.redis.RedisCache',
