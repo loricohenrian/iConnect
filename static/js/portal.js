@@ -285,8 +285,6 @@ async function _sendBrowserNotification(title, body, extraOptions = {}) {
     }
 }
 
-}
-
 function _showExpiredModal(macAddress) {
     if (document.getElementById('expired-modal-overlay')) return;
 
