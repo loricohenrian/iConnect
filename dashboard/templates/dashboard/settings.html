@@ -102,8 +102,26 @@
                 <input type="number" min="60" class="form-input" name="auto_pause_timeout_seconds" value="{{ settings.auto_pause_timeout_seconds }}" required>
             </div>
             <div class="form-group">
-                <label class="form-label">Coin Screen Timer (s)</label>
+                <label class="form-label">Initial Coin Timer (s)</label>
                 <input type="number" min="10" class="form-input" name="insert_coin_countdown_seconds" value="{{ settings.insert_coin_countdown_seconds }}" required>
+            </div>
+        </div>
+
+        <div class="grid-3 mt-sm" style="margin-left: 20px;">
+            <div class="form-group">
+                <label class="form-label">Bonus / Coin (s)</label>
+                <input type="number" min="1" max="60" class="form-input" name="coin_timer_extension_seconds" value="{{ settings.coin_timer_extension_seconds }}" required>
+                <small class="text-xs text-muted">Added per coin dropped (Default: 8s)</small>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Min Guaranteed (s)</label>
+                <input type="number" min="5" max="60" class="form-input" name="coin_timer_min_remaining_seconds" value="{{ settings.coin_timer_min_remaining_seconds }}" required>
+                <small class="text-xs text-muted">Minimum floor on insert (Default: 15s)</small>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Timer Ceiling (s)</label>
+                <input type="number" min="30" max="600" class="form-input" name="coin_timer_max_seconds" value="{{ settings.coin_timer_max_seconds }}" required>
+                <small class="text-xs text-muted">Max countdown ceiling (Default: 180s)</small>
             </div>
         </div>
 

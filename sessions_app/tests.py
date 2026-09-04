@@ -532,6 +532,94 @@ class SessionApiTests(TestCase):
         coin_event = CoinEvent.objects.get(id=coin_body["coin_event_id"])
         self.assertEqual(coin_event.mac_address, self.mac_one)
 
+    @override_settings(PISONET_DEVICE_API_KEY="test-device-key")
+    def test_coin_inserted_extends_countdown_timer(self):
+        from datetime import timedelta
+        from dashboard.models import SystemSettings
+        sys_settings = SystemSettings.get_settings()
+        sys_settings.coin_timer_extension_seconds = 8
+        sys_settings.coin_timer_min_remaining_seconds = 15
+        sys_settings.coin_timer_max_seconds = 180
+        sys_settings.save()
+
+        now = timezone.now()
+        req = CoinInsertRequest.objects.create(
+            mac_address=self.mac_one,
+            purpose=CoinInsertRequest.PURPOSE_START,
+            plan=self.plan,
+            expected_amount=self.plan.price,
+            status=CoinInsertRequest.STATUS_ACTIVE,
+            activated_at=now,
+            expires_at=now + timedelta(seconds=30),
+        )
+
+        response = self.client.post(
+            reverse("sessions_app:coin-inserted"),
+            {"amount": 1, "denomination": 1},
+            format="json",
+            HTTP_X_DEVICE_API_KEY="test-device-key",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        req.refresh_from_db()
+        remaining = (req.expires_at - timezone.now()).total_seconds()
+        self.assertGreaterEqual(remaining, 35)
+        self.assertLessEqual(remaining, 39)
+
+        body = response.json()
+        self.assertIn("coin_request", body)
+        self.assertGreaterEqual(body["coin_request"]["remaining_seconds"], 35)
+
+    @override_settings(PISONET_DEVICE_API_KEY="test-device-key")
+    def test_coin_inserted_enforces_minimum_guarantee_and_ceiling(self):
+        from datetime import timedelta
+        from dashboard.models import SystemSettings
+        sys_settings = SystemSettings.get_settings()
+        sys_settings.coin_timer_extension_seconds = 8
+        sys_settings.coin_timer_min_remaining_seconds = 15
+        sys_settings.coin_timer_max_seconds = 180
+        sys_settings.save()
+
+        # Case 1: Low remaining time (3s). Min guarantee of 15s should kick in.
+        now = timezone.now()
+        req = CoinInsertRequest.objects.create(
+            mac_address=self.mac_one,
+            purpose=CoinInsertRequest.PURPOSE_START,
+            plan=self.plan,
+            expected_amount=self.plan.price,
+            status=CoinInsertRequest.STATUS_ACTIVE,
+            activated_at=now,
+            expires_at=now + timedelta(seconds=3),
+        )
+
+        response = self.client.post(
+            reverse("sessions_app:coin-inserted"),
+            {"amount": 1, "denomination": 1},
+            format="json",
+            HTTP_X_DEVICE_API_KEY="test-device-key",
+        )
+        self.assertEqual(response.status_code, 201)
+        req.refresh_from_db()
+        remaining = (req.expires_at - timezone.now()).total_seconds()
+        self.assertGreaterEqual(remaining, 14)
+        self.assertLessEqual(remaining, 16)
+
+        # Case 2: Near ceiling (178s). Adding 8s is capped at 180s.
+        req.expires_at = timezone.now() + timedelta(seconds=178)
+        req.save()
+
+        response2 = self.client.post(
+            reverse("sessions_app:coin-inserted"),
+            {"amount": 1, "denomination": 1},
+            format="json",
+            HTTP_X_DEVICE_API_KEY="test-device-key",
+        )
+        self.assertEqual(response2.status_code, 201)
+        req.refresh_from_db()
+        remaining2 = (req.expires_at - timezone.now()).total_seconds()
+        self.assertLessEqual(remaining2, 180.5)
+        self.assertGreaterEqual(remaining2, 178)
+
     def test_session_pause_rejects_ip_mismatch(self):
         Session.objects.create(
             mac_address=self.mac_one,
