@@ -302,6 +302,18 @@ def _coin_request_payload(coin_request):
 
 def _sync_coin_request_progress(coin_request):
     """Sync credited amount and transition request status when needed."""
+    if not coin_request:
+        return None
+
+    # Do not mutate terminal requests — completed requests have already consumed their
+    # pending coins into the session, so querying unassigned coins would return 0.
+    if coin_request.status in (
+        CoinInsertRequest.STATUS_COMPLETED,
+        CoinInsertRequest.STATUS_CANCELLED,
+        CoinInsertRequest.STATUS_EXPIRED,
+    ):
+        return coin_request
+
     now = timezone.now()
     credited_amount = _pending_coin_events_for_mac(coin_request.mac_address).aggregate(
         total=Sum("amount")
@@ -322,13 +334,6 @@ def _sync_coin_request_progress(coin_request):
         coin_request.status = CoinInsertRequest.STATUS_EXPIRED
         update_fields.append("status")
         transitioned = True
-
-    if (
-        coin_request.status == CoinInsertRequest.STATUS_COMPLETED
-        and credited_amount < coin_request.expected_amount
-    ):
-        coin_request.status = CoinInsertRequest.STATUS_CANCELLED
-        update_fields.append("status")
 
     if update_fields:
         # Avoid duplicate field entries in update_fields.

@@ -1193,6 +1193,9 @@ function initExtendSessionFlow(macAddress) {
                 `/api/session/start/request-status/?request_id=${encodeURIComponent(state.requestId)}&mac_address=${encodeURIComponent(currentMac)}`
             );
             const data = await parseJsonSafe(response);
+            if (!state.requestId || state.requestId !== data?.coin_request?.id) {
+                return;
+            }
             if (!response.ok) {
                 if (response.status === 404) {
                     clearPolling();
@@ -1323,6 +1326,10 @@ function initExtendSessionFlow(macAddress) {
 
             if (response.ok) {
                 clearPolling();
+                state.requestId = null;
+                state.readyToStart = false;
+                const countdownContainer = document.getElementById("coin-countdown-container");
+                if (countdownContainer) countdownContainer.style.display = "none";
                 if (data.session_group) {
                     window.location.reload();
                     return;
