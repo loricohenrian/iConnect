@@ -683,15 +683,15 @@ function formatCoinRequestMeta(coinRequest) {
     if (status) {
         parts.push(`Status: ${statusBadge}`);
     }
-    if (coinRequest.combo_duration_display) {
-        parts.push(`Payment: <strong>₱${credited}</strong> &nbsp;➔&nbsp; <span style="color:#10B981; font-weight:700;">⏱️ ${escapeHtml(coinRequest.combo_duration_display)}</span>`);
+    if (coinRequest.is_group_pass) {
+        parts.push(`Payment: <strong>₱${credited} / ₱${expected}</strong>`);
+    } else if (coinRequest.combo_duration_display) {
+        parts.push(`Coins Inserted: <strong>₱${credited}</strong> &nbsp;➔&nbsp; <span style="color:#10B981; font-weight:700;">⏱️ ${escapeHtml(coinRequest.combo_duration_display)}</span>`);
         if (coinRequest.combo_breakdown_text) {
             parts.push(`<span class="text-muted" style="font-size:11px;">(${escapeHtml(coinRequest.combo_breakdown_text)})</span>`);
         }
-    } else if (expected > 0) {
-        parts.push(`Payment: <strong>₱${credited} / ₱${expected}</strong>`);
     } else {
-        parts.push(`Coins: <strong>₱${credited}</strong>`);
+        parts.push(`Coins Inserted: <strong>₱${credited}</strong>`);
     }
 
     return parts.join(" &nbsp;|&nbsp; ");
@@ -710,12 +710,11 @@ function coinRequestStatusMessage(coinRequest, context = "start") {
     }
     if (status === "active") {
         if (coinRequest.ready_to_start) {
+            const actionWord = context === "extend" ? "Extend Now" : "Connect Now";
             if (coinRequest.combo_duration_display) {
-                return `Coins detected! You have ${coinRequest.combo_duration_display} ready. Insert more coins or tap Connect Now.`;
+                return `Coins detected! You have ${coinRequest.combo_duration_display} ready. Insert more coins or tap ${actionWord}.`;
             }
-            return context === "extend"
-                ? "Minimum reached! Insert more coins for more time, or tap Extend Now."
-                : "Minimum reached! Insert more coins for more time, or tap Connect Now.";
+            return `Coins detected! Insert more coins for more time, or tap ${actionWord}.`;
         }
         return "Insert coins now. Your device currently owns the coin slot window.";
     }
