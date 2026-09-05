@@ -270,6 +270,84 @@ def _coin_request_queue_position(coin_request):
         return None
 
 
+def calculate_combo_for_amount(amount):
+    """
+    Given an amount in PHP, calculates the optimal combination of active plans
+    using a greedy algorithm (highest price plan first).
+    
+    Returns a dict with total minutes, friendly display strings, highest plan,
+    amount used, and remaining unspent coins.
+    """
+    if amount <= 0:
+        return {
+            "total_minutes": 0,
+            "duration_display": "0m",
+            "duration_long_display": "0 Minutes",
+            "highest_plan": None,
+            "amount_used": 0,
+            "remainder": 0,
+            "breakdown": [],
+            "breakdown_text": "",
+        }
+
+    active_plans = list(Plan.objects.filter(is_active=True).order_by("-price"))
+    if not active_plans:
+        return {
+            "total_minutes": 0,
+            "duration_display": "0m",
+            "duration_long_display": "0 Minutes",
+            "highest_plan": None,
+            "amount_used": 0,
+            "remainder": amount,
+            "breakdown": [],
+            "breakdown_text": "",
+        }
+
+    rem = amount
+    total_minutes = 0
+    highest_plan = None
+    breakdown = []
+    breakdown_parts = []
+
+    for p in active_plans:
+        if p.price <= 0:
+            continue
+        count = rem // p.price
+        if count > 0:
+            total_minutes += p.duration_minutes * count
+            rem %= p.price
+            breakdown.append((p, count))
+            breakdown_parts.append(f"{count}x ₱{p.price}" if count > 1 else f"₱{p.price}")
+            if highest_plan is None:
+                highest_plan = p
+
+    amount_used = amount - rem
+
+    # Friendly duration format (e.g. "1h 20m" or "45m")
+    h = total_minutes // 60
+    m = total_minutes % 60
+    if h > 0 and m > 0:
+        duration_display = f"{h}h {m}m"
+        duration_long_display = f"{h} Hour{'s' if h > 1 else ''} {m} Mins"
+    elif h > 0 and m == 0:
+        duration_display = f"{h}h"
+        duration_long_display = f"{h} Hour{'s' if h > 1 else ''}"
+    else:
+        duration_display = f"{m}m"
+        duration_long_display = f"{m} Minutes"
+
+    return {
+        "total_minutes": total_minutes,
+        "duration_display": duration_display,
+        "duration_long_display": duration_long_display,
+        "highest_plan": highest_plan,
+        "amount_used": amount_used,
+        "remainder": rem,
+        "breakdown": breakdown,
+        "breakdown_text": " + ".join(breakdown_parts),
+    }
+
+
 def _coin_request_payload(coin_request):
     if not coin_request:
         return None
@@ -278,6 +356,10 @@ def _coin_request_payload(coin_request):
     remaining_seconds = 0
     if coin_request.status == CoinInsertRequest.STATUS_ACTIVE and coin_request.expires_at and coin_request.expires_at > now:
         remaining_seconds = max(0, int((coin_request.expires_at - now).total_seconds()))
+
+    combo = None
+    if not coin_request.is_group_pass and coin_request.credited_amount > 0:
+        combo = calculate_combo_for_amount(coin_request.credited_amount)
 
     return {
         "id": coin_request.id,
@@ -292,10 +374,16 @@ def _coin_request_payload(coin_request):
         "is_group_pass": coin_request.is_group_pass,
         "group_pass_devices": coin_request.group_pass_devices,
         "plan_id": coin_request.plan_id,
+        "combo_duration_minutes": combo["total_minutes"] if combo else 0,
+        "combo_duration_display": combo["duration_display"] if combo else "",
+        "combo_duration_long_display": combo["duration_long_display"] if combo else "",
+        "combo_breakdown_text": combo["breakdown_text"] if combo else "",
         "ready_to_start": (
             coin_request.status in (CoinInsertRequest.STATUS_ACTIVE, CoinInsertRequest.STATUS_COMPLETED) and
-            coin_request.expected_amount > 0 and 
-            coin_request.credited_amount >= coin_request.expected_amount
+            (
+                (coin_request.expected_amount > 0 and coin_request.credited_amount >= coin_request.expected_amount) or
+                (not coin_request.is_group_pass and coin_request.credited_amount > 0 and combo and combo["amount_used"] > 0)
+            )
         ),
     }
 
@@ -358,7 +446,7 @@ def _active_coin_request_for_unscoped_insert():
     return _activate_next_coin_request()
 
 
-def _get_or_create_start_coin_request(mac_address, ip_address, plan, is_group_pass=False, group_pass_devices=1):
+def _get_or_create_start_coin_request(mac_address, ip_address, plan=None, is_group_pass=False, group_pass_devices=1):
     """Create/reuse a queued start-session coin request for this device."""
     existing_request = CoinInsertRequest.objects.filter(
         mac_address=mac_address,
@@ -366,9 +454,20 @@ def _get_or_create_start_coin_request(mac_address, ip_address, plan, is_group_pa
         status__in=[CoinInsertRequest.STATUS_PENDING, CoinInsertRequest.STATUS_ACTIVE],
     ).order_by("created_at", "id").first()
 
+    expected_amount = 0
+    if is_group_pass:
+        expected_amount = (plan.price * group_pass_devices) if plan else 0
+    elif plan:
+        expected_amount = plan.price
+    else:
+        min_plan = Plan.objects.filter(is_active=True).order_by("price").first()
+        expected_amount = min_plan.price if min_plan else 1
+
     if existing_request:
-        # If same plan, reuse. If different plan, cancel and create new.
-        if existing_request.plan_id == plan.id and existing_request.is_group_pass == is_group_pass and existing_request.group_pass_devices == group_pass_devices:
+        target_plan_id = plan.id if plan else None
+        same_plan = (existing_request.plan_id == target_plan_id)
+        same_group = (existing_request.is_group_pass == is_group_pass and existing_request.group_pass_devices == group_pass_devices)
+        if (same_plan or (not is_group_pass and not plan and not existing_request.is_group_pass)) and same_group:
             return _sync_coin_request_progress(existing_request), False
         else:
             existing_request.status = CoinInsertRequest.STATUS_CANCELLED
@@ -384,7 +483,7 @@ def _get_or_create_start_coin_request(mac_address, ip_address, plan, is_group_pa
     credited_amount = _pending_coin_events_for_mac(mac_address).aggregate(total=Sum("amount"))["total"] or 0
     initial_status = (
         CoinInsertRequest.STATUS_COMPLETED
-        if credited_amount >= (plan.price * group_pass_devices if is_group_pass else plan.price)
+        if credited_amount >= expected_amount and expected_amount > 0
         else CoinInsertRequest.STATUS_PENDING
     )
 
@@ -393,7 +492,7 @@ def _get_or_create_start_coin_request(mac_address, ip_address, plan, is_group_pa
         ip_address=ip_address,
         purpose=CoinInsertRequest.PURPOSE_START,
         plan=plan,
-        expected_amount=plan.price * group_pass_devices if is_group_pass else plan.price,
+        expected_amount=expected_amount,
         is_group_pass=is_group_pass,
         group_pass_devices=group_pass_devices,
         credited_amount=credited_amount,
@@ -596,12 +695,19 @@ def session_start_request(request):
             status=status.HTTP_403_FORBIDDEN,
         )
 
-    try:
-        plan = Plan.objects.get(id=plan_id, is_active=True)
-    except Plan.DoesNotExist:
+    plan = None
+    if plan_id:
+        try:
+            plan = Plan.objects.get(id=plan_id, is_active=True)
+        except Plan.DoesNotExist:
+            return Response(
+                {"error": "Plan not found or inactive"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+    elif is_group_pass:
         return Response(
-            {"error": "Plan not found or inactive"},
-            status=status.HTTP_404_NOT_FOUND,
+            {"error": "Plan is required for group plan"},
+            status=status.HTTP_400_BAD_REQUEST,
         )
 
     # Note: We allow coin requests even if there's an active session,
@@ -744,12 +850,20 @@ def session_start(request):
     expected_amount = 0
     duration_minutes = 0
     
-    try:
-        plan = Plan.objects.get(id=plan_id, is_active=True)
-        expected_amount = plan.price * group_pass_devices if is_group_pass else plan.price
-        duration_minutes = plan.duration_minutes
-    except Plan.DoesNotExist:
-        return Response({"error": "Plan not found or inactive"}, status=status.HTTP_404_NOT_FOUND)
+    if plan_id:
+        try:
+            plan = Plan.objects.get(id=plan_id, is_active=True)
+            expected_amount = plan.price * group_pass_devices if is_group_pass else plan.price
+            duration_minutes = plan.duration_minutes
+        except Plan.DoesNotExist:
+            return Response({"error": "Plan not found or inactive"}, status=status.HTTP_404_NOT_FOUND)
+    elif is_group_pass:
+        return Response({"error": "Plan is required for group plan"}, status=status.HTTP_400_BAD_REQUEST)
+    else:
+        min_plan = Plan.objects.filter(is_active=True).order_by("price").first()
+        if not min_plan:
+            return Response({"error": "No active plans configured"}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        expected_amount = min_plan.price
 
     existing = Session.objects.filter(mac_address=mac_address, status="active").first()
     if existing:
@@ -794,11 +908,18 @@ def session_start(request):
 
     try:
         with transaction.atomic():
-            multiplier = total_coins // expected_amount if expected_amount > 0 else 1
-            amount_paid = expected_amount * multiplier
-            actual_duration = duration_minutes * multiplier
-            
             session_group = None
+            if plan:
+                multiplier = total_coins // expected_amount if expected_amount > 0 else 1
+                amount_paid = expected_amount * multiplier
+                actual_duration = duration_minutes * multiplier
+            else:
+                combo = calculate_combo_for_amount(total_coins)
+                if combo["total_minutes"] <= 0 or combo["amount_used"] <= 0:
+                    return Response({"error": "Insufficient coins to activate any plan"}, status=status.HTTP_400_BAD_REQUEST)
+                actual_duration = combo["total_minutes"]
+                amount_paid = combo["amount_used"]
+                plan = combo["highest_plan"]
             if is_group_pass:
                 import random
                 import string

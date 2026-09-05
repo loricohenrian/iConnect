@@ -116,9 +116,8 @@ class SessionStartSerializer(serializers.Serializer):
         if is_group_pass:
             if not data.get('group_pass_devices'):
                 raise serializers.ValidationError("group_pass_devices is required for group plan.")
-        
-        if not data.get('plan_id'):
-            raise serializers.ValidationError("plan_id is required.")
+            if not data.get('plan_id'):
+                raise serializers.ValidationError("plan_id is required for group plan.")
         return data
 
 

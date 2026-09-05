@@ -366,6 +366,10 @@ function initPlanSelection() {
     }
 
     planCards.forEach((card) => {
+        if (card.closest("#ratesModal")) {
+            return;
+        }
+
         card.addEventListener("click", () => {
             planCards.forEach((item) => item.classList.remove("selected"));
             card.classList.add("selected");
@@ -498,23 +502,14 @@ function renderPlans(plans) {
 
         if (selectedCard) {
             selectedCard.classList.add("selected");
-            if (requestBtn) {
-                requestBtn.disabled = false;
-            }
-            if (startBtn && startBtn.dataset.readyToStart !== "1") {
-                startBtn.disabled = true;
-            }
-        } else {
-            if (selectedPlanInput) {
-                selectedPlanInput.value = "";
-            }
-            if (requestBtn) {
-                requestBtn.disabled = true;
-            }
-            if (startBtn) {
-                startBtn.disabled = true;
-                startBtn.dataset.readyToStart = "0";
-            }
+        }
+
+        // As long as plans exist, Insert Coins is available for solo users
+        if (requestBtn) {
+            requestBtn.disabled = false;
+        }
+        if (startBtn && startBtn.dataset.readyToStart !== "1") {
+            startBtn.disabled = true;
         }
     }
 
@@ -697,8 +692,15 @@ function formatCoinRequestMeta(coinRequest) {
     if (status) {
         parts.push(`Status: ${statusBadge}`);
     }
-    if (expected > 0) {
+    if (coinRequest.combo_duration_display) {
+        parts.push(`Payment: <strong>₱${credited}</strong> &nbsp;➔&nbsp; <span style="color:#10B981; font-weight:700;">⏱️ ${escapeHtml(coinRequest.combo_duration_display)}</span>`);
+        if (coinRequest.combo_breakdown_text) {
+            parts.push(`<span class="text-muted" style="font-size:11px;">(${escapeHtml(coinRequest.combo_breakdown_text)})</span>`);
+        }
+    } else if (expected > 0) {
         parts.push(`Payment: <strong>₱${credited} / ₱${expected}</strong>`);
+    } else {
+        parts.push(`Coins: <strong>₱${credited}</strong>`);
     }
 
     return parts.join(" &nbsp;|&nbsp; ");
@@ -717,6 +719,9 @@ function coinRequestStatusMessage(coinRequest, context = "start") {
     }
     if (status === "active") {
         if (coinRequest.ready_to_start) {
+            if (coinRequest.combo_duration_display) {
+                return `Coins detected! You have ${coinRequest.combo_duration_display} ready. Insert more coins or tap Connect Now.`;
+            }
             return context === "extend"
                 ? "Minimum reached! Insert more coins for more time, or tap Extend Now."
                 : "Minimum reached! Insert more coins for more time, or tap Connect Now.";
@@ -727,10 +732,10 @@ function coinRequestStatusMessage(coinRequest, context = "start") {
         return "Request queued. Wait for your turn to insert coins.";
     }
     if (status === "expired") {
-        return "Coin window expired. Tap Request Coin Slot again.";
+        return "Coin window expired. Tap Insert Coins again.";
     }
     if (status === "cancelled") {
-        return "Coin request was cancelled. Request a new slot to continue.";
+        return "Coin request was cancelled. Tap Insert Coins to continue.";
     }
     return "Coin request updated.";
 }
@@ -967,12 +972,6 @@ function initProductionStartFlow(macAddress) {
     };
 
     requestBtn.addEventListener("click", async () => {
-        const planId = selectedPlanId();
-        if (!planId) {
-            setStartFlowMessage("Select a plan before requesting a coin slot.", "warning");
-            return;
-        }
-
         if (!macAddress) {
             setStartFlowMessage("Device identity missing. Re-open portal from WiFi login.", "danger");
             return;
@@ -981,21 +980,26 @@ function initProductionStartFlow(macAddress) {
         requestBtn.disabled = true;
         startBtn.disabled = true;
         startBtn.dataset.readyToStart = "0";
+
+        const planId = selectedPlanId() || state.planId || null;
         state.planId = planId;
 
         try {
+            const bodyPayload = {
+                mac_address: macAddress,
+                is_group_pass: false,
+            };
+            if (planId) {
+                bodyPayload.plan_id = planId;
+            }
+
             const response = await fetch("/api/session/start/request/", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                     "X-CSRFToken": getCSRFToken(),
                 },
-                body: JSON.stringify({
-                    mac_address: macAddress,
-                    plan_id: planId,
-                    is_group_pass: document.getElementById("group-pass-toggle")?.checked || false,
-                    group_pass_devices: document.getElementById("group-pass-toggle")?.checked ? parseInt(document.getElementById("fp-device-count")?.innerText || "2") : null,
-                }),
+                body: JSON.stringify(bodyPayload),
             });
             const data = await parseJsonSafe(response);
 
@@ -1016,13 +1020,13 @@ function initProductionStartFlow(macAddress) {
         } catch (error) {
             setStartFlowMessage("Connection error while requesting coin slot.", "danger");
         } finally {
-            requestBtn.disabled = !selectedPlanInput.value;
+            requestBtn.disabled = false;
         }
     });
 
     startBtn.addEventListener("click", async () => {
-        const planId = state.planId || selectedPlanId();
-        if (!planId) {
+        const planId = state.planId || selectedPlanId() || null;
+        if (state.isGroupPass && !planId) {
             setStartFlowMessage("Select a plan first.", "warning");
             startBtn.disabled = true;
             startBtn.dataset.readyToStart = "0";
@@ -1030,7 +1034,7 @@ function initProductionStartFlow(macAddress) {
         }
 
         if (!state.readyToStart) {
-            setStartFlowMessage("Insert enough coins first, then tap Connect Now.", "warning");
+            setStartFlowMessage("Insert coins first, then tap Connect Now.", "warning");
             return;
         }
 
@@ -1040,8 +1044,10 @@ function initProductionStartFlow(macAddress) {
         try {
             const payload = {
                 mac_address: macAddress,
-                plan_id: planId
             };
+            if (planId) {
+                payload.plan_id = planId;
+            }
             if (state.isGroupPass) {
                 payload.is_group_pass = true;
                 payload.group_pass_devices = state.groupDevices;
@@ -1073,7 +1079,7 @@ function initProductionStartFlow(macAddress) {
         } catch (error) {
             setStartFlowMessage("Connection error while starting session.", "danger");
         } finally {
-            requestBtn.disabled = !selectedPlanInput.value;
+            requestBtn.disabled = false;
             if (!state.readyToStart) {
                 startBtn.disabled = true;
                 startBtn.dataset.readyToStart = "0";
@@ -1081,13 +1087,9 @@ function initProductionStartFlow(macAddress) {
         }
     });
 
-    
     window.onPortalPlanSelected = (planIdValue) => {
         const nextPlanId = Number.parseInt(planIdValue, 10);
         if (!Number.isInteger(nextPlanId) || nextPlanId <= 0) {
-            requestBtn.disabled = true;
-            startBtn.disabled = true;
-            startBtn.dataset.readyToStart = "0";
             return;
         }
 

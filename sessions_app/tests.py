@@ -754,3 +754,76 @@ class SessionApiTests(TestCase):
         self.assertEqual(session.amount_paid, 15)
 
 
+class ComboPlanTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.mac = "AA:BB:CC:DD:EE:01"
+        self.p1 = Plan.objects.create(name="₱1 Plan", price=1, duration_minutes=10, is_active=True, speed_limit=2)
+        self.p5 = Plan.objects.create(name="₱5 Plan", price=5, duration_minutes=60, is_active=True, speed_limit=3)
+        self.p10 = Plan.objects.create(name="₱10 Plan", price=10, duration_minutes=150, is_active=True, speed_limit=5)
+        self.p20 = Plan.objects.create(name="₱20 Plan", price=20, duration_minutes=360, is_active=True, speed_limit=10)
+
+    def test_calculate_combo_for_amount_7_pesos(self):
+        from .views import calculate_combo_for_amount
+        combo = calculate_combo_for_amount(7)
+        self.assertIsNotNone(combo)
+        self.assertEqual(combo["amount_used"], 7)
+        # ₱7 = 1x ₱5 (60m) + 2x ₱1 (20m) = 80m
+        self.assertEqual(combo["total_minutes"], 80)
+        self.assertEqual(combo["duration_display"], "1h 20m")
+        self.assertEqual(combo["highest_plan"], self.p5)
+
+    def test_calculate_combo_for_amount_15_pesos(self):
+        from .views import calculate_combo_for_amount
+        combo = calculate_combo_for_amount(15)
+        self.assertIsNotNone(combo)
+        self.assertEqual(combo["amount_used"], 15)
+        # ₱15 = 1x ₱10 (150m) + 1x ₱5 (60m) = 210m
+        self.assertEqual(combo["total_minutes"], 210)
+        self.assertEqual(combo["duration_display"], "3h 30m")
+        self.assertEqual(combo["highest_plan"], self.p10)
+
+    def test_session_start_request_without_plan_id(self):
+        response = self.client.post(
+            reverse("sessions_app:session-start-request"),
+            {"mac_address": self.mac},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        data = response.json()
+        self.assertIn("coin_request", data)
+        self.assertIsNone(data["coin_request"]["plan_id"])
+        # Expected amount defaults to lowest plan price (₱1)
+        self.assertEqual(data["coin_request"]["expected_amount"], 1)
+
+    @patch("sessions_app.views.iptables.enforce_firewall_baseline", return_value=True)
+    @patch("sessions_app.views.iptables.allow_device", return_value=True)
+    def test_session_start_without_plan_id_and_combo_coins(self, allow_device_mock, baseline_mock):
+        # Insert ₱7 (one ₱5 coin and two ₱1 coins)
+        c1 = CoinEvent.objects.create(amount=5, denomination=5, mac_address=self.mac)
+        c2 = CoinEvent.objects.create(amount=1, denomination=1, mac_address=self.mac)
+        c3 = CoinEvent.objects.create(amount=1, denomination=1, mac_address=self.mac)
+
+        response = self.client.post(
+            reverse("sessions_app:session-start"),
+            {"mac_address": self.mac},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        session = Session.objects.get(mac_address=self.mac, status="active")
+        self.assertEqual(session.amount_paid, 7)
+        self.assertEqual(session.duration_minutes_purchased, 80)
+        self.assertEqual(session.plan, self.p5)
+
+        c1.refresh_from_db()
+        c2.refresh_from_db()
+        c3.refresh_from_db()
+        self.assertEqual(c1.session_id, session.id)
+        self.assertEqual(c2.session_id, session.id)
+        self.assertEqual(c3.session_id, session.id)
+
+        # Device allowed with speed limit from highest plan (p5 = 3 Mbps -> 3072 kbps)
+        allow_device_mock.assert_called_once_with(self.mac, rate_kbps=3072, upload_kbps=3072)
+
+
+
