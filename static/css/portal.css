@@ -285,6 +285,23 @@
     cursor: not-allowed;
 }
 
+.btn-outline-primary {
+    background: var(--color-white);
+    color: var(--color-primary);
+    border: 1.5px solid var(--color-primary);
+    box-shadow: 0 1px 3px rgba(45, 31, 31, 0.04);
+}
+
+.btn-outline-primary:hover:not(:disabled) {
+    background: var(--color-primary-light);
+    color: var(--color-primary-dark);
+    border-color: var(--color-primary);
+}
+
+.btn-outline-primary:active {
+    transform: scale(0.99);
+}
+
 /* ============================================
    Session Timer — Master Element
    ============================================ */

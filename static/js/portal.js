@@ -2007,7 +2007,7 @@ if (btnGroupRequestSlot) {
                     flowMessage.innerHTML = `<strong>Insert coins now!</strong><br>Please insert exactly ₱${data.coin_request.expected_amount}.`;
                 }
                 btnGroupRequestSlot.disabled = false;
-                btnGroupRequestSlot.innerHTML = `<i class="bi bi-hourglass-split"></i> Request Coin Slot`;
+                btnGroupRequestSlot.innerHTML = `<i class="bi bi-coin"></i> Insert Coins 🪙`;
 
                 if (window.applyCoinRequestState && window.startPolling) {
                     window.applyCoinRequestState(data.coin_request);
@@ -2031,13 +2031,13 @@ if (btnGroupRequestSlot) {
             } else {
                 alert(data.error || "Failed to request coin slot.");
                 btnGroupRequestSlot.disabled = false;
-                btnGroupRequestSlot.innerHTML = `<i class="bi bi-hourglass-split"></i> Request Coin Slot`;
+                btnGroupRequestSlot.innerHTML = `<i class="bi bi-coin"></i> Insert Coins 🪙`;
             }
         } catch (error) {
             console.error("Error requesting slot:", error);
             alert("Network error.");
             btnGroupRequestSlot.disabled = false;
-            btnGroupRequestSlot.innerHTML = `<i class="bi bi-hourglass-split"></i> Request Coin Slot`;
+            btnGroupRequestSlot.innerHTML = `<i class="bi bi-coin"></i> Insert Coins 🪙`;
         }
     });
 }

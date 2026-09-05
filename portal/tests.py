@@ -84,6 +84,44 @@ class RatesModalTests(TestCase):
         # Bottom Close button should NOT exist
         self.assertNotContains(response, '>Close</button>')
 
+        # View WiFi Rates button should have SVG and no clipboard emoji
+        self.assertContains(response, 'id="btn-view-rates"')
+        self.assertContains(response, 'View WiFi Rates & Speeds')
+        self.assertNotContains(response, 'View WiFi Rates & Speeds 📋')
+
+        # Group plan modal should use Insert Coins
+        self.assertContains(response, 'id="btn-group-request-slot"')
+        self.assertContains(response, 'Insert Coins 🪙')
+        self.assertNotContains(response, 'Request Coin Slot')
+
+        # STUDYING WITH CLASSMATES text should be removed
+        self.assertNotContains(response, 'STUDYING WITH CLASSMATES?')
+
+    def test_session_page_removes_unwanted_notices(self):
+        from sessions_app.models import Session
+        session = Session.objects.create(
+            mac_address="AA:BB:CC:DD:EE:01",
+            duration_minutes_purchased=60,
+            amount_paid=5,
+            status="active",
+        )
+        response = self.client.get(f"/session/?mac={session.mac_address}")
+        self.assertEqual(response.status_code, 200)
+
+        # Removed notices
+        self.assertNotContains(response, "Extending your session automatically renews your pause allowance")
+        self.assertNotContains(response, "Renews Pauses")
+        self.assertNotContains(response, "STUDYING WITH CLASSMATES?")
+        self.assertNotContains(response, "View WiFi Rates & Speeds 📋")
+
+        # View rates button inside extend section
+        self.assertContains(response, 'id="btn-view-rates"')
+        self.assertContains(response, 'View WiFi Rates & Speeds')
+
+        # Group modal in session page uses Insert Coins
+        self.assertContains(response, 'id="btn-group-request-slot"')
+        self.assertContains(response, 'Insert Coins 🪙')
+
     def test_live_data_returns_smart_combos(self):
         response = self.client.get("/api/portal/live-data/")
         self.assertEqual(response.status_code, 200)
@@ -93,5 +131,6 @@ class RatesModalTests(TestCase):
         self.assertEqual(len(data["smart_combo_examples"]), 3)
         self.assertEqual(data["smart_combo_examples"][0]["amount"], 7)
         self.assertEqual(data["smart_combo_examples_extend"][0]["duration"], "+1h 20m")
+
 
 
