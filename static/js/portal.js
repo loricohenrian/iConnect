@@ -516,19 +516,20 @@ function renderPlans(plans) {
     // Also sync extend plan grid if on extend session page
     const extendPlanGrid = document.getElementById("extend-plan-grid");
     if (extendPlanGrid) {
-        const extendPlanInput = document.getElementById("extend-plan");
-        const currentExtendPlanId = extendPlanInput ? extendPlanInput.value : "";
-
         extendPlanGrid.innerHTML = plans
             .map((plan) => {
+                const popularBadge =
+                    plan.is_most_popular
+                        ? '<div class="plan-popular">Popular</div>'
+                        : "";
+
                 const speedHtml = plan.speed_limit
                     ? `<div class="plan-speed">Up to ↓${plan.speed_limit}${plan.speed_limit_upload ? ' / ↑' + plan.speed_limit_upload : ''} Mbps</div>`
                     : '';
 
-                const isSelected = String(plan.id) === String(currentExtendPlanId) ? 'selected' : '';
-
                 return `
-                    <div class="plan-card extend-plan-card ${isSelected}" data-plan-id="${plan.id}" data-plan-minutes="${plan.duration_minutes}">
+                    <div class="plan-card" data-plan-id="${plan.id}" id="plan-${plan.id}" style="cursor: default;">
+                        ${popularBadge}
                         <div class="plan-price">₱${plan.price}</div>
                         <div class="plan-duration">+${escapeHtml(plan.duration_display)}</div>
                         ${speedHtml}
@@ -536,21 +537,11 @@ function renderPlans(plans) {
                 `;
             })
             .join("");
+    }
 
-        // Re-attach extend card click listeners
-        const extendCards = extendPlanGrid.querySelectorAll(".extend-plan-card");
-        const extendRequestBtn = document.getElementById("extend-request-btn");
-        const extendNowBtn = document.getElementById("extend-now-btn");
-
-        extendCards.forEach((card) => {
-            card.addEventListener("click", () => {
-                extendCards.forEach((c) => c.classList.remove("selected"));
-                card.classList.add("selected");
-                if (extendPlanInput) extendPlanInput.value = card.dataset.planId;
-                if (extendRequestBtn) extendRequestBtn.disabled = false;
-                if (extendNowBtn) extendNowBtn.disabled = true;
-            });
-        });
+    const extendRequestBtn = document.getElementById("extend-request-btn");
+    if (extendRequestBtn) {
+        extendRequestBtn.disabled = !Array.isArray(plans) || plans.length === 0;
     }
 }
 
@@ -1119,9 +1110,12 @@ function initExtendSessionFlow(macAddress) {
     const extendNowBtn = document.getElementById("extend-now-btn");
     const extendPlanGrid = document.getElementById("extend-plan-grid");
 
-    if (!extendPlanInput || !extendRequestBtn || !extendNowBtn || !extendPlanGrid) {
+    if (!extendPlanInput || !extendRequestBtn || !extendNowBtn) {
         return;
     }
+
+    // Direct Insert Coins is enabled by default
+    extendRequestBtn.disabled = false;
 
     const state = {
         requestId: null,
@@ -1227,9 +1221,10 @@ function initExtendSessionFlow(macAddress) {
     window.applyCoinRequestState = applyCoinRequestState;
     window.startPolling = startPolling;
 
-    // Plan selection in extend grid
-    const extendCards = extendPlanGrid.querySelectorAll(".extend-plan-card");
+    // Plan selection in extend grid (if outside rates modal)
+    const extendCards = extendPlanGrid ? extendPlanGrid.querySelectorAll(".extend-plan-card") : [];
     extendCards.forEach((card) => {
+        if (card.closest("#ratesModal")) return;
         card.addEventListener("click", () => {
             extendCards.forEach((c) => c.classList.remove("selected"));
             card.classList.add("selected");
@@ -1254,12 +1249,8 @@ function initExtendSessionFlow(macAddress) {
 
     // Request coin slot for extend
     extendRequestBtn.addEventListener("click", async () => {
-        const planId = Number(extendPlanInput.value) || state.planId;
+        const planId = Number(extendPlanInput.value) || state.planId || null;
         const currentMac = macAddress || getMacAddress();
-        if (!planId) {
-            setExtendMessage("Select a plan first.", "warning");
-            return;
-        }
         if (!currentMac) {
             setExtendMessage("Device identity missing. Please refresh.", "warning");
             return;
@@ -1267,12 +1258,18 @@ function initExtendSessionFlow(macAddress) {
 
         extendRequestBtn.disabled = true;
         extendNowBtn.disabled = true;
+        state.planId = planId;
 
         try {
+            const bodyPayload = { mac_address: currentMac, is_group_pass: false };
+            if (planId) {
+                bodyPayload.plan_id = planId;
+            }
+
             const response = await fetch("/api/session/start/request/", {
                 method: "POST",
                 headers: { "Content-Type": "application/json", "X-CSRFToken": getCSRFToken() },
-                body: JSON.stringify({ mac_address: currentMac, plan_id: planId }),
+                body: JSON.stringify(bodyPayload),
             });
             const data = await parseJsonSafe(response);
 
@@ -1293,19 +1290,23 @@ function initExtendSessionFlow(macAddress) {
         } catch (error) {
             setExtendMessage("Connection error.", "danger");
         } finally {
-            extendRequestBtn.disabled = !extendPlanInput.value;
+            extendRequestBtn.disabled = false;
         }
     });
 
     // Extend now button
     extendNowBtn.addEventListener("click", async () => {
-        const planId = Number(extendPlanInput.value) || state.planId;
+        const planId = Number(extendPlanInput.value) || state.planId || null;
         const currentMac = macAddress || getMacAddress();
         if (!currentMac) {
             setExtendMessage("Device MAC missing. Please refresh.", "warning");
             return;
         }
-        if (!planId || !state.readyToStart) {
+        if (state.isGroupPass && !planId) {
+            setExtendMessage("Select a plan first.", "warning");
+            return;
+        }
+        if (!state.readyToStart) {
             setExtendMessage("Insert coins first.", "warning");
             return;
         }
@@ -1314,15 +1315,19 @@ function initExtendSessionFlow(macAddress) {
         extendNowBtn.disabled = true;
 
         try {
+            const bodyPayload = {
+                mac_address: currentMac,
+                is_group_pass: state.isGroupPass,
+                group_devices: state.groupDevices,
+            };
+            if (planId) {
+                bodyPayload.plan_id = planId;
+            }
+
             const response = await fetch("/api/session/extend-paid/", {
                 method: "POST",
                 headers: { "Content-Type": "application/json", "X-CSRFToken": getCSRFToken() },
-                body: JSON.stringify({
-                    mac_address: currentMac,
-                    plan_id: planId,
-                    is_group_pass: state.isGroupPass,
-                    group_devices: state.groupDevices,
-                }),
+                body: JSON.stringify(bodyPayload),
             });
             const data = await parseJsonSafe(response);
 
@@ -1369,9 +1374,9 @@ function initExtendSessionFlow(macAddress) {
                 state.isGroupPass = false;
                 state.groupDevices = null;
                 state.readyToStart = false;
-                extendCards.forEach((c) => c.classList.remove("selected"));
-                extendPlanInput.value = "";
-                extendRequestBtn.disabled = true;
+                if (extendCards.length > 0) extendCards.forEach((c) => c.classList.remove("selected"));
+                if (extendPlanInput) extendPlanInput.value = "";
+                extendRequestBtn.disabled = false;
                 extendNowBtn.disabled = true;
                 return;
             }
@@ -1384,9 +1389,9 @@ function initExtendSessionFlow(macAddress) {
             }
             setExtendMessage(data.error || "Failed to extend session.", "danger");
         } catch (error) {
-            setExtendMessage("Connection error.", "danger");
+            setExtendMessage("Connection error while extending session.", "danger");
         } finally {
-            extendRequestBtn.disabled = !extendPlanInput.value;
+            extendRequestBtn.disabled = false;
             if (!state.readyToStart) {
                 extendNowBtn.disabled = true;
             }

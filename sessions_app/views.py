@@ -1369,18 +1369,50 @@ def session_extend_paid(request):
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
-    if not mac_address or not plan_id:
+    if not mac_address:
         return Response(
-            {"error": "mac_address and plan_id are required"},
+            {"error": "mac_address is required"},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    try:
-        plan = Plan.objects.get(id=int(plan_id), is_active=True)
-    except (Plan.DoesNotExist, ValueError, TypeError):
+    coin_req = CoinInsertRequest.objects.filter(
+        mac_address__iexact=mac_address,
+        status__in=[CoinInsertRequest.STATUS_PENDING, CoinInsertRequest.STATUS_ACTIVE],
+    ).order_by("-id").first()
+
+    is_group_pass = bool(
+        request.data.get("is_group_pass") or
+        (coin_req and coin_req.is_group_pass)
+    )
+    group_pass_devices = int(
+        request.data.get("group_devices") or
+        (coin_req.group_pass_devices if (coin_req and is_group_pass) else 1)
+    )
+    if is_group_pass and group_pass_devices < 2:
+        group_pass_devices = 2
+
+    if is_group_pass and not plan_id and not (coin_req and coin_req.plan_id):
         return Response(
-            {"error": "Invalid plan"},
+            {"error": "plan_id is required for group pass"},
             status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    resolved_plan_id = plan_id or (coin_req.plan_id if (coin_req and is_group_pass) else None)
+    plan = None
+    if resolved_plan_id:
+        try:
+            plan = Plan.objects.get(id=int(resolved_plan_id), is_active=True)
+        except (Plan.DoesNotExist, ValueError, TypeError):
+            return Response(
+                {"error": "Invalid plan"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+    min_active_plan = Plan.objects.filter(is_active=True).order_by("price").first()
+    if not min_active_plan:
+        return Response(
+            {"error": "No active plans available."},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
 
     request_ip = _client_ip(request)
@@ -1394,37 +1426,23 @@ def session_extend_paid(request):
             mac_address=mac_address,
         ).select_related("plan").order_by("-id").first()
 
-    if not active_session:
-        active_session = Session.objects.create(
-            mac_address=mac_address,
-            plan=plan,
-            time_in=timezone.now(),
-            duration_minutes_purchased=0,
-            amount_paid=0,
-            ip_address=request_ip,
-            status="active",
-        )
-
-    if request_ip and request_ip != "127.0.0.1":
-        active_session.ip_address = request_ip
-
-    coin_req = CoinInsertRequest.objects.filter(
-        mac_address__iexact=mac_address,
-        status__in=[CoinInsertRequest.STATUS_PENDING, CoinInsertRequest.STATUS_ACTIVE],
-    ).order_by("-id").first()
-
-    is_group_pass = bool(request.data.get("is_group_pass") or (coin_req and coin_req.is_group_pass and coin_req.plan_id == plan.id))
-    group_pass_devices = int(request.data.get("group_devices") or (coin_req.group_pass_devices if (coin_req and is_group_pass) else 1))
-    if is_group_pass and group_pass_devices < 2:
-        group_pass_devices = 2
-    expected_amount = plan.price * group_pass_devices if is_group_pass else plan.price
+    if plan:
+        expected_amount = plan.price * group_pass_devices if is_group_pass else plan.price
+    else:
+        expected_amount = min_active_plan.price
 
     # Check coins
     total_coins = _pending_coin_events_for_mac(mac_address).aggregate(
         total=Sum("amount")
     )["total"] or 0
 
-    if total_coins < expected_amount:
+    if plan:
+        insufficient = total_coins < expected_amount
+    else:
+        combo = calculate_combo_for_amount(total_coins)
+        insufficient = not combo or combo["amount_used"] < expected_amount
+
+    if insufficient:
         try:
             coin_request, _ = _get_or_create_start_coin_request(
                 mac_address, request_ip, plan,
@@ -1449,9 +1467,31 @@ def session_extend_paid(request):
     # Extend the session
     try:
         with transaction.atomic():
-            multiplier = total_coins // expected_amount if expected_amount > 0 else 1
-            amount_paid = expected_amount * multiplier
-            duration_minutes = plan.duration_minutes * multiplier
+            if plan:
+                multiplier = total_coins // expected_amount if expected_amount > 0 else 1
+                amount_paid = expected_amount * multiplier
+                duration_minutes = plan.duration_minutes * multiplier
+                effective_plan = plan
+            else:
+                combo = calculate_combo_for_amount(total_coins)
+                amount_paid = combo["amount_used"]
+                duration_minutes = combo["total_minutes"]
+                effective_plan = combo["highest_plan"]
+                multiplier = 1
+
+            if not active_session:
+                active_session = Session.objects.create(
+                    mac_address=mac_address,
+                    plan=effective_plan,
+                    time_in=timezone.now(),
+                    duration_minutes_purchased=0,
+                    amount_paid=0,
+                    ip_address=request_ip,
+                    status="active",
+                )
+
+            if request_ip and request_ip != "127.0.0.1":
+                active_session.ip_address = request_ip
 
             session_group = None
             if is_group_pass:
@@ -1469,11 +1509,11 @@ def session_extend_paid(request):
 
                 session_group = SessionGroup.objects.create(
                     group_code=code,
-                    plan=plan,
+                    plan=effective_plan,
                     max_devices=group_pass_devices,
                     redeemed_count=1,
                     total_price=amount_paid,
-                    duration_minutes=plan.duration_minutes,
+                    duration_minutes=effective_plan.duration_minutes,
                     time_in=timezone.now(),
                     code_expires_at=code_expires_at,
                     status="active"
@@ -1486,13 +1526,13 @@ def session_extend_paid(request):
             # Speed Always Wins logic
             speed_changed = False
             if active_session.plan:
-                new_dl = plan.speed_limit or 0
+                new_dl = effective_plan.speed_limit or 0
                 old_dl = active_session.plan.speed_limit or 0
                 if new_dl > old_dl:
-                    active_session.plan = plan
+                    active_session.plan = effective_plan
                     speed_changed = True
             else:
-                active_session.plan = plan
+                active_session.plan = effective_plan
                 speed_changed = True
 
             update_fields = ["duration_minutes_purchased", "amount_paid", "status", "time_in"]
@@ -1504,12 +1544,12 @@ def session_extend_paid(request):
                 update_fields.append("session_group")
 
             # Additive Pause Replenishment (Zero Loophole: grants earned pauses of new plan)
-            if plan.pause_limit == 0:
+            if effective_plan.pause_limit == 0:
                 if active_session.pause_count > 0:
                     active_session.pause_count = 0
                     update_fields.append("pause_count")
-            elif plan.pause_limit > 0 and active_session.pause_count > 0:
-                earned_pauses = plan.pause_limit * multiplier
+            elif effective_plan.pause_limit > 0 and active_session.pause_count > 0:
+                earned_pauses = effective_plan.pause_limit * multiplier
                 active_session.pause_count = max(0, active_session.pause_count - earned_pauses)
                 update_fields.append("pause_count")
                 
@@ -1517,7 +1557,7 @@ def session_extend_paid(request):
             
             PurchaseTransaction.objects.create(
                 session=active_session,
-                plan=plan,
+                plan=effective_plan,
                 amount=amount_paid,
             )
             if is_group_pass and session_group and session_group.max_devices > 0:
@@ -1527,8 +1567,8 @@ def session_extend_paid(request):
                 DeviceProfile.add_spending_points(mac_address, amount_paid)
             
             try:
-                dl_kbps = int(plan.speed_limit * 1024) if plan.speed_limit else None
-                ul_kbps = int(plan.speed_limit_upload * 1024) if plan.speed_limit_upload else dl_kbps
+                dl_kbps = int(effective_plan.speed_limit * 1024) if effective_plan.speed_limit else None
+                ul_kbps = int(effective_plan.speed_limit_upload * 1024) if effective_plan.speed_limit_upload else dl_kbps
 
                 if active_session.status == "active":
                     iptables.allow_device(mac_address, rate_kbps=dl_kbps, upload_kbps=ul_kbps)
@@ -1575,12 +1615,12 @@ def session_extend_paid(request):
     audit_logger.info(
         "event=session_extend_paid mac=%s plan=%s minutes=%s ip=%s",
         mac_address,
-        plan.name,
-        plan.duration_minutes,
+        effective_plan.name,
+        duration_minutes,
         request_ip,
     )
 
-    msg = f"Group Pass created! Code: {session_group.group_code} (+{plan.duration_display} added)" if session_group else f"Session extended by {plan.duration_minutes} minutes"
+    msg = f"Group Pass created! Code: {session_group.group_code} (+{effective_plan.duration_display} added)" if session_group else f"Session extended by {duration_minutes} minutes"
 
     return Response(
         {

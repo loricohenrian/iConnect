@@ -825,5 +825,33 @@ class ComboPlanTests(TestCase):
         # Device allowed with speed limit from highest plan (p5 = 3 Mbps -> 3072 kbps)
         allow_device_mock.assert_called_once_with(self.mac, rate_kbps=3072, upload_kbps=3072)
 
+    @patch("sessions_app.views.iptables.allow_device", return_value=True)
+    def test_session_extend_paid_without_plan_id_and_combo_coins(self, allow_device_mock):
+        session = Session.objects.create(
+            mac_address=self.mac,
+            plan=self.p1,
+            duration_minutes_purchased=10,
+            amount_paid=1,
+            status="active",
+        )
+        # Drop ₱7 (₱5 + two ₱1)
+        CoinEvent.objects.create(amount=5, denomination=5, mac_address=self.mac)
+        CoinEvent.objects.create(amount=1, denomination=1, mac_address=self.mac)
+        CoinEvent.objects.create(amount=1, denomination=1, mac_address=self.mac)
+
+        response = self.client.post(
+            reverse("sessions_app:session-extend-paid"),
+            {"mac_address": self.mac},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        session.refresh_from_db()
+        # 10 + 80 = 90 minutes
+        self.assertEqual(session.duration_minutes_purchased, 90)
+        # 1 + 7 = 8 pesos
+        self.assertEqual(session.amount_paid, 8)
+        # Plan upgraded to p5 (speed always wins: 3 Mbps > 2 Mbps)
+        self.assertEqual(session.plan, self.p5)
+
 
 
