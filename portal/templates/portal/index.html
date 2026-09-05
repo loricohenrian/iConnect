@@ -93,15 +93,28 @@
             </div>
             {% endfor %}
         </div>
-        <div class="alert alert-info text-xs mb-md" style="padding: 10px 14px; border-radius: 8px; font-size: 12px; line-height: 1.4;">
-            💡 <strong>Smart Combo Rates:</strong> Drop any coins you have! For example:
-            <ul style="margin: 4px 0 0 16px; padding: 0;">
-                <li><strong>₱7:</strong> ₱5 Plan + two ₱1 Plans = <strong>1h 20m</strong></li>
-                <li><strong>₱15:</strong> ₱10 Plan + ₱5 Plan = <strong>3h 30m</strong></li>
-                <li><strong>₱25:</strong> ₱20 Plan + ₱5 Plan = <strong>7 Hours</strong></li>
-            </ul>
+        {% if smart_combo_examples %}
+        <div class="smart-combo-card mb-md">
+            <div class="smart-combo-header">
+                <div class="smart-combo-title">
+                    <span class="smart-combo-icon">💡</span>
+                    <strong>Smart Combo Rates</strong>
+                </div>
+                <p class="smart-combo-desc">
+                    Drop any coins you have! Coins automatically combine for maximum time:
+                </p>
+            </div>
+            <div class="smart-combo-list" id="smart-combo-list">
+                {% for combo in smart_combo_examples %}
+                <div class="smart-combo-item">
+                    <div class="smart-combo-coin">₱{{ combo.amount }}</div>
+                    <div class="smart-combo-formula">{{ combo.breakdown }}</div>
+                    <div class="smart-combo-duration">{{ combo.duration }}</div>
+                </div>
+                {% endfor %}
+            </div>
         </div>
-        <button type="button" class="btn btn-secondary w-100" onclick="closeRatesModal()">Close</button>
+        {% endif %}
     </div>
 </div>
 

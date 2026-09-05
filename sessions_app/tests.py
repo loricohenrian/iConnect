@@ -946,4 +946,59 @@ class ComboPlanTests(TestCase):
         self.assertEqual(session.plan, self.p5)
 
 
+class SmartComboExamplesTests(TestCase):
+    def setUp(self):
+        self.p1 = Plan.objects.create(name="₱1 Plan", price=1, duration_minutes=10, is_active=True)
+        self.p5 = Plan.objects.create(name="₱5 Plan", price=5, duration_minutes=60, is_active=True)
+        self.p10 = Plan.objects.create(name="₱10 Plan", price=10, duration_minutes=150, is_active=True)
+        self.p20 = Plan.objects.create(name="₱20 Plan", price=20, duration_minutes=360, is_active=True)
+
+    def test_generate_smart_combos_standard_rates(self):
+        from .views import generate_smart_combo_examples
+        combos = generate_smart_combo_examples(is_extend=False)
+        self.assertEqual(len(combos), 3)
+
+        # ₱7: ₱5 Plan + two ₱1 Plans = 1h 20m
+        self.assertEqual(combos[0]["amount"], 7)
+        self.assertEqual(combos[0]["breakdown"], "₱5 Plan + two ₱1 Plans")
+        self.assertEqual(combos[0]["duration"], "1h 20m")
+
+        # ₱15: ₱10 Plan + ₱5 Plan = 3h 30m
+        self.assertEqual(combos[1]["amount"], 15)
+        self.assertEqual(combos[1]["breakdown"], "₱10 Plan + ₱5 Plan")
+        self.assertEqual(combos[1]["duration"], "3h 30m")
+
+        # ₱25: ₱20 Plan + ₱5 Plan = 7 Hours
+        self.assertEqual(combos[2]["amount"], 25)
+        self.assertEqual(combos[2]["breakdown"], "₱20 Plan + ₱5 Plan")
+        self.assertEqual(combos[2]["duration"], "7 Hours")
+
+    def test_generate_smart_combos_extend_mode(self):
+        from .views import generate_smart_combo_examples
+        combos = generate_smart_combo_examples(is_extend=True)
+        self.assertEqual(len(combos), 3)
+        self.assertEqual(combos[0]["duration"], "+1h 20m")
+        self.assertEqual(combos[1]["duration"], "+3h 30m")
+        self.assertEqual(combos[2]["duration"], "+7 Hours")
+
+    def test_generate_smart_combos_dynamic_custom_rates(self):
+        from .views import generate_smart_combo_examples
+        Plan.objects.all().delete()
+        Plan.objects.create(name="Custom P5", price=5, duration_minutes=30, is_active=True)
+        Plan.objects.create(name="Custom P10", price=10, duration_minutes=70, is_active=True)
+        combos = generate_smart_combo_examples(is_extend=False)
+        self.assertTrue(len(combos) > 0)
+        for c in combos:
+            self.assertGreater(c["amount"], 0)
+            self.assertIn("Plan", c["breakdown"])
+            self.assertTrue(len(c["duration"]) > 0)
+
+    def test_generate_smart_combos_empty_plans(self):
+        from .views import generate_smart_combo_examples
+        Plan.objects.all().delete()
+        combos = generate_smart_combo_examples()
+        self.assertEqual(combos, [])
+
+
+
 

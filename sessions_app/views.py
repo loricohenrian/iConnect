@@ -348,6 +348,117 @@ def calculate_combo_for_amount(amount):
     }
 
 
+WORD_NUMS = {1: "one", 2: "two", 3: "three", 4: "four", 5: "five"}
+
+
+def generate_smart_combo_examples(plans=None, is_extend=False):
+    """
+    Dynamically generates 2-3 realistic smart combo rate examples
+    based on the currently active plans in the database.
+    """
+    if plans is None:
+        active_plans = list(Plan.objects.filter(is_active=True).order_by("price", "id"))
+    elif hasattr(plans, "filter"):
+        active_plans = list(plans.filter(is_active=True, price__gt=0).order_by("price", "id"))
+    else:
+        active_plans = sorted(
+            [p for p in plans if getattr(p, "is_active", True) and p.price > 0],
+            key=lambda x: x.price,
+        )
+
+    if not active_plans:
+        return []
+
+    prices = sorted(list({p.price for p in active_plans if p.price > 0}))
+    if not prices:
+        return []
+
+    # Generate candidate combo amounts based on available plan prices
+    if len(prices) >= 4:
+        # e.g., 1, 5, 10, 20 -> 5 + 2*1 = 7, 10 + 5 = 15, 20 + 5 = 25
+        candidates = [
+            prices[1] + 2 * prices[0],
+            prices[2] + prices[1],
+            prices[3] + prices[1],
+            prices[2] + 2 * prices[0],
+            prices[3] + prices[2],
+        ]
+    elif len(prices) == 3:
+        # e.g., 1, 5, 10 or 5, 10, 20
+        candidates = [
+            prices[1] + 2 * prices[0],
+            prices[2] + prices[0],
+            prices[2] + prices[1],
+            prices[1] + prices[0],
+            prices[2] + 2 * prices[0],
+        ]
+    elif len(prices) == 2:
+        # e.g., 1, 5
+        candidates = [
+            prices[1] + prices[0],
+            prices[1] + 2 * prices[0],
+            2 * prices[1] + prices[0],
+            prices[1] + 3 * prices[0],
+        ]
+    elif len(prices) == 1:
+        candidates = [
+            2 * prices[0],
+            3 * prices[0],
+            5 * prices[0],
+        ]
+    else:
+        candidates = []
+
+    price_set = set(prices)
+    valid_amounts = []
+    for amt in candidates:
+        if amt > 0 and (amt not in price_set or len(prices) == 1) and amt not in valid_amounts:
+            valid_amounts.append(amt)
+            if len(valid_amounts) == 3:
+                break
+
+    valid_amounts.sort()
+
+    examples = []
+    for amount in valid_amounts:
+        combo = calculate_combo_for_amount(amount)
+        if combo["amount_used"] != amount or not combo["breakdown"]:
+            continue
+
+        parts = []
+        for plan_obj, count in combo["breakdown"]:
+            price_val = getattr(plan_obj, "price", 0)
+            if count == 1:
+                parts.append(f"₱{price_val} Plan")
+            elif count in WORD_NUMS:
+                parts.append(f"{WORD_NUMS[count]} ₱{price_val} Plans")
+            else:
+                parts.append(f"{count}x ₱{price_val} Plans")
+        breakdown_str = " + ".join(parts)
+
+        total_minutes = combo["total_minutes"]
+        h = total_minutes // 60
+        m = total_minutes % 60
+        if h > 0 and m > 0:
+            duration_str = f"{h}h {m}m"
+        elif h > 0 and m == 0:
+            duration_str = f"{h} Hour{'s' if h > 1 else ''}"
+        else:
+            duration_str = f"{m}m"
+
+        if is_extend:
+            duration_str = f"+{duration_str}"
+
+        examples.append({
+            "amount": amount,
+            "breakdown": breakdown_str,
+            "duration": duration_str,
+            "total_minutes": total_minutes,
+        })
+
+    return examples
+
+
 def _coin_request_payload(coin_request):
     if not coin_request:
         return None

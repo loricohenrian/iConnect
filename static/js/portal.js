@@ -545,6 +545,25 @@ function renderPlans(plans) {
     }
 }
 
+function renderSmartCombos(combos) {
+    const list = document.getElementById("smart-combo-list");
+    if (!list || !Array.isArray(combos)) return;
+    const card = list.closest(".smart-combo-card");
+    if (combos.length === 0) {
+        if (card) card.style.display = "none";
+        return;
+    }
+    if (card) card.style.display = "";
+
+    list.innerHTML = combos.map(combo => `
+        <div class="smart-combo-item">
+            <div class="smart-combo-coin">₱${escapeHtml(combo.amount)}</div>
+            <div class="smart-combo-formula">${escapeHtml(combo.breakdown)}</div>
+            <div class="smart-combo-duration">${escapeHtml(combo.duration)}</div>
+        </div>
+    `).join("");
+}
+
 let _lastPlansJson = "";
 
 async function syncPortalLiveData() {
@@ -563,6 +582,9 @@ async function syncPortalLiveData() {
         if (plansJson !== _lastPlansJson) {
             _lastPlansJson = plansJson;
             renderPlans(data.plans || []);
+            const isExtendPage = !!document.getElementById("extend-plan-grid");
+            const combos = isExtendPage ? data.smart_combo_examples_extend : data.smart_combo_examples;
+            renderSmartCombos(combos);
         }
 
         // Update connection slots in real-time

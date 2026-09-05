@@ -163,8 +163,12 @@ def index(request):
     if settings_obj.enable_internet_check:
         is_internet_offline = Announcement.objects.filter(is_active=True, message__contains="interrupted by our ISP").exists()
 
+    from sessions_app.views import generate_smart_combo_examples
+    smart_combo_examples = generate_smart_combo_examples(plans, is_extend=False)
+
     context = {
         "plans": plans,
+        "smart_combo_examples": smart_combo_examples,
         "announcements": announcements,
         "expired": expired,
         "is_whitelisted": is_whitelisted,
@@ -252,12 +256,17 @@ def session_page(request):
             else:
                 group_code_remaining_display = f"{h}h {m}m {s}s"
 
+    plans = Plan.objects.filter(is_active=True)
+    from sessions_app.views import generate_smart_combo_examples
+    smart_combo_examples = generate_smart_combo_examples(plans, is_extend=True)
+
     context = {
         "session": active_session,
         "announcements": announcements,
         "mac_address": mac_address,
         "time_remaining_seconds": int(active_session.time_remaining_seconds),
-        "plans": Plan.objects.filter(is_active=True),
+        "plans": plans,
+        "smart_combo_examples": smart_combo_examples,
         "active_page": "home",
         "device_profile": device_profile,
         "system_settings": SystemSettings.get_settings(),
@@ -391,9 +400,15 @@ def live_data(request):
         for ann in announcements
     ]
 
+    from sessions_app.views import generate_smart_combo_examples
+    smart_combos = generate_smart_combo_examples(plans, is_extend=False)
+    smart_combos_extend = generate_smart_combo_examples(plans, is_extend=True)
+
     return JsonResponse(
         {
             "plans": plan_payload,
+            "smart_combo_examples": smart_combos,
+            "smart_combo_examples_extend": smart_combos_extend,
             "announcements": announcement_payload,
             "slots": {
                 "active": active_count,

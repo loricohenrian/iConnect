@@ -59,3 +59,38 @@ class PortalProductionTests(TestCase):
         )
         self.assertEqual(response.status_code, 400)
 
+
+class RatesModalTests(TestCase):
+    def setUp(self):
+        Plan.objects.create(name="₱1 Plan", price=1, duration_minutes=10, is_active=True)
+        Plan.objects.create(name="₱5 Plan", price=5, duration_minutes=60, is_active=True)
+        Plan.objects.create(name="₱10 Plan", price=10, duration_minutes=150, is_active=True)
+        Plan.objects.create(name="₱20 Plan", price=20, duration_minutes=360, is_active=True)
+
+    def test_index_renders_smart_combo_card_and_no_bottom_close_btn(self):
+        response = self.client.get(reverse("portal:index"))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("smart_combo_examples", response.context)
+        self.assertEqual(len(response.context["smart_combo_examples"]), 3)
+
+        # Smart combo card should exist
+        self.assertContains(response, 'class="smart-combo-card')
+        self.assertContains(response, "Smart Combo Rates")
+        self.assertContains(response, "₱7")
+        self.assertContains(response, "₱5 Plan + two ₱1 Plans")
+        self.assertContains(response, "1h 20m")
+
+        # Bottom Close button should NOT exist
+        self.assertNotContains(response, '>Close</button>')
+
+    def test_live_data_returns_smart_combos(self):
+        response = self.client.get("/api/portal/live-data/")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIn("smart_combo_examples", data)
+        self.assertIn("smart_combo_examples_extend", data)
+        self.assertEqual(len(data["smart_combo_examples"]), 3)
+        self.assertEqual(data["smart_combo_examples"][0]["amount"], 7)
+        self.assertEqual(data["smart_combo_examples_extend"][0]["duration"], "+1h 20m")
+
+
