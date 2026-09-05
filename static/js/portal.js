@@ -1415,6 +1415,8 @@ function pollSessionStatus(macAddress, intervalMs = 3000) {
             // Real-time synchronization of Pause / Resume / Outage state
             const pauseWarningEl = document.getElementById("pause-duration-warning");
             const pauseBtn = document.getElementById("pause-btn");
+            const timerEl = document.getElementById("session-timer");
+            const connectionStatusEl = document.getElementById("connection-status");
 
             if (data.isp_outage || data.status === "paused") {
                 if (window.sessionTimer && !window.sessionTimer.isPaused) {
@@ -1424,14 +1426,21 @@ function pollSessionStatus(macAddress, intervalMs = 3000) {
                     window.sessionTimer.serverSeconds = Math.max(0, data.session.time_remaining_seconds);
                     window.sessionTimer.update();
                 }
+                if (timerEl) {
+                    timerEl.dataset.status = "paused";
+                    timerEl.classList.remove("timer-green");
+                    timerEl.classList.add("timer-amber");
+                }
+                if (connectionStatusEl) {
+                    connectionStatusEl.innerHTML = '<span class="status-dot" style="background: var(--color-warning);"></span><span>Paused</span>';
+                }
                 if (pauseBtn) {
-                    pauseBtn.classList.remove("btn-warning");
-                    pauseBtn.classList.add("btn-success");
+                    pauseBtn.classList.add("paused");
                     if (data.isp_outage) {
                         pauseBtn.innerHTML = '<i class="bi bi-pause-circle-fill"></i> Frozen (No Internet)';
                         pauseBtn.disabled = true;
                     } else {
-                        pauseBtn.innerHTML = '<i class="bi bi-play-circle-fill"></i> Resume Internet';
+                        pauseBtn.textContent = "Resume";
                         pauseBtn.disabled = false;
                     }
                 }
@@ -1448,10 +1457,17 @@ function pollSessionStatus(macAddress, intervalMs = 3000) {
                 if (data.session && data.session.time_remaining_seconds !== undefined && window.sessionTimer) {
                     window.sessionTimer.serverSeconds = Math.max(0, data.session.time_remaining_seconds);
                 }
+                if (timerEl) {
+                    timerEl.dataset.status = "active";
+                    timerEl.classList.remove("timer-amber");
+                    timerEl.classList.add("timer-green");
+                }
+                if (connectionStatusEl) {
+                    connectionStatusEl.innerHTML = '<span class="status-dot"></span><span>Connected</span>';
+                }
                 if (pauseBtn) {
-                    pauseBtn.classList.remove("btn-success");
-                    pauseBtn.classList.add("btn-warning");
-                    pauseBtn.innerHTML = '<i class="bi bi-pause-circle-fill"></i> Pause Session';
+                    pauseBtn.classList.remove("paused");
+                    pauseBtn.textContent = "Pause";
                     pauseBtn.disabled = false;
                 }
                 if (pauseWarningEl) {
@@ -1756,8 +1772,6 @@ function initPauseButton(macAddress) {
     const pauseBtn = document.getElementById("pause-btn");
     if (!pauseBtn) return;
 
-    let isPaused = (document.getElementById("session-timer")?.dataset.status === "paused");
-
     pauseBtn.addEventListener("click", async () => {
         pauseBtn.disabled = true;
 
@@ -1774,11 +1788,61 @@ function initPauseButton(macAddress) {
             const data = await response.json();
             if (!response.ok) {
                 console.error("Pause error:", data.error);
+                alert(data.error || "Failed to toggle pause");
                 return;
             }
 
-            // Reload to ensure accurate 'Pauses remaining' count and UI state
-            window.location.reload();
+            const timerEl = document.getElementById("session-timer");
+            const connectionStatusEl = document.getElementById("connection-status");
+            const pauseWarningEl = document.getElementById("pause-duration-warning");
+            const pausesLeftEl = document.getElementById("pauses-left-display");
+
+            if (data.status === "paused") {
+                if (window.sessionTimer) {
+                    window.sessionTimer.pause();
+                    if (data.time_remaining_seconds !== undefined) {
+                        window.sessionTimer.serverSeconds = Math.max(0, data.time_remaining_seconds);
+                        window.sessionTimer.update();
+                    }
+                }
+                if (timerEl) {
+                    timerEl.dataset.status = "paused";
+                    timerEl.classList.remove("timer-green");
+                    timerEl.classList.add("timer-amber");
+                }
+                if (connectionStatusEl) {
+                    connectionStatusEl.innerHTML = '<span class="status-dot" style="background: var(--color-warning);"></span><span>Paused</span>';
+                }
+                pauseBtn.classList.add("paused");
+                pauseBtn.textContent = "Resume";
+                if (pauseWarningEl) {
+                    pauseWarningEl.style.display = "block";
+                }
+            } else if (data.status === "active") {
+                if (window.sessionTimer) {
+                    if (data.time_remaining_seconds !== undefined) {
+                        window.sessionTimer.serverSeconds = Math.max(0, data.time_remaining_seconds);
+                    }
+                    window.sessionTimer.resume();
+                }
+                if (timerEl) {
+                    timerEl.dataset.status = "active";
+                    timerEl.classList.remove("timer-amber");
+                    timerEl.classList.add("timer-green");
+                }
+                if (connectionStatusEl) {
+                    connectionStatusEl.innerHTML = '<span class="status-dot"></span><span>Connected</span>';
+                }
+                pauseBtn.classList.remove("paused");
+                pauseBtn.textContent = "Pause";
+                if (pauseWarningEl) {
+                    pauseWarningEl.style.display = "none";
+                }
+            }
+
+            if (data.pauses_left !== undefined && pausesLeftEl) {
+                pausesLeftEl.innerText = data.pauses_left;
+            }
         } catch (err) {
             console.error("Pause toggle error:", err);
         } finally {

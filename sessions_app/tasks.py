@@ -125,6 +125,9 @@ def check_expired_sessions():
             if paused_hours >= max_pause_hours:
                 # Limit exceeded: auto-resume the session so the timer drains
                 session.resume_session()
+                from django.core.cache import cache
+                cache.delete(f"auto_paused_{session.id}")
+                cache.delete(f"manual_pause_{session.id}")
                 # Do NOT allow iptables here since they might not be connected, 
                 # but if they are, they will need to refresh anyway. 
                 # Better yet, allow them just in case.
@@ -300,6 +303,8 @@ def auto_pause_disconnected_sessions():
                     session.pause_session()
                     iptables.block_device(session.mac_address)
                     cache.delete(cache_key)
+                    cache.set(f"auto_paused_{session.id}", True, timeout=86400 * 7)
+                    cache.delete(f"manual_pause_{session.id}")
                     paused_count += 1
                     logger.info(
                         f'Auto-paused session {session.id} for {session.mac_address} '
@@ -385,6 +390,7 @@ def auto_resume_connected_sessions():
     """
     Auto-resume paused sessions whose devices have reconnected to WiFi.
     """
+    from django.core.cache import cache
     from dashboard.models import SystemSettings
     from .models import Session
     from . import iptables
@@ -397,6 +403,14 @@ def auto_resume_connected_sessions():
     resumed_count = 0
 
     for session in paused_sessions:
+        # Never auto-resume a session that was manually paused by the user
+        if cache.get(f"manual_pause_{session.id}"):
+            continue
+
+        # Only auto-resume sessions that were paused automatically due to WiFi disconnection
+        if not cache.get(f"auto_paused_{session.id}"):
+            continue
+
         if _is_device_reachable(session.mac_address, session.ip_address):
             # Device is back online — check if max pause duration was exceeded
             max_pause_hours = session.plan.pause_duration_limit if (session.plan and session.plan.pause_duration_limit > 0) else settings_obj.global_pause_limit_hours
@@ -404,6 +418,8 @@ def auto_resume_connected_sessions():
                 paused_hours = (timezone.now() - session.paused_at).total_seconds() / 3600.0
                 if paused_hours >= max_pause_hours:
                     session.expire_session()
+                    cache.delete(f"auto_paused_{session.id}")
+                    cache.delete(f"manual_pause_{session.id}")
                     logger.info(f'Expired session {session.id} for {session.mac_address} during auto-resume: exceeded {max_pause_hours}h pause limit')
                     continue
 
@@ -416,6 +432,8 @@ def auto_resume_connected_sessions():
                 continue
 
             session.resume_session()
+            cache.delete(f"auto_paused_{session.id}")
+            cache.delete(f"manual_pause_{session.id}")
             dl_kbps = int(session.plan.speed_limit * 1024) if session.plan and session.plan.speed_limit else None
             ul_kbps = int(session.plan.speed_limit_upload * 1024) if session.plan and session.plan.speed_limit_upload else dl_kbps
             iptables.allow_device(session.mac_address, rate_kbps=dl_kbps, upload_kbps=ul_kbps)

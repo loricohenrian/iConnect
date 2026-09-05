@@ -253,6 +253,12 @@ class Session(models.Model):
         self.time_out = self.time_in + timedelta(seconds=total_seconds)
         self.paused_at = None
         self.save()
+        try:
+            from django.core.cache import cache
+            cache.delete(f"manual_pause_{self.id}")
+            cache.delete(f"auto_paused_{self.id}")
+        except Exception:
+            pass
 
     def pause_session(self):
         """Pause the session — freezes timer."""
@@ -273,6 +279,12 @@ class Session(models.Model):
         self.status = "active"
         self.paused_at = None
         self.save(update_fields=["status", "paused_at", "total_paused_seconds"])
+        try:
+            from django.core.cache import cache
+            cache.delete(f"manual_pause_{self.id}")
+            cache.delete(f"auto_paused_{self.id}")
+        except Exception:
+            pass
         return True
 
     @staticmethod

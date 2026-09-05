@@ -666,6 +666,98 @@ class SessionApiTests(TestCase):
         session.refresh_from_db()
         self.assertEqual(session.status, "expired")
 
+    @patch("sessions_app.tasks._is_device_reachable", return_value=True)
+    def test_manual_pause_does_not_auto_resume(self, mock_reachable):
+        from dashboard.models import SystemSettings
+        from .tasks import auto_resume_connected_sessions
+
+        sys_settings = SystemSettings.get_settings()
+        sys_settings.enable_auto_pause_resume = True
+        sys_settings.save()
+
+        session = Session.objects.create(
+            mac_address=self.mac_one,
+            plan=self.plan,
+            duration_minutes_purchased=self.plan.duration_minutes,
+            remaining_minutes=self.plan.duration_minutes,
+            amount_paid=self.plan.price,
+            status="active",
+            ip_address="127.0.0.1",
+        )
+
+        # Student manually pauses session
+        response = self.client.post(
+            reverse("sessions_app:session-pause"),
+            {"mac_address": self.mac_one},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["status"], "paused")
+        self.assertIn("pauses_left", response.data)
+
+        session.refresh_from_db()
+        self.assertEqual(session.status, "paused")
+
+        # Celery background task runs while device is reachable
+        result = auto_resume_connected_sessions()
+        self.assertIn("auto-resumed 0", result)
+
+        # Verify session is STILL paused (never auto-resumed)
+        session.refresh_from_db()
+        self.assertEqual(session.status, "paused")
+
+        # Student manually clicks Resume
+        resume_response = self.client.post(
+            reverse("sessions_app:session-pause"),
+            {"mac_address": self.mac_one},
+            format="json",
+        )
+        self.assertEqual(resume_response.status_code, 200)
+        self.assertEqual(resume_response.data["status"], "active")
+        session.refresh_from_db()
+        self.assertEqual(session.status, "active")
+
+    @override_settings(PISONET_GPIO_SIMULATION=False)
+    @patch("sessions_app.tasks._is_device_reachable")
+    def test_auto_pause_can_auto_resume(self, mock_reachable):
+        from dashboard.models import SystemSettings
+        from .tasks import auto_resume_connected_sessions, auto_pause_disconnected_sessions
+
+        sys_settings = SystemSettings.get_settings()
+        sys_settings.enable_auto_pause_resume = True
+        sys_settings.save()
+
+        session = Session.objects.create(
+            mac_address=self.mac_one,
+            plan=self.plan,
+            duration_minutes_purchased=self.plan.duration_minutes,
+            remaining_minutes=self.plan.duration_minutes,
+            amount_paid=self.plan.price,
+            status="active",
+            ip_address="127.0.0.1",
+        )
+
+        # Device disconnects — simulate unreachable for > 300s
+        mock_reachable.return_value = False
+        cache_key = f"auto_pause_unreachable_{self.mac_one}"
+        past_time = timezone.now() - timezone.timedelta(seconds=400)
+        cache.set(cache_key, past_time.isoformat(), timeout=600)
+
+        # Run auto-pause task
+        auto_pause_disconnected_sessions()
+        session.refresh_from_db()
+        self.assertEqual(session.status, "paused")
+        self.assertTrue(cache.get(f"auto_paused_{session.id}"))
+
+        # Device reconnects — reachable again
+        mock_reachable.return_value = True
+        auto_resume_connected_sessions()
+
+        # Session should now be auto-resumed because it was auto-paused
+        session.refresh_from_db()
+        self.assertEqual(session.status, "active")
+        self.assertIsNone(cache.get(f"auto_paused_{session.id}"))
+
     def test_session_start_rejects_blocked_device(self):
         SuspiciousDevice.objects.create(
             mac_address=self.mac_one,

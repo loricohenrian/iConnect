@@ -1725,6 +1725,14 @@ def session_pause_toggle(request):
 
         session.pause_session()
         blocked = iptables.block_device(mac_address)
+        cache.set(f"manual_pause_{session.id}", True, timeout=86400 * 7)
+        cache.delete(f"auto_paused_{session.id}")
+
+        pauses_left = (
+            max(0, session.plan.pause_limit - session.pause_count)
+            if session.plan and session.plan.pause_limit > 0
+            else "Unlimited"
+        )
         audit_logger.info(
             "event=session_paused mac=%s blocked=%s ip=%s",
             mac_address, blocked, _client_ip(request),
@@ -1733,6 +1741,7 @@ def session_pause_toggle(request):
             "status": "paused",
             "message": "Session paused. Internet disconnected.",
             "time_remaining_seconds": session.time_remaining_seconds,
+            "pauses_left": pauses_left,
         })
     else:
         # Check if max pause hours exceeded
@@ -1763,9 +1772,16 @@ def session_pause_toggle(request):
             )
 
         session.resume_session()
+        cache.delete(f"manual_pause_{session.id}")
+        cache.delete(f"auto_paused_{session.id}")
         dl_kbps = int(session.plan.speed_limit * 1024) if session.plan and session.plan.speed_limit else None
         ul_kbps = int(session.plan.speed_limit_upload * 1024) if session.plan and session.plan.speed_limit_upload else dl_kbps
         allowed = iptables.allow_device(mac_address, rate_kbps=dl_kbps, upload_kbps=ul_kbps)
+        pauses_left = (
+            max(0, session.plan.pause_limit - session.pause_count)
+            if session.plan and session.plan.pause_limit > 0
+            else "Unlimited"
+        )
         audit_logger.info(
             "event=session_resumed mac=%s allowed=%s ip=%s",
             mac_address, allowed, _client_ip(request),
@@ -1774,6 +1790,7 @@ def session_pause_toggle(request):
             "status": "active",
             "message": "Session resumed. Internet reconnected.",
             "time_remaining_seconds": session.time_remaining_seconds,
+            "pauses_left": pauses_left,
         })
 
 
