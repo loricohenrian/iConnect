@@ -352,7 +352,10 @@
 
 /* Pause / Resume Button */
 .pause-btn {
-    display: block;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
     width: 100%;
     max-width: 180px;
     margin: 14px auto 0;
@@ -365,6 +368,12 @@
     font-weight: 600;
     cursor: pointer;
     transition: var(--transition-fast);
+}
+
+.pause-btn svg {
+    display: inline-block;
+    vertical-align: middle;
+    flex-shrink: 0;
 }
 
 .pause-btn:hover {
@@ -380,6 +389,11 @@
     border-color: var(--color-success);
     color: #166534;
     background: #F0FDF4;
+}
+
+.pause-btn.paused:hover {
+    background: #DCFCE7;
+    border-color: var(--color-success);
 }
 
 /* Inline Session Details */

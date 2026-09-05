@@ -1437,10 +1437,10 @@ function pollSessionStatus(macAddress, intervalMs = 3000) {
                 if (pauseBtn) {
                     pauseBtn.classList.add("paused");
                     if (data.isp_outage) {
-                        pauseBtn.innerHTML = '<i class="bi bi-pause-circle-fill"></i> Frozen (No Internet)';
+                        pauseBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5zm5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5z"/></svg><span>Frozen (No Internet)</span>';
                         pauseBtn.disabled = true;
                     } else {
-                        pauseBtn.textContent = "Resume";
+                        pauseBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z"/></svg><span>Resume</span>';
                         pauseBtn.disabled = false;
                     }
                 }
@@ -1467,7 +1467,7 @@ function pollSessionStatus(macAddress, intervalMs = 3000) {
                 }
                 if (pauseBtn) {
                     pauseBtn.classList.remove("paused");
-                    pauseBtn.textContent = "Pause";
+                    pauseBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5zm5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5z"/></svg><span>Pause</span>';
                     pauseBtn.disabled = false;
                 }
                 if (pauseWarningEl) {
@@ -1814,7 +1814,7 @@ function initPauseButton(macAddress) {
                     connectionStatusEl.innerHTML = '<span class="status-dot" style="background: var(--color-warning);"></span><span>Paused</span>';
                 }
                 pauseBtn.classList.add("paused");
-                pauseBtn.textContent = "Resume";
+                pauseBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z"/></svg><span>Resume</span>';
                 if (pauseWarningEl) {
                     pauseWarningEl.style.display = "block";
                 }
@@ -1834,7 +1834,7 @@ function initPauseButton(macAddress) {
                     connectionStatusEl.innerHTML = '<span class="status-dot"></span><span>Connected</span>';
                 }
                 pauseBtn.classList.remove("paused");
-                pauseBtn.textContent = "Pause";
+                pauseBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5zm5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5z"/></svg><span>Pause</span>';
                 if (pauseWarningEl) {
                     pauseWarningEl.style.display = "none";
                 }
