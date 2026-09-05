@@ -79,6 +79,7 @@ class RatesModalTests(TestCase):
         self.assertContains(response, "₱7")
         self.assertContains(response, "₱5 Plan + two ₱1 Plans")
         self.assertContains(response, "1h 20m")
+        self.assertContains(response, "Speed Note:")
 
         # Bottom Close button should NOT exist
         self.assertNotContains(response, '>Close</button>')
