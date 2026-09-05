@@ -2,7 +2,10 @@
 {% load static %}
 
 {% block extra_css %}
-<link rel="preload" as="image" href="{% static 'img/final_iconnect_logo.png' %}">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<link rel="preload" as="image" href="{% static 'img/final_iconnect_logo.png' %}?v={% now 'U' %}">
 <link rel="stylesheet" href="{% static 'css/portal.css' %}?v={% now 'U' %}">
 {% endblock %}
 
@@ -10,7 +13,7 @@
 <div class="portal-wrapper" data-mac="{{ mac_address|default:'' }}">
     <!-- Header -->
     <header class="portal-header">
-        <img src="{% static 'img/final_iconnect_logo.png' %}" alt="iConnect" class="portal-logo" width="58" height="58" decoding="sync" fetchpriority="high">
+        <img src="{% static 'img/final_iconnect_logo.png' %}?v={% now 'U' %}" alt="iConnect" class="portal-logo" width="58" height="58" decoding="sync" fetchpriority="high">
     </header>
 
     <!-- Announcements -->
