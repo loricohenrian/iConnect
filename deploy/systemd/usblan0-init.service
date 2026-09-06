@@ -11,26 +11,21 @@ RemainAfterExit=yes
 TimeoutStartSec=60
 ExecStart=/bin/bash -c '\
   echo "[usblan0-init] Waiting for usblan0 interface..."; \
-  for i in $(seq 1 35); do \
+  for i in $(seq 1 45); do \
     if ip link show usblan0 >/dev/null 2>&1; then \
       echo "[usblan0-init] usblan0 detected, assigning 10.10.10.1/24..."; \
       ip link set usblan0 up; \
       ip addr replace 10.10.10.1/24 dev usblan0; \
+      systemctl --no-block try-restart dnsmasq; \
       exit 0; \
     fi; \
-    if [ "$i" -eq 6 ]; then \
-      echo "[usblan0-init] Attempting USB port re-authorization fallback..."; \
-      for hub in /sys/bus/usb/devices/usb*; do \
-        if [ -f "$hub/authorized" ]; then \
-          echo 0 > "$hub/authorized" 2>/dev/null || true; \
-          sleep 0.5; \
-          echo 1 > "$hub/authorized" 2>/dev/null || true; \
-        fi; \
-      done; \
+    if [ "$i" -eq 4 ] && command -v usb_modeswitch >/dev/null 2>&1; then \
+      echo "[usblan0-init] Triggering modeswitch on 30ae:3300..."; \
+      usb_modeswitch -v 30ae -p 3300 -K 2>/dev/null || true; \
     fi; \
     sleep 1; \
   done; \
-  echo "[usblan0-init] WARNING: usblan0 not detected after 35s" >&2; \
+  echo "[usblan0-init] WARNING: usblan0 not detected after 45s" >&2; \
   exit 0 \
 '
 
