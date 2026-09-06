@@ -903,6 +903,17 @@ class SessionApiTests(TestCase):
         active_sess = Session.objects.filter(mac_address=self.mac_one, status="active").first()
         self.assertIsNotNone(active_sess)
 
+        # 7. Next request after session started should have 0 balance and ready_to_start False
+        res3 = self.client.post(
+            reverse("sessions_app:session-start-request"),
+            {"mac_address": self.mac_one, "plan_id": self.plan.id},
+            format="json",
+        )
+        self.assertIn(res3.status_code, (200, 201))
+        body3 = res3.json()
+        self.assertEqual(body3["coin_request"]["credited_amount"], 0)
+        self.assertFalse(body3["coin_request"]["ready_to_start"])
+
 
 class ComboPlanTests(TestCase):
     def setUp(self):

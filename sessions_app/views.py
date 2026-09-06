@@ -562,8 +562,8 @@ def _get_or_create_start_coin_request(mac_address, ip_address, plan=None, is_gro
     existing_request = CoinInsertRequest.objects.filter(
         mac_address=mac_address,
         purpose=CoinInsertRequest.PURPOSE_START,
-        status__in=[CoinInsertRequest.STATUS_PENDING, CoinInsertRequest.STATUS_ACTIVE, CoinInsertRequest.STATUS_COMPLETED],
-    ).order_by("created_at", "id").first()
+        status__in=[CoinInsertRequest.STATUS_PENDING, CoinInsertRequest.STATUS_ACTIVE],
+    ).order_by("-id").first()
 
     expected_amount = 0
     if is_group_pass:
@@ -579,7 +579,9 @@ def _get_or_create_start_coin_request(mac_address, ip_address, plan=None, is_gro
         same_plan = (existing_request.plan_id == target_plan_id)
         same_group = (existing_request.is_group_pass == is_group_pass and existing_request.group_pass_devices == group_pass_devices)
         if (same_plan or (not is_group_pass and not plan and not existing_request.is_group_pass)) and same_group:
-            return _sync_coin_request_progress(existing_request), False
+            synced = _sync_coin_request_progress(existing_request)
+            if synced.status in (CoinInsertRequest.STATUS_PENDING, CoinInsertRequest.STATUS_ACTIVE):
+                return synced, False
         else:
             existing_request.status = CoinInsertRequest.STATUS_CANCELLED
             existing_request.completed_at = timezone.now()
@@ -902,8 +904,8 @@ def session_start_cancel(request):
         
     coin_request = CoinInsertRequest.objects.filter(
         mac_address=mac_address,
-        status__in=[CoinInsertRequest.STATUS_PENDING, CoinInsertRequest.STATUS_ACTIVE, CoinInsertRequest.STATUS_COMPLETED]
-    ).first()
+        status__in=[CoinInsertRequest.STATUS_PENDING, CoinInsertRequest.STATUS_ACTIVE]
+    ).order_by("-id").first()
     
     if coin_request:
         coin_request.status = CoinInsertRequest.STATUS_CANCELLED
@@ -1101,7 +1103,7 @@ def session_start(request):
             CoinInsertRequest.objects.filter(
                 mac_address=mac_address,
                 purpose=CoinInsertRequest.PURPOSE_START,
-                status__in=[CoinInsertRequest.STATUS_PENDING, CoinInsertRequest.STATUS_ACTIVE, CoinInsertRequest.STATUS_COMPLETED],
+                status__in=[CoinInsertRequest.STATUS_PENDING, CoinInsertRequest.STATUS_ACTIVE],
             ).update(
                 status=CoinInsertRequest.STATUS_COMPLETED,
                 completed_at=timezone.now(),
