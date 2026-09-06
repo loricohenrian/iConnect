@@ -142,22 +142,57 @@ def _session_ip_matches_request(session, request):
     return True
 
 
+def _get_dhcp_hostname(mac_address):
+    """
+    Read real device hostname from dnsmasq leases file if available.
+    Format of /var/lib/misc/dnsmasq.leases:
+    <expiry_epoch> <mac_address> <ip_address> <hostname> <client_id>
+    """
+    if not mac_address:
+        return None
+    import os
+    leases_file = getattr(settings, "DNSMASQ_LEASES_FILE", "/var/lib/misc/dnsmasq.leases")
+    try:
+        if os.path.exists(leases_file):
+            norm_mac = mac_address.lower().strip()
+            with open(leases_file, "r", encoding="utf-8", errors="ignore") as f:
+                for line in f:
+                    parts = line.strip().split()
+                    if len(parts) >= 4:
+                        lease_mac = parts[1].lower().strip()
+                        lease_hostname = parts[3].strip()
+                        if lease_mac == norm_mac and lease_hostname and lease_hostname != "*":
+                            return lease_hostname
+    except Exception:
+        pass
+    return None
+
+
 def _extract_device_name(request, passed_name=None, mac_address=None):
     """
-    Extract a friendly device name from passed value, previous sessions, or User-Agent.
+    Extract a friendly device name from passed value, DHCP leases, previous custom sessions, or User-Agent.
     """
-    if passed_name and passed_name.strip() and passed_name.strip() != "Unknown":
+    generic_names = {"", "unknown", "android phone", "android", "user device", "k"}
+
+    # 1. If an actual custom friendly name was explicitly provided (e.g. edited by admin)
+    if passed_name and passed_name.strip() and passed_name.strip().lower() not in generic_names:
         return passed_name.strip()[:100]
 
-    # Check if a recognized device name exists for this MAC
+    # 2. Check DHCP leases (dnsmasq) for real network hostname broadcast by the phone (e.g. POCO-X7-Pro)
+    dhcp_name = _get_dhcp_hostname(mac_address)
+    if dhcp_name:
+        return dhcp_name[:100]
+
+    # 3. Check if a non-generic device name exists from a previous session for this MAC
     if mac_address:
         prev = Session.objects.filter(mac_address=mac_address).exclude(
-            device_name__in=["", "Unknown", None]
+            device_name__isnull=True
         ).order_by("-id").first()
-        if prev and prev.device_name:
+        if prev and prev.device_name and prev.device_name.strip().lower() not in generic_names:
             return prev.device_name
 
-    ua = request.META.get("HTTP_USER_AGENT", "")
+    # 4. Fallback to HTTP User-Agent parsing
+    ua = request.META.get("HTTP_USER_AGENT", "") if request else ""
     if ua:
         if "iPhone" in ua:
             return "iPhone"
@@ -168,8 +203,9 @@ def _extract_device_name(request, passed_name=None, mac_address=None):
             m = re.search(r'Android[^;]*;\s*([^;)]+)', ua)
             if m:
                 model = m.group(1).strip()
-                return model[:100] if model else "Android"
-            return "Android"
+                if model and model.lower() not in ["k", "android", "unknown"]:
+                    return model[:100]
+            return "Android Phone"
         elif "Windows" in ua:
             return "Windows PC"
         elif "Macintosh" in ua:
@@ -2010,9 +2046,9 @@ def session_status(request):
 
             _session_ip_matches_request(locked_session, request)
 
-            if locked_session.device_name in [None, "", "Unknown"]:
+            if locked_session.device_name in [None, "", "Unknown", "Android Phone", "Android", "User Device", "K"]:
                 detected = _extract_device_name(request, mac_address=locked_session.mac_address)
-                if detected and detected != "Unknown":
+                if detected and detected not in [None, "", "Unknown", "Android Phone", "Android", "User Device", "K"]:
                     locked_session.device_name = detected
                     locked_session.save(update_fields=["device_name"])
 

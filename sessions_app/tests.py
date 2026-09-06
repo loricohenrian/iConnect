@@ -1093,5 +1093,37 @@ class SmartComboExamplesTests(TestCase):
         self.assertEqual(combos, [])
 
 
+class DeviceNameDetectionTests(TestCase):
+    def test_extract_device_name_from_dhcp_lease(self):
+        import tempfile
+        from unittest.mock import patch
+        from .views import _extract_device_name
+
+        with tempfile.NamedTemporaryFile("w+", delete=False) as f:
+            f.write("1788674820 d4:17:61:bc:b4:a7 10.10.10.34 POCO-X7-Pro 01:d4:17:61:bc:b4:a7\n")
+            f.flush()
+            with override_settings(DNSMASQ_LEASES_FILE=f.name):
+                # Should detect POCO-X7-Pro even if generic name is passed
+                name = _extract_device_name(None, passed_name="Android Phone", mac_address="D4:17:61:BC:B4:A7")
+                self.assertEqual(name, "POCO-X7-Pro")
+
+    def test_extract_device_name_from_user_agent_infinix(self):
+        from unittest.mock import MagicMock
+        from .views import _extract_device_name
+
+        request = MagicMock()
+        request.META = {
+            "HTTP_USER_AGENT": "Mozilla/5.0 (Linux; Android 14; Infinix X6725 Build/AP3A.240905.015; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/128.0.6613.88 Mobile Safari/537.36"
+        }
+        name = _extract_device_name(request, passed_name="Android Phone", mac_address="AA:BB:CC:DD:EE:99")
+        self.assertEqual(name, "Infinix X6725 Build/AP3A.240905.015")
+
+    def test_extract_device_name_preserves_custom_admin_name(self):
+        from .views import _extract_device_name
+        name = _extract_device_name(None, passed_name="Henrian Laptop", mac_address="AA:BB:CC:DD:EE:99")
+        self.assertEqual(name, "Henrian Laptop")
+
+
+
 
 

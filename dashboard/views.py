@@ -220,10 +220,17 @@ def dashboard_stats_api(request):
     # Recent sessions (latest 10)
     recent_qs = Session.objects.select_related('plan').order_by('-time_in')[:10]
     recent_sessions_data = []
+    from sessions_app.views import _get_dhcp_hostname
     for s in recent_qs:
+        dev_name = s.device_name or 'Unknown'
+        if dev_name in ('Unknown', 'Android Phone', 'Android', 'User Device', 'K'):
+            dhcp_name = _get_dhcp_hostname(s.mac_address)
+            if dhcp_name:
+                dev_name = dhcp_name
+                Session.objects.filter(id=s.id).update(device_name=dhcp_name)
         recent_sessions_data.append({
             'id': s.id,
-            'device_name': s.device_name or 'Unknown',
+            'device_name': dev_name,
             'mac_address': s.mac_address,
             'plan_name': s.plan.name if s.plan else 'Custom',
             'amount_paid': str(s.amount_paid),
@@ -611,10 +618,17 @@ def sessions_live_api(request):
     suspicious_macs = set(SuspiciousDevice.objects.filter(status='new').values_list('mac_address', flat=True))
 
     session_list = []
+    from sessions_app.views import _get_dhcp_hostname
     for s in sessions[:100]:
+        dev_name = s.device_name or 'Unknown'
+        if dev_name in ('Unknown', 'Android Phone', 'Android', 'User Device', 'K'):
+            dhcp_name = _get_dhcp_hostname(s.mac_address)
+            if dhcp_name:
+                dev_name = dhcp_name
+                Session.objects.filter(id=s.id).update(device_name=dhcp_name)
         session_list.append({
             'id': s.id,
-            'device_name': s.device_name or 'Unknown',
+            'device_name': dev_name,
             'mac_address': s.mac_address,
             'ip_address': s.ip_address or '—',
             'plan_name': s.plan.name if s.plan else 'Custom',
@@ -926,6 +940,14 @@ def sessions_view(request):
         sessions_page = paginator.page(1)
     except EmptyPage:
         sessions_page = paginator.page(paginator.num_pages)
+
+    from sessions_app.views import _get_dhcp_hostname
+    for s in sessions_page:
+        if s.device_name in (None, '', 'Unknown', 'Android Phone', 'Android', 'User Device', 'K'):
+            dhcp_name = _get_dhcp_hostname(s.mac_address)
+            if dhcp_name:
+                s.device_name = dhcp_name
+                Session.objects.filter(id=s.id).update(device_name=dhcp_name)
 
     context = {
         'sessions': sessions_page,
