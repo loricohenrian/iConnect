@@ -3,6 +3,7 @@
 {% block title %}iConnect — Session Active{% endblock %}
 
 {% block portal_content %}
+<div id="session-main-view">
 
 <!-- Connection Slots Indicator -->
 <div class="slots-indicator" id="slots-indicator">
@@ -48,6 +49,7 @@
     <!-- Pause Info -->
     <div style="font-size: 12px; color: var(--color-gray); margin-top: 10px; text-align: center; font-weight: 500;">
         Pauses remaining: <strong id="pauses-left-display">{{ pauses_left }}</strong>
+        <span class="text-muted" style="font-size: 11px;">(resets daily)</span>
     </div>
     
     <div id="pause-duration-warning" class="alert alert-warning" style="display: {% if session.status == 'paused' %}block{% else %}none{% endif %}; font-size: 12px; margin-top: 12px; padding: 8px 12px; border-radius: 8px; text-align: left;">
@@ -79,13 +81,45 @@
         </div>
     </div>
     {% endif %}
+</div>
 
-    <!-- Session Details (inside timer container) -->
-    <div class="session-details-inline mt-md">
+<!-- Session Details Card -->
+<div class="card mt-md animate-fadeIn" style="animation-delay: 100ms">
+    <div class="card-title">Session Details</div>
+    <div class="details-list">
         <div class="detail-row">
-            <span class="detail-label">Amount Paid</span>
-            <span class="detail-value" id="session-amount-paid">₱{{ session.amount_paid }}</span>
+            <span class="detail-label">IP Address</span>
+            <span class="detail-value" id="session-ip-display">{{ session.ip_address }}</span>
         </div>
+        {% if session.expires_at %}
+        <div class="detail-row">
+            <span class="detail-label">Expires At</span>
+            <span class="detail-value" id="session-expires-at-display">{{ session.expires_at|date:"h:i A" }}</span>
+        </div>
+        {% endif %}
+        <div class="detail-row">
+            <span class="detail-label">Total Data Used</span>
+            <span class="detail-value" id="session-data-usage-display">{{ session.data_usage_display }}</span>
+        </div>
+        <!-- Real-Time Bandwidth Display -->
+        <div class="detail-row" id="bandwidth-row" style="display: none;">
+            <span class="detail-label">Live Speed</span>
+            <span class="detail-value" id="bandwidth-display" style="font-weight: 600; color: var(--color-primary);">--</span>
+        </div>
+        <!-- Data Limit Progress (if plan has data limit) -->
+        {% if session.plan and session.plan.data_limit_mb %}
+        <div class="detail-row" style="flex-direction: column; align-items: stretch; gap: 4px;">
+            <div style="display: flex; justify-content: space-between; font-size: 0.8rem;">
+                <span class="detail-label">Data Remaining</span>
+                <span class="detail-value" id="session-data-remaining-display">
+                    {{ session.data_remaining_mb|floatformat:1 }} MB / {{ session.plan.data_limit_mb }} MB
+                </span>
+            </div>
+            <div style="background: var(--color-border); border-radius: 4px; height: 6px; overflow: hidden;">
+                <div id="data-progress-bar" style="background: var(--color-primary); height: 100%; width: 100%; transition: width 0.5s ease;"></div>
+            </div>
+        </div>
+        {% endif %}
         <div class="detail-row">
             <span class="detail-label">Duration</span>
             <span class="detail-value" id="session-duration-display">{{ session.duration_display }}</span>
@@ -104,72 +138,6 @@
             <span class="detail-label">Device</span>
             <span class="detail-value text-xs">{{ mac_address }}</span>
         </div>
-    </div>
-</div>
-
-<!-- WiFi Rates Modal -->
-<div id="ratesModal" class="modal-overlay" style="display: none;" onclick="closeRatesModal()">
-    <div class="modal-card animate-fadeIn" onclick="event.stopPropagation()" style="max-width: 440px; max-height: 85vh; overflow-y: auto; overscroll-behavior: contain; overscroll-behavior-y: contain; -webkit-overflow-scrolling: touch; touch-action: pan-y;">
-        <div class="modal-header">
-            <h3 style="display: flex; align-items: center; gap: 8px;">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--color-primary); flex-shrink: 0;"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
-                WiFi Rates & Speeds
-            </h3>
-            <button type="button" class="modal-close-btn" onclick="closeRatesModal()" title="Close" aria-label="Close">
-                <span style="font-size: 18px; font-weight: 700; line-height: 1;">&times;</span>
-            </button>
-        </div>
-        <p class="text-small text-muted mb-md">
-            Drop any coins at the vendo machine. Coins automatically combine for maximum bonus time!
-        </p>
-        <div class="plan-grid mb-md" id="extend-plan-grid">
-            {% for plan in plans %}
-            <div class="plan-card" data-plan-id="{{ plan.id }}" id="plan-{{ plan.id }}" style="cursor: default;">
-                {% if plan.id == most_popular_plan_id %}
-                <div class="plan-popular">Popular</div>
-                {% endif %}
-                <div class="plan-price">₱{{ plan.price }}</div>
-                <div class="plan-duration">+{{ plan.duration_display }}</div>
-                {% if plan.speed_limit %}
-                <div class="plan-speed">
-                    Up to ↓{{ plan.speed_limit }}{% if plan.speed_limit_upload %} / ↑{{ plan.speed_limit_upload }}{% endif %} Mbps
-                </div>
-                {% endif %}
-            </div>
-            {% empty %}
-            <div class="empty-state" id="plans-empty-state">
-                <p style="font-size: 32px; margin-bottom: 8px;">📵</p>
-                <p>No plans available</p>
-                <small>Please contact the administrator</small>
-            </div>
-            {% endfor %}
-        </div>
-        {% if smart_combo_examples %}
-        <div class="smart-combo-card mb-md">
-            <div class="smart-combo-header">
-                <div class="smart-combo-title">
-                    <span class="smart-combo-icon">💡</span>
-                    <strong>Smart Combo Rates</strong>
-                </div>
-                <p class="smart-combo-desc">
-                    Drop any coins you have! Coins automatically combine for maximum time:
-                </p>
-            </div>
-            <div class="smart-combo-list" id="smart-combo-list">
-                {% for combo in smart_combo_examples %}
-                <div class="smart-combo-item">
-                    <div class="smart-combo-coin">₱{{ combo.amount }}</div>
-                    <div class="smart-combo-formula">{{ combo.breakdown }}</div>
-                    <div class="smart-combo-duration">{{ combo.duration }}</div>
-                </div>
-                {% endfor %}
-            </div>
-            <div class="smart-combo-speed-note">
-                <i class="bi bi-speedometer2"></i>
-                <span><strong>Speed Note:</strong> For combo rates, your speed (Mbps) automatically matches the highest plan in the combination.</span>
-            </div>
-        </div>
-        {% endif %}
     </div>
 </div>
 
@@ -320,24 +288,41 @@
         }
     }
 
+    let ratesModalScrollY = 0;
     function openRatesModal() {
+        const mainView = document.getElementById('session-main-view');
         const modal = document.getElementById('ratesModal');
         if (modal) {
-            modal.style.display = 'flex';
-            document.body.classList.add('modal-open');
-            document.documentElement.classList.add('modal-open');
-            const card = modal.querySelector('.modal-card');
-            if (card) card.scrollTop = 0;
+            ratesModalScrollY = window.scrollY || window.pageYOffset || 0;
+            if (mainView) mainView.style.display = 'none';
+            const ann = document.getElementById('portal-announcements');
+            if (ann) ann.style.display = 'none';
+            modal.style.display = 'block';
+            window.scrollTo(0, 0);
+            if (window.history && window.history.pushState) {
+                window.history.pushState({ modal: 'rates' }, '');
+            }
         }
     }
 
     function closeRatesModal() {
+        const mainView = document.getElementById('session-main-view');
         const modal = document.getElementById('ratesModal');
-        if (modal) {
+        if (modal && modal.style.display !== 'none') {
             modal.style.display = 'none';
-            document.body.classList.remove('modal-open');
-            document.documentElement.classList.remove('modal-open');
+            if (mainView) mainView.style.display = 'block';
+            const ann = document.getElementById('portal-announcements');
+            if (ann && ann.querySelector('.announcement-banner')) ann.style.display = 'block';
+            window.scrollTo(0, ratesModalScrollY);
         }
+    }
+
+    function triggerCoinFlow() {
+        closeRatesModal();
+        setTimeout(() => {
+            const btn = document.getElementById('extend-request-btn');
+            if (btn) btn.click();
+        }, 80);
     }
 
     function openJoinGroupModal() {
@@ -504,5 +489,80 @@
         }
     }
 </script>
+</div><!-- /#session-main-view -->
+
+<!-- WiFi Rates View (Native Scrollable Page View) -->
+<div id="ratesModal" class="rates-view-panel" style="display: none;">
+    <div class="modal-card animate-fadeIn">
+        <div class="modal-header">
+            <h3 style="display: flex; align-items: center; gap: 8px;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--color-primary); flex-shrink: 0;"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
+                WiFi Rates & Speeds
+            </h3>
+            <button type="button" class="modal-close-btn" onclick="closeRatesModal()" title="Close" aria-label="Close">
+                <span style="font-size: 18px; font-weight: 700; line-height: 1;">&times;</span>
+            </button>
+        </div>
+        <p class="text-small text-muted mb-md">
+            Drop any coins at the vendo machine. Coins automatically combine for maximum bonus time!
+        </p>
+        <div class="plan-grid mb-md" id="extend-plan-grid">
+            {% for plan in plans %}
+            <div class="plan-card" data-plan-id="{{ plan.id }}" id="plan-{{ plan.id }}" style="cursor: default;">
+                {% if plan.id == most_popular_plan_id %}
+                <div class="plan-popular">Popular</div>
+                {% endif %}
+                <div class="plan-price">₱{{ plan.price }}</div>
+                <div class="plan-duration">+{{ plan.duration_display }}</div>
+                {% if plan.speed_limit %}
+                <div class="plan-speed">
+                    Up to ↓{{ plan.speed_limit }}{% if plan.speed_limit_upload %} / ↑{{ plan.speed_limit_upload }}{% endif %} Mbps
+                </div>
+                {% endif %}
+            </div>
+            {% empty %}
+            <div class="empty-state" id="plans-empty-state">
+                <p style="font-size: 32px; margin-bottom: 8px;">📵</p>
+                <p>No plans available</p>
+                <small>Please contact the administrator</small>
+            </div>
+            {% endfor %}
+        </div>
+        {% if smart_combo_examples %}
+        <div class="smart-combo-card mb-md">
+            <div class="smart-combo-header">
+                <div class="smart-combo-title">
+                    <span class="smart-combo-icon">💡</span>
+                    <strong>Smart Combo Rates</strong>
+                </div>
+                <p class="smart-combo-desc">
+                    Drop any coins you have! Coins automatically combine for maximum time:
+                </p>
+            </div>
+            <div class="smart-combo-list" id="smart-combo-list">
+                {% for combo in smart_combo_examples %}
+                <div class="smart-combo-item">
+                    <div class="smart-combo-coin">₱{{ combo.amount }}</div>
+                    <div class="smart-combo-formula">{{ combo.breakdown }}</div>
+                    <div class="smart-combo-duration">{{ combo.duration }}</div>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="smart-combo-speed-note">
+                <i class="bi bi-speedometer2"></i>
+                <span><strong>Speed Note:</strong> For combo rates, your speed (Mbps) automatically matches the highest plan in the combination.</span>
+            </div>
+        </div>
+        {% endif %}
+        <div style="margin-top: 18px; display: flex; flex-direction: column; gap: 10px;">
+            <button type="button" class="btn btn-secondary w-100" onclick="closeRatesModal()" style="border-radius: 12px; font-weight: 600; padding: 12px;">
+                Close Rates
+            </button>
+            <button type="button" class="btn btn-primary w-100" onclick="triggerCoinFlow()" style="border-radius: 12px; font-weight: 700; padding: 13px; font-size: 1.1rem; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);">
+                <i class="bi bi-coin"></i> Insert Coins 🪙
+            </button>
+        </div>
+    </div>
+</div>
 
 {% endblock %}

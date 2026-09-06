@@ -11,6 +11,7 @@ from django.shortcuts import redirect, render
 from django.core.paginator import Paginator
 from django.utils import timezone
 from django.views.decorators.http import require_POST
+from django.views.decorators.cache import never_cache
 
 from dashboard.models import Announcement
 from sessions_app import iptables
@@ -98,6 +99,7 @@ def _history_passcode_enabled():
     return False
 
 
+@never_cache
 def index(request):
     """Plan selection page."""
     mac_address = _get_mac_address(request)
@@ -191,6 +193,7 @@ def index(request):
     return render(request, "portal/index.html", context)
 
 
+@never_cache
 def session_page(request):
     """Session timer page."""
     mac_address = _get_mac_address(request)
@@ -292,6 +295,7 @@ def session_page(request):
     return render(request, "portal/session.html", context)
 
 
+@never_cache
 def history(request):
     """Usage history for the current device."""
     mac_address = _get_mac_address(request)
@@ -347,6 +351,7 @@ def history(request):
     return render(request, "portal/history.html", context)
 
 
+@never_cache
 def manual(request):
     """User guide / FAQ page."""
     context = {
@@ -357,6 +362,7 @@ def manual(request):
     return render(request, "portal/manual.html", context)
 
 
+@never_cache
 def live_data(request):
     """Public portal API for realtime announcements, plan updates, and connection slots."""
     plans = Plan.objects.filter(is_active=True).order_by("price", "id")

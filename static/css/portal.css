@@ -495,34 +495,41 @@ body.modal-open {
     display: none;
     position: fixed;
     inset: 0;
-    background: rgba(45, 31, 31, 0.5);
+    background: rgba(45, 31, 31, 0.6);
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
     z-index: 2000;
     align-items: center;
     justify-content: center;
     padding: 16px;
-    overflow: hidden !important;
-    overscroll-behavior: none !important;
-    overscroll-behavior-y: none !important;
-    touch-action: none;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 .modal-card {
     background: var(--color-white);
     width: 100%;
-    max-width: 400px;
+    max-width: 440px;
     border-radius: 18px;
     border: 1px solid var(--color-border);
     padding: 24px 20px;
-    box-shadow: 0 10px 30px rgba(45, 31, 31, 0.15);
+    box-shadow: 0 10px 30px rgba(45, 31, 31, 0.2);
     margin: auto;
-    max-height: 85vh;
-    overflow-y: auto !important;
-    overscroll-behavior: contain !important;
-    overscroll-behavior-y: contain !important;
-    -webkit-overflow-scrolling: touch !important;
-    touch-action: pan-y !important;
+    position: relative;
+}
+
+/* Dedicated Native Scrollable Rates View Panel */
+.rates-view-panel {
+    display: none;
+    width: 100%;
+    max-width: 440px;
+    margin: 0 auto;
+    padding: 4px 0 32px 0;
+}
+
+.rates-view-panel .modal-card {
+    margin: 0 auto;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
 }
 
 .modal-header {
