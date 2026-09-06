@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="{% static 'css/icons-fallback.css' %}?v=4">
 
     <!-- iConnect Base CSS -->
-    <link rel="stylesheet" href="{% static 'css/base.css' %}?v=3">
+    <link rel="stylesheet" href="{% static 'css/base.css' %}?v={% now 'U' %}">
 
     {% block extra_css %}{% endblock %}
 </head>

@@ -306,6 +306,7 @@
         if (modal) {
             modal.style.display = 'flex';
             document.body.classList.add('modal-open');
+            document.documentElement.classList.add('modal-open');
             if (typeof updateGroupPlanPrice === 'function') updateGroupPlanPrice();
         }
     }
@@ -315,6 +316,7 @@
         if (modal) {
             modal.style.display = 'none';
             document.body.classList.remove('modal-open');
+            document.documentElement.classList.remove('modal-open');
         }
     }
 
@@ -323,6 +325,7 @@
         if (modal) {
             modal.style.display = 'flex';
             document.body.classList.add('modal-open');
+            document.documentElement.classList.add('modal-open');
             const card = modal.querySelector('.modal-card');
             if (card) card.scrollTop = 0;
         }
@@ -333,6 +336,7 @@
         if (modal) {
             modal.style.display = 'none';
             document.body.classList.remove('modal-open');
+            document.documentElement.classList.remove('modal-open');
         }
     }
 
@@ -343,6 +347,7 @@
         if (modal) {
             modal.style.display = 'flex';
             document.body.classList.add('modal-open');
+            document.documentElement.classList.add('modal-open');
             if (input) {
                 input.value = '';
                 input.focus();
@@ -356,6 +361,7 @@
         if (modal) {
             modal.style.display = 'none';
             document.body.classList.remove('modal-open');
+            document.documentElement.classList.remove('modal-open');
         }
     }
 

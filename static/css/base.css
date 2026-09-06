@@ -103,6 +103,14 @@ body {
     overscroll-behavior: none;
 }
 
+html.modal-open,
+body.modal-open {
+    overflow: hidden !important;
+    height: 100% !important;
+    overscroll-behavior: none !important;
+    overscroll-behavior-y: none !important;
+}
+
 /* Glassmorphism Utility */
 .glass {
     background: rgba(255, 255, 255, 0.6);
