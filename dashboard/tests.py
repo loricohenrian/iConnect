@@ -383,3 +383,63 @@ class DashboardSecurityTests(TestCase):
         self.assertEqual(sess_data["connected_users"], 1)
         self.assertEqual(sess_data["sessions"][0]["mac_address"], "AA:BB:CC:DD:EE:FF")
 
+
+class AnnouncementManagementTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        User = get_user_model()
+        self.admin = User.objects.create_user(
+            username="admin_ann",
+            password="adminpassword123",
+            is_staff=True,
+            is_superuser=True,
+        )
+        self.client.login(username=self.admin.username, password="adminpassword123")
+
+    def test_isp_outage_announcements_do_not_stack_or_show_in_admin(self):
+        from dashboard.models import Announcement
+
+        # Create user announcement
+        custom_ann = Announcement.objects.create(message="System maintenance at midnight", is_active=True)
+
+        # Create multiple old/stale ISP announcements (as simulated in the screenshot)
+        isp_msg = (
+            "⚠️ NOTICE: Internet is temporarily interrupted by our ISP. "
+            "All user timers have been FROZEN to protect your remaining time! "
+            "Your timer will automatically resume as soon as connection is restored."
+        )
+        Announcement.objects.create(message=isp_msg, is_active=False)
+        Announcement.objects.create(message=isp_msg, is_active=False)
+        Announcement.objects.create(message=isp_msg, is_active=True)
+
+        # Load announcements management page
+        resp = self.client.get("/iconnect-ops/announcements/")
+        self.assertEqual(resp.status_code, 200)
+
+        # Stale inactive ISP announcements must be purged
+        self.assertEqual(Announcement.objects.filter(message__contains="interrupted by our ISP", is_active=False).count(), 0)
+
+        # Active ISP outage announcement must not be in the announcements list displayed to the owner
+        announcements_in_context = resp.context["announcements"]
+        self.assertEqual(announcements_in_context.count(), 1)
+        self.assertEqual(announcements_in_context.first().id, custom_ann.id)
+        self.assertEqual(announcements_in_context.first().message, "System maintenance at midnight")
+
+    def test_isp_restoration_purges_outage_announcements(self):
+        from dashboard.models import Announcement
+        from sessions_app.tasks import check_internet_status
+        from unittest.mock import patch
+
+        isp_msg = "⚠️ NOTICE: Internet is temporarily interrupted by our ISP."
+        Announcement.objects.create(message=isp_msg, is_active=True)
+
+        # Mock online check
+        with patch("socket.socket") as mock_sock:
+            mock_sock.return_value.connect.return_value = None
+            res = check_internet_status()
+            self.assertIn("ISP restored", res)
+
+        # Verify outage announcement was completely deleted
+        self.assertEqual(Announcement.objects.filter(message__contains="interrupted by our ISP").count(), 0)
+
+

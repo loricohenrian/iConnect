@@ -541,6 +541,8 @@ def check_internet_status():
                     "All user timers have been FROZEN to protect your remaining time! "
                     "Your timer will automatically resume as soon as connection is restored."
                 )
+                # Purge old or duplicate outage announcements so they never stack
+                Announcement.objects.filter(message__contains="interrupted by our ISP").delete()
                 Announcement.objects.create(message=ann_text, is_active=True)
 
             # 2. Freeze ALL active sessions (continuous protection during outage!)
@@ -586,8 +588,8 @@ def check_internet_status():
         # ISP is online
         _safe_cache_delete("isp_fail_count")
 
-        # Check if recovering from a previous outage
-        outage_announcements = Announcement.objects.filter(is_active=True, message__contains="interrupted by our ISP")
+        # Check if recovering from a previous outage or cleaning up leftover outage announcements
+        outage_announcements = Announcement.objects.filter(message__contains="interrupted by our ISP")
         if outage_announcements.exists():
             logger.info("ISP internet connection restored! Resuming student sessions...")
 
@@ -609,8 +611,8 @@ def check_internet_status():
                         logger.error(f"Failed to resume session {s.id}: {e}")
                 _safe_cache_delete("isp_paused_session_ids")
 
-            # 2. Remove outage announcement
-            outage_announcements.update(is_active=False)
+            # 2. Remove outage announcement completely from database so it never stacks
+            outage_announcements.delete()
 
             # 3. Send Telegram Recovery Alert
             try:

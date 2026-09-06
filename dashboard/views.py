@@ -149,7 +149,7 @@ def announcements_api(request):
         return Response({'detail': 'Authentication required.'}, status=status.HTTP_401_UNAUTHORIZED)
 
     if request.method == 'GET':
-        announcements = Announcement.objects.filter(is_active=True)
+        announcements = Announcement.objects.filter(is_active=True).exclude(message__contains="interrupted by our ISP")
         return Response({
             'announcements': AnnouncementSerializer(announcements, many=True).data
         })
@@ -1500,6 +1500,9 @@ def roi(request):
 @user_passes_test(_is_dashboard_admin, login_url='dashboard:login')
 def announcements_view(request):
     """Announcement management page."""
+    # Clean up any stale or historical auto ISP outage notices so they never stack
+    Announcement.objects.filter(message__contains="interrupted by our ISP", is_active=False).delete()
+
     if request.method == 'POST':
         action = request.POST.get('action')
         if action == 'create':
@@ -1525,7 +1528,8 @@ def announcements_view(request):
 
         return redirect('dashboard:announcements')
 
-    announcements = Announcement.objects.all()
+    # Exclude system ISP outage announcements from admin announcement board
+    announcements = Announcement.objects.exclude(message__contains="interrupted by our ISP")
     context = {
         'announcements': announcements,
         'active_page': 'announcements',

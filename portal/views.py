@@ -103,7 +103,7 @@ def index(request):
     mac_address = _get_mac_address(request)
     mac_required = request.GET.get("mac_required") == "1"
     plans = Plan.objects.filter(is_active=True)
-    announcements = Announcement.objects.filter(is_active=True)
+    announcements = Announcement.objects.filter(is_active=True).exclude(message__contains="interrupted by our ISP")
     expired = request.GET.get("expired", False)
 
     is_whitelisted = False
@@ -197,7 +197,7 @@ def session_page(request):
     if not mac_address:
         return redirect("/?mac_required=1")
 
-    announcements = Announcement.objects.filter(is_active=True)
+    announcements = Announcement.objects.filter(is_active=True).exclude(message__contains="interrupted by our ISP")
     request_ip = _client_ip(request)
     active_session = Session.objects.filter(
         mac_address=mac_address,
@@ -331,7 +331,7 @@ def history(request):
         page_obj = paginator.get_page(page_number)
         sessions = page_obj.object_list
 
-    announcements = Announcement.objects.filter(is_active=True)
+    announcements = Announcement.objects.filter(is_active=True).exclude(message__contains="interrupted by our ISP")
 
     context = {
         "mac_address": mac_address,
@@ -350,7 +350,7 @@ def history(request):
 def manual(request):
     """User guide / FAQ page."""
     context = {
-        "announcements": Announcement.objects.filter(is_active=True),
+        "announcements": Announcement.objects.filter(is_active=True).exclude(message__contains="interrupted by our ISP"),
         "mac_address": _get_mac_address(request),
         "active_page": "manual",
     }
@@ -360,7 +360,7 @@ def manual(request):
 def live_data(request):
     """Public portal API for realtime announcements, plan updates, and connection slots."""
     plans = Plan.objects.filter(is_active=True).order_by("price", "id")
-    announcements = Announcement.objects.filter(is_active=True).order_by("-created_at", "-id")
+    announcements = Announcement.objects.filter(is_active=True).exclude(message__contains="interrupted by our ISP").order_by("-created_at", "-id")
 
     from django.db.models import Count
     most_popular = (
