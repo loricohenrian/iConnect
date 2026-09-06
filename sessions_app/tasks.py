@@ -77,8 +77,11 @@ def restore_iptables_on_boot():
         iptables.block_device(session.mac_address)
         blocked += 1
 
-    logger.info(f'Boot: restored {reallowed}, expired {expired}, kept-paused {blocked}')
-    return f'Restored {reallowed}, expired {expired}, kept-paused {blocked}'
+    # Expire any paused sessions that exceeded their limit while the system was off
+    stale_expired = cleanup_expired_and_stale_sessions()
+
+    logger.info(f'Boot: restored {reallowed}, expired {expired + stale_expired}, kept-paused {blocked}')
+    return f'Restored {reallowed}, expired {expired + stale_expired}, kept-paused {blocked}'
 
 
 @shared_task
