@@ -26,6 +26,8 @@ class PortalProductionTests(TestCase):
         self.assertContains(response, 'id="request-slot-btn"', html=False)
         self.assertContains(response, 'id="start-session-btn"', html=False)
         self.assertContains(response, 'id="start-flow-message"', html=False)
+        self.assertContains(response, 'id="btn-cancel-coin-request"', html=False)
+        self.assertContains(response, 'id="link-cancel-coin-request"', html=False)
 
     def test_report_issue_success(self):
         """Users can submit issue reports via API."""
@@ -121,6 +123,12 @@ class RatesModalTests(TestCase):
         # Group modal in session page uses Insert Coins
         self.assertContains(response, 'id="btn-group-request-slot"')
         self.assertContains(response, 'Insert Coins 🪙')
+
+        # Progressive extend buttons and cancel controls
+        self.assertContains(response, 'id="extend-request-btn"')
+        self.assertContains(response, 'id="extend-now-btn"')
+        self.assertContains(response, 'id="btn-cancel-coin-request"')
+        self.assertContains(response, 'id="link-cancel-coin-request"')
 
     def test_live_data_returns_smart_combos(self):
         response = self.client.get("/api/portal/live-data/")

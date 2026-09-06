@@ -888,6 +888,7 @@ function initProductionStartFlow(macAddress) {
     };
 
     startBtn.dataset.readyToStart = "0";
+    startBtn.style.display = "none";
 
     const clearPolling = () => {
         if (state.pollTimer) {
@@ -922,6 +923,20 @@ function initProductionStartFlow(macAddress) {
         startBtn.disabled = !state.readyToStart;
         startBtn.dataset.readyToStart = state.readyToStart ? "1" : "0";
 
+        const hasCoins = Boolean(coinRequest && ((coinRequest.credited_amount && coinRequest.credited_amount > 0) || coinRequest.ready_to_start));
+        const btnCancel = document.getElementById("btn-cancel-coin-request");
+        const linkCancel = document.getElementById("link-cancel-coin-request");
+
+        if (hasCoins) {
+            startBtn.style.display = "block";
+            if (btnCancel) btnCancel.style.display = "none";
+            if (linkCancel) linkCancel.style.display = "inline-block";
+        } else {
+            startBtn.style.display = "none";
+            if (btnCancel) btnCancel.style.display = "inline-block";
+            if (linkCancel) linkCancel.style.display = "none";
+        }
+
         if (coinRequest?.status === "expired") {
             if (state.readyToStart) {
                 setStartFlowMessage("Time expired. Auto-connecting with inserted coins...", "success");
@@ -954,6 +969,11 @@ function initProductionStartFlow(macAddress) {
                     setStartFlowMeta("");
                     startBtn.disabled = true;
                     startBtn.dataset.readyToStart = "0";
+                    startBtn.style.display = "none";
+                    const btnCancel = document.getElementById("btn-cancel-coin-request");
+                    const linkCancel = document.getElementById("link-cancel-coin-request");
+                    if (btnCancel) btnCancel.style.display = "inline-block";
+                    if (linkCancel) linkCancel.style.display = "none";
                     return;
                 }
                 setStartFlowMessage(data.error || "Unable to check coin request status.", "warning");
@@ -1113,6 +1133,11 @@ function initProductionStartFlow(macAddress) {
             state.readyToStart = false;
             startBtn.disabled = true;
             startBtn.dataset.readyToStart = "0";
+            startBtn.style.display = "none";
+            const btnCancel = document.getElementById("btn-cancel-coin-request");
+            const linkCancel = document.getElementById("link-cancel-coin-request");
+            if (btnCancel) btnCancel.style.display = "inline-block";
+            if (linkCancel) linkCancel.style.display = "none";
             setStartFlowMessage("Plan changed. Request a new coin slot for this plan.", "info");
             setStartFlowMeta("");
         }
@@ -1137,6 +1162,8 @@ function initExtendSessionFlow(macAddress) {
 
     // Direct Insert Coins is enabled by default
     extendRequestBtn.disabled = false;
+    extendNowBtn.disabled = true;
+    extendNowBtn.style.display = "none";
 
     const state = {
         requestId: null,
@@ -1187,6 +1214,20 @@ function initExtendSessionFlow(macAddress) {
         setExtendMeta(formatCoinRequestMeta(coinRequest));
 
         extendNowBtn.disabled = !state.readyToStart;
+
+        const hasCoins = Boolean(coinRequest && ((coinRequest.credited_amount && coinRequest.credited_amount > 0) || coinRequest.ready_to_start));
+        const btnCancel = document.getElementById("btn-cancel-coin-request");
+        const linkCancel = document.getElementById("link-cancel-coin-request");
+
+        if (hasCoins) {
+            extendNowBtn.style.display = "block";
+            if (btnCancel) btnCancel.style.display = "none";
+            if (linkCancel) linkCancel.style.display = "inline-block";
+        } else {
+            extendNowBtn.style.display = "none";
+            if (btnCancel) btnCancel.style.display = "inline-block";
+            if (linkCancel) linkCancel.style.display = "none";
+        }
         
         if (coinRequest?.status === "expired") {
             if (state.readyToStart) {
@@ -1219,6 +1260,11 @@ function initExtendSessionFlow(macAddress) {
                     setExtendMessage("Coin request no longer exists. Please request again.", "warning");
                     setExtendMeta("");
                     extendNowBtn.disabled = true;
+                    extendNowBtn.style.display = "none";
+                    const btnCancel = document.getElementById("btn-cancel-coin-request");
+                    const linkCancel = document.getElementById("link-cancel-coin-request");
+                    if (btnCancel) btnCancel.style.display = "inline-block";
+                    if (linkCancel) linkCancel.style.display = "none";
                     return;
                 }
                 setExtendMessage(data.error || "Unable to check status.", "warning");
@@ -1262,6 +1308,11 @@ function initExtendSessionFlow(macAddress) {
             state.isGroupPass = false;
             state.groupDevices = null;
             extendNowBtn.disabled = true;
+            extendNowBtn.style.display = "none";
+            const btnCancel = document.getElementById("btn-cancel-coin-request");
+            const linkCancel = document.getElementById("link-cancel-coin-request");
+            if (btnCancel) btnCancel.style.display = "inline-block";
+            if (linkCancel) linkCancel.style.display = "none";
             setExtendMessage("", "info");
             setExtendMeta("");
             state.planId = Number(card.dataset.planId);
@@ -2042,28 +2093,42 @@ if (btnGroupRequestSlot) {
     });
 }
 
+const handleCancelCoinRequest = async (trigger) => {
+    const confirmCancel = confirm("Are you sure you want to cancel the coin slot request?");
+    if (!confirmCancel) return;
+    
+    if (trigger) {
+        if (trigger.tagName === "BUTTON") {
+            trigger.disabled = true;
+            trigger.innerText = "Canceling...";
+        } else {
+            trigger.style.pointerEvents = "none";
+            trigger.textContent = "Canceling...";
+        }
+    }
+    
+    try {
+        await fetch("/api/session/start/cancel/", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": getCSRFToken()
+            },
+            body: JSON.stringify({ mac_address: getMacAddress() })
+        });
+    } catch (e) {
+        console.error(e);
+    }
+    
+    window.location.reload();
+};
+
 const btnCancelCoinRequest = document.getElementById("btn-cancel-coin-request");
 if (btnCancelCoinRequest) {
-    btnCancelCoinRequest.addEventListener("click", async () => {
-        const confirmCancel = confirm("Are you sure you want to cancel the coin slot request?");
-        if (!confirmCancel) return;
-        
-        btnCancelCoinRequest.disabled = true;
-        btnCancelCoinRequest.innerText = "Canceling...";
-        
-        try {
-            await fetch("/api/session/start/cancel/", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-CSRFToken": getCSRFToken()
-                },
-                body: JSON.stringify({ mac_address: getMacAddress() })
-            });
-        } catch (e) {
-            console.error(e);
-        }
-        
-        window.location.reload();
-    });
+    btnCancelCoinRequest.addEventListener("click", () => handleCancelCoinRequest(btnCancelCoinRequest));
+}
+
+const linkCancelCoinRequest = document.getElementById("link-cancel-coin-request");
+if (linkCancelCoinRequest) {
+    linkCancelCoinRequest.addEventListener("click", () => handleCancelCoinRequest(linkCancelCoinRequest));
 }
