@@ -1,5 +1,9 @@
 # iConnect Services (Orange Pi / Armbian)
 
+> **Quick One-Command Setup:** Run `sudo bash deploy/setup_orangepi.sh` to automatically install packages, configure dnsmasq for USB-to-LAN, set up udev rules, Nginx, and all systemd services in one step.
+>
+> **Migrating to Orange Pi Zero 3?** See the complete guide in [`deploy/MIGRATION_ORANGEPI_ZERO3.md`](../MIGRATION_ORANGEPI_ZERO3.md).
+
 This folder contains systemd units for Django/Gunicorn, coin detector, and Celery.
 
 ## 1) Install base packages

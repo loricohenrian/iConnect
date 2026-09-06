@@ -1,0 +1,1 @@
+ACTION=="add", SUBSYSTEM=="net", KERNEL=="usblan0", RUN+="/usr/bin/systemctl restart dnsmasq"
