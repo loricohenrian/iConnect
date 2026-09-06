@@ -478,6 +478,12 @@
 /* ============================================
    Standardized Modal System
    ============================================ */
+body.modal-open {
+    overflow: hidden !important;
+    height: 100vh !important;
+    touch-action: none !important;
+}
+
 .modal-overlay {
     display: none;
     position: fixed;
@@ -489,6 +495,9 @@
     align-items: center;
     justify-content: center;
     padding: 16px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
 }
 
 .modal-card {
@@ -500,6 +509,11 @@
     padding: 24px 20px;
     box-shadow: 0 10px 30px rgba(45, 31, 31, 0.15);
     margin: auto;
+    max-height: 85vh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
 }
 
 .modal-header {

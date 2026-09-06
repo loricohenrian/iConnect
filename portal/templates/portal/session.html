@@ -52,15 +52,15 @@
     
     <div id="pause-duration-warning" class="alert alert-warning" style="display: {% if session.status == 'paused' %}block{% else %}none{% endif %}; font-size: 12px; margin-top: 12px; padding: 8px 12px; border-radius: 8px; text-align: left;">
         {% if pause_max_hours > 0 %}
-            <i class="bi bi-info-circle"></i> <strong>Note:</strong> Your paused time will automatically expire if you do not resume within <strong>{{ pause_max_hours }} hour{{ pause_max_hours|pluralize }}</strong>.
+            <strong>Note:</strong> Your paused time will automatically expire if you do not resume within <strong>{{ pause_max_hours }} hour{{ pause_max_hours|pluralize }}</strong>.
         {% else %}
-            <i class="bi bi-info-circle"></i> <strong>Note:</strong> Your session is paused. Don't forget to resume when you return!
+            <strong>Note:</strong> Your session is paused. Don't forget to resume when you return!
         {% endif %}
     </div>
 
-    <!-- Plan badge -->
+    {% if session.session_group %}
+    <!-- Group Plan badge -->
     <div class="mt-md">
-        {% if session.session_group %}
         <span class="badge" style="background: var(--color-primary); color: #fff;">Group Pass · {{ session.session_group.group_code }}</span>
         <div id="group-plan-status" style="font-weight: 700; margin-top: 6px; font-size: 13px; color: var(--color-primary);">
             {{ session.session_group.redeemed_count }} / {{ session.session_group.max_devices }} slots redeemed
@@ -77,10 +77,8 @@
         <div style="font-size: 11px; margin-top: 2px; color: var(--color-gray);">
             Share code <strong>{{ session.session_group.group_code }}</strong> — friends get their own full {{ session.plan.duration_display }} session.
         </div>
-        {% else %}
-        <span class="badge" style="background: var(--color-primary-light); color: var(--color-primary); font-weight: 700;">₱{{ session.plan.price }} - {{ session.plan.duration_display }}</span>
-        {% endif %}
     </div>
+    {% endif %}
 
     <!-- Session Details (inside timer container) -->
     <div class="session-details-inline mt-md">
@@ -111,7 +109,7 @@
 
 <!-- WiFi Rates Modal -->
 <div id="ratesModal" class="modal-overlay" style="display: none;" onclick="closeRatesModal()">
-    <div class="modal-card animate-fadeIn" onclick="event.stopPropagation()" style="max-width: 440px; max-height: 85vh; overflow-y: auto;">
+    <div class="modal-card animate-fadeIn" onclick="event.stopPropagation()" style="max-width: 440px; max-height: 85vh; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; touch-action: pan-y;">
         <div class="modal-header">
             <h3 style="display: flex; align-items: center; gap: 8px;">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--color-primary); flex-shrink: 0;"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
@@ -201,13 +199,7 @@
     <p id="extend-flow-meta" class="text-small text-muted mt-md text-center" style="margin-bottom:0; font-size: 13px;"></p>
     <div id="coin-countdown-container" class="mt-md" style="display:none; text-align:center;">
         <div style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 4px;">Time remaining to insert coins</div>
-        <div style="display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
-            <div id="coin-countdown-display" style="font-size: 1.6rem; font-weight: bold; font-family: monospace; color: var(--text-primary); transition: all 0.2s ease;">02:00</div>
-            <span id="coin-countdown-badge" style="display: none; background: #10B981; color: #ffffff; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 12px; box-shadow: 0 2px 4px rgba(16,185,129,0.3); transition: all 0.3s ease;">+Bonus Time! 🪙</span>
-        </div>
-        <div style="font-size: 0.75rem; color: #10B981; margin-top: 3px; font-weight: 500;">
-            <i class="bi bi-clock-history"></i> Timer extends with each coin inserted
-        </div>
+        <div id="coin-countdown-display" style="font-size: 1.6rem; font-weight: bold; font-family: monospace; color: var(--text-primary); transition: all 0.2s ease;">02:00</div>
         <div class="mt-md" style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
             <button type="button" class="btn btn-primary w-100 animate-fadeIn" id="extend-now-btn" disabled style="display: none; font-size: 1.15rem; padding: 14px; font-weight: 700; border-radius: 12px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);">
                 <i class="bi bi-plus-circle"></i> Extend Now
@@ -311,23 +303,33 @@
         const modal = document.getElementById('groupPlanModal');
         if (modal) {
             modal.style.display = 'flex';
+            document.body.classList.add('modal-open');
             if (typeof updateGroupPlanPrice === 'function') updateGroupPlanPrice();
         }
     }
 
     function closeGroupPlanModal() {
         const modal = document.getElementById('groupPlanModal');
-        if (modal) modal.style.display = 'none';
+        if (modal) {
+            modal.style.display = 'none';
+            document.body.classList.remove('modal-open');
+        }
     }
 
     function openRatesModal() {
         const modal = document.getElementById('ratesModal');
-        if (modal) modal.style.display = 'flex';
+        if (modal) {
+            modal.style.display = 'flex';
+            document.body.classList.add('modal-open');
+        }
     }
 
     function closeRatesModal() {
         const modal = document.getElementById('ratesModal');
-        if (modal) modal.style.display = 'none';
+        if (modal) {
+            modal.style.display = 'none';
+            document.body.classList.remove('modal-open');
+        }
     }
 
     function openJoinGroupModal() {
@@ -336,6 +338,7 @@
         const error = document.getElementById('join-group-error');
         if (modal) {
             modal.style.display = 'flex';
+            document.body.classList.add('modal-open');
             if (input) {
                 input.value = '';
                 input.focus();
@@ -346,7 +349,10 @@
 
     function closeJoinGroupModal() {
         const modal = document.getElementById('joinGroupModal');
-        if (modal) modal.style.display = 'none';
+        if (modal) {
+            modal.style.display = 'none';
+            document.body.classList.remove('modal-open');
+        }
     }
 
     async function submitJoinGroup() {

@@ -756,22 +756,7 @@ let activeCoinCountdownInterval = null;
 let activeCoinCountdownEndTime = 0;
 let lastCreditedCoinAmount = null;
 
-function triggerCoinTimerBonusBadge(badge, display) {
-    if (badge) {
-        badge.innerText = "+Bonus Time! 🪙";
-        badge.style.display = "inline-block";
-        badge.style.opacity = "1";
-        badge.style.transform = "scale(1.15)";
-        setTimeout(() => {
-            badge.style.transform = "scale(1)";
-        }, 200);
-        setTimeout(() => {
-            badge.style.opacity = "0";
-            setTimeout(() => {
-                badge.style.display = "none";
-            }, 300);
-        }, 2500);
-    }
+function triggerCoinTimerPulse(display) {
     if (display) {
         display.style.transition = "color 0.2s ease, transform 0.2s ease";
         display.style.color = "#10B981";
@@ -799,7 +784,6 @@ function updateCountdownDisplay(display) {
 function syncCoinCountdown(coinRequest) {
     const container = document.getElementById("coin-countdown-container");
     const display = document.getElementById("coin-countdown-display");
-    const badge = document.getElementById("coin-countdown-badge");
 
     if (!container || !display) return;
 
@@ -832,7 +816,7 @@ function syncCoinCountdown(coinRequest) {
         const isTimeExtended = targetEndTime > (activeCoinCountdownEndTime + 2000);
 
         if (isCoinAdded || isTimeExtended) {
-            triggerCoinTimerBonusBadge(badge, display);
+            triggerCoinTimerPulse(display);
         }
 
         if (targetEndTime > 0) {
