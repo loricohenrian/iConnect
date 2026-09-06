@@ -1,24 +1,26 @@
 [Unit]
-Description=PisoWiFi usblan0 Static IP and DHCP Initializer
-After=network-pre.target
+Description=PisoWiFi usblan0 Static IP Initializer
+DefaultDependencies=no
+After=network-pre.target udev.service
+Before=network.target dnsmasq.service pisowifi.service
 Wants=network.target
-Before=dnsmasq.service pisowifi.service
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
+TimeoutStartSec=30
 ExecStart=/bin/bash -c '\
-  for i in $(seq 1 25); do \
+  echo "[usblan0-init] Waiting for usblan0 interface..."; \
+  for i in $(seq 1 30); do \
     if ip link show usblan0 >/dev/null 2>&1; then \
+      echo "[usblan0-init] usblan0 detected, assigning 10.10.10.1/24..."; \
       ip link set usblan0 up; \
       ip addr replace 10.10.10.1/24 dev usblan0; \
-      sleep 1; \
-      systemctl restart dnsmasq; \
       exit 0; \
     fi; \
     sleep 1; \
   done; \
-  echo "WARNING: usblan0 not detected after 25s" >&2; \
+  echo "[usblan0-init] WARNING: usblan0 not detected after 30s" >&2; \
   exit 0 \
 '
 

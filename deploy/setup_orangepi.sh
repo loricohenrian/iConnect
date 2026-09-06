@@ -56,16 +56,31 @@ cp "$PROJECT_ROOT/deploy/systemd/celery-worker.service" /etc/systemd/system/
 cp "$PROJECT_ROOT/deploy/systemd/celery-beat.service" /etc/systemd/system/
 systemctl daemon-reload
 
-echo "=== 5/7: Configuring Nginx ==="
+echo "=== 5/8: Configuring Orange Pi One stability settings ==="
+if [ -f /boot/armbianEnv.txt ]; then
+    if grep -q "^extraargs=" /boot/armbianEnv.txt; then
+        if ! grep -q "reboot=" /boot/armbianEnv.txt; then
+            sed -i 's/^extraargs=\(.*\)/extraargs=\1 reboot=warm/' /boot/armbianEnv.txt
+        fi
+    else
+        echo "extraargs=reboot=warm" >> /boot/armbianEnv.txt
+    fi
+fi
+if [ -f /etc/systemd/system.conf ]; then
+    sed -i 's/^#*DefaultTimeoutStopSec=.*/DefaultTimeoutStopSec=10s/' /etc/systemd/system.conf
+    sed -i 's/^#*DefaultTimeoutAbortSec=.*/DefaultTimeoutAbortSec=10s/' /etc/systemd/system.conf
+fi
+
+echo "=== 6/8: Configuring Nginx ==="
 cp "$PROJECT_ROOT/deploy/nginx/iconnect.conf" /etc/nginx/sites-available/iconnect.conf
 ln -sf /etc/nginx/sites-available/iconnect.conf /etc/nginx/sites-enabled/iconnect.conf
 rm -f /etc/nginx/sites-enabled/default
 nginx -t
 
-echo "=== 6/7: Enabling all services ==="
+echo "=== 7/8: Enabling all services ==="
 systemctl enable redis-server dnsmasq nginx usblan0-init pisowifi coindetector celery-worker celery-beat
 
-echo "=== 7/7: Restarting services ==="
+echo "=== 8/8: Restarting services ==="
 systemctl restart redis-server dnsmasq nginx
 systemctl restart pisowifi coindetector celery-worker celery-beat || true
 
