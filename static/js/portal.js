@@ -2143,85 +2143,73 @@ if (linkCancelCoinRequest) {
     linkCancelCoinRequest.addEventListener("click", () => handleCancelCoinRequest(linkCancelCoinRequest));
 }
 
-// Global Rates Modal helpers (Switches to dedicated scrollable page view to avoid Android WebView pull-to-refresh traps)
-let portalRatesScrollY = 0;
-
+// Global Rates Modal helpers
 window.openRatesModal = function() {
-    const mainView = document.getElementById('portal-main-view') || document.getElementById('session-main-view');
     const modal = document.getElementById('ratesModal');
-    if (!modal) return;
-
-    portalRatesScrollY = window.scrollY || window.pageYOffset || 0;
-
-    if (mainView) {
-        mainView.style.display = 'none';
-    }
-
-    const ann = document.getElementById('portal-announcements');
-    if (ann) ann.style.display = 'none';
-
-    modal.style.display = 'block';
-    window.scrollTo(0, 0);
-
-    if (window.history && window.history.pushState) {
-        window.history.pushState({ modal: 'rates' }, '');
+    if (modal) {
+        window.savedRatesPageScroll = window.scrollY || window.pageYOffset || 0;
+        // Keep root document scroll at >= 2px so Android SwipeRefreshLayout never intercepts upward scrolls inside modal
+        if (window.savedRatesPageScroll < 2) {
+            window.scrollTo(0, 2);
+        }
+        modal.style.display = 'flex';
+        document.body.classList.add('modal-open');
+        document.documentElement.classList.add('modal-open');
+        const card = modal.querySelector('.modal-card');
+        if (card) {
+            card.scrollTop = 0;
+        }
     }
 };
 
 window.closeRatesModal = function() {
-    const mainView = document.getElementById('portal-main-view') || document.getElementById('session-main-view');
     const modal = document.getElementById('ratesModal');
-    if (!modal || modal.style.display === 'none') return;
-
-    modal.style.display = 'none';
-    if (mainView) {
-        mainView.style.display = 'block';
+    if (modal) {
+        modal.style.display = 'none';
+        document.body.classList.remove('modal-open');
+        document.documentElement.classList.remove('modal-open');
+        window.scrollTo(0, window.savedRatesPageScroll || 0);
     }
-
-    const ann = document.getElementById('portal-announcements');
-    if (ann && ann.querySelector('.announcement-banner')) {
-        ann.style.display = 'block';
-    }
-
-    window.scrollTo(0, portalRatesScrollY);
 };
 
-window.triggerCoinFlow = function() {
-    window.closeRatesModal();
-    setTimeout(() => {
-        const btn = document.getElementById('request-slot-btn') || 
-                    document.getElementById('extend-request-btn') || 
-                    document.getElementById('coin-request-btn');
-        if (btn) btn.click();
-    }, 80);
-};
-
-// Listen for Android hardware back button / browser back
-window.addEventListener('popstate', function() {
-    const modal = document.getElementById('ratesModal');
-    if (modal && modal.style.display !== 'none') {
-        window.closeRatesModal();
-    }
-});
-
-// Touch guard to prevent native pull-to-refresh when dragging downward while at top
+// Rates Modal touch guard: block downward drag ONLY when already at top of the modal card
 (function() {
     let touchStartY = 0;
+    let isTouchingCard = false;
+
     document.addEventListener('touchstart', function(e) {
-        if (e.touches.length === 1) {
+        const modal = document.getElementById('ratesModal');
+        if (!modal || modal.style.display === 'none') return;
+
+        const card = e.target.closest('#ratesModal .modal-card');
+        if (card && e.touches.length === 1) {
+            isTouchingCard = true;
             touchStartY = e.touches[0].clientY;
+        } else {
+            isTouchingCard = false;
         }
     }, { passive: true });
 
     document.addEventListener('touchmove', function(e) {
-        const ratesModal = document.getElementById('ratesModal');
-        if (ratesModal && ratesModal.style.display !== 'none') {
-            if (e.touches.length === 1) {
-                const currentY = e.touches[0].clientY;
-                // Block downward swipe only when already at the very top (window.scrollY <= 0)
-                if (currentY > touchStartY && (window.scrollY || window.pageYOffset || 0) <= 0) {
-                    if (e.cancelable) e.preventDefault();
-                }
+        const modal = document.getElementById('ratesModal');
+        if (!modal || modal.style.display === 'none') return;
+
+        // Block scrolling background through backdrop
+        if (e.target === modal) {
+            if (e.cancelable) e.preventDefault();
+            return;
+        }
+
+        if (isTouchingCard && e.touches.length === 1) {
+            const card = modal.querySelector('.modal-card');
+            if (!card) return;
+
+            const currentY = e.touches[0].clientY;
+            const deltaY = currentY - touchStartY;
+
+            // Only block when swiping DOWN while already at the top boundary (scrollTop <= 0)
+            if (deltaY > 0 && card.scrollTop <= 0) {
+                if (e.cancelable) e.preventDefault();
             }
         }
     }, { passive: false });

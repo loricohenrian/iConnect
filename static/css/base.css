@@ -105,8 +105,6 @@ body {
 
 html.modal-open,
 body.modal-open {
-    overflow: hidden !important;
-    height: 100% !important;
     overscroll-behavior: none !important;
     overscroll-behavior-y: none !important;
 }
