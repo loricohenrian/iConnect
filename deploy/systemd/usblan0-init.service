@@ -1,26 +1,36 @@
 [Unit]
 Description=PisoWiFi usblan0 Static IP Initializer
 DefaultDependencies=no
-After=network-pre.target udev.service
+After=network-pre.target systemd-udevd.service
 Before=network.target dnsmasq.service pisowifi.service
 Wants=network.target
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-TimeoutStartSec=30
+TimeoutStartSec=60
 ExecStart=/bin/bash -c '\
   echo "[usblan0-init] Waiting for usblan0 interface..."; \
-  for i in $(seq 1 30); do \
+  for i in $(seq 1 35); do \
     if ip link show usblan0 >/dev/null 2>&1; then \
       echo "[usblan0-init] usblan0 detected, assigning 10.10.10.1/24..."; \
       ip link set usblan0 up; \
       ip addr replace 10.10.10.1/24 dev usblan0; \
       exit 0; \
     fi; \
+    if [ "$i" -eq 6 ]; then \
+      echo "[usblan0-init] Attempting USB port re-authorization fallback..."; \
+      for hub in /sys/bus/usb/devices/usb*; do \
+        if [ -f "$hub/authorized" ]; then \
+          echo 0 > "$hub/authorized" 2>/dev/null || true; \
+          sleep 0.5; \
+          echo 1 > "$hub/authorized" 2>/dev/null || true; \
+        fi; \
+      done; \
+    fi; \
     sleep 1; \
   done; \
-  echo "[usblan0-init] WARNING: usblan0 not detected after 30s" >&2; \
+  echo "[usblan0-init] WARNING: usblan0 not detected after 35s" >&2; \
   exit 0 \
 '
 

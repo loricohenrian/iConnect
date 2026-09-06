@@ -59,24 +59,32 @@ cp "$SCRIPT_DIR/udev/99-usblan0.rules" /etc/udev/rules.d/99-usblan0.rules
 udevadm control --reload-rules 2>/dev/null || true
 echo "[OK] udev rule installed."
 
-echo "=== Step 6: Preventing Orange Pi One reboot freeze (H3 SoC watchdog fix) ==="
+echo "=== Step 6: Configuring USB & Reboot Stability (H3 SoC & USB Noise Fix) ==="
+# Kernel parameters to fix USB boot timeout (error -110 / -71) and H3 reboot freeze
+USB_KERNEL_ARGS="reboot=warm usbcore.old_scheme_first=1 usbcore.use_both_schemes=1 usbcore.initial_descriptor_timeout=5000 usbcore.autosuspend=-1"
+
+# 6a. Configure /etc/modprobe.d/usbcore.conf
+mkdir -p /etc/modprobe.d
+cat << 'EOF' > /etc/modprobe.d/usbcore.conf
+options usbcore old_scheme_first=1 use_both_schemes=1 initial_descriptor_timeout=5000 autosuspend=-1
+EOF
+echo "[OK] /etc/modprobe.d/usbcore.conf configured."
+
+# 6b. Configure /boot/armbianEnv.txt
 if [ -f /boot/armbianEnv.txt ]; then
     if grep -q "^extraargs=" /boot/armbianEnv.txt; then
-        if ! grep -q "reboot=" /boot/armbianEnv.txt; then
-            sed -i 's/^extraargs=\(.*\)/extraargs=\1 reboot=warm/' /boot/armbianEnv.txt
-            echo "[OK] Added reboot=warm to extraargs in /boot/armbianEnv.txt."
-        else
-            echo "[OK] reboot parameter already present in /boot/armbianEnv.txt."
-        fi
+        # Replace entire extraargs line with comprehensive stable parameters
+        sed -i 's|^extraargs=.*|extraargs=reboot=warm usbcore.old_scheme_first=1 usbcore.use_both_schemes=1 usbcore.initial_descriptor_timeout=5000 usbcore.autosuspend=-1|' /boot/armbianEnv.txt
+        echo "[OK] Updated extraargs in /boot/armbianEnv.txt."
     else
-        echo "extraargs=reboot=warm" >> /boot/armbianEnv.txt
-        echo "[OK] Appended extraargs=reboot=warm to /boot/armbianEnv.txt."
+        echo "extraargs=reboot=warm usbcore.old_scheme_first=1 usbcore.use_both_schemes=1 usbcore.initial_descriptor_timeout=5000 usbcore.autosuspend=-1" >> /boot/armbianEnv.txt
+        echo "[OK] Appended extraargs to /boot/armbianEnv.txt."
     fi
 else
     echo "[INFO] /boot/armbianEnv.txt not found (non-Armbian or custom image)."
 fi
 
-# Ensure systemd never hangs on shutdown/reboot waiting for slow processes
+# 6c. Ensure systemd never hangs on shutdown/reboot waiting for slow processes
 if [ -f /etc/systemd/system.conf ]; then
     sed -i 's/^#*DefaultTimeoutStopSec=.*/DefaultTimeoutStopSec=10s/' /etc/systemd/system.conf
     sed -i 's/^#*DefaultTimeoutAbortSec=.*/DefaultTimeoutAbortSec=10s/' /etc/systemd/system.conf
@@ -104,5 +112,6 @@ echo "==========================================================================
 echo "Notes:"
 echo "1. On cold boot or reboot, usblan0 will now automatically get 10.10.10.1"
 echo "   and dnsmasq will start right after without needing to unplug/replug."
-echo "2. The Allwinner H3 reboot hang has been fixed with reboot=warm in armbianEnv.txt."
+echo "2. Kernel USB parameters (old_scheme_first, 5s timeout) prevent error -110/-71."
+echo "3. The Allwinner H3 reboot hang has been fixed with reboot=warm in armbianEnv.txt."
 echo "=============================================================================="

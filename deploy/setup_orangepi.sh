@@ -57,13 +57,16 @@ cp "$PROJECT_ROOT/deploy/systemd/celery-beat.service" /etc/systemd/system/
 systemctl daemon-reload
 
 echo "=== 5/8: Configuring Orange Pi One stability settings ==="
+mkdir -p /etc/modprobe.d
+cat << 'EOF' > /etc/modprobe.d/usbcore.conf
+options usbcore old_scheme_first=1 use_both_schemes=1 initial_descriptor_timeout=5000 autosuspend=-1
+EOF
+
 if [ -f /boot/armbianEnv.txt ]; then
     if grep -q "^extraargs=" /boot/armbianEnv.txt; then
-        if ! grep -q "reboot=" /boot/armbianEnv.txt; then
-            sed -i 's/^extraargs=\(.*\)/extraargs=\1 reboot=warm/' /boot/armbianEnv.txt
-        fi
+        sed -i 's|^extraargs=.*|extraargs=reboot=warm usbcore.old_scheme_first=1 usbcore.use_both_schemes=1 usbcore.initial_descriptor_timeout=5000 usbcore.autosuspend=-1|' /boot/armbianEnv.txt
     else
-        echo "extraargs=reboot=warm" >> /boot/armbianEnv.txt
+        echo "extraargs=reboot=warm usbcore.old_scheme_first=1 usbcore.use_both_schemes=1 usbcore.initial_descriptor_timeout=5000 usbcore.autosuspend=-1" >> /boot/armbianEnv.txt
     fi
 fi
 if [ -f /etc/systemd/system.conf ]; then
