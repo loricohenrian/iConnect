@@ -1,1 +1,1 @@
-ACTION=="add", SUBSYSTEM=="net", KERNEL=="usblan0", RUN+="/usr/bin/systemctl restart dnsmasq"
+ACTION=="add", SUBSYSTEM=="net", KERNEL=="usblan0", RUN+="/bin/bash -c 'ip link set usblan0 up && ip addr replace 10.10.10.1/24 dev usblan0 && /usr/bin/systemctl restart dnsmasq'"

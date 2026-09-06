@@ -38,11 +38,18 @@ if [ -f /etc/default/dnsmasq ]; then
     fi
 fi
 
-echo "=== 3/7: Installing udev rules for usblan0 hotplugging ==="
+echo "=== 3/7: Installing udev rules and network dispatcher for usblan0 ==="
 cp "$PROJECT_ROOT/deploy/udev/99-usblan0.rules" /etc/udev/rules.d/99-usblan0.rules
-udevadm control --reload-rules
+udevadm control --reload-rules 2>/dev/null || true
+
+mkdir -p /etc/NetworkManager/dispatcher.d
+if [ -f "$PROJECT_ROOT/deploy/network/99-usblan0.sh" ]; then
+    cp "$PROJECT_ROOT/deploy/network/99-usblan0.sh" /etc/NetworkManager/dispatcher.d/99-usblan0.sh
+    chmod +x /etc/NetworkManager/dispatcher.d/99-usblan0.sh
+fi
 
 echo "=== 4/7: Installing systemd services ==="
+cp "$PROJECT_ROOT/deploy/systemd/usblan0-init.service" /etc/systemd/system/
 cp "$PROJECT_ROOT/deploy/systemd/pisowifi.service" /etc/systemd/system/
 cp "$PROJECT_ROOT/deploy/systemd/coindetector.service" /etc/systemd/system/
 cp "$PROJECT_ROOT/deploy/systemd/celery-worker.service" /etc/systemd/system/
@@ -56,7 +63,7 @@ rm -f /etc/nginx/sites-enabled/default
 nginx -t
 
 echo "=== 6/7: Enabling all services ==="
-systemctl enable redis-server dnsmasq nginx pisowifi coindetector celery-worker celery-beat
+systemctl enable redis-server dnsmasq nginx usblan0-init pisowifi coindetector celery-worker celery-beat
 
 echo "=== 7/7: Restarting services ==="
 systemctl restart redis-server dnsmasq nginx
