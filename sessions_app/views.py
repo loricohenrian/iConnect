@@ -490,7 +490,7 @@ def _coin_request_payload(coin_request):
         "combo_duration_long_display": combo["duration_long_display"] if combo else "",
         "combo_breakdown_text": combo["breakdown_text"] if combo else "",
         "ready_to_start": (
-            coin_request.status in (CoinInsertRequest.STATUS_ACTIVE, CoinInsertRequest.STATUS_COMPLETED) and
+            coin_request.status in (CoinInsertRequest.STATUS_ACTIVE, CoinInsertRequest.STATUS_PENDING, CoinInsertRequest.STATUS_COMPLETED) and
             (
                 (coin_request.expected_amount > 0 and coin_request.credited_amount >= coin_request.expected_amount) or
                 (not coin_request.is_group_pass and coin_request.credited_amount > 0 and combo and combo["amount_used"] > 0)
@@ -562,7 +562,7 @@ def _get_or_create_start_coin_request(mac_address, ip_address, plan=None, is_gro
     existing_request = CoinInsertRequest.objects.filter(
         mac_address=mac_address,
         purpose=CoinInsertRequest.PURPOSE_START,
-        status__in=[CoinInsertRequest.STATUS_PENDING, CoinInsertRequest.STATUS_ACTIVE],
+        status__in=[CoinInsertRequest.STATUS_PENDING, CoinInsertRequest.STATUS_ACTIVE, CoinInsertRequest.STATUS_COMPLETED],
     ).order_by("created_at", "id").first()
 
     expected_amount = 0
@@ -592,11 +592,6 @@ def _get_or_create_start_coin_request(mac_address, ip_address, plan=None, is_gro
         raise ValueError("Coin request queue is full. Please try again shortly.")
 
     credited_amount = _pending_coin_events_for_mac(mac_address).aggregate(total=Sum("amount"))["total"] or 0
-    initial_status = (
-        CoinInsertRequest.STATUS_COMPLETED
-        if credited_amount >= expected_amount and expected_amount > 0
-        else CoinInsertRequest.STATUS_PENDING
-    )
 
     coin_request = CoinInsertRequest.objects.create(
         mac_address=mac_address,
@@ -607,13 +602,11 @@ def _get_or_create_start_coin_request(mac_address, ip_address, plan=None, is_gro
         is_group_pass=is_group_pass,
         group_pass_devices=group_pass_devices,
         credited_amount=credited_amount,
-        status=initial_status,
-        completed_at=timezone.now() if initial_status == CoinInsertRequest.STATUS_COMPLETED else None,
+        status=CoinInsertRequest.STATUS_PENDING,
     )
 
-    if coin_request.status == CoinInsertRequest.STATUS_PENDING:
-        _activate_next_coin_request()
-        coin_request.refresh_from_db()
+    _activate_next_coin_request()
+    coin_request.refresh_from_db()
 
     return _sync_coin_request_progress(coin_request), True
 
@@ -836,9 +829,15 @@ def session_start_request(request):
     if coin_request.status == CoinInsertRequest.STATUS_COMPLETED:
         message = "Payment is already sufficient. Tap Connect to start your session."
     elif coin_request.status == CoinInsertRequest.STATUS_ACTIVE:
-        message = "Insert coins now. Your device currently owns the coin slot window."
+        if coin_request.expected_amount > 0 and coin_request.credited_amount >= coin_request.expected_amount:
+            message = "Payment is already sufficient. Tap Connect to start your session, or insert more coins."
+        else:
+            message = "Insert coins now. Your device currently owns the coin slot window."
     elif coin_request.status == CoinInsertRequest.STATUS_PENDING:
-        message = "Request queued. Wait until your turn, then insert coins."
+        if coin_request.expected_amount > 0 and coin_request.credited_amount >= coin_request.expected_amount:
+            message = "Payment is already sufficient. Tap Connect to start your session."
+        else:
+            message = "Request queued. Wait until your turn, then insert coins."
     else:
         message = "Request is no longer active. Please request again."
 
@@ -903,7 +902,7 @@ def session_start_cancel(request):
         
     coin_request = CoinInsertRequest.objects.filter(
         mac_address=mac_address,
-        status__in=[CoinInsertRequest.STATUS_PENDING, CoinInsertRequest.STATUS_ACTIVE]
+        status__in=[CoinInsertRequest.STATUS_PENDING, CoinInsertRequest.STATUS_ACTIVE, CoinInsertRequest.STATUS_COMPLETED]
     ).first()
     
     if coin_request:
@@ -1102,9 +1101,9 @@ def session_start(request):
             CoinInsertRequest.objects.filter(
                 mac_address=mac_address,
                 purpose=CoinInsertRequest.PURPOSE_START,
-                status__in=[CoinInsertRequest.STATUS_PENDING, CoinInsertRequest.STATUS_ACTIVE],
+                status__in=[CoinInsertRequest.STATUS_PENDING, CoinInsertRequest.STATUS_ACTIVE, CoinInsertRequest.STATUS_COMPLETED],
             ).update(
-                status=CoinInsertRequest.STATUS_CANCELLED,
+                status=CoinInsertRequest.STATUS_COMPLETED,
                 completed_at=timezone.now(),
             )
 

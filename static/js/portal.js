@@ -907,9 +907,17 @@ function initProductionStartFlow(macAddress) {
         startBtn.disabled = !state.readyToStart;
         startBtn.dataset.readyToStart = state.readyToStart ? "1" : "0";
 
+        const actionsContainer = document.getElementById("coin-actions-container");
         const hasCoins = Boolean(coinRequest && ((coinRequest.credited_amount && coinRequest.credited_amount > 0) || coinRequest.ready_to_start));
         const btnCancel = document.getElementById("btn-cancel-coin-request");
         const linkCancel = document.getElementById("link-cancel-coin-request");
+        const isTerminal = ["expired", "cancelled"].includes(coinRequest?.status);
+
+        if (coinRequest && (!isTerminal || state.readyToStart)) {
+            if (actionsContainer) actionsContainer.style.display = "block";
+        } else {
+            if (actionsContainer) actionsContainer.style.display = "none";
+        }
 
         if (hasCoins) {
             startBtn.style.display = "block";
@@ -954,6 +962,8 @@ function initProductionStartFlow(macAddress) {
                     startBtn.disabled = true;
                     startBtn.dataset.readyToStart = "0";
                     startBtn.style.display = "none";
+                    const actionsContainer = document.getElementById("coin-actions-container");
+                    if (actionsContainer) actionsContainer.style.display = "none";
                     const btnCancel = document.getElementById("btn-cancel-coin-request");
                     const linkCancel = document.getElementById("link-cancel-coin-request");
                     if (btnCancel) btnCancel.style.display = "inline-block";
@@ -1118,6 +1128,8 @@ function initProductionStartFlow(macAddress) {
             startBtn.disabled = true;
             startBtn.dataset.readyToStart = "0";
             startBtn.style.display = "none";
+            const actionsContainer = document.getElementById("coin-actions-container");
+            if (actionsContainer) actionsContainer.style.display = "none";
             const btnCancel = document.getElementById("btn-cancel-coin-request");
             const linkCancel = document.getElementById("link-cancel-coin-request");
             if (btnCancel) btnCancel.style.display = "inline-block";
@@ -1199,9 +1211,17 @@ function initExtendSessionFlow(macAddress) {
 
         extendNowBtn.disabled = !state.readyToStart;
 
+        const actionsContainer = document.getElementById("coin-actions-container");
         const hasCoins = Boolean(coinRequest && ((coinRequest.credited_amount && coinRequest.credited_amount > 0) || coinRequest.ready_to_start));
         const btnCancel = document.getElementById("btn-cancel-coin-request");
         const linkCancel = document.getElementById("link-cancel-coin-request");
+        const isTerminal = ["expired", "cancelled"].includes(coinRequest?.status);
+
+        if (coinRequest && (!isTerminal || state.readyToStart)) {
+            if (actionsContainer) actionsContainer.style.display = "block";
+        } else {
+            if (actionsContainer) actionsContainer.style.display = "none";
+        }
 
         if (hasCoins) {
             extendNowBtn.style.display = "block";
@@ -1245,6 +1265,8 @@ function initExtendSessionFlow(macAddress) {
                     setExtendMeta("");
                     extendNowBtn.disabled = true;
                     extendNowBtn.style.display = "none";
+                    const actionsContainer = document.getElementById("coin-actions-container");
+                    if (actionsContainer) actionsContainer.style.display = "none";
                     const btnCancel = document.getElementById("btn-cancel-coin-request");
                     const linkCancel = document.getElementById("link-cancel-coin-request");
                     if (btnCancel) btnCancel.style.display = "inline-block";
@@ -1293,6 +1315,8 @@ function initExtendSessionFlow(macAddress) {
             state.groupDevices = null;
             extendNowBtn.disabled = true;
             extendNowBtn.style.display = "none";
+            const actionsContainer = document.getElementById("coin-actions-container");
+            if (actionsContainer) actionsContainer.style.display = "none";
             const btnCancel = document.getElementById("btn-cancel-coin-request");
             const linkCancel = document.getElementById("link-cancel-coin-request");
             if (btnCancel) btnCancel.style.display = "inline-block";
@@ -1393,6 +1417,8 @@ function initExtendSessionFlow(macAddress) {
                 state.readyToStart = false;
                 const countdownContainer = document.getElementById("coin-countdown-container");
                 if (countdownContainer) countdownContainer.style.display = "none";
+                const actionsContainer = document.getElementById("coin-actions-container");
+                if (actionsContainer) actionsContainer.style.display = "none";
                 if (data.session_group) {
                     window.location.reload();
                     return;

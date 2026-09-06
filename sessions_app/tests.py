@@ -845,6 +845,64 @@ class SessionApiTests(TestCase):
         self.assertEqual(session.duration_minutes_purchased, 90)
         self.assertEqual(session.amount_paid, 15)
 
+    @override_settings(PISONET_DEVICE_API_KEY="test-device-key")
+    @patch("sessions_app.views.iptables.enforce_firewall_baseline", return_value=True)
+    @patch("sessions_app.views.iptables.allow_device", return_value=True)
+    def test_cancel_and_reinsert_coins_preserves_balance_and_ready_to_connect(self, allow_device_mock, baseline_mock):
+        # 1. User requests coin slot
+        res1 = self.client.post(
+            reverse("sessions_app:session-start-request"),
+            {"mac_address": self.mac_one, "plan_id": self.plan.id},
+            format="json",
+        )
+        self.assertIn(res1.status_code, (200, 201))
+        body1 = res1.json()
+        req_id1 = body1["coin_request"]["id"]
+
+        # 2. User inserts coins (₱5)
+        self.client.post(
+            reverse("sessions_app:coin-inserted"),
+            {"amount": 5, "denomination": 5},
+            format="json",
+            HTTP_X_DEVICE_API_KEY="test-device-key",
+        )
+
+        # 3. User cancels the request without starting session
+        cancel_res = self.client.post(
+            reverse("sessions_app:session-start-cancel"),
+            {"mac_address": self.mac_one},
+            format="json",
+        )
+        self.assertEqual(cancel_res.status_code, 200)
+        req1 = CoinInsertRequest.objects.get(id=req_id1)
+        self.assertEqual(req1.status, CoinInsertRequest.STATUS_CANCELLED)
+
+        # 4. User clicks "Insert Coins" again
+        res2 = self.client.post(
+            reverse("sessions_app:session-start-request"),
+            {"mac_address": self.mac_one, "plan_id": self.plan.id},
+            format="json",
+        )
+        self.assertIn(res2.status_code, (200, 201))
+        body2 = res2.json()
+        self.assertEqual(body2["status"], "success")
+        self.assertIn("coin_request", body2)
+        coin_req2 = body2["coin_request"]
+
+        # 5. Balance is preserved and user is immediately ready to connect
+        self.assertEqual(coin_req2["credited_amount"], 5)
+        self.assertTrue(coin_req2["ready_to_start"])
+
+        # 6. User connects now
+        start_res = self.client.post(
+            reverse("sessions_app:session-start"),
+            {"mac_address": self.mac_one, "plan_id": self.plan.id},
+            format="json",
+        )
+        self.assertEqual(start_res.status_code, 201)
+        active_sess = Session.objects.filter(mac_address=self.mac_one, status="active").first()
+        self.assertIsNotNone(active_sess)
+
 
 class ComboPlanTests(TestCase):
     def setUp(self):
