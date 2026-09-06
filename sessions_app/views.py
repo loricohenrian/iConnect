@@ -1999,9 +1999,10 @@ def session_status(request):
             session.refresh_from_db()
 
         if session.status == "paused":
-            # Check if paused session exceeded global max pause hours
+            # Check if paused session exceeded plan or global max pause hours
             settings_obj = SystemSettings.get_settings()
-            max_pause_hours = settings_obj.global_pause_limit_hours if settings_obj else 24
+            global_max_pause = settings_obj.global_pause_limit_hours if settings_obj else 24
+            max_pause_hours = session.plan.pause_duration_limit if (session.plan and session.plan.pause_duration_limit > 0) else global_max_pause
             if max_pause_hours > 0 and session.paused_at:
                 pause_age_hours = (timezone.now() - session.paused_at).total_seconds() / 3600.0
                 if pause_age_hours >= max_pause_hours:

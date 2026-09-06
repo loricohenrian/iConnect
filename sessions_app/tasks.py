@@ -82,13 +82,62 @@ def restore_iptables_on_boot():
 
 
 @shared_task
-def check_expired_sessions():
+def cleanup_expired_and_stale_sessions():
     """
-    Check and expire sessions that have run out of time.
-    Should be called every minute by Celery Beat.
+    Check active and paused sessions and expire any that ran out of time
+    or exceeded their pause duration limit. Returns count of expired sessions.
     """
     from .models import Session
     from . import iptables
+    from dashboard.models import SystemSettings
+
+    now = timezone.now()
+    settings_obj = SystemSettings.get_settings()
+    global_max_pause = settings_obj.global_pause_limit_hours if settings_obj else 24
+    expired_count = 0
+
+    # 1. Active sessions with no time remaining
+    for session in Session.objects.filter(status='active').select_related('plan'):
+        if session.time_remaining_seconds <= 0:
+            session.expire_session()
+            try:
+                iptables.block_device(session.mac_address)
+            except Exception:
+                pass
+            expired_count += 1
+            logger.info(f'Expired active session {session.id} for {session.mac_address} (time expired)')
+
+    # 2. Paused sessions exceeding pause limit or with no time remaining
+    for session in Session.objects.filter(status='paused').select_related('plan'):
+        max_pause_hours = session.plan.pause_duration_limit if (session.plan and session.plan.pause_duration_limit > 0) else global_max_pause
+        should_expire = False
+
+        if max_pause_hours > 0 and session.paused_at:
+            paused_hours = (now - session.paused_at).total_seconds() / 3600.0
+            if paused_hours >= max_pause_hours:
+                should_expire = True
+                logger.info(f'Expiring paused session {session.id} for {session.mac_address} (exceeded {max_pause_hours}h pause limit)')
+
+        if not should_expire and session.time_remaining_seconds <= 0:
+            should_expire = True
+            logger.info(f'Expiring paused session {session.id} for {session.mac_address} (0 time remaining)')
+
+        if should_expire:
+            session.expire_session()
+            try:
+                iptables.block_device(session.mac_address)
+            except Exception:
+                pass
+            expired_count += 1
+
+    return expired_count
+
+
+def check_expired_sessions():
+    """
+    Check and expire sessions that have run out of time or exceeded pause limits.
+    Should be called regularly by Celery Beat.
+    """
     import os
     from django.conf import settings
 
@@ -100,47 +149,11 @@ def check_expired_sessions():
     except Exception as e:
         logger.error(f'Failed to write heartbeat: {e}')
 
-    active_sessions = Session.objects.filter(status='active')
-    expired_count = 0
+    expired_count = cleanup_expired_and_stale_sessions()
+    if expired_count:
+        logger.info(f'Cleaned up and expired {expired_count} sessions.')
 
-    for session in active_sessions:
-        if session.time_remaining_seconds <= 0:
-            session.expire_session()
-            iptables.block_device(session.mac_address)
-            expired_count += 1
-            logger.info(f'Expired active session {session.id} for {session.mac_address}')
-
-    from datetime import timedelta
-    from dashboard.models import SystemSettings
-    global_max_pause_hours = SystemSettings.get_settings().global_pause_limit_hours
-    paused_sessions = Session.objects.filter(status='paused').select_related('plan')
-    
-    resumed_count = 0
-    for session in paused_sessions:
-        # Use plan-specific limit if set, otherwise global
-        max_pause_hours = session.plan.pause_duration_limit if session.plan and session.plan.pause_duration_limit > 0 else global_max_pause_hours
-        
-        if max_pause_hours > 0 and session.paused_at:
-            paused_hours = (timezone.now() - session.paused_at).total_seconds() / 3600.0
-            if paused_hours >= max_pause_hours:
-                # Limit exceeded: auto-resume the session so the timer drains
-                session.resume_session()
-                from django.core.cache import cache
-                cache.delete(f"auto_paused_{session.id}")
-                cache.delete(f"manual_pause_{session.id}")
-                # Do NOT allow iptables here since they might not be connected, 
-                # but if they are, they will need to refresh anyway. 
-                # Better yet, allow them just in case.
-                dl_kbps = int(session.plan.speed_limit * 1024) if session.plan and session.plan.speed_limit else None
-                ul_kbps = int(session.plan.speed_limit_upload * 1024) if session.plan and session.plan.speed_limit_upload else dl_kbps
-                iptables.allow_device(session.mac_address, rate_kbps=dl_kbps, upload_kbps=ul_kbps)
-                resumed_count += 1
-                logger.info(f'Auto-resumed paused session {session.id} for {session.mac_address} (exceeded {max_pause_hours}h pause limit)')
-
-    if expired_count or resumed_count:
-        logger.info(f'Expired {expired_count} total sessions. Auto-resumed {resumed_count} sessions.')
-
-    return f'Checked {active_sessions.count()} active sessions, expired {expired_count} total sessions'
+    return f'Expired {expired_count} total sessions'
 
 
 @shared_task

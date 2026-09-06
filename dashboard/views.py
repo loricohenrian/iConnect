@@ -173,6 +173,9 @@ def dashboard_stats_api(request):
     if not _is_dashboard_admin(request.user):
         return Response({'detail': 'Authentication required.'}, status=status.HTTP_401_UNAUTHORIZED)
 
+    from sessions_app.tasks import cleanup_expired_and_stale_sessions
+    cleanup_expired_and_stale_sessions()
+
     today = timezone.localdate()
     week_ago = today - timedelta(days=7)
 
@@ -582,6 +585,9 @@ def sessions_live_api(request):
     if not _is_dashboard_admin(request.user):
         return Response({'detail': 'Authentication required.'}, status=status.HTTP_401_UNAUTHORIZED)
 
+    from sessions_app.tasks import cleanup_expired_and_stale_sessions
+    cleanup_expired_and_stale_sessions()
+
     status_filter = request.GET.get('status', '')
     search = request.GET.get('search', '')
     period = request.GET.get('period', 'today')
@@ -892,6 +898,9 @@ def revenue(request):
 @user_passes_test(_is_dashboard_admin, login_url='dashboard:login')
 def sessions_view(request):
     """Session logs page."""
+    from sessions_app.tasks import cleanup_expired_and_stale_sessions
+    cleanup_expired_and_stale_sessions()
+
     status_filter = request.GET.get('status', '')
     search = request.GET.get('search', '')
     period = request.GET.get('period', 'today')

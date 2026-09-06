@@ -442,4 +442,37 @@ class AnnouncementManagementTests(TestCase):
         # Verify outage announcement was completely deleted
         self.assertEqual(Announcement.objects.filter(message__contains="interrupted by our ISP").count(), 0)
 
+    def test_paused_session_exceeding_max_hours_is_expired_in_dashboard(self):
+        from django.utils import timezone
+        from datetime import timedelta
+        from sessions_app.models import Session, Plan
+
+        plan_48 = Plan.objects.create(
+            name="₱5 48h Plan",
+            price=5,
+            duration_minutes=120,
+            pause_duration_limit=48,
+        )
+
+        # Create session paused 55 hours ago
+        session = Session.objects.create(
+            mac_address="11:22:33:44:55:77",
+            status="paused",
+            plan=plan_48,
+            duration_minutes_purchased=120,
+            amount_paid=5,
+            time_in=timezone.now() - timedelta(hours=60),
+            paused_at=timezone.now() - timedelta(hours=55),
+        )
+
+        # Load dashboard sessions page
+        resp = self.client.get("/iconnect-ops/sessions/")
+        self.assertEqual(resp.status_code, 200)
+
+        # Verify session is now expired
+        session.refresh_from_db()
+        self.assertEqual(session.status, "expired")
+        self.assertIsNotNone(session.time_out)
+
+
 
