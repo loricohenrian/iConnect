@@ -140,5 +140,26 @@ class RatesModalTests(TestCase):
         self.assertEqual(data["smart_combo_examples"][0]["amount"], 7)
         self.assertEqual(data["smart_combo_examples_extend"][0]["duration"], "+1h 20m")
 
+    def test_manual_page_content(self):
+        response = self.client.get("/manual/")
+        self.assertEqual(response.status_code, 200)
+
+        # Solo plan updated steps
+        self.assertContains(response, 'Tap "Insert Coins"')
+        self.assertContains(response, 'View WiFi Rates & Speeds')
+        self.assertContains(response, 'Connect Now')
+        self.assertContains(response, 'Pause or Extend Anytime')
+
+        # Tagalog steps
+        self.assertContains(response, 'I-tap ang "Insert Coins"')
+        self.assertContains(response, 'Maghulog ng Barya')
+        self.assertContains(response, 'I-tap ang "Connect Now"')
+        self.assertContains(response, 'I-Pause o Mag-Extend Anumang Oras')
+
+        # Obsolete request coin slot should NOT exist anywhere in manual
+        self.assertNotContains(response, 'Request Coin Slot')
+
+
+
 
 

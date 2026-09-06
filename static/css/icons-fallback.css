@@ -19,10 +19,17 @@
 /* Default fallback */
 .bi::before { content: "\2022"; font-size: 1em; }
 
-/* ─── Navigation ─── */
+/* ─── Navigation & Chevrons ─── */
 .bi-house::before { content: "\2302"; font-size: 1.2em; }
 .bi-clock-history::before { content: "\29D6"; font-size: 1em; }
-.bi-question-circle::before { content: "?"; font-size: 1em; font-weight: 700; }
+.bi-question-circle::before,
+.bi-question-circle-fill::before { content: "?"; font-size: 1em; font-weight: 700; }
+.bi-chevron-down::before { content: "\25BE"; font-size: 1.1em; }
+.bi-chevron-up::before { content: "\25B4"; font-size: 1.1em; }
+.bi-chevron-right::before { content: "\203A"; font-size: 1.2em; }
+.bi-chevron-left::before { content: "\2039"; font-size: 1.2em; }
+.bi-arrow-left::before { content: "\2190"; font-size: 1.1em; }
+.bi-arrow-right::before { content: "\2192"; font-size: 1.1em; }
 
 /* ─── Session & Payment ─── */
 .bi-wifi::before { content: "\25CE"; font-size: 1em; }
@@ -33,7 +40,18 @@
 .bi-speedometer2::before { content: "\2191"; font-size: 1em; }
 .bi-calculator::before { content: "\20B1"; font-size: 1em; }
 .bi-coin::before { content: "\20B1"; font-size: 1em; }
-.bi-send::before { content: "\27A4"; font-size: 1em; }
+.bi-send::before,
+.bi-send-fill::before,
+.bi-send-check::before,
+.bi-send-check-fill::before { content: "\27A4"; font-size: 1em; }
+.bi-phone::before,
+.bi-phone-fill::before { content: "\1F4F1"; font-size: 1em; }
+.bi-key::before,
+.bi-key-fill::before { content: "\26BF"; font-size: 1em; }
+.bi-chat-dots::before,
+.bi-chat-dots-fill::before,
+.bi-chat-square-dots::before,
+.bi-chat-square-dots-fill::before { content: "\2709"; font-size: 1em; }
 
 /* ─── Warnings & Info ─── */
 .bi-exclamation-triangle-fill::before,
@@ -148,7 +166,8 @@
 .bi-toggle-off::before { content: "\25CB"; font-size: 1em; }
 
 /* ─── Analytics & Games ─── */
-.bi-lightbulb::before { content: "\2605"; font-size: 1em; }
+.bi-lightbulb::before,
+.bi-lightbulb-fill::before { content: "\2605"; font-size: 1em; }
 .bi-activity::before { content: "\2197"; font-size: 1em; }
 .bi-trophy::before,
 .bi-controller::before { content: "\2605"; font-size: 1em; }      /* Gamification */
