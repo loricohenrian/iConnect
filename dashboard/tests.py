@@ -474,5 +474,46 @@ class AnnouncementManagementTests(TestCase):
         self.assertEqual(session.status, "expired")
         self.assertIsNotNone(session.time_out)
 
+    def test_stale_session_from_old_plan_exceeding_lifetime_is_expired(self):
+        from django.utils import timezone
+        from datetime import timedelta
+        from sessions_app.models import Session, Plan
+
+        # Old plan with no pause limit
+        old_plan = Plan.objects.create(
+            name="₱5 90m Plan",
+            price=5,
+            duration_minutes=90,
+            pause_duration_limit=0,
+            is_active=False,
+        )
+        # New active plan with 48h limit
+        Plan.objects.create(
+            name="₱5 120m Plan",
+            price=5,
+            duration_minutes=120,
+            pause_duration_limit=48,
+            is_active=True,
+        )
+
+        # Create session started 5 days ago (120 hours ago)
+        session = Session.objects.create(
+            mac_address="D6:29:15:31:70:EE",
+            status="paused",
+            plan=old_plan,
+            duration_minutes_purchased=90,
+            amount_paid=5,
+            time_in=timezone.now() - timedelta(days=5),
+            paused_at=timezone.now() - timedelta(days=5),
+        )
+
+        resp = self.client.get("/iconnect-ops/sessions/")
+        self.assertEqual(resp.status_code, 200)
+
+        session.refresh_from_db()
+        self.assertEqual(session.status, "expired")
+        self.assertEqual(session.time_remaining_seconds, 0)
+
+
 
 

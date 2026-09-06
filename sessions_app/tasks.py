@@ -113,6 +113,14 @@ def cleanup_expired_and_stale_sessions():
     # 2. Paused sessions exceeding pause limit or with no time remaining
     for session in Session.objects.filter(status='paused').select_related('plan'):
         max_pause_hours = session.plan.pause_duration_limit if (session.plan and session.plan.pause_duration_limit > 0) else global_max_pause
+        if max_pause_hours == 0 and session.amount_paid:
+            from .models import Plan
+            matching_plan = Plan.objects.filter(is_active=True, price=session.amount_paid, pause_duration_limit__gt=0).first()
+            if matching_plan:
+                max_pause_hours = matching_plan.pause_duration_limit
+        if max_pause_hours == 0:
+            max_pause_hours = 48  # Default 48h safety ceiling for paused sessions
+
         should_expire = False
 
         if max_pause_hours > 0 and session.paused_at:
@@ -120,6 +128,13 @@ def cleanup_expired_and_stale_sessions():
             if paused_hours >= max_pause_hours:
                 should_expire = True
                 logger.info(f'Expiring paused session {session.id} for {session.mac_address} (exceeded {max_pause_hours}h pause limit)')
+
+        # Also check if total elapsed wall-clock time since session started exceeds (purchased duration + max pause limit)
+        if not should_expire and session.time_in and max_pause_hours > 0:
+            max_lifetime_hours = (session.duration_minutes_purchased or 0) / 60.0 + max_pause_hours
+            if (now - session.time_in).total_seconds() / 3600.0 >= max_lifetime_hours:
+                should_expire = True
+                logger.info(f'Expiring paused session {session.id} for {session.mac_address} (lifetime exceeded {max_lifetime_hours}h)')
 
         if not should_expire and session.time_remaining_seconds <= 0:
             should_expire = True

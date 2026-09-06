@@ -192,17 +192,28 @@ class Session(models.Model):
 
         if self.status == "paused":
             from dashboard.models import SystemSettings
+            from sessions_app.models import Plan
             global_max_pause = SystemSettings.get_settings().global_pause_limit_hours
-            max_pause_hours = self.plan.pause_duration_limit if self.plan and self.plan.pause_duration_limit > 0 else global_max_pause
+            max_pause_hours = self.plan.pause_duration_limit if (self.plan and self.plan.pause_duration_limit > 0) else global_max_pause
+            if max_pause_hours == 0 and self.amount_paid:
+                matching_plan = Plan.objects.filter(is_active=True, price=self.amount_paid, pause_duration_limit__gt=0).first()
+                if matching_plan:
+                    max_pause_hours = matching_plan.pause_duration_limit
+
             paused_at = self.paused_at or timezone.now()
 
-            if max_pause_hours > 0 and self.paused_at:
-                paused_time = (timezone.now() - paused_at).total_seconds()
-                max_pause_seconds = max_pause_hours * 3600
-                if paused_time > max_pause_seconds:
-                    effective_paused_time_this_pause = max_pause_seconds
-                    elapsed = (timezone.now() - time_in).total_seconds() - total_paused - effective_paused_time_this_pause
-                    return max(0, total_seconds - elapsed)
+            if max_pause_hours > 0:
+                if self.paused_at:
+                    paused_time = (timezone.now() - paused_at).total_seconds()
+                    max_pause_seconds = max_pause_hours * 3600
+                    if paused_time >= max_pause_seconds:
+                        return 0
+
+                # Maximum lifetime ceiling: total purchased time + max pause limit
+                if self.time_in:
+                    max_lifetime_seconds = total_seconds + (max_pause_hours * 3600)
+                    if (timezone.now() - self.time_in).total_seconds() >= max_lifetime_seconds:
+                        return 0
 
             # When paused normally, freeze remaining time at point of pause
             elapsed = (paused_at - time_in).total_seconds() - total_paused
