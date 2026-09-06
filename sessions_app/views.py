@@ -1035,9 +1035,9 @@ def session_start(request):
             if is_group_pass:
                 import random
                 import string
-                # Generate unique code
+                # Generate unique 5-character code
                 while True:
-                    code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+                    code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=5))
                     if not SessionGroup.objects.filter(group_code=code).exists():
                         break
 
@@ -1610,7 +1610,7 @@ def session_extend_paid(request):
                 import random
                 import string
                 while True:
-                    code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+                    code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=5))
                     if not SessionGroup.objects.filter(group_code=code).exists():
                         break
 

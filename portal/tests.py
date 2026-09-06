@@ -156,6 +156,11 @@ class RatesModalTests(TestCase):
         self.assertContains(response, 'I-tap ang "Connect Now"')
         self.assertContains(response, 'I-Pause o Mag-Extend Anumang Oras')
 
+        # Group plan 5-digit code assertions
+        self.assertContains(response, '5-digit Group Code')
+        self.assertContains(response, '5-digit na Group Code')
+        self.assertNotContains(response, '6-digit')
+
         # Obsolete request coin slot should NOT exist anywhere in manual
         self.assertNotContains(response, 'Request Coin Slot')
 

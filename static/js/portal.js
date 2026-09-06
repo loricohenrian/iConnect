@@ -1730,9 +1730,9 @@ function initJoinGroupFlow(macAddress) {
 
     btnSubmitJoin.addEventListener("click", async () => {
         const code = joinCodeInput.value.trim().toUpperCase();
-        if (!code || code.length !== 6) {
+        if (!code || (code.length !== 5 && code.length !== 6)) {
             if (joinError) {
-                joinError.textContent = "Please enter a valid 6-character code.";
+                joinError.textContent = "Please enter a valid 5-character code.";
                 joinError.style.display = "block";
             }
             return;

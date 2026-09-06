@@ -210,6 +210,30 @@ class SessionApiTests(TestCase):
         self.assertTrue(WhitelistedDevice.objects.filter(mac_address=self.mac_one).exists())
         whitelist_mock.assert_called_once_with(self.mac_one)
 
+    @patch("sessions_app.views.iptables.enforce_firewall_baseline", return_value=True)
+    @patch("sessions_app.views.iptables.allow_device", return_value=True)
+    def test_group_pass_generates_5_digit_code(self, allow_mock, base_mock):
+        CoinEvent.objects.create(
+            amount=10,
+            denomination=10,
+            mac_address=self.mac_one,
+        )
+        response = self.client.post(
+            reverse("sessions_app:session-start"),
+            {
+                "mac_address": self.mac_one,
+                "plan_id": self.plan.id,
+                "is_group_pass": True,
+                "group_pass_devices": 2,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        session = Session.objects.get(mac_address=self.mac_one, status="active")
+        self.assertIsNotNone(session.session_group)
+        self.assertEqual(len(session.session_group.group_code), 5)
+        self.assertTrue(session.session_group.group_code.isalnum())
+
     def test_protected_endpoints_require_admin_auth(self):
         checks = [
             ("post", reverse("sessions_app:whitelist"), {"mac_address": self.mac_one, "device_name": "X"}),
