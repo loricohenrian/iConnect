@@ -2142,3 +2142,18 @@ const linkCancelCoinRequest = document.getElementById("link-cancel-coin-request"
 if (linkCancelCoinRequest) {
     linkCancelCoinRequest.addEventListener("click", () => handleCancelCoinRequest(linkCancelCoinRequest));
 }
+
+// Prevent mobile pull-to-refresh and scroll lockup inside modals
+document.addEventListener('touchstart', function(e) {
+    if (document.body.classList.contains('modal-open')) {
+        const card = e.target.closest('.modal-card');
+        if (card) {
+            if (card.scrollTop <= 0) {
+                card.scrollTop = 1;
+            } else if (card.scrollTop + card.clientHeight >= card.scrollHeight) {
+                card.scrollTop = card.scrollHeight - card.clientHeight - 1;
+            }
+        }
+    }
+}, { passive: true });
+
