@@ -559,6 +559,12 @@ body.modal-open {
     color: var(--color-dark);
 }
 
+.modal-close-btn.active {
+    background: var(--color-primary);
+    color: #fff;
+    border-color: var(--color-primary);
+}
+
 .counter-group {
     display: flex;
     align-items: center;

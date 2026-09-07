@@ -246,10 +246,32 @@
     <div class="modal-card animate-fadeIn" onclick="event.stopPropagation()">
         <div class="modal-header">
             <h3><i class="bi bi-people-fill" style="color:var(--color-primary);"></i> Group Plan</h3>
-            <button type="button" class="modal-close-btn" onclick="closeGroupPlanModal()" title="Close" aria-label="Close">
-                <span style="font-size: 18px; font-weight: 700; line-height: 1;">&times;</span>
-            </button>
+            <div style="display:flex; gap:8px; align-items:center;">
+                <button type="button" class="modal-close-btn" id="group-help-toggle" onclick="toggleGroupPlanHelp()" title="How to buy & use group plan" style="font-weight:700; font-size:13px;">
+                    ?
+                </button>
+                <button type="button" class="modal-close-btn" onclick="closeGroupPlanModal()" title="Close" aria-label="Close">
+                    <span style="font-size: 18px; font-weight: 700; line-height: 1;">&times;</span>
+                </button>
+            </div>
         </div>
+
+        <!-- Help Panel (hidden by default) -->
+        <div id="group-help-panel" style="display:none; margin-bottom: 14px;">
+            <div style="background: var(--color-primary-light); border: 1px solid var(--color-border); border-radius: 12px; padding: 12px 14px;">
+                <h4 style="margin:0 0 8px 0; font-size:13px; color:var(--color-primary); font-weight:700; display:flex; align-items:center; gap:6px;">
+                    <i class="bi bi-info-circle-fill"></i> How to Buy a Group Plan
+                </h4>
+                <ol style="padding-left:18px; margin:0; font-size:12px; color:var(--color-dark); line-height:1.6;">
+                    <li><strong>Choose a Plan:</strong> Select the Wi-Fi duration package you want for the group.</li>
+                    <li><strong>Set People Count:</strong> Use <strong>-</strong> or <strong>+</strong> to choose how many devices will share it (minimum 2).</li>
+                    <li><strong>Insert Total Coins:</strong> Tap <em>Insert Coins 🪙</em> and drop the total amount into the vendo machine.</li>
+                    <li><strong>Get Your 5-Letter Code:</strong> Once coins are inserted, a unique 5-character group code (e.g., <code>A1B2C</code>) will appear.</li>
+                    <li><strong>Share With Friends:</strong> Have each friend connect to the Wi-Fi, tap <em>"Have a group code? Enter it here"</em>, enter the code, and tap <em>Join</em>! Each person gets their own full session.</li>
+                </ol>
+            </div>
+        </div>
+
         <p class="text-small text-muted mb-md">Buy a plan for multiple people.</p>
         
         <div class="form-group mb-md">
@@ -323,6 +345,19 @@
             document.body.classList.remove('modal-open');
             document.documentElement.classList.remove('modal-open');
         }
+        const panel = document.getElementById('group-help-panel');
+        const btn = document.getElementById('group-help-toggle');
+        if (panel) panel.style.display = 'none';
+        if (btn) btn.classList.remove('active');
+    }
+
+    function toggleGroupPlanHelp() {
+        const panel = document.getElementById('group-help-panel');
+        const btn = document.getElementById('group-help-toggle');
+        if (!panel) return;
+        const shown = panel.style.display !== 'none';
+        panel.style.display = shown ? 'none' : 'block';
+        if (btn) btn.classList.toggle('active', !shown);
     }
 
     let savedRatesPageScroll = 0;
