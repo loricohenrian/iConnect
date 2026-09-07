@@ -66,12 +66,23 @@ cp "$SCRIPT_DIR/dnsmasq/bind-dynamic.conf" /etc/dnsmasq.d/bind-dynamic.conf
 echo "[OK] dnsmasq dependencies and dynamic bind configured."
 
 echo "=== Step 5: Installing NetworkManager dispatcher & udev rules ==="
+mkdir -p /etc/systemd/network
+if [ -f "$SCRIPT_DIR/network/10-usblan.link" ]; then
+    cp "$SCRIPT_DIR/network/10-usblan.link" /etc/systemd/network/10-usblan.link
+fi
+
+cat << 'EOF' > /etc/udev/rules.d/70-persistent-net-usblan.rules
+# Automatically assign 'usblan0' to any USB Ethernet adapter
+SUBSYSTEM=="net", ACTION=="add", DEVPATH=="*/usb*/*", NAME="usblan0"
+EOF
+
 mkdir -p /etc/NetworkManager/dispatcher.d
 cp "$SCRIPT_DIR/network/99-usblan0.sh" /etc/NetworkManager/dispatcher.d/99-usblan0.sh
 chmod +x /etc/NetworkManager/dispatcher.d/99-usblan0.sh
 
 cp "$SCRIPT_DIR/udev/99-usblan0.rules" /etc/udev/rules.d/99-usblan0.rules
 udevadm control --reload-rules 2>/dev/null || true
+udevadm trigger --subsystem-match=net 2>/dev/null || true
 echo "[OK] NetworkManager dispatcher and udev rules installed."
 
 echo "=== Step 6: Configuring Boot Stability & Kernel Parameters ==="

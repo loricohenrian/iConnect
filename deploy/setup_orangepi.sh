@@ -39,6 +39,16 @@ if [ -f /etc/default/dnsmasq ]; then
 fi
 
 echo "=== 3/7: Installing udev rules and network dispatcher for usblan0 ==="
+mkdir -p /etc/systemd/network
+if [ -f "$PROJECT_ROOT/deploy/network/10-usblan.link" ]; then
+    cp "$PROJECT_ROOT/deploy/network/10-usblan.link" /etc/systemd/network/10-usblan.link
+fi
+
+cat << 'EOF' > /etc/udev/rules.d/70-persistent-net-usblan.rules
+# Automatically assign 'usblan0' to any USB Ethernet adapter
+SUBSYSTEM=="net", ACTION=="add", DEVPATH=="*/usb*/*", NAME="usblan0"
+EOF
+
 cp "$PROJECT_ROOT/deploy/udev/99-usblan0.rules" /etc/udev/rules.d/99-usblan0.rules
 udevadm control --reload-rules 2>/dev/null || true
 

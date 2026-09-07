@@ -1,0 +1,6 @@
+[Match]
+Type=ether
+Path=*-usb-*
+
+[Link]
+Name=usblan0
