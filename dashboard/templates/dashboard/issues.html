@@ -13,8 +13,24 @@
     {% endfor %}
 {% endif %}
 
+<style>
+.stats-grid.stats-grid-3 {
+    grid-template-columns: repeat(3, 1fr);
+}
+@media (max-width: 1024px) {
+    .stats-grid.stats-grid-3 {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+@media (max-width: 639px) {
+    .stats-grid.stats-grid-3 {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+
 <!-- Stats Cards -->
-<div class="stats-grid">
+<div class="stats-grid stats-grid-3">
     <!-- Pending -->
     <div class="stat-card animate-fadeIn">
         <div class="stat-info">

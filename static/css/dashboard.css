@@ -309,6 +309,11 @@
     margin-bottom: var(--space-xl);
 }
 
+.stats-grid-3,
+.stats-grid.stats-grid-3 {
+    grid-template-columns: repeat(3, 1fr);
+}
+
 .stat-card {
     background: #ffffff;
     border-radius: 12px;
@@ -741,7 +746,8 @@
         display: block;
     }
 
-    .stats-grid {
+    .stats-grid,
+    .stats-grid-3 {
         grid-template-columns: repeat(2, 1fr);
     }
 
@@ -760,7 +766,8 @@
 }
 
 @media (max-width: 639px) {
-    .stats-grid {
+    .stats-grid,
+    .stats-grid-3 {
         grid-template-columns: 1fr;
     }
 
@@ -798,7 +805,8 @@
 }
 
 @media (max-width: 639px) {
-    .stats-grid {
+    .stats-grid,
+    .stats-grid-3 {
         grid-template-columns: 1fr;
     }
 
