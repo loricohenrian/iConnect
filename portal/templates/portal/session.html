@@ -48,7 +48,6 @@
     <!-- Pause Info -->
     <div style="font-size: 12px; color: var(--color-gray); margin-top: 10px; text-align: center; font-weight: 500;">
         Pauses remaining: <strong id="pauses-left-display">{{ pauses_left }}</strong>
-        <span class="text-muted" style="font-size: 11px;">(resets daily)</span>
     </div>
     
     <div id="pause-duration-warning" class="alert alert-warning" style="display: {% if session.status == 'paused' %}block{% else %}none{% endif %}; font-size: 12px; margin-top: 12px; padding: 8px 12px; border-radius: 8px; text-align: left;">
@@ -80,45 +79,13 @@
         </div>
     </div>
     {% endif %}
-</div>
 
-<!-- Session Details Card -->
-<div class="card mt-md animate-fadeIn" style="animation-delay: 100ms">
-    <div class="card-title">Session Details</div>
-    <div class="details-list">
+    <!-- Session Details (inside timer container) -->
+    <div class="session-details-inline mt-md">
         <div class="detail-row">
-            <span class="detail-label">IP Address</span>
-            <span class="detail-value" id="session-ip-display">{{ session.ip_address }}</span>
+            <span class="detail-label">Amount Paid</span>
+            <span class="detail-value" id="session-amount-paid">₱{{ session.amount_paid }}</span>
         </div>
-        {% if session.expires_at %}
-        <div class="detail-row">
-            <span class="detail-label">Expires At</span>
-            <span class="detail-value" id="session-expires-at-display">{{ session.expires_at|date:"h:i A" }}</span>
-        </div>
-        {% endif %}
-        <div class="detail-row">
-            <span class="detail-label">Total Data Used</span>
-            <span class="detail-value" id="session-data-usage-display">{{ session.data_usage_display }}</span>
-        </div>
-        <!-- Real-Time Bandwidth Display -->
-        <div class="detail-row" id="bandwidth-row" style="display: none;">
-            <span class="detail-label">Live Speed</span>
-            <span class="detail-value" id="bandwidth-display" style="font-weight: 600; color: var(--color-primary);">--</span>
-        </div>
-        <!-- Data Limit Progress (if plan has data limit) -->
-        {% if session.plan and session.plan.data_limit_mb %}
-        <div class="detail-row" style="flex-direction: column; align-items: stretch; gap: 4px;">
-            <div style="display: flex; justify-content: space-between; font-size: 0.8rem;">
-                <span class="detail-label">Data Remaining</span>
-                <span class="detail-value" id="session-data-remaining-display">
-                    {{ session.data_remaining_mb|floatformat:1 }} MB / {{ session.plan.data_limit_mb }} MB
-                </span>
-            </div>
-            <div style="background: var(--color-border); border-radius: 4px; height: 6px; overflow: hidden;">
-                <div id="data-progress-bar" style="background: var(--color-primary); height: 100%; width: 100%; transition: width 0.5s ease;"></div>
-            </div>
-        </div>
-        {% endif %}
         <div class="detail-row">
             <span class="detail-label">Duration</span>
             <span class="detail-value" id="session-duration-display">{{ session.duration_display }}</span>
