@@ -1157,9 +1157,6 @@ def reports(request):
         total=Sum('amount_paid'),
     ).order_by('-count')[:5]
 
-    # === Recent Sessions ===
-    recent_sessions = Session.objects.select_related('plan').order_by('-time_in')[:10]
-
     # === Daily revenue for last 7 days (for chart) ===
     daily_revenue = []
     for i in range(6, -1, -1):
@@ -1191,7 +1188,6 @@ def reports(request):
         'days_operating': days_operating,
         # Data
         'top_plans': top_plans,
-        'recent_sessions': recent_sessions,
         'daily_revenue': daily_revenue,
         'active_page': 'reports',
     }

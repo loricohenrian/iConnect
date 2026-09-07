@@ -247,55 +247,6 @@
     </div>
 </div>
 
-<!-- Section 4: Recent Sessions Ledger -->
-<div class="chart-card animate-fadeIn" style="animation-delay: 500ms">
-    <div class="chart-header">
-        <h3 class="chart-title">Recent Session Transactions</h3>
-        <a href="{% url 'dashboard:sessions' %}" class="btn btn-sm btn-secondary" style="font-size: 12px; padding: 4px 10px;">
-            View All in Sessions Table →
-        </a>
-    </div>
-
-    {% if recent_sessions %}
-    <div class="table-container" style="overflow-x: auto;">
-        <table>
-            <thead>
-                <tr>
-                    <th>Session ID</th>
-                    <th>Device Name</th>
-                    <th>Plan</th>
-                    <th>Amount</th>
-                    <th>Time Started</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for s in recent_sessions %}
-                <tr>
-                    <td>#{{ s.id }}</td>
-                    <td class="font-semibold" style="max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ s.device_name|default:"Unknown" }}</td>
-                    <td>
-                        <span class="badge" style="background: rgba(123, 45, 59, 0.08); color: var(--color-dark, #7b2d3b); font-weight: 600;">
-                            {{ s.plan.name|default:"Custom" }}
-                        </span>
-                    </td>
-                    <td class="font-semibold" style="color: #10b981;">₱{{ s.amount_paid }}</td>
-                    <td class="text-xs text-muted">{{ s.time_in|date:"M d, h:i A" }}</td>
-                    <td>
-                        <span class="badge badge-{% if s.status == 'active' %}active{% elif s.status == 'paused' %}paused{% else %}expired{% endif %}" style="font-size: 11px; padding: 2px 8px;">{{ s.status|upper }}</span>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    {% else %}
-    <div class="empty-state" style="padding: 24px;">
-        <p class="font-semibold" style="margin: 0;">No recent sessions found</p>
-    </div>
-    {% endif %}
-</div>
-
 {% endblock %}
 
 {% block dashboard_js %}
