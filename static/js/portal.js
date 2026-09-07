@@ -1741,7 +1741,11 @@ function handlePortalOutageState(data, isSessionPage) {
 }
 
 function pollSessionStatus(macAddress, intervalMs = 3000) {
-    setInterval(async () => {
+    let inFlight = false;
+
+    const checkSessionStatus = async () => {
+        if (inFlight) return;
+        inFlight = true;
         try {
             const response = await fetch(
                 `/api/session/status/?mac_address=${encodeURIComponent(macAddress)}`
@@ -1847,8 +1851,19 @@ function pollSessionStatus(macAddress, intervalMs = 3000) {
             }
         } catch (error) {
             console.error("Status poll error:", error);
+        } finally {
+            inFlight = false;
         }
-    }, intervalMs);
+    };
+
+    setInterval(checkSessionStatus, intervalMs);
+
+    // When the user returns to this tab from another tab or app, sync immediately
+    document.addEventListener("visibilitychange", () => {
+        if (!document.hidden) {
+            checkSessionStatus();
+        }
+    });
 }
 
 function _updatePortalAnnouncement(announcementText) {
