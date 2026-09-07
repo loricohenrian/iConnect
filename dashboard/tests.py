@@ -995,6 +995,153 @@ class SupportTicketHardeningTests(TestCase):
         self.assertIn("already been received", resp2.json().get("message", ""))
 
 
+class SecuritySystemHardeningTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        User = get_user_model()
+        self.admin = User.objects.create_superuser("sec_admin", "sec@test.com", "pass1234")
+        self.client.login(username="sec_admin", password="pass1234")
+        self.test_mac = "EE:AA:BB:CC:DD:11"
+        self.incident = SuspiciousDevice.objects.create(
+            mac_address=self.test_mac,
+            last_ip_address="10.0.0.50",
+            reason="MAC Spoofing Suspected",
+            evidence="Flapped rapidly between 10.0.0.50 and 10.0.0.51",
+            status=SuspiciousDevice.STATUS_BLOCKED,
+            is_blocked=True,
+        )
+
+    @patch("sessions_app.iptables.allow_device")
+    @patch("sessions_app.iptables.block_device")
+    def test_unblock_without_active_session_does_not_grant_free_internet(self, mock_block, mock_allow):
+        # Device has NO active session
+        resp = self.client.post("/iconnect-ops/security/", {
+            "action": "unblock",
+            "incident_id": self.incident.id,
+        })
+        self.assertEqual(resp.status_code, 302)
+        self.incident.refresh_from_db()
+        self.assertEqual(self.incident.status, SuspiciousDevice.STATUS_CLEARED)
+        self.assertFalse(self.incident.is_blocked)
+
+        # Critical: allow_device MUST NOT be called! Device stays in captive redirect!
+        mock_allow.assert_not_called()
+        mock_block.assert_called_with(self.test_mac)
+
+    @patch("sessions_app.iptables.allow_device")
+    def test_unblock_with_active_session_restores_firewall(self, mock_allow):
+        plan = Plan.objects.create(name="1 Hour", price=10, duration_minutes=60, speed_limit=5.0)
+        Session.objects.create(
+            mac_address=self.test_mac,
+            plan=plan,
+            duration_minutes_purchased=60,
+            amount_paid=10,
+            status="active",
+        )
+        resp = self.client.post("/iconnect-ops/security/", {
+            "action": "unblock",
+            "incident_id": self.incident.id,
+        })
+        self.assertEqual(resp.status_code, 302)
+        mock_allow.assert_called_once()
+
+    @patch("sessions_app.iptables.block_device")
+    def test_block_action_terminates_active_sessions(self, mock_block):
+        inc = SuspiciousDevice.objects.create(
+            mac_address="22:33:44:55:66:77",
+            status=SuspiciousDevice.STATUS_NEW,
+            is_blocked=False,
+        )
+        plan = Plan.objects.create(name="1 Hour", price=10, duration_minutes=60)
+        s1 = Session.objects.create(
+            mac_address="22:33:44:55:66:77",
+            plan=plan,
+            duration_minutes_purchased=60,
+            amount_paid=10,
+            status="active",
+        )
+        s2 = Session.objects.create(
+            mac_address="22:33:44:55:66:77",
+            plan=plan,
+            duration_minutes_purchased=60,
+            amount_paid=10,
+            status="paused",
+        )
+
+        resp = self.client.post("/iconnect-ops/security/", {
+            "action": "block",
+            "incident_id": inc.id,
+        })
+        self.assertEqual(resp.status_code, 302)
+        inc.refresh_from_db()
+        self.assertEqual(inc.status, SuspiciousDevice.STATUS_BLOCKED)
+        self.assertTrue(inc.is_blocked)
+
+        s1.refresh_from_db()
+        s2.refresh_from_db()
+        self.assertEqual(s1.status, "expired")
+        self.assertEqual(s2.status, "expired")
+        self.assertIsNotNone(s1.time_out)
+        self.assertIsNotNone(s2.time_out)
+
+    @patch("sessions_app.iptables.block_device")
+    def test_manual_block_action(self, mock_block):
+        new_mac = "AA:BB:CC:99:88:77"
+        resp = self.client.post("/iconnect-ops/security/", {
+            "action": "manual_block",
+            "mac_address": new_mac,
+            "reason": "Payment Evasion",
+            "evidence": "Observed bypassing coin drop",
+        })
+        self.assertEqual(resp.status_code, 302)
+        inc = SuspiciousDevice.objects.filter(mac_address=new_mac).first()
+        self.assertIsNotNone(inc)
+        self.assertEqual(inc.status, SuspiciousDevice.STATUS_BLOCKED)
+        self.assertTrue(inc.is_blocked)
+        self.assertEqual(inc.reason, "Payment Evasion")
+        mock_block.assert_called_with(new_mac)
+
+    def test_delete_action(self):
+        resp = self.client.post("/iconnect-ops/security/", {
+            "action": "delete",
+            "incident_id": self.incident.id,
+        })
+        self.assertEqual(resp.status_code, 302)
+        self.assertFalse(SuspiciousDevice.objects.filter(id=self.incident.id).exists())
+
+    def test_spin_wheel_rejects_blocked_device(self):
+        from dashboard.models import SystemSettings
+        from sessions_app.models import DeviceProfile
+        sys_settings = SystemSettings.get_settings()
+        sys_settings.enable_spin_wheel = True
+        sys_settings.save()
+
+        DeviceProfile.objects.create(mac_address=self.test_mac, points=100)
+
+        # Anonymous client representing customer device
+        anon_client = APIClient()
+        with patch("portal.views._get_mac_address", return_value=self.test_mac):
+            resp = anon_client.post("/api/execute_spin/")
+            self.assertEqual(resp.status_code, 403)
+            self.assertIn("blocked", resp.json().get("message", ""))
+
+            # Spin data should also report blocked
+            data_resp = anon_client.get("/api/spin-data/")
+            self.assertEqual(data_resp.status_code, 200)
+            self.assertTrue(data_resp.json().get("is_blocked"))
+            self.assertFalse(data_resp.json().get("enabled"))
+
+    def test_voucher_extension_rejects_blocked_device(self):
+        client = APIClient()
+        resp = client.post("/api/session/extend/", {
+            "voucher_code": "VOUCH1",
+            "mac_address": self.test_mac,
+        })
+        self.assertEqual(resp.status_code, 403)
+        self.assertIn("blocked", resp.json().get("error", ""))
+
+
+
 
 
 

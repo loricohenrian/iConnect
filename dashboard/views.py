@@ -68,6 +68,14 @@ def _check_rate_limit(key, max_attempts, window_seconds):
         return False
 
 
+def _safe_redirect_referer(request, fallback='dashboard:overview'):
+    """Redirect to referer safely only if it stays within the current host."""
+    referer = request.META.get('HTTP_REFERER')
+    if referer and url_has_allowed_host_and_scheme(url=referer, allowed_hosts={request.get_host()}):
+        return redirect(referer)
+    return redirect(fallback)
+
+
 def dashboard_login(request):
     """Dashboard login page."""
     if _is_dashboard_admin(request.user):
@@ -1800,12 +1808,59 @@ def security_view(request):
     """Suspicious device monitoring and enforcement actions."""
     status_filter = request.GET.get('status', '').strip()
     search = sanitize_text(request.GET.get('search', ''), max_length=60)
-    action_message = ''
-    action_error = ''
 
     if request.method == 'POST':
         action = request.POST.get('action', '').strip()
         incident_id_raw = request.POST.get('incident_id', '').strip()
+
+        if action == 'manual_block':
+            raw_mac = request.POST.get('mac_address', '').strip().upper()
+            reason = sanitize_text(request.POST.get('reason', 'Manual Admin Block'), max_length=64) or 'Manual Admin Block'
+            evidence = sanitize_text(request.POST.get('evidence', 'Manually blocked by administrator from Security page.'), max_length=500)
+            
+            import re
+            if not re.match(r'^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$', raw_mac):
+                messages.error(request, f'Invalid MAC address format: "{raw_mac}". Expected format: AA:BB:CC:DD:EE:FF')
+            else:
+                mac_normalized = raw_mac.replace('-', ':').upper()
+                iptables.block_device(mac_normalized)
+                
+                # Terminate any active or paused sessions for this MAC
+                terminated_count = Session.objects.filter(
+                    mac_address=mac_normalized,
+                    status__in=['active', 'paused']
+                ).update(status='expired', time_out=timezone.now())
+
+                incident, created = SuspiciousDevice.objects.get_or_create(
+                    mac_address=mac_normalized,
+                    defaults={
+                        'reason': reason,
+                        'evidence': evidence,
+                        'status': SuspiciousDevice.STATUS_BLOCKED,
+                        'is_blocked': True,
+                        'blocked_at': timezone.now(),
+                        'resolved_by': request.user.username,
+                    }
+                )
+                if not created:
+                    incident.mark_blocked(by=request.user.username)
+                    incident.reason = reason
+                    if evidence:
+                        incident.evidence = evidence
+                    incident.save()
+
+                term_msg = f" ({terminated_count} active session(s) terminated)" if terminated_count else ""
+                messages.success(request, f'Device {mac_normalized} has been manually blocked.{term_msg}')
+                audit_logger.info(
+                    'event=suspicious_device_manual_block user=%s mac=%s ip=%s terminated_sessions=%s',
+                    request.user.username,
+                    mac_normalized,
+                    _client_ip(request),
+                    terminated_count,
+                )
+            return _safe_redirect_referer(request, fallback='dashboard:security')
+
+        # Existing incident actions
         try:
             inc_id = parse_bounded_int(incident_id_raw, 1, 2147483647, 'incident_id')
             incident = SuspiciousDevice.objects.filter(id=inc_id).first()
@@ -1813,53 +1868,98 @@ def security_view(request):
             incident = None
 
         if not incident:
-            action_error = 'Suspicious device record not found.'
+            messages.error(request, 'Suspicious device record not found.')
         elif action == 'block':
             blocked = iptables.block_device(incident.mac_address)
-            if blocked:
-                incident.mark_blocked(by=request.user.username)
-                action_message = f'Device {incident.mac_address} blocked successfully.'
-                audit_logger.info(
-                    'event=suspicious_device_blocked user=%s mac=%s ip=%s',
-                    request.user.username,
-                    incident.mac_address,
-                    _client_ip(request),
-                )
-            else:
-                action_error = 'Failed to block device at firewall layer.'
+            incident.mark_blocked(by=request.user.username)
+            # Terminate any active or paused sessions in database immediately
+            terminated_count = Session.objects.filter(
+                mac_address=incident.mac_address,
+                status__in=['active', 'paused']
+            ).update(status='expired', time_out=timezone.now())
+
+            term_msg = f" ({terminated_count} active session(s) terminated)" if terminated_count else ""
+            messages.success(request, f'Device {incident.mac_address} blocked successfully.{term_msg}')
+            audit_logger.info(
+                'event=suspicious_device_blocked user=%s mac=%s ip=%s terminated_sessions=%s',
+                request.user.username,
+                incident.mac_address,
+                _client_ip(request),
+                terminated_count,
+            )
         elif action == 'unblock':
-            allowed = iptables.allow_device(incident.mac_address)
-            if allowed:
-                incident.mark_cleared(by=request.user.username)
-                action_message = f'Device {incident.mac_address} unblocked and marked as cleared.'
-                audit_logger.info(
-                    'event=suspicious_device_unblocked user=%s mac=%s ip=%s',
-                    request.user.username,
-                    incident.mac_address,
-                    _client_ip(request),
-                )
+            incident.mark_cleared(by=request.user.username)
+            # Only allow through firewall if device currently has an active unexpired session
+            active_session = Session.objects.filter(
+                mac_address=incident.mac_address,
+                status='active'
+            ).select_related('plan').first()
+            if active_session:
+                rate = active_session.plan.speed_limit if active_session.plan else None
+                rate_kbps = int(rate * 1024) if rate else None
+                iptables.allow_device(incident.mac_address, rate_kbps=rate_kbps)
+                session_note = " Active session restored."
             else:
-                action_error = 'Failed to re-allow device at firewall layer.'
+                # Ensure device remains in captive portal redirect state (prevent free internet exploit)
+                iptables.block_device(incident.mac_address)
+                session_note = " Ready for captive portal login (no active session)."
+
+            messages.success(request, f'Device {incident.mac_address} unblocked.{session_note}')
+            audit_logger.info(
+                'event=suspicious_device_unblocked user=%s mac=%s ip=%s has_active_session=%s',
+                request.user.username,
+                incident.mac_address,
+                _client_ip(request),
+                bool(active_session),
+            )
         elif action == 'false_positive':
             incident.mark_false_positive(by=request.user.username)
-            action_message = f'Device {incident.mac_address} marked as false positive.'
+            messages.success(request, f'Device {incident.mac_address} marked as false positive.')
+            audit_logger.info(
+                'event=suspicious_device_false_positive user=%s mac=%s ip=%s',
+                request.user.username,
+                incident.mac_address,
+                _client_ip(request),
+            )
         elif action == 'clear':
             incident.mark_cleared(by=request.user.username)
-            action_message = f'Device {incident.mac_address} marked as cleared.'
+            messages.success(request, f'Device {incident.mac_address} marked as cleared.')
+            audit_logger.info(
+                'event=suspicious_device_cleared user=%s mac=%s ip=%s',
+                request.user.username,
+                incident.mac_address,
+                _client_ip(request),
+            )
+        elif action == 'delete':
+            mac = incident.mac_address
+            incident.delete()
+            messages.success(request, f'Alert record for {mac} deleted.')
+            audit_logger.info(
+                'event=suspicious_device_deleted user=%s mac=%s ip=%s',
+                request.user.username,
+                mac,
+                _client_ip(request),
+            )
         else:
-            action_error = 'Unsupported action.'
+            messages.error(request, 'Unsupported action.')
+
+        return _safe_redirect_referer(request, fallback='dashboard:security')
 
     suspicious_devices = SuspiciousDevice.objects.all()
 
-    if status_filter:
+    valid_statuses = dict(SuspiciousDevice.STATUS_CHOICES).keys()
+    if status_filter and status_filter in valid_statuses:
         suspicious_devices = suspicious_devices.filter(status=status_filter)
+    else:
+        status_filter = ''
 
     if search:
+        clean_search = search.strip()
         suspicious_devices = suspicious_devices.filter(
-            Q(mac_address__icontains=search)
-            | Q(last_ip_address__icontains=search)
-            | Q(reason__icontains=search)
-            | Q(evidence__icontains=search)
+            Q(mac_address__icontains=clean_search)
+            | Q(last_ip_address__icontains=clean_search)
+            | Q(reason__icontains=clean_search)
+            | Q(evidence__icontains=clean_search)
         )
 
     counts = {
@@ -1886,8 +1986,6 @@ def security_view(request):
         'search': search,
         'status_choices': SuspiciousDevice.STATUS_CHOICES,
         'counts': counts,
-        'action_message': action_message,
-        'action_error': action_error,
     }
     return render(request, 'dashboard/security.html', context)
 
@@ -2624,14 +2722,6 @@ def issues_view(request):
     return render(request, 'dashboard/issues.html', context)
 
 
-def _safe_redirect_referer(request, fallback='dashboard:issues'):
-    """Redirect to referer safely only if it stays within the current host."""
-    referer = request.META.get('HTTP_REFERER')
-    if referer and url_has_allowed_host_and_scheme(url=referer, allowed_hosts={request.get_host()}):
-        return redirect(referer)
-    return redirect(fallback)
-
-
 @user_passes_test(_is_dashboard_admin, login_url='dashboard:login')
 @require_POST
 def update_issue_status(request, issue_id):
@@ -2652,7 +2742,7 @@ def update_issue_status(request, issue_id):
 
     issue.save()
     messages.success(request, f'Ticket #{issue.id} updated.')
-    return _safe_redirect_referer(request)
+    return _safe_redirect_referer(request, fallback='dashboard:issues')
 
 
 @user_passes_test(_is_dashboard_admin, login_url='dashboard:login')
@@ -2663,6 +2753,6 @@ def delete_issue(request, issue_id):
     issue_num = issue.id
     issue.delete()
     messages.success(request, f'Ticket #{issue_num} deleted.')
-    return _safe_redirect_referer(request)
+    return _safe_redirect_referer(request, fallback='dashboard:issues')
 
 

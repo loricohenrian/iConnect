@@ -5,80 +5,96 @@
 
 {% block dashboard_content %}
 
-{% if action_message %}
-<div class="alert alert-success">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-    {{ action_message }}
-</div>
-{% endif %}
-{% if action_error %}
-<div class="alert alert-danger">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-    {{ action_error }}
-</div>
-{% endif %}
-
-<div class="stats-grid">
-    <!-- New Alerts -->
-    <div class="stat-card animate-fadeIn">
+<div class="stats-grid mb-md">
+    <!-- New Alerts Filter Card -->
+    <a href="?status=new{% if search %}&search={{ search|urlencode }}{% endif %}" class="stat-card animate-fadeIn" style="text-decoration: none; cursor: pointer; transition: all 0.2s ease; {% if status_filter == 'new' %}border: 2px solid #d97706; box-shadow: 0 0 0 1px #d97706;{% endif %}">
         <div class="stat-info">
-            <div class="stat-label">New Alerts</div>
-            <div class="stat-value">{{ counts.new }}</div>
+            <div class="stat-label" style="display: flex; align-items: center; gap: 6px;">
+                <span>New Alerts</span>
+                {% if status_filter == 'new' %}<span class="badge badge-paused" style="font-size: 10px; padding: 1px 6px;">Active</span>{% endif %}
+            </div>
+            <div class="stat-value" style="color: #d97706;">{{ counts.new }}</div>
         </div>
         <div class="static-icon" style="color: #d97706; background: #fffbeb; width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
         </div>
-    </div>
+    </a>
 
-    <!-- Blocked -->
-    <div class="stat-card animate-fadeIn">
+    <!-- Blocked Filter Card -->
+    <a href="?status=blocked{% if search %}&search={{ search|urlencode }}{% endif %}" class="stat-card animate-fadeIn" style="text-decoration: none; cursor: pointer; transition: all 0.2s ease; {% if status_filter == 'blocked' %}border: 2px solid var(--color-danger); box-shadow: 0 0 0 1px var(--color-danger);{% endif %}">
         <div class="stat-info">
-            <div class="stat-label">Blocked</div>
-            <div class="stat-value">{{ counts.blocked }}</div>
+            <div class="stat-label" style="display: flex; align-items: center; gap: 6px;">
+                <span>Blocked</span>
+                {% if status_filter == 'blocked' %}<span class="badge badge-expired" style="font-size: 10px; padding: 1px 6px;">Active</span>{% endif %}
+            </div>
+            <div class="stat-value" style="color: var(--color-danger);">{{ counts.blocked }}</div>
         </div>
         <div class="static-icon" style="color: var(--color-danger); background: #fef2f2; width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><line x1="9.5" y1="9.5" x2="14.5" y2="14.5"></line><line x1="14.5" y1="9.5" x2="9.5" y2="14.5"></line></svg>
         </div>
-    </div>
+    </a>
 
-    <!-- False Positive -->
-    <div class="stat-card animate-fadeIn">
+    <!-- False Positive Filter Card -->
+    <a href="?status=false_positive{% if search %}&search={{ search|urlencode }}{% endif %}" class="stat-card animate-fadeIn" style="text-decoration: none; cursor: pointer; transition: all 0.2s ease; {% if status_filter == 'false_positive' %}border: 2px solid #059669; box-shadow: 0 0 0 1px #059669;{% endif %}">
         <div class="stat-info">
-            <div class="stat-label">False Positive</div>
-            <div class="stat-value">{{ counts.false_positive }}</div>
+            <div class="stat-label" style="display: flex; align-items: center; gap: 6px;">
+                <span>False Positive</span>
+                {% if status_filter == 'false_positive' %}<span class="badge badge-active" style="font-size: 10px; padding: 1px 6px;">Active</span>{% endif %}
+            </div>
+            <div class="stat-value" style="color: #059669;">{{ counts.false_positive }}</div>
         </div>
         <div class="static-icon" style="color: #059669; background: #ecfdf5; width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
         </div>
-    </div>
+    </a>
 
-    <!-- Cleared -->
-    <div class="stat-card animate-fadeIn">
+    <!-- Cleared Filter Card -->
+    <a href="?status=cleared{% if search %}&search={{ search|urlencode }}{% endif %}" class="stat-card animate-fadeIn" style="text-decoration: none; cursor: pointer; transition: all 0.2s ease; {% if status_filter == 'cleared' %}border: 2px solid #2563eb; box-shadow: 0 0 0 1px #2563eb;{% endif %}">
         <div class="stat-info">
-            <div class="stat-label">Cleared</div>
-            <div class="stat-value">{{ counts.cleared }}</div>
+            <div class="stat-label" style="display: flex; align-items: center; gap: 6px;">
+                <span>Cleared</span>
+                {% if status_filter == 'cleared' %}<span class="badge badge-info" style="font-size: 10px; padding: 1px 6px;">Active</span>{% endif %}
+            </div>
+            <div class="stat-value" style="color: #2563eb;">{{ counts.cleared }}</div>
         </div>
         <div class="static-icon" style="color: #2563eb; background: #eff6ff; width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><polyline points="9 12 11 14 15 10"></polyline></svg>
         </div>
-    </div>
+    </a>
 </div>
 
+{% if status_filter %}
+<div class="d-flex align-items-center gap-sm mb-md animate-fadeIn" style="background: var(--color-bg-alt); padding: 8px 14px; border-radius: 8px; font-size: 13px; border: 1px solid var(--color-border);">
+    <span class="text-muted">Filtered by status:</span>
+    <span class="badge badge-info" style="text-transform: capitalize;">{{ status_filter|title }}</span>
+    <a href="?{% if search %}search={{ search|urlencode }}{% endif %}" class="text-xs text-primary font-semibold" style="margin-left: auto; text-decoration: none;">&times; Clear Filter</a>
+</div>
+{% endif %}
+
 <div class="chart-card animate-fadeIn">
-    <div class="chart-header">
-        <h3 class="chart-title">Suspicious Devices & Clone Alerts</h3>
+    <div class="chart-header flex-wrap gap-sm">
+        <div class="d-flex align-items-center gap-sm flex-wrap">
+            <h3 class="chart-title" style="margin-bottom: 0;">Suspicious Devices & Clone Alerts</h3>
+            <button type="button" class="btn btn-primary btn-sm" onclick="openManualBlockModal()" style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; height: 30px; font-size: 12px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+                <span>Block MAC Address</span>
+            </button>
+        </div>
         
         <form method="GET" action="" class="d-flex gap-xs align-items-center flex-wrap">
-            <input type="search" name="search" value="{{ search }}" placeholder="Search MAC, IP..." class="form-input" maxlength="60" style="width: 180px; padding: 4px 8px; height: 30px; font-size: 12px;">
+            <input type="search" name="search" value="{{ search }}" placeholder="Search MAC, IP, reason..." class="form-input" maxlength="60" style="width: 190px; padding: 4px 8px; height: 30px; font-size: 12px;">
             <select name="status" class="form-input" style="width: 130px; padding: 4px 8px; height: 30px; font-size: 12px;" onchange="this.form.submit()">
                 <option value="">All Statuses</option>
                 {% for value, label in status_choices %}
                 <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
                 {% endfor %}
             </select>
-            <button type="submit" class="btn btn-primary btn-sm" style="padding: 4px 10px; height: 30px;">
+            <button type="submit" class="btn btn-secondary btn-sm" style="padding: 4px 10px; height: 30px;">
                 Filter
             </button>
+            {% if search or status_filter %}
+            <a href="?" class="btn btn-outline btn-sm" style="padding: 4px 8px; height: 30px;" title="Reset Filters">&times;</a>
+            {% endif %}
         </form>
     </div>
 
@@ -89,7 +105,7 @@
                 <tr>
                     <th>MAC / IP</th>
                     <th>Reason / Evidence</th>
-                    <th>Count</th>
+                    <th>Detections</th>
                     <th>Status</th>
                     <th>Last Seen</th>
                     <th style="text-align: right;">Actions</th>
@@ -99,16 +115,23 @@
                 {% for incident in suspicious_devices %}
                 <tr>
                     <td>
-                        <div class="font-semibold font-mono text-xs">{{ incident.mac_address }}</div>
-                        <div class="text-xs text-muted font-mono">{{ incident.last_ip_address|default:"No IP" }}</div>
+                        <a href="{% url 'dashboard:sessions' %}?q={{ incident.mac_address }}" class="font-semibold font-mono text-xs text-primary" style="text-decoration: none;" title="Inspect connection & session history">
+                            {{ incident.mac_address }}
+                        </a>
+                        <div class="text-xs text-muted font-mono">{{ incident.last_ip_address|default:"No IP Recorded" }}</div>
                     </td>
                     <td>
                         <div class="font-semibold text-xs">{{ incident.reason|title }}</div>
                         {% if incident.evidence %}
-                        <div class="text-xs text-muted">{{ incident.evidence|truncatechars:80 }}</div>
+                        <div class="text-xs text-muted" style="cursor: pointer; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ incident.evidence }}" onclick="openEvidenceModal('{{ incident.mac_address|escapejs }}', '{{ incident.reason|escapejs }}', '{{ incident.evidence|escapejs }}')">
+                            {{ incident.evidence|truncatechars:65 }}
+                            <span style="color: var(--color-primary); font-size: 11px; font-weight: 600;">[view]</span>
+                        </div>
                         {% endif %}
                     </td>
-                    <td class="font-semibold">{{ incident.detection_count }}</td>
+                    <td>
+                        <span class="badge badge-neutral font-semibold">{{ incident.detection_count }}</span>
+                    </td>
                     <td>
                         {% if incident.status == 'blocked' %}
                         <span class="badge badge-expired">Blocked</span>
@@ -117,48 +140,57 @@
                         {% elif incident.status == 'cleared' %}
                         <span class="badge badge-info">Cleared</span>
                         {% else %}
-                        <span class="badge badge-paused">New</span>
+                        <span class="badge badge-paused">New Alert</span>
                         {% endif %}
                     </td>
                     <td>
-                        <div>{{ incident.last_detected_at|date:"M d, h:i A" }}</div>
-                        <div class="text-xs text-muted">First: {{ incident.first_detected_at|date:"M d" }}</div>
+                        <div style="font-size: 13px;">{{ incident.last_detected_at|date:"M d, h:i A" }}</div>
+                        <div class="text-xs text-muted">First: {{ incident.first_detected_at|date:"M d, Y" }}</div>
                     </td>
                     <td style="text-align: right;">
-                        <div class="d-flex gap-xs justify-content-end flex-wrap">
+                        <div class="d-flex gap-xs justify-content-end flex-wrap align-items-center">
                             {% if incident.status != 'blocked' %}
-                            <form method="POST" action="">
+                            <form method="POST" action="" onsubmit="return confirm('Block device {{ incident.mac_address }}? This will terminate any active session and prevent internet access.');">
                                 {% csrf_token %}
                                 <input type="hidden" name="action" value="block">
                                 <input type="hidden" name="incident_id" value="{{ incident.id }}">
-                                <button type="submit" class="btn btn-sm btn-danger">Block</button>
+                                <button type="submit" class="btn btn-sm btn-danger" title="Block network access">Block</button>
                             </form>
                             {% else %}
-                            <form method="POST" action="">
+                            <form method="POST" action="" onsubmit="return confirm('Unblock device {{ incident.mac_address }}? This device will be allowed to use the captive portal again.');">
                                 {% csrf_token %}
                                 <input type="hidden" name="action" value="unblock">
                                 <input type="hidden" name="incident_id" value="{{ incident.id }}">
-                                <button type="submit" class="btn btn-sm btn-secondary">Unblock</button>
+                                <button type="submit" class="btn btn-sm btn-secondary" title="Remove block">Unblock</button>
                             </form>
                             {% endif %}
 
                             {% if incident.status != 'false_positive' %}
-                            <form method="POST" action="">
+                            <form method="POST" action="" onsubmit="return confirm('Trust device {{ incident.mac_address }} as False Positive?');">
                                 {% csrf_token %}
                                 <input type="hidden" name="action" value="false_positive">
                                 <input type="hidden" name="incident_id" value="{{ incident.id }}">
-                                <button type="submit" class="btn btn-sm btn-secondary">Trust</button>
+                                <button type="submit" class="btn btn-sm btn-secondary" title="Mark as false alarm">Trust</button>
                             </form>
                             {% endif %}
 
                             {% if incident.status != 'cleared' %}
-                            <form method="POST" action="">
+                            <form method="POST" action="" onsubmit="return confirm('Clear alert for {{ incident.mac_address }}?');">
                                 {% csrf_token %}
                                 <input type="hidden" name="action" value="clear">
                                 <input type="hidden" name="incident_id" value="{{ incident.id }}">
-                                <button type="submit" class="btn btn-sm btn-outline">Clear</button>
+                                <button type="submit" class="btn btn-sm btn-outline" title="Clear incident">Clear</button>
                             </form>
                             {% endif %}
+
+                            <form method="POST" action="" onsubmit="return confirm('Delete security incident record for {{ incident.mac_address }}? This cannot be undone.');">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="delete">
+                                <input type="hidden" name="incident_id" value="{{ incident.id }}">
+                                <button type="submit" class="btn btn-sm btn-outline" style="color: var(--color-danger); border-color: rgba(239, 68, 68, 0.3); padding: 4px 6px;" title="Delete record">
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 1-2h6c1 0 2 1 2 2v2"></path></svg>
+                                </button>
+                            </form>
                         </div>
                     </td>
                 </tr>
@@ -169,33 +201,144 @@
 
     <!-- Unified Pagination -->
     {% if suspicious_devices.has_other_pages or suspicious_devices.paginator.count > 0 %}
-    <div class="d-flex justify-content-between align-items-center mt-md" style="padding: 0 4px;">
+    <div class="d-flex justify-content-between align-items-center mt-md flex-wrap gap-sm" style="padding: 0 4px;">
         <div class="text-xs text-muted">
             {% if suspicious_devices %}Showing {{ suspicious_devices.start_index }} to {{ suspicious_devices.end_index }} of {{ suspicious_devices.paginator.count }} alerts{% endif %}
         </div>
         <div class="d-flex gap-xs">
             {% if suspicious_devices.has_previous %}
-                <a href="?page=1&status={{ status_filter }}&search={{ search }}" class="btn btn-sm btn-secondary">&laquo;</a>
-                <a href="?page={{ suspicious_devices.previous_page_number }}&status={{ status_filter }}&search={{ search }}" class="btn btn-sm btn-secondary">Prev</a>
+                <a href="?page=1&status={{ status_filter }}&search={{ search|urlencode }}" class="btn btn-sm btn-secondary">&laquo;</a>
+                <a href="?page={{ suspicious_devices.previous_page_number }}&status={{ status_filter }}&search={{ search|urlencode }}" class="btn btn-sm btn-secondary">Prev</a>
             {% endif %}
             
             <span class="btn btn-sm btn-primary" style="pointer-events: none;">{{ suspicious_devices.number }}</span>
             
             {% if suspicious_devices.has_next %}
-                <a href="?page={{ suspicious_devices.next_page_number }}&status={{ status_filter }}&search={{ search }}" class="btn btn-sm btn-secondary">Next</a>
-                <a href="?page={{ suspicious_devices.paginator.num_pages }}&status={{ status_filter }}&search={{ search }}" class="btn btn-sm btn-secondary">&raquo;</a>
+                <a href="?page={{ suspicious_devices.next_page_number }}&status={{ status_filter }}&search={{ search|urlencode }}" class="btn btn-sm btn-secondary">Next</a>
+                <a href="?page={{ suspicious_devices.paginator.num_pages }}&status={{ status_filter }}&search={{ search|urlencode }}" class="btn btn-sm btn-secondary">&raquo;</a>
             {% endif %}
         </div>
     </div>
     {% endif %}
+
     {% else %}
-    <div class="empty-state">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin: 0 auto 8px auto; display: block; color: var(--color-gray);"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><polyline points="9 12 11 14 15 10"></polyline></svg>
-        <p>No suspicious devices recorded</p>
-        <small>Detected clone or spoofing events will appear here automatically</small>
+    <div class="empty-state" style="text-align: center; padding: 48px 16px;">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin: 0 auto 12px auto; display: block; color: var(--color-gray);"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><polyline points="9 12 11 14 15 10"></polyline></svg>
+        <p style="font-weight: 600; font-size: 15px; margin-bottom: 4px;">No suspicious devices found</p>
+        <small class="text-muted">Detected clone or spoofing events will appear here automatically.</small>
     </div>
     {% endif %}
 </div>
 
-{% endblock %}
+<!-- Manual Block Modal -->
+<div id="manualBlockModal" class="modal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="chart-card animate-fadeIn" style="width: 100%; max-width: 440px; margin: 16px;">
+        <h3 class="card-title mb-sm" style="color: var(--color-danger); display: flex; align-items: center; gap: 8px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><line x1="9.5" y1="9.5" x2="14.5" y2="14.5"></line><line x1="14.5" y1="9.5" x2="9.5" y2="14.5"></line></svg>
+            <span>Manually Block Device</span>
+        </h3>
+        <p class="text-small text-muted mb-md">Blacklist a device by MAC address. This terminates any active session immediately and prevents portal access.</p>
+        
+        <form method="POST" action="">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="manual_block">
+            
+            <div class="form-group mb-sm">
+                <label class="form-label" for="manualMacAddress">MAC Address <span style="color: var(--color-danger);">*</span></label>
+                <input type="text" name="mac_address" id="manualMacAddress" required placeholder="AA:BB:CC:DD:EE:FF" pattern="^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$" class="form-input" style="width: 100%; font-family: monospace; font-size: 13px;">
+                <small class="text-muted" style="font-size: 11px;">Format: AA:BB:CC:DD:EE:FF</small>
+            </div>
 
+            <div class="form-group mb-sm">
+                <label class="form-label" for="manualReason">Reason</label>
+                <select name="reason" id="manualReason" class="form-input" style="width: 100%; font-size: 13px;">
+                    <option value="Manual Admin Block">Manual Admin Block</option>
+                    <option value="MAC Spoofing / Clone">MAC Spoofing / Clone</option>
+                    <option value="Network Abuse / Excessive Bandwidth">Network Abuse / Excessive Bandwidth</option>
+                    <option value="Payment Evasion">Payment Evasion</option>
+                    <option value="Physical Tampering">Physical Tampering</option>
+                    <option value="Other Suspicious Activity">Other Suspicious Activity</option>
+                </select>
+            </div>
+
+            <div class="form-group mb-md">
+                <label class="form-label" for="manualEvidence">Notes / Evidence</label>
+                <textarea name="evidence" id="manualEvidence" rows="2" class="form-input" placeholder="Describe reason for blacklist..." maxlength="500" style="width: 100%; resize: vertical; font-size: 13px;"></textarea>
+            </div>
+
+            <div class="d-flex gap-sm justify-content-end">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="closeManualBlockModal()">Cancel</button>
+                <button type="submit" class="btn btn-danger btn-sm">Confirm Block</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Evidence Inspection Modal -->
+<div id="evidenceModal" class="modal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="chart-card animate-fadeIn" style="width: 100%; max-width: 480px; margin: 16px;">
+        <h3 class="card-title mb-sm" style="display: flex; align-items: center; gap: 8px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--color-primary);"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+            <span id="evidenceModalTitle">Incident Evidence</span>
+        </h3>
+        <div class="mb-sm">
+            <div class="text-xs text-muted mb-xs">Reason</div>
+            <div id="evidenceModalReason" class="font-semibold text-small"></div>
+        </div>
+        <div class="mb-md">
+            <div class="text-xs text-muted mb-xs">Full Evidence Details</div>
+            <div id="evidenceModalBody" style="background: var(--color-bg-alt); border: 1px solid var(--color-border); border-radius: 6px; padding: 10px; font-family: monospace; font-size: 12px; white-space: pre-wrap; word-break: break-word; max-height: 200px; overflow-y: auto;"></div>
+        </div>
+        <div class="d-flex justify-content-end">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="closeEvidenceModal()">Close</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const manualBlockModal = document.getElementById('manualBlockModal');
+    const evidenceModal = document.getElementById('evidenceModal');
+    const manualMacInput = document.getElementById('manualMacAddress');
+
+    function openManualBlockModal() {
+        if (manualBlockModal) {
+            manualBlockModal.style.display = 'flex';
+            setTimeout(() => { if (manualMacInput) manualMacInput.focus(); }, 100);
+        }
+    }
+
+    function closeManualBlockModal() {
+        if (manualBlockModal) {
+            manualBlockModal.style.display = 'none';
+        }
+    }
+
+    function openEvidenceModal(mac, reason, evidence) {
+        if (evidenceModal) {
+            document.getElementById('evidenceModalTitle').textContent = `Evidence: ${mac}`;
+            document.getElementById('evidenceModalReason').textContent = reason || 'Suspicious Activity';
+            document.getElementById('evidenceModalBody').textContent = evidence || 'No additional evidence recorded.';
+            evidenceModal.style.display = 'flex';
+        }
+    }
+
+    function closeEvidenceModal() {
+        if (evidenceModal) {
+            evidenceModal.style.display = 'none';
+        }
+    }
+
+    window.addEventListener('click', function(e) {
+        if (e.target === manualBlockModal) closeManualBlockModal();
+        if (e.target === evidenceModal) closeEvidenceModal();
+    });
+
+    window.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeManualBlockModal();
+            closeEvidenceModal();
+        }
+    });
+</script>
+
+{% endblock %}

@@ -1408,6 +1408,17 @@ def session_extend(request):
     voucher_code = serializer.validated_data["voucher_code"].upper()
     mac_address = serializer.validated_data["mac_address"]
 
+    if SuspiciousDevice.objects.filter(mac_address=mac_address, is_blocked=True).exists():
+        audit_logger.warning(
+            "event=session_extend_blocked_device mac=%s ip=%s",
+            mac_address,
+            _client_ip(request),
+        )
+        return Response(
+            {"error": "Your device has been blocked by the administrator."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
     if _session_extend_rate_limited(request, mac_address):
         audit_logger.warning(
             "event=session_extend_rate_limited mac=%s ip=%s",

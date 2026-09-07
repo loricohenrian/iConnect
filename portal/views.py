@@ -579,6 +579,10 @@ def api_execute_spin(request):
     if not mac_address:
         return JsonResponse({"status": "error", "message": "MAC address required"})
 
+    from sessions_app.models import SuspiciousDevice
+    if SuspiciousDevice.objects.filter(mac_address=mac_address, is_blocked=True).exists():
+        return JsonResponse({"status": "error", "message": "Your device has been blocked by the administrator."}, status=403)
+
     try:
         with transaction.atomic():
             device_profile, _ = DeviceProfile.objects.select_for_update().get_or_create(mac_address=mac_address)
@@ -708,14 +712,16 @@ def api_execute_spin(request):
                 "prize": {
                     "id": selected_prize.id,
                     "name": selected_prize.name,
+                    "type": selected_prize.prize_type,
                     "minutes": selected_prize.minutes_reward,
-                    "mid_deg": target_deg,
-                    "applied": prize_applied,
+                    "points": selected_prize.points_reward,
+                    "badge_color": selected_prize.badge_color,
+                    "icon_type": selected_prize.icon_type,
                 },
-                "updated": {
-                    "points": device_profile.points,
-                    "remaining_spins": remaining_spins,
-                }
+                "target_deg": target_deg,
+                "remaining_points": device_profile.points,
+                "remaining_spins": remaining_spins,
+                "applied_to_session": prize_applied,
             })
     except Exception as e:
         return JsonResponse({"status": "error", "message": "An error occurred during spin processing"}, status=500)
@@ -726,7 +732,7 @@ def api_spin_data(request):
     from django.http import JsonResponse
     from django.utils import timezone
     from dashboard.models import SystemSettings
-    from sessions_app.models import DeviceProfile, SpinPrize
+    from sessions_app.models import DeviceProfile, SpinPrize, SuspiciousDevice
 
     settings_obj = SystemSettings.get_settings()
 
@@ -736,6 +742,9 @@ def api_spin_data(request):
     mac_address = _get_mac_address(request)
     if not mac_address:
         return JsonResponse({"enabled": True, "error": "MAC address required"})
+
+    if SuspiciousDevice.objects.filter(mac_address=mac_address, is_blocked=True).exists():
+        return JsonResponse({"enabled": False, "is_blocked": True, "error": "Your device has been blocked by the administrator."})
 
     device_profile, _ = DeviceProfile.objects.get_or_create(mac_address=mac_address)
 
