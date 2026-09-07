@@ -375,7 +375,7 @@ def heatmap_data_api(request):
     if not _is_dashboard_admin(request.user):
         return Response({'detail': 'Authentication required.'}, status=status.HTTP_401_UNAUTHORIZED)
 
-    week_ago = timezone.localdate() - timedelta(days=7)
+    week_ago = timezone.localdate() - timedelta(days=6)
 
     sessions = Session.objects.filter(
         time_in__date__gte=week_ago
