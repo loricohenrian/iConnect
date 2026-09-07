@@ -725,6 +725,34 @@ class AnnouncementManagementTests(TestCase):
         )
         self.assertEqual(resp.status_code, 400)
 
+    def test_save_global_settings_success(self):
+        User = get_user_model()
+        user = User.objects.create_user(
+            username="settings_admin",
+            password="admin123",
+            is_staff=True,
+            is_superuser=True,
+        )
+        self.client.login(username=user.username, password="admin123")
+
+        resp = self.client.post("/iconnect-ops/settings/", {
+            "isp_download_speed": 150,
+            "isp_upload_speed": 100,
+            "enable_dark_mode": "on",
+            "max_concurrent_sessions": 25,
+            "global_pause_limit_hours": 12,
+            "auto_pause_timeout_seconds": 300,
+            "insert_coin_countdown_seconds": 120,
+            "spin_cost_points": 10,
+            "daily_spin_limit": 3,
+            "points_per_streak_day": 5,
+            "telegram_bot_token": "123456789:ABCdef-gh1234_xyz1234567890ABC",
+            "telegram_admin_chat_id": "6261306648",
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Settings updated successfully.")
+
+
 
 
 

@@ -2,6 +2,7 @@
 Dashboard Views — API endpoints and template views for admin dashboard
 """
 import csv
+import re
 from datetime import timedelta, date
 from decimal import Decimal, InvalidOperation
 import logging
