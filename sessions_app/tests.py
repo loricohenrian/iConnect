@@ -1294,6 +1294,84 @@ class DeviceNameDetectionTests(TestCase):
         self.assertEqual(name, "Henrian Laptop")
 
 
+class SessionEarlyEndAndTimezoneTests(TestCase):
+    def test_extend_session_on_expired_session_resets_timeout_and_pause(self):
+        from datetime import timedelta
+        session = Session.objects.create(
+            mac_address="11:22:33:44:55:66",
+            duration_minutes_purchased=30,
+            amount_paid=2,
+            status="expired",
+            time_in=timezone.now() - timedelta(minutes=45),
+            time_out=timezone.now() - timedelta(minutes=15),
+            total_paused_seconds=120,
+            paused_at=timezone.now() - timedelta(minutes=20),
+        )
+        self.assertEqual(session.status, "expired")
+        self.assertIsNotNone(session.time_out)
+
+        session.extend_session(15)
+        session.save()
+
+        self.assertEqual(session.status, "active")
+        self.assertIsNone(session.time_out)
+        self.assertEqual(session.total_paused_seconds, 0)
+        self.assertIsNone(session.paused_at)
+        self.assertEqual(session.duration_minutes_purchased, 15)
+
+    def test_is_ended_early_detection(self):
+        from datetime import timedelta
+        now = timezone.now()
+        # Session 1: Naturally expired 45m session
+        s_natural = Session.objects.create(
+            mac_address="11:22:33:44:55:66",
+            duration_minutes_purchased=45,
+            amount_paid=3,
+            status="expired",
+            time_in=now - timedelta(minutes=45),
+            time_out=now,
+        )
+        self.assertFalse(s_natural.is_ended_early)
+        self.assertEqual(s_natural.actual_elapsed_minutes, 45)
+
+        # Session 2: Manually disconnected after 31m of a 45m session
+        s_early = Session.objects.create(
+            mac_address="22:33:44:55:66:77",
+            duration_minutes_purchased=45,
+            amount_paid=3,
+            status="expired",
+            time_in=now - timedelta(minutes=45),
+            time_out=now - timedelta(minutes=14),  # Ended 31m after time_in
+        )
+        self.assertTrue(s_early.is_ended_early)
+        self.assertEqual(s_early.actual_elapsed_minutes, 31)
+
+    def test_timezone_middleware_activates_asia_manila(self):
+        from django.test import RequestFactory
+        from pisowifi.middleware import TimezoneMiddleware
+        from django.template import Template, Context
+        import datetime
+
+        factory = RequestFactory()
+        request = factory.get("/dashboard/sessions/")
+
+        # Deactivate or set to UTC beforehand
+        timezone.activate("UTC")
+
+        middleware = TimezoneMiddleware(lambda req: "OK")
+        response = middleware(request)
+
+        self.assertEqual(response, "OK")
+        self.assertEqual(timezone.get_current_timezone_name(), "Asia/Manila")
+
+        # Verify aware UTC datetime renders in Asia/Manila (+08:00)
+        dt_utc = datetime.datetime(2026, 9, 7, 8, 26, 0, tzinfo=datetime.timezone.utc)
+        t = Template('{{ dt|date:"M d, h:i A" }}')
+        rendered = t.render(Context({"dt": dt_utc}))
+        self.assertEqual(rendered, "Sep 07, 04:26 PM")
+
+
+
 
 
 

@@ -66,6 +66,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'pisowifi.middleware.TimezoneMiddleware',
 ]
 
 ROOT_URLCONF = 'pisowifi.urls'
@@ -131,7 +132,8 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # Internationalization
 LANGUAGE_CODE = 'en-us'
-TIME_ZONE = os.getenv('TIMEZONE', 'Asia/Manila')
+_tz_env = (os.getenv('TIMEZONE') or 'Asia/Manila').strip()
+TIME_ZONE = 'Asia/Manila' if (not _tz_env or _tz_env.upper() == 'UTC') else _tz_env
 USE_I18N = True
 USE_TZ = True
 

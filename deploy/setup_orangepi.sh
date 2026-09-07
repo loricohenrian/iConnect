@@ -20,7 +20,8 @@ if [ ! -d "$PROJECT_ROOT" ]; then
     exit 1
 fi
 
-echo "=== 1/7: Installing system packages ==="
+echo "=== 1/7: Installing system packages and setting timezone ==="
+timedatectl set-timezone Asia/Manila 2>/dev/null || true
 apt-get update
 apt-get install -y python3-venv python3-pip nginx redis-server dnsmasq iptables conntrack curl
 

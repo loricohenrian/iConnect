@@ -1768,7 +1768,7 @@ def session_extend_paid(request):
                 active_session.plan = effective_plan
                 speed_changed = True
 
-            update_fields = ["duration_minutes_purchased", "amount_paid", "status", "time_in"]
+            update_fields = ["duration_minutes_purchased", "amount_paid", "status", "time_in", "time_out", "total_paused_seconds", "paused_at"]
             if active_session.ip_address:
                 update_fields.append("ip_address")
             if speed_changed:

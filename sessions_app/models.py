@@ -246,15 +246,39 @@ class Session(models.Model):
             return f"{hours} hr{'s' if hours > 1 else ''}"
         return f"{mins} mins"
 
+    @property
+    def is_ended_early(self):
+        """
+        Return True if session expired earlier than purchased duration + pause time,
+        indicating premature termination (e.g. manual admin disconnect or block).
+        """
+        if self.status == "expired" and self.time_out and self.time_in:
+            expected_seconds = (self.duration_minutes_purchased or 0) * 60 + (self.total_paused_seconds or 0)
+            actual_seconds = (self.time_out - self.time_in).total_seconds()
+            # Allow 60-second grace margin for timer loop / cron check latency
+            return actual_seconds < (expected_seconds - 60)
+        return False
+
+    @property
+    def actual_elapsed_minutes(self):
+        """Return actual elapsed minutes from time_in to time_out (or now if active)."""
+        end_time = self.time_out or timezone.now()
+        if not self.time_in:
+            return 0
+        return max(0, int((end_time - self.time_in).total_seconds() // 60))
+
     def extend_session(self, additional_minutes):
         """Extend the session by adding more time."""
         if not self.time_in:
             self.time_in = timezone.now()
         self.duration_minutes_purchased = (self.duration_minutes_purchased or 0) + additional_minutes
+        self.time_out = None
         if self.status == "expired":
             self.status = "active"
             self.time_in = timezone.now()
             self.duration_minutes_purchased = additional_minutes
+            self.total_paused_seconds = 0
+            self.paused_at = None
 
     def expire_session(self):
         """Mark session as expired and set time_out."""
