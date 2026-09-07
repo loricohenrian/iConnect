@@ -165,6 +165,49 @@ class RatesModalTests(TestCase):
         self.assertNotContains(response, 'Request Coin Slot')
 
 
+class SessionExpirationTests(TestCase):
+    def setUp(self):
+        from sessions_app.models import Session, Plan
+        from django.utils import timezone
+        from datetime import timedelta
+        self.plan = Plan.objects.create(name="₱5 Plan", price=5, duration_minutes=30, is_active=True)
+        # Create a session that has run out of time (started 31 mins ago for a 30 min plan)
+        self.session = Session.objects.create(
+            mac_address="AA:BB:CC:DD:EE:99",
+            plan=self.plan,
+            duration_minutes_purchased=30,
+            amount_paid=5,
+            status="active",
+            time_in=timezone.now() - timedelta(minutes=31),
+        )
+
+    def test_session_status_expires_depleted_session(self):
+        """API /api/session/status/ expires sessions with remaining time <= 1s."""
+        response = self.client.get(f"/api/session/status/?mac_address={self.session.mac_address}")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["status"], "expired")
+        self.assertEqual(data["time_remaining_seconds"], 0)
+        self.session.refresh_from_db()
+        self.assertEqual(self.session.status, "expired")
+
+    def test_portal_index_expires_depleted_session_and_does_not_redirect(self):
+        """Visiting / does not redirect back to /session/ if session is expired or depleted."""
+        response = self.client.get(f"/?mac={self.session.mac_address}")
+        self.assertEqual(response.status_code, 200)
+        self.session.refresh_from_db()
+        self.assertEqual(self.session.status, "expired")
+
+    def test_portal_session_page_redirects_expired_session(self):
+        """Visiting /session/ redirects to /?expired=1 if session is depleted."""
+        response = self.client.get(f"/session/?mac={self.session.mac_address}")
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("expired=1", response.url)
+        self.session.refresh_from_db()
+        self.assertEqual(self.session.status, "expired")
+
+
+
 
 
 

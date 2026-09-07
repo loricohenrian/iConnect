@@ -2028,6 +2028,7 @@ def session_status(request):
             return Response(
                 {
                     "status": "paused",
+                    "time_remaining_seconds": session.time_remaining_seconds,
                     "message": "Session is paused",
                     "session": SessionSerializer(session).data,
                     "is_whitelisted": False,
@@ -2050,6 +2051,7 @@ def session_status(request):
                 return Response(
                     {
                         "status": "expired",
+                        "time_remaining_seconds": 0,
                         "message": "Session has expired",
                         "session": SessionSerializer(session).data,
                         "access_revoked": False,
@@ -2064,12 +2066,13 @@ def session_status(request):
                     locked_session.device_name = detected
                     locked_session.save(update_fields=["device_name"])
 
-            if locked_session.time_remaining_seconds <= 0:
+            if locked_session.time_remaining_seconds <= 1:
                 locked_session.expire_session()
                 blocked = iptables.block_device(locked_session.mac_address)
                 return Response(
                     {
                         "status": "expired",
+                        "time_remaining_seconds": 0,
                         "message": "Session has expired",
                         "session": SessionSerializer(locked_session).data,
                         "access_revoked": blocked,
@@ -2079,6 +2082,7 @@ def session_status(request):
             refresh_session_bandwidth_usage(locked_session)
             response_data = {
                 "status": "active",
+                "time_remaining_seconds": locked_session.time_remaining_seconds,
                 "session": SessionSerializer(locked_session).data,
                 "is_whitelisted": False,
                 "isp_outage": isp_outage,

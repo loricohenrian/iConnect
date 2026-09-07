@@ -17,10 +17,22 @@ class SessionTimer {
         this.oneMinWarningShown = false;
         this.expiredNotified = false;
         this.isPaused = false;
+        this._hasExpired = false;
+
+        // Recalculate immediately when user returns to tab (bound once)
+        this._boundVisibilityHandler = () => {
+            if (!document.hidden && !this.isPaused) {
+                this.update();
+                if (this.remaining <= 0 && !this._hasExpired) {
+                    this._triggerExpire();
+                }
+            }
+        };
+        document.addEventListener("visibilitychange", this._boundVisibilityHandler);
     }
 
     _now() {
-        return (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
+        return Date.now();
     }
 
     get remaining() {
@@ -35,15 +47,43 @@ class SessionTimer {
         this.serverSeconds = Math.max(0, Number(seconds) || 0);
         this.startedAt = this._now();
         this.isPaused = false;
+        this._hasExpired = false;
         this.warningShown = this.remaining <= 300;
         this.oneMinWarningShown = this.remaining <= 60;
         this.expiredNotified = false;
         this.update();
     }
 
+    syncRemaining(serverRemainingSeconds, force = false) {
+        const sSec = Math.max(0, Number(serverRemainingSeconds) || 0);
+        if (this.isPaused) {
+            this.serverSeconds = sSec;
+            this.startedAt = this._now();
+            this.update();
+            return;
+        }
+
+        const currentLocal = this.remaining;
+        const diff = Math.abs(currentLocal - sSec);
+
+        // Only resync if forced, time was added (coins/admin), significant drift (>3s), or server expired (<=0)
+        if (force || sSec > currentLocal + 2 || diff > 3 || sSec <= 0) {
+            this.serverSeconds = sSec;
+            this.startedAt = this._now();
+            if (sSec > 0) {
+                this._hasExpired = false;
+            }
+            this.update();
+            if (this.remaining <= 0) {
+                this._triggerExpire();
+            }
+        }
+    }
+
     pause() {
-        this.isPaused = true;
         this.serverSeconds = this.remaining;
+        this.startedAt = this._now();
+        this.isPaused = true;
         this.stop();
         this.update();
         if (typeof _hideTimerBanner === "function") _hideTimerBanner();
@@ -56,8 +96,24 @@ class SessionTimer {
         this.start();
     }
 
+    _triggerExpire() {
+        if (this._hasExpired) return;
+        this._hasExpired = true;
+        this.stop();
+        if (!this.expiredNotified) {
+            this.expiredNotified = true;
+            _playAlertSound('expired');
+            _showTimerBanner('❌ Session expired. You have been disconnected.', 'expired');
+            _sendBrowserNotification('iConnect - Session Expired', 'Your WiFi session has ended. Insert coins to start a new session.');
+        }
+        if (this.onExpire) {
+            this.onExpire();
+        }
+    }
+
     start() {
         this.isPaused = false;
+        this.stop(); // Clear any existing interval to prevent duplicates
         this.update();
         this.interval = setInterval(() => {
             this.update();
@@ -85,29 +141,9 @@ class SessionTimer {
 
             // Expired
             if (this.remaining <= 0) {
-                this.stop();
-                if (!this.expiredNotified) {
-                    this.expiredNotified = true;
-                    _playAlertSound('expired');
-                    _showTimerBanner('❌ Session expired. You have been disconnected.', 'expired');
-                    _sendBrowserNotification('iConnect - Session Expired', 'Your WiFi session has ended. Insert coins to start a new session.');
-                }
-                if (this.onExpire) {
-                    this.onExpire();
-                }
+                this._triggerExpire();
             }
         }, 1000);
-
-        // Recalculate immediately when user returns to tab
-        document.addEventListener("visibilitychange", () => {
-            if (!document.hidden && !this.isPaused) {
-                this.update();
-                if (this.remaining <= 0 && this.onExpire) {
-                    this.stop();
-                    this.onExpire();
-                }
-            }
-        });
     }
 
     stop() {
@@ -1713,7 +1749,13 @@ function pollSessionStatus(macAddress, intervalMs = 3000) {
             const data = await response.json();
 
             if (data.status === "expired") {
-                window.location.href = buildPortalUrl("/", macAddress, { expired: 1 });
+                if (window.sessionTimer) {
+                    window.sessionTimer.stop();
+                }
+                _showExpiredModal(macAddress);
+                setTimeout(() => {
+                    window.location.href = buildPortalUrl("/", macAddress, { expired: 1 });
+                }, 2000);
                 return;
             }
 
@@ -1728,13 +1770,16 @@ function pollSessionStatus(macAddress, intervalMs = 3000) {
             const timerEl = document.getElementById("session-timer");
             const connectionStatusEl = document.getElementById("connection-status");
 
+            const serverRem = data.time_remaining_seconds !== undefined
+                ? data.time_remaining_seconds
+                : (data.session ? data.session.time_remaining_seconds : undefined);
+
             if ((isOutage && pauseEnabled) || data.status === "paused") {
                 if (window.sessionTimer && !window.sessionTimer.isPaused) {
                     window.sessionTimer.pause();
                 }
-                if (data.session && data.session.time_remaining_seconds !== undefined && window.sessionTimer) {
-                    window.sessionTimer.serverSeconds = Math.max(0, data.session.time_remaining_seconds);
-                    window.sessionTimer.update();
+                if (serverRem !== undefined && window.sessionTimer) {
+                    window.sessionTimer.syncRemaining(serverRem, true);
                 }
                 if (timerEl) {
                     timerEl.dataset.status = "paused";
@@ -1763,8 +1808,8 @@ function pollSessionStatus(macAddress, intervalMs = 3000) {
                 if (window.sessionTimer && window.sessionTimer.isPaused) {
                     window.sessionTimer.resume();
                 }
-                if (data.session && data.session.time_remaining_seconds !== undefined && window.sessionTimer) {
-                    window.sessionTimer.serverSeconds = Math.max(0, data.session.time_remaining_seconds);
+                if (serverRem !== undefined && window.sessionTimer) {
+                    window.sessionTimer.syncRemaining(serverRem);
                 }
                 if (timerEl) {
                     timerEl.dataset.status = "active";
@@ -2031,10 +2076,23 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     window.sessionTimer.onExpire = async () => {
-        // Call status API immediately to trigger server-side iptables block
+        // Double check status with server to prevent premature expiration
         try {
-            await fetch(`/api/session/status/?mac_address=${encodeURIComponent(macAddress)}`);
+            const resp = await fetch(`/api/session/status/?mac_address=${encodeURIComponent(macAddress)}`);
+            const data = await resp.json();
+            const rem = data.time_remaining_seconds !== undefined
+                ? Number(data.time_remaining_seconds)
+                : (data.session ? Number(data.session.time_remaining_seconds) : 0);
+
+            // If the server still has active time (> 2 seconds), do NOT expire; resync!
+            if (data.status === "active" && rem > 2) {
+                window.sessionTimer.expiredNotified = false;
+                window.sessionTimer.syncRemaining(rem, true);
+                window.sessionTimer.start();
+                return;
+            }
         } catch (e) { /* ignore */ }
+
         _showExpiredModal(macAddress);
         setTimeout(() => {
             window.location.href = buildPortalUrl("/", macAddress, { expired: 1 });
@@ -2086,8 +2144,7 @@ function initPauseButton(macAddress) {
                 if (window.sessionTimer) {
                     window.sessionTimer.pause();
                     if (data.time_remaining_seconds !== undefined) {
-                        window.sessionTimer.serverSeconds = Math.max(0, data.time_remaining_seconds);
-                        window.sessionTimer.update();
+                        window.sessionTimer.syncRemaining(data.time_remaining_seconds, true);
                     }
                 }
                 if (timerEl) {
@@ -2106,7 +2163,7 @@ function initPauseButton(macAddress) {
             } else if (data.status === "active") {
                 if (window.sessionTimer) {
                     if (data.time_remaining_seconds !== undefined) {
-                        window.sessionTimer.serverSeconds = Math.max(0, data.time_remaining_seconds);
+                        window.sessionTimer.syncRemaining(data.time_remaining_seconds, true);
                     }
                     window.sessionTimer.resume();
                 }
