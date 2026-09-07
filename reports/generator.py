@@ -299,8 +299,8 @@ def generate_csv_report(report_type='daily', period='today', start_date='', end_
             session.amount_paid,
             session.duration_minutes_purchased,
             session.status,
-            session.time_in.strftime('%m/%d/%Y %H:%M') if session.time_in else '',
-            session.time_out.strftime('%m/%d/%Y %H:%M') if session.time_out else '',
+            timezone.localtime(session.time_in).strftime('%m/%d/%Y %H:%M') if session.time_in else '',
+            timezone.localtime(session.time_out).strftime('%m/%d/%Y %H:%M') if session.time_out else '',
             round(session.bandwidth_used_mb, 2) if session.bandwidth_used_mb is not None else 0,
         ])
 

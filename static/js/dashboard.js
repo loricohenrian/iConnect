@@ -831,8 +831,14 @@ async function refreshSessionsLive() {
                     </td>
                     <td>${badgeHtml}</td>
                     <td class="text-xs">${escapeHtml(s.time_in)}</td>
-                    <td class="text-xs">${escapeHtml(s.time_out || '—')}</td>
-                    <td class="text-xs">${s.duration_minutes_purchased}m</td>
+                    <td class="text-xs">
+                        ${escapeHtml(s.time_out || '—')}
+                        ${s.is_ended_early ? `<span class="badge badge-expired" style="font-size: 0.65rem; padding: 1px 4px; margin-left: 4px; background: rgba(239, 68, 68, 0.12); color: var(--color-danger); border: 1px solid rgba(239, 68, 68, 0.25);" title="Ended early (ran ${s.actual_elapsed_minutes}m of ${s.duration_minutes_purchased}m purchased)">Early</span>` : ''}
+                    </td>
+                    <td class="text-xs">
+                        ${s.duration_minutes_purchased}m
+                        ${s.is_ended_early ? `<div class="text-muted" style="font-size: 0.7rem;">(ran ${s.actual_elapsed_minutes}m)</div>` : ''}
+                    </td>
                     <td style="text-align: right;">
                         <div class="d-flex gap-xs" style="justify-content: flex-end;">
                             ${actionsHtml}
