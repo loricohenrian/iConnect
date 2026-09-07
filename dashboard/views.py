@@ -1406,23 +1406,103 @@ def roi(request):
         total=Sum('amount')
     )['total'] or 0
 
-    # === OPERATING DAYS ===
+    # === OPERATING DAYS & DAY 1 (Capital Investment as Day 1) ===
+    today = timezone.localdate()
     first_session = Session.objects.order_by('time_in').first()
     first_coin = CoinEvent.objects.order_by('timestamp').first()
+    first_cost = ProjectCost.objects.order_by('date_added').first()
+
     first_dates = []
+    if first_cost and first_cost.date_added:
+        first_dates.append(first_cost.date_added)
     if first_session and first_session.time_in:
         first_dates.append(first_session.time_in)
     if first_coin and first_coin.timestamp:
         first_dates.append(first_coin.timestamp)
 
-    if first_dates:
-        earliest_date = min(first_dates)
-        days_operating = max((timezone.now() - earliest_date).days, 1)
+    if first_cost and first_cost.date_added:
+        cost_date = timezone.localtime(first_cost.date_added).date()
+        activity_dates = []
+        if first_session and first_session.time_in:
+            activity_dates.append(first_session.time_in)
+        if first_coin and first_coin.timestamp:
+            activity_dates.append(first_coin.timestamp)
+        if activity_dates:
+            activity_date = timezone.localtime(min(activity_dates)).date()
+            day_1 = min(cost_date, activity_date)
+        else:
+            day_1 = cost_date
+    elif first_dates:
+        day_1 = timezone.localtime(min(first_dates)).date()
     else:
-        days_operating = 1
+        day_1 = today
+
+    day_1 = min(day_1, today)
+    days_operating = max((today - day_1).days + 1, 1)
 
     operating_expenses = OperatingExpense.objects.all()
     total_expenses = OperatingExpense.calculate_total_expenses(days_operating)
+
+    # === CUMULATIVE NET PROFIT BY DAY (HISTORICAL TRAJECTORY) ===
+    from django.db.models.functions import TruncDate
+    import zoneinfo
+    import json
+    tz_info = zoneinfo.ZoneInfo(settings.TIME_ZONE)
+
+    # 1. Pre-fetch daily coins
+    coin_daily_qs = CoinEvent.objects.filter(
+        timestamp__date__gte=day_1,
+        timestamp__date__lte=today
+    ).annotate(
+        day=TruncDate('timestamp', tzinfo=tz_info)
+    ).values('day').annotate(
+        total=Sum('amount')
+    )
+    coins_by_day = {c['day']: float(c['total'] or 0) for c in coin_daily_qs}
+    has_coins = CoinEvent.objects.filter(timestamp__date__gte=day_1).exists()
+
+    # 2. Pre-fetch daily sessions as fallback
+    sess_daily_qs = Session.objects.filter(
+        time_in__date__gte=day_1,
+        time_in__date__lte=today,
+        status__in=['active', 'expired', 'paused']
+    ).annotate(
+        day=TruncDate('time_in', tzinfo=tz_info)
+    ).values('day').annotate(
+        total=Sum('amount_paid')
+    )
+    sessions_by_day = {s['day']: float(s['total'] or 0) for s in sess_daily_qs}
+
+    # 3. Calculate daily operating expense rate
+    daily_expense_rate = 0.0
+    for exp in operating_expenses:
+        if exp.period == 'daily':
+            daily_expense_rate += exp.amount
+        elif exp.period == 'weekly':
+            daily_expense_rate += exp.amount / 7.0
+        elif exp.period == 'monthly':
+            daily_expense_rate += exp.amount / 30.0
+        elif exp.period == 'yearly':
+            daily_expense_rate += exp.amount / 365.0
+
+    profit_trend_labels = []
+    profit_trend_values = []
+    curr = day_1
+    cum_rev = 0.0
+    cum_exp = 0.0
+
+    while curr <= today:
+        if has_coins:
+            d_rev = coins_by_day.get(curr, 0.0)
+        else:
+            d_rev = sessions_by_day.get(curr, 0.0)
+        cum_rev += d_rev
+        cum_exp += daily_expense_rate
+        cum_profit = round(cum_rev - cum_exp, 2)
+
+        profit_trend_labels.append(curr.strftime('%b %d'))
+        profit_trend_values.append(cum_profit)
+        curr += timedelta(days=1)
 
     # === NET PROFIT ===
     net_profit = round(gross_revenue - total_expenses, 2)
@@ -1493,6 +1573,9 @@ def roi(request):
         'monthly_profit': monthly_profit,
         'days_to_breakeven': days_to_breakeven,
         'projected_breakeven': projected_date,
+        'day_1_date': day_1,
+        'profit_trend_labels': json.dumps(profit_trend_labels),
+        'profit_trend_values': json.dumps(profit_trend_values),
         'active_page': 'roi',
     }
     return render(request, 'dashboard/roi.html', context)

@@ -158,6 +158,26 @@
                 </tbody>
             </table>
         </div>
+
+        <!-- Small-Sample Caveat on Projections -->
+        <div class="d-flex align-items-center gap-xs mt-sm pt-xs text-muted" style="font-size: 11.5px; border-top: 1px dashed var(--color-border);" title="Estimates based on {{ days_operating }} day{{ days_operating|pluralize }} of data — accuracy improves with more operating history.">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor" style="flex-shrink: 0; color: #64748b;"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/><path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"/></svg>
+            <span>Estimates based on <strong>{{ days_operating }} day{{ days_operating|pluralize }}</strong> of data — accuracy improves with more operating history.</span>
+        </div>
+    </div>
+</div>
+
+<!-- Historical Cumulative Net Profit Trend Chart -->
+<div class="chart-card mb-md animate-fadeIn" style="animation-delay: 380ms">
+    <div class="chart-header">
+        <div>
+            <h3 class="chart-title">Cumulative Net Profit Trajectory</h3>
+            <div class="text-xs text-muted">Day-by-day actual profit accumulation since Day 1 ({{ day_1_date|date:"M d, Y" }})</div>
+        </div>
+        <span class="badge badge-info text-xs">{{ days_operating }} Day{{ days_operating|pluralize }} Tracked</span>
+    </div>
+    <div class="chart-wrapper" style="height: 270px;">
+        <canvas id="profit-trend-chart"></canvas>
     </div>
 </div>
 
@@ -491,6 +511,98 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     });
+
+    // Historical Cumulative Net Profit Trend (Line / Area chart)
+    const profitTrendCtx = document.getElementById('profit-trend-chart');
+    if (profitTrendCtx && typeof Chart !== 'undefined') {
+        const profitLabels = {{ profit_trend_labels|safe }};
+        const profitValues = {{ profit_trend_values|safe }};
+        const totalInvestment = {{ total_investment|default:"0" }};
+
+        const datasets = [{
+            label: 'Cumulative Net Profit',
+            data: profitValues,
+            borderColor: '#10b981',
+            backgroundColor: 'rgba(16, 185, 129, 0.08)',
+            fill: true,
+            tension: 0.35,
+            pointBackgroundColor: '#10b981',
+            pointBorderColor: '#ffffff',
+            pointBorderWidth: 2,
+            pointRadius: profitValues.length > 30 ? 2 : 4,
+            pointHoverRadius: 6,
+        }];
+
+        if (totalInvestment > 0) {
+            datasets.push({
+                label: 'Break-Even Target (₱' + totalInvestment.toLocaleString() + ')',
+                data: Array(profitLabels.length).fill(totalInvestment),
+                borderColor: '#7b2d3b',
+                borderDash: [6, 4],
+                borderWidth: 2,
+                pointRadius: 0,
+                fill: false,
+                tension: 0,
+            });
+        }
+
+        new Chart(profitTrendCtx, {
+            type: 'line',
+            data: {
+                labels: profitLabels,
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: totalInvestment > 0,
+                        position: 'top',
+                        align: 'end',
+                        labels: {
+                            usePointStyle: true,
+                            boxWidth: 8,
+                            font: { family: "'Inter', sans-serif", size: 12 },
+                            color: '#64748b'
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: '#1E293B',
+                        padding: 12,
+                        cornerRadius: 8,
+                        titleFont: { family: "'Inter', sans-serif", size: 13, weight: '600' },
+                        bodyFont: { family: "'Inter', sans-serif", size: 13 },
+                        callbacks: {
+                            label: function(context) {
+                                const val = Number(context.raw || 0);
+                                const label = context.dataset.label || '';
+                                const sign = val >= 0 ? '+' : '-';
+                                return ` ${label}: ${sign}₱${Math.abs(val).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        grid: { color: '#E2E8F0' },
+                        ticks: {
+                            callback: (val) => '₱' + Number(val).toLocaleString(),
+                            font: { family: "'Inter', sans-serif", size: 12 },
+                            color: '#64748B'
+                        }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: {
+                            font: { family: "'Inter', sans-serif", size: 12 },
+                            color: '#64748B'
+                        }
+                    }
+                }
+            }
+        });
+    }
 });
 </script>
 {% endblock %}

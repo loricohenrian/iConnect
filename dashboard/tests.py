@@ -3,7 +3,7 @@ from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 from unittest.mock import patch
 
-from sessions_app.models import Plan, Session, SuspiciousDevice
+from sessions_app.models import Plan, Session, SuspiciousDevice, CoinEvent
 
 
 class DashboardSecurityTests(TestCase):
@@ -781,6 +781,69 @@ class AnalyticsTests(TestCase):
         self.assertEqual(resp.context["first_time_devices"], 1)
         self.assertEqual(resp.context["retention_rate"], 50.0)
         self.assertContains(resp, "1 returning · 1 first-time")
+
+
+class RoiTrackerEnhancementTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+
+    def test_roi_historical_trend_and_small_sample_caveat(self):
+        from dashboard.models import ProjectCost, OperatingExpense
+        from django.utils import timezone
+        from datetime import timedelta
+        import json
+
+        User = get_user_model()
+        user = User.objects.create_user(
+            username="roi_test_admin",
+            password="admin123",
+            is_staff=True,
+            is_superuser=True,
+        )
+        self.client.login(username=user.username, password="admin123")
+
+        now = timezone.now()
+        # Day 1: ProjectCost added 3 days ago (4 days operating: 3 days ago, 2 days ago, 1 day ago, today)
+        cost = ProjectCost.objects.create(
+            description="Orange Pi Zero 3",
+            amount=2500,
+            date_added=now - timedelta(days=3)
+        )
+        # Recurring operating expense: 300 / month = 10 / day
+        OperatingExpense.objects.create(
+            name="ISP Bill",
+            amount=300,
+            period="monthly"
+        )
+        # Add CoinEvents:
+        # Day 1 (3 days ago): 50
+        CoinEvent.objects.create(amount=50, denomination=10, timestamp=now - timedelta(days=3))
+        # Day 2 (2 days ago): 100
+        CoinEvent.objects.create(amount=100, denomination=10, timestamp=now - timedelta(days=2))
+        # Day 4 (today): 150
+        CoinEvent.objects.create(amount=150, denomination=10, timestamp=now)
+
+        resp = self.client.get("/iconnect-ops/roi/")
+        self.assertEqual(resp.status_code, 200)
+
+        # Verify days operating
+        self.assertEqual(resp.context["days_operating"], 4)
+
+        # Verify caveat in rendered HTML
+        self.assertContains(resp, "Estimates based on <strong>4 days</strong> of data — accuracy improves with more operating history.")
+
+        # Verify chart canvas in HTML
+        self.assertContains(resp, 'id="profit-trend-chart"')
+
+        # Verify profit trend data in context
+        labels = json.loads(resp.context["profit_trend_labels"])
+        values = json.loads(resp.context["profit_trend_values"])
+        self.assertEqual(len(labels), 4)
+        self.assertEqual(len(values), 4)
+        # Total coins = 300. Total expenses = 4 * 10 = 40. Final net profit = 260.
+        self.assertEqual(resp.context["net_profit"], 260.0)
+        self.assertEqual(values[-1], 260.0)
+
 
 
 
