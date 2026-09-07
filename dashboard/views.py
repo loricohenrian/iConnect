@@ -2150,6 +2150,49 @@ def admin_session_action(request, session_id, action):
             susp.resolved_by = getattr(request.user, 'username', 'admin')
             susp.save()
 
+    elif action == 'add_time':
+        try:
+            data = json.loads(request.body) if request.body else {}
+            minutes = parse_bounded_int(data.get('minutes'), 1, 1440, "Additional minutes")
+        except ValueError as e:
+            return JsonResponse({'success': False, 'error': str(e)}, status=400)
+        except Exception:
+            return JsonResponse({'success': False, 'error': 'Invalid request data'}, status=400)
+
+        was_expired = (session.status == 'expired')
+        session.extend_session(minutes)
+        if was_expired:
+            session.status = 'active'
+            session.time_out = None
+            session.total_paused_seconds = 0
+            session.paused_at = None
+        session.save()
+
+        # Re-allow in firewall if active
+        if session.status == 'active':
+            try:
+                from sessions_app.iptables import allow_device
+                dl_kbps = int(session.plan.speed_limit * 1024) if session.plan and session.plan.speed_limit else None
+                ul_kbps = int(session.plan.speed_limit_upload * 1024) if session.plan and session.plan.speed_limit_upload else dl_kbps
+                allow_device(session.mac_address, rate_kbps=dl_kbps, upload_kbps=ul_kbps)
+            except Exception as e:
+                logging.error(f"Failed to allow device on add_time: {e}")
+
+        audit_logger.info(
+            'event=admin_add_time admin=%s mac=%s added_minutes=%d session_id=%s ip=%s',
+            request.user.username,
+            session.mac_address,
+            minutes,
+            session.id,
+            _client_ip(request),
+        )
+        return JsonResponse({
+            'success': True,
+            'message': f'Added {minutes} minutes to session #{session.id} ({session.mac_address})',
+            'duration_minutes_purchased': session.duration_minutes_purchased,
+            'status': session.status,
+        })
+
     elif action == 'edit':
         try:
             data = json.loads(request.body)

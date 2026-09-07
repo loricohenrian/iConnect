@@ -617,6 +617,60 @@ class AnnouncementManagementTests(TestCase):
         with self.assertRaises(ValueError):
             parse_bounded_float("-1.5", 0.0, 10.0)
 
+    def test_admin_add_time_to_session(self):
+        import json
+        from django.utils import timezone
+        from sessions_app.models import Session
+        User = get_user_model()
+        user = User.objects.create_user(
+            username="add_time_admin",
+            password="admin123",
+            is_staff=True,
+            is_superuser=True,
+        )
+        self.client.login(username=user.username, password="admin123")
+
+        # 1. Create an active session and add time
+        session = Session.objects.create(
+            mac_address="AA:BB:CC:DD:EE:99",
+            status="active",
+            duration_minutes_purchased=30,
+            amount_paid=5,
+        )
+        resp = self.client.post(
+            f"/iconnect-ops/sessions/{session.id}/add_time/",
+            data=json.dumps({"minutes": 45}),
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 200)
+        session.refresh_from_db()
+        self.assertEqual(session.duration_minutes_purchased, 75)
+        self.assertEqual(session.status, "active")
+
+        # 2. Add time to an expired session (should reactivate)
+        session.status = "expired"
+        session.time_out = timezone.now()
+        session.save()
+
+        resp = self.client.post(
+            f"/iconnect-ops/sessions/{session.id}/add_time/",
+            data=json.dumps({"minutes": 60}),
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 200)
+        session.refresh_from_db()
+        self.assertEqual(session.status, "active")
+        self.assertIsNone(session.time_out)
+
+        # 3. Reject negative / zero / out-of-bounds minutes
+        resp = self.client.post(
+            f"/iconnect-ops/sessions/{session.id}/add_time/",
+            data=json.dumps({"minutes": -10}),
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 400)
+
+
 
 
 
