@@ -1224,36 +1224,41 @@ body.modal-open {
 }
 
 /* ============================================
-   Pull-to-Refresh Indicator (Captive Portal & WebViews)
+   Universal Mobile Pull-to-Refresh Indicator
    ============================================ */
 .ptr-indicator {
     position: fixed;
-    top: -50px;
+    top: 14px;
     left: 50%;
-    transform: translateX(-50%);
-    width: 40px;
-    height: 40px;
-    background: var(--color-white, #ffffff);
+    transform: translate(-50%, -75px);
+    width: 44px;
+    height: 44px;
+    background: #ffffff;
     border-radius: 50%;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.22), 0 1px 4px rgba(0, 0, 0, 0.1);
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 1500;
+    z-index: 10001;
     pointer-events: none;
-    transition: opacity 0.2s ease, top 0.2s ease;
     opacity: 0;
     color: var(--color-primary, #7b2d3b);
+    will-change: transform, opacity;
 }
 
-.ptr-indicator svg {
-    width: 20px;
-    height: 20px;
-    transition: transform 0.15s ease-out;
+.ptr-indicator .ptr-icon {
+    width: 22px;
+    height: 22px;
+    transition: transform 0.05s linear;
 }
 
-.ptr-indicator.refreshing svg {
-    animation: ptr-spin 0.75s linear infinite;
+.ptr-indicator.ptr-ready {
+    color: #10b981;
+    box-shadow: 0 4px 22px rgba(16, 185, 129, 0.4);
+}
+
+.ptr-indicator.ptr-refreshing .ptr-icon {
+    animation: ptr-spin 0.7s linear infinite !important;
 }
 
 @keyframes ptr-spin {

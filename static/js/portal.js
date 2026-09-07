@@ -2535,93 +2535,163 @@ window.closeRatesModal = function() {
 })();
 
 // ============================================
-// Pull-to-Refresh for Captive Portal & WebViews
+// Universal Mobile Pull-to-Refresh
+// Works across Chrome, Safari, Mi Browser, Samsung Internet, and WebViews
 // ============================================
 (function initPullToRefresh() {
+    let startX = 0;
     let startY = 0;
-    let isTracking = false;
+    let isEligible = false;
+    let isPulling = false;
+    let isReadyToRefresh = false;
     let ptrIndicator = null;
+    let ptrIcon = null;
 
-    function getIndicator() {
+    function setupElements() {
+        ptrIndicator = document.getElementById('ptr-indicator');
         if (!ptrIndicator) {
             ptrIndicator = document.createElement('div');
+            ptrIndicator.id = 'ptr-indicator';
             ptrIndicator.className = 'ptr-indicator';
+            ptrIndicator.setAttribute('aria-hidden', 'true');
             ptrIndicator.innerHTML = `
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="ptr-icon">
                     <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
                 </svg>
             `;
-            document.body.appendChild(ptrIndicator);
+            document.body.prepend(ptrIndicator);
         }
-        return ptrIndicator;
+        ptrIcon = ptrIndicator.querySelector('.ptr-icon') || ptrIndicator.querySelector('svg');
     }
 
-    // Detect if running in an embedded WebView or captive portal login client without native PTR
-    const isWebView = /wv|Android.*Version\/[0-9]\.[0-9]|CaptiveNetwork|WebSheet/i.test(navigator.userAgent) ||
-                      (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+    function isModalActive() {
+        return document.body.classList.contains('modal-open') ||
+               document.documentElement.classList.contains('modal-open') ||
+               !!document.querySelector('.modal-overlay[style*="display: flex"]') ||
+               !!document.querySelector('.modal-overlay[style*="display: block"]');
+    }
 
-    // If regular mobile browser (Chrome/Safari/Samsung), native PTR is enabled via CSS (overscroll-behavior-y: auto)
-    if (!isWebView) return;
+    function getScrollTop() {
+        return window.scrollY || window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
+    }
 
     document.addEventListener('touchstart', function(e) {
-        if (document.body.classList.contains('modal-open') || document.documentElement.classList.contains('modal-open')) return;
-        if (window.scrollY > 5) return;
+        if (isModalActive()) return;
+        if (getScrollTop() > 3) return;
         if (e.touches.length !== 1) return;
 
+        setupElements();
+        startX = e.touches[0].clientX;
         startY = e.touches[0].clientY;
-        isTracking = true;
+        isEligible = true;
+        isPulling = false;
+        isReadyToRefresh = false;
     }, { passive: true });
 
     document.addEventListener('touchmove', function(e) {
-        if (!isTracking) return;
-        if (document.body.classList.contains('modal-open') || document.documentElement.classList.contains('modal-open')) {
-            isTracking = false;
+        if (!isEligible || isModalActive()) {
+            if (isPulling) resetIndicator();
             return;
         }
-        if (window.scrollY > 5) {
-            isTracking = false;
-            const ind = getIndicator();
-            ind.style.top = '-50px';
-            ind.style.opacity = '0';
+
+        if (getScrollTop() > 3) {
+            if (isPulling) resetIndicator();
+            isEligible = false;
             return;
         }
+
         if (e.touches.length !== 1) return;
 
+        const currentX = e.touches[0].clientX;
         const currentY = e.touches[0].clientY;
-        const delta = currentY - startY;
+        const deltaX = currentX - startX;
+        const deltaY = currentY - startY;
 
-        if (delta > 15) {
-            const ind = getIndicator();
-            const pullY = Math.min(delta * 0.4, 75);
-            ind.style.top = (10 + pullY) + 'px';
-            ind.style.opacity = Math.min(pullY / 40, 1).toString();
-            const svg = ind.querySelector('svg');
-            if (svg) {
-                svg.style.transform = `rotate(${delta * 2.5}deg)`;
+        // Cancel if horizontal swipe is dominant
+        if (Math.abs(deltaX) > Math.abs(deltaY) && !isPulling) {
+            isEligible = false;
+            return;
+        }
+
+        // Cancel if moving up
+        if (deltaY <= 0) {
+            if (isPulling) resetIndicator();
+            return;
+        }
+
+        // Pulling down at top of page
+        if (deltaY > 10) {
+            isPulling = true;
+            if (e.cancelable) {
+                e.preventDefault();
+            }
+
+            // Damped curve for smooth resistance
+            const pullDistance = Math.min(Math.pow(deltaY, 0.82), 85);
+            const progress = Math.min(pullDistance / 55, 1);
+
+            ptrIndicator.style.transition = 'none';
+            ptrIndicator.style.transform = `translate(-50%, ${pullDistance}px)`;
+            ptrIndicator.style.opacity = progress.toString();
+
+            if (ptrIcon) {
+                const rotation = (pullDistance / 60) * 360;
+                ptrIcon.style.transform = `rotate(${rotation}deg)`;
+            }
+
+            if (pullDistance >= 58) {
+                if (!isReadyToRefresh) {
+                    isReadyToRefresh = true;
+                    ptrIndicator.classList.add('ptr-ready');
+                    if (navigator.vibrate) {
+                        try { navigator.vibrate(12); } catch (err) {}
+                    }
+                }
+            } else {
+                if (isReadyToRefresh) {
+                    isReadyToRefresh = false;
+                    ptrIndicator.classList.remove('ptr-ready');
+                }
             }
         }
-    }, { passive: true });
+    }, { passive: false });
+
+    function resetIndicator() {
+        isPulling = false;
+        isEligible = false;
+        isReadyToRefresh = false;
+        if (ptrIndicator) {
+            ptrIndicator.classList.remove('ptr-ready', 'ptr-refreshing');
+            ptrIndicator.style.transition = 'transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.2s ease';
+            ptrIndicator.style.transform = 'translate(-50%, -75px)';
+            ptrIndicator.style.opacity = '0';
+        }
+    }
 
     document.addEventListener('touchend', function() {
-        if (!isTracking) return;
-        isTracking = false;
+        if (!isPulling) {
+            isEligible = false;
+            return;
+        }
 
-        const ind = getIndicator();
-        const topPos = parseInt(ind.style.top || '-50', 10);
-
-        if (topPos >= 38) {
-            ind.classList.add('refreshing');
-            ind.style.top = '25px';
-            ind.style.opacity = '1';
+        if (isReadyToRefresh) {
+            isPulling = false;
+            isEligible = false;
+            ptrIndicator.style.transition = 'transform 0.2s ease, opacity 0.2s ease';
+            ptrIndicator.style.transform = 'translate(-50%, 48px)';
+            ptrIndicator.style.opacity = '1';
+            ptrIndicator.classList.add('ptr-refreshing');
             setTimeout(() => {
                 window.location.reload();
             }, 250);
         } else {
-            ind.style.top = '-50px';
-            ind.style.opacity = '0';
+            resetIndicator();
         }
     }, { passive: true });
+
+    document.addEventListener('touchcancel', resetIndicator, { passive: true });
 })();
+
 
 
 

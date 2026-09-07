@@ -10,6 +10,13 @@
 {% endblock %}
 
 {% block body %}
+<!-- Universal Mobile Pull-to-Refresh Indicator -->
+<div id="ptr-indicator" class="ptr-indicator" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="ptr-icon">
+        <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+    </svg>
+</div>
+
 <div class="portal-wrapper" data-mac="{{ mac_address|default:'' }}">
     <!-- Header -->
     <header class="portal-header">
