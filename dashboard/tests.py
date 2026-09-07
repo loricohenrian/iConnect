@@ -319,7 +319,9 @@ class DashboardSecurityTests(TestCase):
         self.assertFalse(IssueReport.objects.filter(id=report.id).exists())
 
     def test_realtime_apis(self):
+        from datetime import timedelta
         from decimal import Decimal
+        from django.utils import timezone
         from sessions_app.models import CoinEvent
         User = get_user_model()
         user = User.objects.create_user(
@@ -374,13 +376,31 @@ class DashboardSecurityTests(TestCase):
         self.assertEqual(rev_data["sessions"][0]["mac_address"], "AA:BB:CC:DD:EE:FF")
 
         # 3. Test sessions live API
+        # Old paused session from 6 days ago should NOT appear under "today", but should appear under "week"
+        old_paused = Session.objects.create(
+            mac_address="11:22:33:44:55:66",
+            status="paused",
+            time_in=timezone.now() - timedelta(days=6),
+            paused_at=timezone.now() - timedelta(days=6),
+            duration_minutes_purchased=60,
+            amount_paid=10,
+        )
+
         sess_resp = self.client.get("/api/dashboard/sessions/live/?period=today")
         self.assertEqual(sess_resp.status_code, 200)
         sess_data = sess_resp.json()
         self.assertIn("connected_users", sess_data)
         self.assertIn("sessions", sess_data)
         self.assertEqual(sess_data["connected_users"], 1)
+        self.assertEqual(len(sess_data["sessions"]), 1)
         self.assertEqual(sess_data["sessions"][0]["mac_address"], "AA:BB:CC:DD:EE:FF")
+
+        # But under week filter, the old paused session appears
+        week_resp = self.client.get("/api/dashboard/sessions/live/?period=week")
+        self.assertEqual(week_resp.status_code, 200)
+        week_data = week_resp.json()
+        macs = [s["mac_address"] for s in week_data["sessions"]]
+        self.assertIn("11:22:33:44:55:66", macs)
 
 
 class AnnouncementManagementTests(TestCase):

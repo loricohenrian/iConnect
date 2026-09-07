@@ -600,7 +600,10 @@ def sessions_live_api(request):
     today = timezone.localdate()
     if period == 'today' or not period:
         sessions = sessions.filter(
-            Q(time_in__date=today) | Q(status__in=['active', 'paused'])
+            Q(status='active') |
+            Q(time_in__date=today) |
+            Q(status='paused', paused_at__date=today) |
+            Q(status='expired', time_out__date=today)
         )
     elif period == 'week':
         sessions = sessions.filter(time_in__gte=now - timedelta(days=7))
@@ -916,9 +919,12 @@ def sessions_view(request):
     now = timezone.now()
     today = timezone.localdate()
     if period == 'today' or not period:
-        # Include sessions started today OR any session that is currently active/paused
+        # Smart Today Filter: active sessions (online right now) + any session with activity today (started, paused, or ended today)
         sessions = sessions.filter(
-            Q(time_in__date=today) | Q(status__in=['active', 'paused'])
+            Q(status='active') |
+            Q(time_in__date=today) |
+            Q(status='paused', paused_at__date=today) |
+            Q(status='expired', time_out__date=today)
         )
     elif period == 'week':
         sessions = sessions.filter(time_in__gte=now - timedelta(days=7))
