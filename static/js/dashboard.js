@@ -187,6 +187,7 @@ function initSessionsChart(canvasId, data) {
 // ============================================
 // Plan Popularity (Doughnut)
 // ============================================
+let planChartInstance = null;
 function initPlanChart(canvasId, data) {
     const ctx = document.getElementById(canvasId);
     if (!ctx) return null;
@@ -195,9 +196,72 @@ function initPlanChart(canvasId, data) {
         return null;
     }
 
+    if (planChartInstance) {
+        try { planChartInstance.destroy(); } catch (e) {}
+        planChartInstance = null;
+    }
+
     const brandColors = ['#7b2d3b', '#991b1b', '#ea580c', '#d97706', '#6366f1', '#10b981', '#0ea5e9'];
 
-    return new Chart(ctx, {
+    // Custom inline plugin for segment percentages and center total
+    const donutDataLabelsPlugin = {
+        id: 'donutDataLabels',
+        afterDraw(chart) {
+            const { ctx, chartArea } = chart;
+            if (!chartArea) return;
+            const meta = chart.getDatasetMeta(0);
+            if (!meta || !meta.data || !meta.data.length) return;
+
+            const dataset = chart.data.datasets[0];
+            const total = (dataset.data || []).reduce((acc, val) => acc + Number(val || 0), 0);
+            if (total <= 0) return;
+
+            ctx.save();
+
+            // 1. Center summary text
+            const centerX = (chartArea.left + chartArea.right) / 2;
+            const centerY = (chartArea.top + chartArea.bottom) / 2;
+
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            ctx.font = "bold 22px 'Inter', sans-serif";
+            ctx.fillStyle = '#1E293B';
+            ctx.fillText(total.toLocaleString(), centerX, centerY - 9);
+
+            ctx.font = "500 11px 'Inter', sans-serif";
+            ctx.fillStyle = '#64748B';
+            ctx.fillText('Total Sessions', centerX, centerY + 13);
+
+            // 2. Direct on-segment percentage labels
+            meta.data.forEach((element, i) => {
+                if (!chart.getDataVisibility(i)) return;
+                const val = Number(dataset.data[i] || 0);
+                if (val <= 0) return;
+
+                const percentage = (val / total) * 100;
+                // Render on slice if segment is >= 6% to prevent clipping
+                if (percentage < 6) return;
+
+                const pos = element.tooltipPosition();
+                if (!pos || isNaN(pos.x) || isNaN(pos.y)) return;
+
+                ctx.font = "bold 11px 'Inter', sans-serif";
+                ctx.fillStyle = '#ffffff';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
+                ctx.shadowBlur = 4;
+                ctx.fillText(`${percentage.toFixed(0)}%`, pos.x, pos.y);
+                ctx.shadowColor = 'transparent';
+                ctx.shadowBlur = 0;
+            });
+
+            ctx.restore();
+        }
+    };
+
+    planChartInstance = new Chart(ctx, {
         type: 'doughnut',
         data: {
             labels: data.labels || [],
@@ -208,6 +272,7 @@ function initPlanChart(canvasId, data) {
                 spacing: 2,
             }]
         },
+        plugins: [donutDataLabelsPlugin],
         options: {
             responsive: true,
             maintainAspectRatio: false,
@@ -218,19 +283,53 @@ function initPlanChart(canvasId, data) {
                     labels: {
                         font: { family: "'Inter', sans-serif", size: 12 },
                         color: '#64748B',
-                        padding: 16,
+                        padding: 14,
                         usePointStyle: true,
+                        generateLabels: function(chart) {
+                            const chartData = chart.data;
+                            if (chartData.labels.length && chartData.datasets.length) {
+                                const dataset = chartData.datasets[0];
+                                const total = dataset.data.reduce((acc, val) => acc + Number(val || 0), 0);
+                                return chartData.labels.map((label, i) => {
+                                    const value = Number(dataset.data[i] || 0);
+                                    const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0';
+                                    const fill = dataset.backgroundColor[i] || '#64748B';
+                                    return {
+                                        text: `${label}: ${value} (${percentage}%)`,
+                                        fillStyle: fill,
+                                        strokeStyle: fill,
+                                        lineWidth: 0,
+                                        pointStyle: 'circle',
+                                        hidden: !chart.getDataVisibility(i),
+                                        index: i
+                                    };
+                                });
+                            }
+                            return [];
+                        }
                     }
                 },
                 tooltip: {
                     backgroundColor: '#1E293B',
                     padding: 12,
-                    titleFont: { family: "'Inter', sans-serif", size: 13 },
+                    cornerRadius: 8,
+                    titleFont: { family: "'Inter', sans-serif", size: 13, weight: '600' },
                     bodyFont: { family: "'Inter', sans-serif", size: 13 },
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = Number(context.raw || 0);
+                            const total = context.dataset.data.reduce((acc, curr) => acc + Number(curr || 0), 0);
+                            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0';
+                            return ` ${label}: ${value} session${value === 1 ? '' : 's'} (${percentage}%)`;
+                        }
+                    }
                 }
             }
         }
     });
+
+    return planChartInstance;
 }
 
 // ============================================
