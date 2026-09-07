@@ -100,8 +100,11 @@
     <!-- Sales Breakdown Chart -->
     <div class="chart-card mb-0">
         <div class="chart-header">
-            <h3 class="chart-title">Sales Breakdown by Plan</h3>
-            <span class="text-xs text-muted">Revenue per plan</span>
+            <div>
+                <h3 class="chart-title">Sales Breakdown by Plan</h3>
+                <span class="text-xs text-muted">Total ₱ revenue generated per plan</span>
+            </div>
+            <span class="badge badge-info text-xs">₱ Revenue</span>
         </div>
         <div class="chart-wrapper" style="min-height: 240px;">
             <canvas id="plan-sales-chart"></canvas>
@@ -258,7 +261,7 @@
             <span class="text-xs">Export a CSV backup first. This action cannot be undone.</span>
         </div>
 
-        <form method="POST" action="{% url 'dashboard:revenue' %}">
+        <form method="POST" action="{% url 'dashboard:revenue' %}" onsubmit="return confirm('Are you sure you want to reset all sales data? This action cannot be undone.');">
             {% csrf_token %}
             <input type="hidden" name="action" value="reset_sales">
             <input type="hidden" name="start_date" value="{{ start_date }}">
@@ -315,7 +318,6 @@
 {% endblock %}
 
 {% block dashboard_js %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     function enableCustomPeriod() {
         document.getElementById('custom-period-input').disabled = false;
@@ -378,7 +380,7 @@
                     tooltip: {
                         callbacks: {
                             label: function(context) {
-                                return '₱' + context.raw;
+                                return ' Revenue: ₱' + Number(context.raw || 0).toLocaleString();
                             }
                         }
                     }
@@ -386,10 +388,28 @@
                 scales: {
                     y: {
                         beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: '₱ Revenue',
+                            font: { family: "'Inter', sans-serif", size: 12, weight: '600' },
+                            color: '#64748b',
+                            padding: { bottom: 8 }
+                        },
+                        ticks: {
+                            callback: function(val) {
+                                return '₱' + Number(val).toLocaleString();
+                            },
+                            font: { family: "'Inter', sans-serif", size: 12 },
+                            color: '#64748b'
+                        },
                         grid: { color: '#e2e8f0', drawBorder: false }
                     },
                     x: {
-                        grid: { display: false }
+                        grid: { display: false },
+                        ticks: {
+                            font: { family: "'Inter', sans-serif", size: 12 },
+                            color: '#64748b'
+                        }
                     }
                 }
             }
