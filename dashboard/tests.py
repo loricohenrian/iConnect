@@ -619,8 +619,9 @@ class AnnouncementManagementTests(TestCase):
 
     def test_admin_add_time_to_session(self):
         import json
+        from decimal import Decimal
         from django.utils import timezone
-        from sessions_app.models import Session
+        from sessions_app.models import Session, Plan
         User = get_user_model()
         user = User.objects.create_user(
             username="add_time_admin",
@@ -666,6 +667,40 @@ class AnnouncementManagementTests(TestCase):
         resp = self.client.post(
             f"/iconnect-ops/sessions/{session.id}/add_time/",
             data=json.dumps({"minutes": -10}),
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 400)
+
+        # 4. Add time with a plan preset
+        plan = Plan.objects.create(
+            name="1 Hour Plan",
+            price=10,
+            duration_minutes=60,
+            speed_limit=Decimal("8.0"),
+            speed_limit_upload=Decimal("4.0"),
+            is_active=True,
+        )
+        resp = self.client.post(
+            f"/iconnect-ops/sessions/{session.id}/add_time/",
+            data=json.dumps({"minutes": 60, "plan_id": plan.id}),
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 200)
+        session.refresh_from_db()
+        self.assertEqual(session.plan_id, plan.id)
+
+        # 5. Add time with custom speed limit overrides
+        resp = self.client.post(
+            f"/iconnect-ops/sessions/{session.id}/add_time/",
+            data=json.dumps({"minutes": 30, "speed_limit": 15.5, "speed_limit_upload": 7.5}),
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 200)
+
+        # 6. Reject invalid speed limit bounds
+        resp = self.client.post(
+            f"/iconnect-ops/sessions/{session.id}/add_time/",
+            data=json.dumps({"minutes": 30, "speed_limit": -5.0}),
             content_type="application/json",
         )
         self.assertEqual(resp.status_code, 400)

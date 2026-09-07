@@ -161,7 +161,10 @@
                             
                             <button class="action-btn action-btn-add-time" title="Add Time (+Mins)" 
                                 data-session-id="{{ session.id }}" data-action="add_time" data-device-name="{{ session.device_name|default:'' }}" data-mac="{{ session.mac_address }}"
-                                onclick="openActionModal(this.dataset.sessionId, this.dataset.action, this.dataset.deviceName, this.dataset.mac)">
+                                data-plan-id="{{ session.plan_id|default:'' }}"
+                                data-speed-limit="{{ session.plan.speed_limit|default_if_none:'' }}"
+                                data-speed-limit-upload="{{ session.plan.speed_limit_upload|default_if_none:'' }}"
+                                onclick="openActionModal(this.dataset.sessionId, this.dataset.action, this.dataset.deviceName, this.dataset.mac, this.dataset.planId, this.dataset.speedLimit, this.dataset.speedLimitUpload)">
                                 <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M8.5 5.5a.5.5 0 0 0-1 0v2.5H5a.5.5 0 0 0 0 1h2.5V11.5a.5.5 0 0 0 1 0V9H11a.5.5 0 0 0 0-1H8.5z"/><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/></svg>
                             </button>
 
@@ -220,7 +223,7 @@
 
 <!-- Modern Action Modal -->
 <div id="sessionActionModal" class="modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(2px); z-index: 1050; align-items: center; justify-content: center;">
-    <div class="modal-content chart-card animate-fadeIn" style="width: 100%; max-width: 440px; margin: 1rem; position: relative; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.15);">
+    <div class="modal-content chart-card animate-fadeIn" style="width: 100%; max-width: 480px; margin: 1rem; position: relative; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.15);">
         <button type="button" onclick="closeActionModal()" style="position: absolute; top: 1rem; right: 1rem; background: none; border: none; font-size: 1.5rem; color: var(--text-secondary); cursor: pointer; line-height: 1;">&times;</button>
         
         <div class="d-flex align-items-center gap-sm mb-md">
@@ -244,16 +247,48 @@
 
         <!-- Add Time Container -->
         <div id="modalAddTimeContainer" class="form-group mb-md" style="display: none;">
-            <label class="form-label mb-xs" style="font-weight: 600; font-size: 13px;">Quick Presets</label>
-            <div class="d-flex gap-xs mb-sm flex-wrap">
-                <button type="button" class="btn btn-sm btn-secondary preset-time-btn" onclick="selectPresetMinutes(15)">+15 Mins</button>
-                <button type="button" class="btn btn-sm btn-secondary preset-time-btn" onclick="selectPresetMinutes(30)">+30 Mins</button>
-                <button type="button" class="btn btn-sm btn-secondary preset-time-btn" onclick="selectPresetMinutes(60)">+1 Hour</button>
-                <button type="button" class="btn btn-sm btn-secondary preset-time-btn" onclick="selectPresetMinutes(120)">+2 Hours</button>
+            <input type="hidden" id="modalSelectedPlanId" value="">
+            
+            <label class="form-label mb-xs" style="font-weight: 600; font-size: 13px;">Plan Presets</label>
+            <div class="d-flex gap-xs mb-sm flex-wrap" id="planPresetsContainer">
+                {% for p in active_plans %}
+                <button type="button" class="btn btn-sm btn-secondary preset-plan-btn"
+                    data-plan-id="{{ p.id }}"
+                    data-minutes="{{ p.duration_minutes }}"
+                    data-dl="{{ p.speed_limit|default_if_none:'' }}"
+                    data-ul="{{ p.speed_limit_upload|default_if_none:'' }}"
+                    onclick="selectPlanPreset(this)">
+                    <strong>{{ p.name }}</strong>
+                    <span class="preset-meta text-xs" style="margin-left: 3px; opacity: 0.85;">({{ p.duration_display }}{% if p.speed_limit %} · {{ p.speed_limit }}M{% endif %})</span>
+                </button>
+                {% empty %}
+                <span class="text-xs text-muted">No active plans configured. Use custom fields below.</span>
+                {% endfor %}
             </div>
-            <label class="form-label" style="font-weight: 500; font-size: 13px;">Additional Minutes</label>
-            <input type="number" id="modalInputMinutes" class="form-input" min="1" max="1440" value="30" placeholder="e.g. 30">
-            <span class="text-xs text-muted">Time to credit (1 – 1,440 minutes / max 24 hrs).</span>
+
+            <div style="display: flex; align-items: center; gap: 8px; margin: 12px 0 10px 0;">
+                <div style="flex: 1; height: 1px; background: var(--color-border, #e2e8f0);"></div>
+                <span class="text-xs text-muted" style="text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; font-size: 10px;">Or Custom Time & Speed</span>
+                <div style="flex: 1; height: 1px; background: var(--color-border, #e2e8f0);"></div>
+            </div>
+
+            <div class="mb-sm">
+                <label class="form-label" style="font-weight: 500; font-size: 13px;">Additional Minutes <span style="color: #ef4444;">*</span></label>
+                <input type="number" id="modalInputMinutes" class="form-input" min="1" max="10080" value="30" placeholder="e.g. 60" oninput="clearPlanPresetSelection()">
+                <span class="text-xs text-muted">Duration to credit (1 – 10,080 minutes / max 7 days).</span>
+            </div>
+
+            <div class="d-flex gap-sm">
+                <div style="flex: 1;">
+                    <label class="form-label" style="font-weight: 500; font-size: 12px;">Download Speed (Mbps)</label>
+                    <input type="number" step="0.1" min="0.1" max="1000" id="modalInputDl" class="form-input" placeholder="Default (2 Mbps)" oninput="clearPlanPresetSelection()">
+                </div>
+                <div style="flex: 1;">
+                    <label class="form-label" style="font-weight: 500; font-size: 12px;">Upload Speed (Mbps)</label>
+                    <input type="number" step="0.1" min="0.1" max="1000" id="modalInputUl" class="form-input" placeholder="Matches DL" oninput="clearPlanPresetSelection()">
+                </div>
+            </div>
+            <span class="text-xs text-muted" style="display: block; margin-top: 4px;">Optional speed limits. Leave blank to inherit plan or system rate.</span>
         </div>
 
         <div class="d-flex gap-sm" style="justify-content: flex-end;">
@@ -314,17 +349,32 @@
     color: #ef4444;
     background: rgba(239,68,68,0.08);
 }
-.preset-time-btn {
-    padding: 3px 8px;
-    font-size: 11px;
-    border-radius: 5px;
+.preset-plan-btn {
+    padding: 5px 9px;
+    font-size: 12px;
+    border-radius: 6px;
     border: 1px solid var(--color-border, #e2e8f0);
     background: #f8fafc;
+    color: var(--color-dark, #1e293b);
     cursor: pointer;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    line-height: 1.2;
 }
-.preset-time-btn:hover {
-    background: #e2e8f0;
-    color: var(--color-dark);
+.preset-plan-btn:hover {
+    border-color: #10b981;
+    background: #ecfdf5;
+    color: #065f46;
+}
+.preset-plan-btn.active {
+    border-color: #059669 !important;
+    background: #059669 !important;
+    color: #ffffff !important;
+    box-shadow: 0 2px 6px rgba(5,150,105,0.25);
+}
+.preset-plan-btn.active .preset-meta {
+    color: rgba(255, 255, 255, 0.9) !important;
 }
 </style>
 
@@ -342,7 +392,7 @@
         block: `<svg width="22" height="22" viewBox="0 0 16 16" fill="currentColor"><path d="M15 8a6.973 6.973 0 0 0-1.71-4.584l-9.874 9.874A7 7 0 0 0 15 8M2.71 12.584l9.874-9.874A7 7 0 0 0 1 8a6.973 6.973 0 0 0 1.71 4.584M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0"/></svg>`
     };
 
-    function openActionModal(sessionId, action, currentName = '', macAddress = '') {
+    function openActionModal(sessionId, action, currentName = '', macAddress = '', planId = '', speedLimit = '', speedLimitUpload = '') {
         currentSessionId = sessionId;
         currentAction = action;
 
@@ -378,17 +428,36 @@
             confirmBtn.className = 'btn btn-success';
             confirmBtn.innerText = 'Resume Session';
         } else if (action === 'add_time') {
-            title.innerText = 'Add Time / Grant Free Minutes';
+            title.innerText = 'Add Time / Extend Session';
             subtitle.innerText = `MAC: ${macAddress || 'Unknown'} (${currentName || 'Unknown'})`;
             iconBox.style.background = 'rgba(16,185,129,0.12)';
             iconBox.style.color = '#10b981';
-            bodyText.innerHTML = `Grant additional operational or compensation minutes to this user:`;
-            if (addTimeContainer) addTimeContainer.style.display = 'block';
-            document.getElementById('modalInputMinutes').value = 30;
+            bodyText.innerHTML = `Choose a plan preset or enter custom minutes and speed limits for this user:`;
+            if (addTimeContainer) {
+                addTimeContainer.style.display = 'block';
+                document.querySelectorAll('.preset-plan-btn').forEach(b => b.classList.remove('active'));
+                const planIdHidden = document.getElementById('modalSelectedPlanId');
+                if (planIdHidden) planIdHidden.value = planId || '';
+
+                let matchedBtn = null;
+                if (planId) {
+                    matchedBtn = document.querySelector(`.preset-plan-btn[data-plan-id="${planId}"]`);
+                }
+                if (matchedBtn) {
+                    matchedBtn.classList.add('active');
+                    document.getElementById('modalInputMinutes').value = matchedBtn.dataset.minutes || 30;
+                    document.getElementById('modalInputDl').value = matchedBtn.dataset.dl || '';
+                    document.getElementById('modalInputUl').value = matchedBtn.dataset.ul || '';
+                } else {
+                    document.getElementById('modalInputMinutes').value = 30;
+                    document.getElementById('modalInputDl').value = (speedLimit && speedLimit !== 'null' && speedLimit !== 'None') ? speedLimit : '';
+                    document.getElementById('modalInputUl').value = (speedLimitUpload && speedLimitUpload !== 'null' && speedLimitUpload !== 'None') ? speedLimitUpload : '';
+                }
+            }
             confirmBtn.className = 'btn btn-primary';
             confirmBtn.style.background = '#059669';
             confirmBtn.style.color = '#fff';
-            confirmBtn.innerText = 'Grant Additional Time';
+            confirmBtn.innerText = 'Confirm & Credit Time';
             setTimeout(() => document.getElementById('modalInputMinutes').focus(), 100);
         } else if (action === 'edit') {
             title.innerText = 'Edit Hostname';
@@ -424,11 +493,21 @@
         modal.style.display = 'flex';
     }
 
-    function selectPresetMinutes(mins) {
-        const input = document.getElementById('modalInputMinutes');
-        if (input) {
-            input.value = mins;
+    function selectPlanPreset(btn) {
+        document.querySelectorAll('.preset-plan-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const planId = btn.dataset.planId || '';
+        document.getElementById('modalSelectedPlanId').value = planId;
+        if (btn.dataset.minutes) {
+            document.getElementById('modalInputMinutes').value = btn.dataset.minutes;
         }
+        document.getElementById('modalInputDl').value = btn.dataset.dl || '';
+        document.getElementById('modalInputUl').value = btn.dataset.ul || '';
+    }
+
+    function clearPlanPresetSelection() {
+        document.querySelectorAll('.preset-plan-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('modalSelectedPlanId').value = '';
     }
 
     function openPauseAllModal() {
@@ -507,13 +586,44 @@
             body = JSON.stringify({ device_name: newName });
         } else if (currentAction === 'add_time') {
             const minutes = parseInt(document.getElementById('modalInputMinutes').value, 10);
-            if (isNaN(minutes) || minutes < 1 || minutes > 1440) {
-                alert('Please enter a valid duration between 1 and 1,440 minutes.');
+            if (isNaN(minutes) || minutes < 1 || minutes > 10080) {
+                alert('Please enter a valid duration between 1 and 10,080 minutes.');
                 confirmBtn.disabled = false;
-                confirmBtn.innerText = 'Grant Additional Time';
+                confirmBtn.innerText = 'Confirm & Credit Time';
                 return;
             }
-            body = JSON.stringify({ minutes: minutes });
+            const planId = document.getElementById('modalSelectedPlanId').value;
+            const dlVal = document.getElementById('modalInputDl').value.trim();
+            const ulVal = document.getElementById('modalInputUl').value.trim();
+
+            let speedLimit = null;
+            if (dlVal !== '') {
+                speedLimit = parseFloat(dlVal);
+                if (isNaN(speedLimit) || speedLimit < 0.1 || speedLimit > 1000) {
+                    alert('Download speed must be between 0.1 and 1,000 Mbps.');
+                    confirmBtn.disabled = false;
+                    confirmBtn.innerText = 'Confirm & Credit Time';
+                    return;
+                }
+            }
+
+            let speedLimitUpload = null;
+            if (ulVal !== '') {
+                speedLimitUpload = parseFloat(ulVal);
+                if (isNaN(speedLimitUpload) || speedLimitUpload < 0.1 || speedLimitUpload > 1000) {
+                    alert('Upload speed must be between 0.1 and 1,000 Mbps.');
+                    confirmBtn.disabled = false;
+                    confirmBtn.innerText = 'Confirm & Credit Time';
+                    return;
+                }
+            }
+
+            body = JSON.stringify({
+                minutes: minutes,
+                plan_id: planId ? parseInt(planId, 10) : null,
+                speed_limit: speedLimit,
+                speed_limit_upload: speedLimitUpload
+            });
         }
 
         fetch("{% url 'dashboard:sessions' %}" + currentSessionId + "/" + currentAction + "/", {
@@ -544,7 +654,8 @@
     window.openPauseAllModal = openPauseAllModal;
     window.closeActionModal = closeActionModal;
     window.submitActionModal = submitActionModal;
-    window.selectPresetMinutes = selectPresetMinutes;
+    window.selectPlanPreset = selectPlanPreset;
+    window.clearPlanPresetSelection = clearPlanPresetSelection;
 
     // Delegated click listener for action buttons (100% immune to dynamic DOM refresh & special characters)
     document.addEventListener('click', function(e) {
@@ -555,7 +666,10 @@
                 btn.dataset.sessionId,
                 btn.dataset.action,
                 btn.dataset.deviceName || '',
-                btn.dataset.mac || ''
+                btn.dataset.mac || '',
+                btn.dataset.planId || '',
+                btn.dataset.speedLimit || '',
+                btn.dataset.speedLimitUpload || ''
             );
         }
     });

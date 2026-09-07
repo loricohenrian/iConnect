@@ -640,6 +640,9 @@ def sessions_live_api(request):
             'mac_address': s.mac_address,
             'ip_address': s.ip_address or '—',
             'plan_name': s.plan.name if s.plan else 'Custom',
+            'plan_id': s.plan_id,
+            'speed_limit': float(s.plan.speed_limit) if (s.plan and s.plan.speed_limit) else None,
+            'speed_limit_upload': float(s.plan.speed_limit_upload) if (s.plan and s.plan.speed_limit_upload) else None,
             'amount_paid': str(s.amount_paid),
             'time_in': s.time_in.strftime('%b %d, %I:%M %p') if s.time_in else '—',
             'time_out': s.time_out.strftime('%b %d, %I:%M %p') if s.time_out else '—',
@@ -960,6 +963,8 @@ def sessions_view(request):
                 s.device_name = dhcp_name
                 Session.objects.filter(id=s.id).update(device_name=dhcp_name)
 
+    active_plans = Plan.objects.filter(is_active=True).order_by('price')
+
     context = {
         'sessions': sessions_page,
         'status_filter': status_filter,
@@ -971,6 +976,7 @@ def sessions_view(request):
         'paused_users': paused_users,
         'disconnected_users': disconnected_users,
         'suspicious_macs': suspicious_macs,
+        'active_plans': active_plans,
     }
     return render(request, 'dashboard/sessions.html', context)
 
@@ -2153,11 +2159,32 @@ def admin_session_action(request, session_id, action):
     elif action == 'add_time':
         try:
             data = json.loads(request.body) if request.body else {}
-            minutes = parse_bounded_int(data.get('minutes'), 1, 1440, "Additional minutes")
+            minutes = parse_bounded_int(data.get('minutes'), 1, 10080, "Additional minutes")
+            plan_id = data.get('plan_id')
+            if plan_id not in (None, ''):
+                plan_id = parse_bounded_int(plan_id, 1, 1000000, "Plan ID")
+            else:
+                plan_id = None
+
+            speed_limit = None
+            if data.get('speed_limit') not in (None, ''):
+                speed_limit = parse_bounded_float(data.get('speed_limit'), 0.1, 1000.0, "Download speed limit")
+
+            speed_limit_upload = None
+            if data.get('speed_limit_upload') not in (None, ''):
+                speed_limit_upload = parse_bounded_float(data.get('speed_limit_upload'), 0.1, 1000.0, "Upload speed limit")
         except ValueError as e:
             return JsonResponse({'success': False, 'error': str(e)}, status=400)
         except Exception:
             return JsonResponse({'success': False, 'error': 'Invalid request data'}, status=400)
+
+        if plan_id:
+            try:
+                selected_plan = Plan.objects.filter(id=plan_id, is_active=True).first()
+                if selected_plan:
+                    session.plan = selected_plan
+            except Exception as e:
+                logging.warning(f"Failed to assign plan {plan_id} on add_time: {e}")
 
         was_expired = (session.status == 'expired')
         session.extend_session(minutes)
@@ -2168,22 +2195,37 @@ def admin_session_action(request, session_id, action):
             session.paused_at = None
         session.save()
 
-        # Re-allow in firewall if active
+        # Re-allow in firewall / update bandwidth shaping if active
         if session.status == 'active':
             try:
                 from sessions_app.iptables import allow_device
-                dl_kbps = int(session.plan.speed_limit * 1024) if session.plan and session.plan.speed_limit else None
-                ul_kbps = int(session.plan.speed_limit_upload * 1024) if session.plan and session.plan.speed_limit_upload else dl_kbps
+                if speed_limit is not None:
+                    dl_kbps = int(speed_limit * 1024)
+                elif session.plan and session.plan.speed_limit:
+                    dl_kbps = int(session.plan.speed_limit * 1024)
+                else:
+                    dl_kbps = None
+
+                if speed_limit_upload is not None:
+                    ul_kbps = int(speed_limit_upload * 1024)
+                elif session.plan and session.plan.speed_limit_upload:
+                    ul_kbps = int(session.plan.speed_limit_upload * 1024)
+                else:
+                    ul_kbps = dl_kbps
+
                 allow_device(session.mac_address, rate_kbps=dl_kbps, upload_kbps=ul_kbps)
             except Exception as e:
                 logging.error(f"Failed to allow device on add_time: {e}")
 
         audit_logger.info(
-            'event=admin_add_time admin=%s mac=%s added_minutes=%d session_id=%s ip=%s',
+            'event=admin_add_time admin=%s mac=%s added_minutes=%d session_id=%s plan_id=%s dl_mbps=%s ul_mbps=%s ip=%s',
             request.user.username,
             session.mac_address,
             minutes,
             session.id,
+            session.plan_id,
+            speed_limit,
+            speed_limit_upload,
             _client_ip(request),
         )
         return JsonResponse({
@@ -2191,6 +2233,7 @@ def admin_session_action(request, session_id, action):
             'message': f'Added {minutes} minutes to session #{session.id} ({session.mac_address})',
             'duration_minutes_purchased': session.duration_minutes_purchased,
             'status': session.status,
+            'plan_name': session.plan.name if session.plan else 'Custom',
         })
 
     elif action == 'edit':

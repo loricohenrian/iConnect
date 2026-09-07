@@ -787,7 +787,10 @@ async function refreshSessionsLive() {
 
                 actionsHtml += `<button class="action-btn action-btn-add-time" title="Add Time (+Mins)" 
                     data-session-id="${s.id}" data-action="add_time" data-device-name="${escapeHtml(s.device_name || '')}" data-mac="${escapeHtml(s.mac_address || '')}"
-                    onclick="openActionModal(this.dataset.sessionId, this.dataset.action, this.dataset.deviceName, this.dataset.mac)">
+                    data-plan-id="${s.plan_id || ''}"
+                    data-speed-limit="${s.speed_limit !== null && s.speed_limit !== undefined ? s.speed_limit : ''}"
+                    data-speed-limit-upload="${s.speed_limit_upload !== null && s.speed_limit_upload !== undefined ? s.speed_limit_upload : ''}"
+                    onclick="openActionModal(this.dataset.sessionId, this.dataset.action, this.dataset.deviceName, this.dataset.mac, this.dataset.planId, this.dataset.speedLimit, this.dataset.speedLimitUpload)">
                     <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M8.5 5.5a.5.5 0 0 0-1 0v2.5H5a.5.5 0 0 0 0 1h2.5V11.5a.5.5 0 0 0 1 0V9H11a.5.5 0 0 0 0-1H8.5z"/><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/></svg>
                 </button>`;
 
