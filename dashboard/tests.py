@@ -906,6 +906,96 @@ class ReportsEnhancementTests(TestCase):
         self.assertContains(resp, "(75.0% vol)")
 
 
+class SupportTicketHardeningTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        User = get_user_model()
+        self.admin = User.objects.create_superuser("ticket_admin", "admin@test.com", "pass1234")
+        self.client.login(username="ticket_admin", password="pass1234")
+        from dashboard.models import IssueReport
+        self.report = IssueReport.objects.create(
+            mac_address="11:22:33:44:55:66",
+            contact_info="09123456789",
+            category="coin_stuck",
+            message="Coin slot ate ₱5 coin_test *bold*",
+            status="pending"
+        )
+
+    def test_search_by_ticket_id(self):
+        # Search with '#<id>'
+        resp = self.client.get(f"/iconnect-ops/issues/?q=%23{self.report.id}")
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn(self.report, resp.context["reports"])
+
+        # Search with raw digit id
+        resp = self.client.get(f"/iconnect-ops/issues/?q={self.report.id}")
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn(self.report, resp.context["reports"])
+
+        # Search with non-existent id
+        resp = self.client.get("/iconnect-ops/issues/?q=%2399999")
+        self.assertEqual(resp.status_code, 200)
+        self.assertNotIn(self.report, resp.context["reports"])
+
+    def test_update_issue_status_and_notes(self):
+        resp = self.client.post(
+            f"/iconnect-ops/issues/{self.report.id}/update/",
+            {"status": "resolved", "admin_notes": "Manually refunded ₱5 to customer."}
+        )
+        self.assertEqual(resp.status_code, 302)
+        self.report.refresh_from_db()
+        self.assertEqual(self.report.status, "resolved")
+        self.assertEqual(self.report.admin_notes, "Manually refunded ₱5 to customer.")
+        self.assertIsNotNone(self.report.resolved_at)
+
+    def test_open_redirect_protection(self):
+        # Malicious referer should fallback to safe internal URL
+        resp = self.client.post(
+            f"/iconnect-ops/issues/{self.report.id}/update/",
+            {"status": "pending"},
+            HTTP_REFERER="https://malicious-phishing.com/steal"
+        )
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(resp.url, "/iconnect-ops/issues/")
+
+        # Safe internal referer should be honored
+        resp = self.client.post(
+            f"/iconnect-ops/issues/{self.report.id}/update/",
+            {"status": "pending"},
+            HTTP_REFERER="http://testserver/iconnect-ops/issues/?status=pending"
+        )
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(resp.url, "http://testserver/iconnect-ops/issues/?status=pending")
+
+    def test_telegram_escape_markdown(self):
+        from dashboard.telegram_bot import escape_markdown
+        text = "Hello_world *test* `code` [link]"
+        escaped = escape_markdown(text)
+        self.assertEqual(escaped, r"Hello\_world \*test\* \`code\` \[link]")
+
+    def test_api_report_issue_deduplication(self):
+        from django.core.cache import cache
+        cache.clear()
+        client = APIClient()
+
+        payload = {
+            "mac": "11:22:33:44:55:66",
+            "category": "coin_stuck",
+            "message": "Double submit test message",
+            "contact": "09123456789"
+        }
+        # First submission
+        resp1 = client.post("/api/report-issue/", payload)
+        self.assertEqual(resp1.status_code, 200)
+        self.assertEqual(resp1.json().get("status"), "success")
+
+        # Immediate duplicate submission
+        resp2 = client.post("/api/report-issue/", payload)
+        self.assertEqual(resp2.status_code, 200)
+        self.assertIn("already been received", resp2.json().get("message", ""))
+
+
+
 
 
 

@@ -41,10 +41,20 @@ def get_telegram_config():
         }
 
 
+def escape_markdown(text):
+    """Escape Telegram Markdown v1 special characters: _, *, `, ["""
+    if not text:
+        return ""
+    s = str(text)
+    for ch in ('\\', '_', '*', '`', '['):
+        s = s.replace(ch, f'\\{ch}')
+    return s
+
+
 def send_telegram_message(text, chat_id=None, parse_mode="Markdown"):
     """
-    Send a message to the authorized Telegram admin.
-    Returns True if sent successfully, False otherwise.
+    Send a message via the Telegram Bot API.
+    Returns True if successful, False otherwise.
     """
     cfg = get_telegram_config()
     token = cfg.get('token')
@@ -72,6 +82,20 @@ def send_telegram_message(text, chat_id=None, parse_mode="Markdown"):
             return resp.status == 200
     except Exception as e:
         logger.error(f"Telegram sendMessage failed: {e}")
+        # Fail-safe fallback: if Markdown parsing failed, retry as plain text
+        if parse_mode:
+            try:
+                payload["parse_mode"] = None
+                data = json.dumps(payload).encode("utf-8")
+                req = urllib.request.Request(
+                    url,
+                    data=data,
+                    headers={"Content-Type": "application/json"}
+                )
+                with urllib.request.urlopen(req, timeout=10) as resp:
+                    return resp.status == 200
+            except Exception as retry_err:
+                logger.error(f"Telegram sendMessage plain text retry failed: {retry_err}")
         return False
 
 
@@ -313,15 +337,21 @@ def handle_telegram_command(command_text, sender_id, sender_name="User"):
         send_telegram_message(f"▶️ *Sessions Resumed!*\nResumed `{count}` session(s). Internet connection restored.", chat_id=sender_id)
 
     elif cmd == "/tickets":
-        pending_tickets = IssueReport.objects.filter(status='pending').order_by('-created_at')[:5]
-        if not pending_tickets.exists():
+        pending_qs = IssueReport.objects.filter(status='pending').order_by('-created_at')
+        total_pending = pending_qs.count()
+        if total_pending == 0:
             send_telegram_message("✅ *Customer Support:* No open tickets! All issues resolved.", chat_id=sender_id)
             return
 
-        lines = [f"🚨 *Open Tickets ({pending_tickets.count()} pending):*\n"]
-        for t in pending_tickets:
+        showing_count = min(5, total_pending)
+        suffix = f" (showing {showing_count} of {total_pending})" if total_pending > 5 else ""
+        lines = [f"🚨 *Open Tickets ({total_pending} pending){suffix}:*\n"]
+        for t in pending_qs[:5]:
             time_ago = t.created_at.strftime('%I:%M %p')
-            lines.append(f"• *Ticket #{t.id}* ({t.get_category_display()})\n  _{t.message}_\n  Contact: `{t.contact_info or 'None'}` · {time_ago}\n")
+            esc_cat = escape_markdown(t.get_category_display())
+            esc_msg = escape_markdown(t.message)
+            esc_contact = escape_markdown(t.contact_info or 'None')
+            lines.append(f"• *Ticket #{t.id}* ({esc_cat})\n  _{esc_msg}_\n  Contact: `{esc_contact}` · {time_ago}\n")
 
         send_telegram_message("\n".join(lines), chat_id=sender_id)
 

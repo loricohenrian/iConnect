@@ -32,7 +32,7 @@
 <!-- Stats Cards -->
 <div class="stats-grid stats-grid-3">
     <!-- Pending -->
-    <div class="stat-card animate-fadeIn">
+    <a href="?status=pending{% if category_filter != 'all' %}&category={{ category_filter }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}" class="stat-card animate-fadeIn" style="text-decoration: none; color: inherit; cursor: pointer; transition: transform 0.15s ease, box-shadow 0.15s ease; border: {% if status_filter == 'pending' %}2px solid #d97706{% else %}1px solid var(--color-border){% endif %};" title="Filter by Pending tickets">
         <div class="stat-info">
             <div class="stat-label">Pending / New</div>
             <div class="stat-value" style="color: #d97706;">{{ pending_count }}</div>
@@ -40,10 +40,10 @@
         <div class="static-icon" style="color: #d97706; background: #fffbeb; width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
         </div>
-    </div>
+    </a>
 
     <!-- Resolved -->
-    <div class="stat-card animate-fadeIn">
+    <a href="?status=resolved{% if category_filter != 'all' %}&category={{ category_filter }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}" class="stat-card animate-fadeIn" style="text-decoration: none; color: inherit; cursor: pointer; transition: transform 0.15s ease, box-shadow 0.15s ease; border: {% if status_filter == 'resolved' %}2px solid #059669{% else %}1px solid var(--color-border){% endif %};" title="Filter by Resolved tickets">
         <div class="stat-info">
             <div class="stat-label">Resolved</div>
             <div class="stat-value" style="color: #059669;">{{ resolved_count }}</div>
@@ -51,10 +51,10 @@
         <div class="static-icon" style="color: #059669; background: #ecfdf5; width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
         </div>
-    </div>
+    </a>
 
     <!-- Total Tickets -->
-    <div class="stat-card animate-fadeIn">
+    <a href="?status=all{% if category_filter != 'all' %}&category={{ category_filter }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}" class="stat-card animate-fadeIn" style="text-decoration: none; color: inherit; cursor: pointer; transition: transform 0.15s ease, box-shadow 0.15s ease; border: {% if status_filter == 'all' %}2px solid var(--color-primary){% else %}1px solid var(--color-border){% endif %};" title="Show All tickets">
         <div class="stat-info">
             <div class="stat-label">Total Reports</div>
             <div class="stat-value">{{ total_count }}</div>
@@ -62,7 +62,7 @@
         <div class="static-icon" style="color: var(--color-primary); background: #fdf2f4; width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
         </div>
-    </div>
+    </a>
 </div>
 
 <!-- Main Table Card -->
@@ -113,6 +113,11 @@
                         <span class="badge" style="background: #fef3c7; color: #b45309; font-weight: 700; padding: 3px 8px; border-radius: 6px; font-size: 11px;">Pending</span>
                         {% else %}
                         <span class="badge" style="background: #dcfce7; color: #15803d; font-weight: 700; padding: 3px 8px; border-radius: 6px; font-size: 11px;">Resolved</span>
+                        {% if report.resolved_at %}
+                        <div style="font-size: 10px; color: #059669; margin-top: 3px;" title="{{ report.resolved_at|date:'Y-m-d H:i:s' }}">
+                            Resolved {{ report.resolved_at|date:"M d, h:i A" }}
+                        </div>
+                        {% endif %}
                         {% endif %}
                     </td>
                     <td>
@@ -131,9 +136,15 @@
                         {% endif %}
                     </td>
                     <td>
-                        <div style="font-size: 12px; font-family: monospace; font-weight: 600; color: var(--color-dark);">
-                            {{ report.mac_address|default:"Unknown MAC" }}
+                        {% if report.mac_address %}
+                        <a href="{% url 'dashboard:sessions' %}?q={{ report.mac_address }}" title="View sessions for {{ report.mac_address }}" style="font-size: 12px; font-family: monospace; font-weight: 600; color: #6366f1; text-decoration: underline; text-underline-offset: 2px;">
+                            {{ report.mac_address }}
+                        </a>
+                        {% else %}
+                        <div style="font-size: 12px; font-family: monospace; font-weight: 600; color: var(--color-gray);">
+                            Unknown MAC
                         </div>
+                        {% endif %}
                         {% if report.contact_info %}
                         <div style="font-size: 11px; color: var(--color-gray); margin-top: 2px;">
                             {{ report.contact_info }}
@@ -146,11 +157,15 @@
                     </td>
                     <td style="text-align: right;">
                         <div style="display: flex; gap: 6px; justify-content: flex-end; align-items: center;">
+                            <button type="button" class="btn btn-sm btn-secondary" style="padding: 4px 8px; font-size: 11px; border-radius: 6px; font-weight: 600;" title="Edit Notes & Status" onclick="openNoteModal('{% url 'dashboard:update_issue_status' report.id %}', '{{ report.status }}', '{{ report.admin_notes|escapejs }}', '{{ report.id }}')">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -1px;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg> Note
+                            </button>
+
                             {% if report.status != 'resolved' %}
                             <form method="POST" action="{% url 'dashboard:update_issue_status' report.id %}" style="display: inline;">
                                 {% csrf_token %}
                                 <input type="hidden" name="status" value="resolved">
-                                <button type="submit" class="btn btn-sm" style="background: #10b981; color: #fff; padding: 4px 8px; font-size: 11px; border-radius: 6px; border: none; font-weight: 600;" title="Mark Resolved">
+                                <button type="submit" class="btn btn-sm" style="background: #10b981; color: #fff; padding: 4px 8px; font-size: 11px; border-radius: 6px; border: none; font-weight: 600;" title="Quick Mark Resolved">
                                     ✓ Resolve
                                 </button>
                             </form>
@@ -225,9 +240,46 @@
     </div>
 </div>
 
+<!-- Resolution / Admin Note Modal -->
+<div id="noteModal" class="modal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="chart-card animate-fadeIn" style="width: 100%; max-width: 440px; margin: 16px;">
+        <h3 class="card-title mb-sm" style="display: flex; align-items: center; gap: 8px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--color-primary);"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+            <span id="noteModalTitle">Ticket Resolution & Notes</span>
+        </h3>
+        <p class="text-small text-muted mb-md">Record internal resolution details (e.g. coin unjammed, refunded ₱5, time added to MAC).</p>
+        
+        <form method="POST" id="noteModalForm" action="">
+            {% csrf_token %}
+            <div class="form-group mb-sm">
+                <label class="form-label" for="noteModalStatus">Status</label>
+                <select name="status" id="noteModalStatus" class="form-input" style="width: 100%; font-size: 13px;">
+                    <option value="resolved">Resolved</option>
+                    <option value="pending">Pending</option>
+                </select>
+            </div>
+            
+            <div class="form-group mb-md">
+                <label class="form-label" for="noteModalNotes">Operator Notes</label>
+                <textarea name="admin_notes" id="noteModalNotes" rows="3" class="form-input" placeholder="Describe action taken (e.g. Checked machine, refunded ₱5, manual time credited)..." maxlength="1000" style="width: 100%; resize: vertical; font-size: 13px;"></textarea>
+            </div>
+
+            <div class="d-flex gap-sm justify-content-end">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="closeNoteModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary btn-sm">Save Ticket</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
     const deleteModal = document.getElementById('deleteModal');
     const deleteModalForm = document.getElementById('deleteModalForm');
+    const noteModal = document.getElementById('noteModal');
+    const noteModalForm = document.getElementById('noteModalForm');
+    const noteModalStatus = document.getElementById('noteModalStatus');
+    const noteModalNotes = document.getElementById('noteModalNotes');
+    const noteModalTitle = document.getElementById('noteModalTitle');
 
     function openDeleteModal(actionUrl) {
         if (deleteModalForm && deleteModal) {
@@ -242,9 +294,36 @@
         }
     }
 
+    function openNoteModal(actionUrl, currentStatus, currentNotes, ticketId) {
+        if (noteModal && noteModalForm) {
+            noteModalForm.action = actionUrl;
+            if (noteModalStatus) noteModalStatus.value = currentStatus;
+            if (noteModalNotes) noteModalNotes.value = currentNotes || '';
+            if (noteModalTitle) noteModalTitle.textContent = `Ticket #${ticketId} Notes & Status`;
+            noteModal.style.display = 'flex';
+            setTimeout(() => { if (noteModalNotes) noteModalNotes.focus(); }, 100);
+        }
+    }
+
+    function closeNoteModal() {
+        if (noteModal) {
+            noteModal.style.display = 'none';
+        }
+    }
+
     window.addEventListener('click', function(e) {
         if (e.target === deleteModal) {
             closeDeleteModal();
+        }
+        if (e.target === noteModal) {
+            closeNoteModal();
+        }
+    });
+
+    window.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeDeleteModal();
+            closeNoteModal();
         }
     });
 </script>

@@ -834,6 +834,19 @@ def api_report_issue(request):
     if not message:
         return JsonResponse({"error": "Please provide a description of the issue."}, status=400)
 
+    # Deduplication: prevent identical rapid clicks within 30s
+    import hashlib
+    msg_hash = hashlib.md5(f"{message}_{category}_{mac_address}".encode("utf-8")).hexdigest()
+    dedup_key = f"issue_report_dedup_{ip}_{msg_hash}"
+    try:
+        if cache.get(dedup_key):
+            return JsonResponse({
+                "status": "success",
+                "message": "Your report has already been received. Thank you!",
+            })
+    except Exception:
+        pass
+
     valid_categories = dict(IssueReport.CATEGORY_CHOICES).keys()
     if category not in valid_categories:
         category = "other"
@@ -848,6 +861,7 @@ def api_report_issue(request):
 
     try:
         cache.set(rate_limit_key, report_count + 1, timeout=300)
+        cache.set(dedup_key, True, timeout=30)
     except Exception:
         pass
 
@@ -857,16 +871,20 @@ def api_report_issue(request):
     )
 
     try:
-        from dashboard.telegram_bot import send_telegram_message, get_telegram_config
+        from dashboard.telegram_bot import send_telegram_message, get_telegram_config, escape_markdown
         cfg = get_telegram_config()
         if cfg.get('enabled') and cfg.get('notify_tickets'):
             category_name = dict(IssueReport.CATEGORY_CHOICES).get(category, category)
+            esc_cat = escape_markdown(category_name)
+            esc_msg = escape_markdown(report.message)
+            esc_mac = escape_markdown(report.mac_address or 'Unknown MAC')
+            esc_contact = escape_markdown(report.contact_info or 'None')
             t_msg = (
                 f"🚨 *New Support Ticket #{report.id}*\n\n"
-                f"📂 *Category:* {category_name}\n"
-                f"📝 *Message:* _{report.message}_\n"
-                f"📱 *Device:* `{report.mac_address or 'Unknown MAC'}`\n"
-                f"📞 *Contact:* `{report.contact_info or 'None'}`\n"
+                f"📂 *Category:* {esc_cat}\n"
+                f"📝 *Message:* _{esc_msg}_\n"
+                f"📱 *Device:* `{esc_mac}`\n"
+                f"📞 *Contact:* `{esc_contact}`\n"
                 f"🕒 *Time:* {timezone.now().strftime('%I:%M %p')}\n\n"
                 f"Type /tickets on Telegram or view in Admin Console."
             )

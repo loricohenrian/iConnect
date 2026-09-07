@@ -2591,11 +2591,15 @@ def issues_view(request):
         reports = reports.filter(category=category_filter)
 
     if search_query:
-        reports = reports.filter(
+        clean_id = search_query.lstrip('#').strip()
+        q_filter = (
             Q(mac_address__icontains=search_query) |
             Q(contact_info__icontains=search_query) |
             Q(message__icontains=search_query)
         )
+        if clean_id.isdigit():
+            q_filter = Q(id=int(clean_id)) | q_filter
+        reports = reports.filter(q_filter)
 
     # Stats
     total_count = IssueReport.objects.count()
@@ -2620,6 +2624,14 @@ def issues_view(request):
     return render(request, 'dashboard/issues.html', context)
 
 
+def _safe_redirect_referer(request, fallback='dashboard:issues'):
+    """Redirect to referer safely only if it stays within the current host."""
+    referer = request.META.get('HTTP_REFERER')
+    if referer and url_has_allowed_host_and_scheme(url=referer, allowed_hosts={request.get_host()}):
+        return redirect(referer)
+    return redirect(fallback)
+
+
 @user_passes_test(_is_dashboard_admin, login_url='dashboard:login')
 @require_POST
 def update_issue_status(request, issue_id):
@@ -2640,7 +2652,7 @@ def update_issue_status(request, issue_id):
 
     issue.save()
     messages.success(request, f'Ticket #{issue.id} updated.')
-    return redirect(request.META.get('HTTP_REFERER') or 'dashboard:issues')
+    return _safe_redirect_referer(request)
 
 
 @user_passes_test(_is_dashboard_admin, login_url='dashboard:login')
@@ -2651,6 +2663,6 @@ def delete_issue(request, issue_id):
     issue_num = issue.id
     issue.delete()
     messages.success(request, f'Ticket #{issue_num} deleted.')
-    return redirect(request.META.get('HTTP_REFERER') or 'dashboard:issues')
+    return _safe_redirect_referer(request)
 
 
