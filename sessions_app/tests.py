@@ -2,12 +2,13 @@ from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
+from django.db.models import Sum
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from .models import CoinEvent, CoinInsertRequest, Plan, Session, WhitelistedDevice, SuspiciousDevice
+from .models import CoinEvent, CoinInsertRequest, Plan, Session, SessionGroup, WhitelistedDevice, SuspiciousDevice
 
 
 class PlanModelTests(TestCase):
@@ -233,6 +234,142 @@ class SessionApiTests(TestCase):
         self.assertIsNotNone(session.session_group)
         self.assertEqual(len(session.session_group.group_code), 5)
         self.assertTrue(session.session_group.group_code.isalnum())
+
+    @patch("sessions_app.views.iptables.enforce_firewall_baseline", return_value=True)
+    @patch("sessions_app.views.iptables.allow_device", return_value=True)
+    def test_group_pass_overpayment_charges_exact_and_credits_balance(self, allow_mock, base_mock):
+        p1_plan = Plan.objects.create(name="P1 Plan", price=1, duration_minutes=15, is_active=True)
+        # User inserts ₱5 for a 2-person group pass (expected ₱1 x 2 = ₱2)
+        CoinEvent.objects.create(
+            amount=5,
+            denomination=5,
+            mac_address=self.mac_one,
+        )
+        response = self.client.post(
+            reverse("sessions_app:session-start"),
+            {
+                "mac_address": self.mac_one,
+                "plan_id": p1_plan.id,
+                "is_group_pass": True,
+                "group_pass_devices": 2,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        session = Session.objects.get(mac_address=self.mac_one, status="active")
+        self.assertEqual(session.duration_minutes_purchased, 15)
+        self.assertEqual(session.amount_paid, 2)
+        group = session.session_group
+        self.assertIsNotNone(group)
+        self.assertEqual(group.duration_minutes, 15)
+        self.assertEqual(group.total_price, 2)
+        self.assertEqual(group.max_devices, 2)
+        self.assertEqual(group.redeemed_count, 1)
+
+        # Excess ₱3 returned to user balance as unlinked CoinEvent
+        unlinked_coins = CoinEvent.objects.filter(mac_address=self.mac_one, session=None).aggregate(total=Sum("amount"))["total"]
+        self.assertEqual(unlinked_coins, 3)
+
+    @patch("sessions_app.views.iptables.enforce_firewall_baseline", return_value=True)
+    @patch("sessions_app.views.iptables.allow_device", return_value=True)
+    def test_group_pass_extension_overpayment_charges_exact_and_credits_balance(self, allow_mock, base_mock):
+        p1_plan = Plan.objects.create(name="P1 Plan", price=1, duration_minutes=15, is_active=True)
+        active_session = Session.objects.create(
+            mac_address=self.mac_one,
+            plan=p1_plan,
+            duration_minutes_purchased=15,
+            amount_paid=1,
+            status="active",
+        )
+        CoinEvent.objects.create(
+            amount=5,
+            denomination=5,
+            mac_address=self.mac_one,
+        )
+        response = self.client.post(
+            reverse("sessions_app:session-extend-paid"),
+            {
+                "mac_address": self.mac_one,
+                "plan_id": p1_plan.id,
+                "is_group_pass": True,
+                "group_devices": 2,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        active_session.refresh_from_db()
+        self.assertEqual(active_session.duration_minutes_purchased, 30) # 15 original + 15 extend
+        self.assertEqual(active_session.amount_paid, 3) # 1 original + 2 group pass
+        group = active_session.session_group
+        self.assertIsNotNone(group)
+        self.assertEqual(group.duration_minutes, 15)
+        self.assertEqual(group.total_price, 2)
+        self.assertEqual(group.max_devices, 2)
+        self.assertEqual(group.redeemed_count, 1)
+
+        unlinked_coins = CoinEvent.objects.filter(mac_address=self.mac_one, session=None).aggregate(total=Sum("amount"))["total"]
+        self.assertEqual(unlinked_coins, 3)
+
+    @patch("sessions_app.views.iptables.enforce_firewall_baseline", return_value=True)
+    @patch("sessions_app.views.iptables.allow_device", return_value=True)
+    def test_group_pass_join_redemption_flow(self, allow_mock, base_mock):
+        p1_plan = Plan.objects.create(name="P1 Plan", price=1, duration_minutes=15, is_active=True)
+        CoinEvent.objects.create(amount=2, denomination=1, mac_address=self.mac_one)
+        start_res = self.client.post(
+            reverse("sessions_app:session-start"),
+            {
+                "mac_address": self.mac_one,
+                "plan_id": p1_plan.id,
+                "is_group_pass": True,
+                "group_pass_devices": 2,
+            },
+            format="json",
+        )
+        self.assertEqual(start_res.status_code, 201)
+        group_code = start_res.data["session_group"]
+
+        # Phone 2 joins with code
+        join_res = self.client.post(
+            reverse("sessions_app:session-join-group"),
+            {
+                "mac_address": self.mac_two,
+                "group_code": group_code,
+            },
+            format="json",
+        )
+        self.assertEqual(join_res.status_code, 201)
+        session_two = Session.objects.get(mac_address=self.mac_two, status="active")
+        self.assertEqual(session_two.duration_minutes_purchased, 15)
+
+        # Group is now exhausted
+        group = SessionGroup.objects.get(group_code=group_code)
+        self.assertEqual(group.redeemed_count, 2)
+        self.assertEqual(group.status, "exhausted")
+
+        # Phone 2 attempts to join again -> rejected duplicate (409)
+        dup_res = self.client.post(
+            reverse("sessions_app:session-join-group"),
+            {
+                "mac_address": self.mac_two,
+                "group_code": group_code,
+            },
+            format="json",
+        )
+        self.assertEqual(dup_res.status_code, 409)
+        self.assertIn("already redeemed", dup_res.data["error"].lower())
+
+        # Phone 3 attempts to join -> rejected full (400)
+        mac_three = "AA:BB:CC:DD:EE:03"
+        full_res = self.client.post(
+            reverse("sessions_app:session-join-group"),
+            {
+                "mac_address": mac_three,
+                "group_code": group_code,
+            },
+            format="json",
+        )
+        self.assertEqual(full_res.status_code, 400)
+        self.assertIn("full", full_res.data["error"].lower())
 
     def test_protected_endpoints_require_admin_auth(self):
         checks = [

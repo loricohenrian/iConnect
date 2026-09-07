@@ -322,7 +322,7 @@
         <div id="join-group-error" class="alert alert-danger" style="display:none; padding: 8px; font-size: 13px;"></div>
         <div class="d-flex" style="gap: 8px;">
             <button type="button" class="btn btn-secondary flex-grow-1" id="btn-cancel-join" onclick="closeJoinGroupModal()">Cancel</button>
-            <button type="button" class="btn btn-primary flex-grow-1" id="btn-submit-join" onclick="submitJoinGroup()">Redeem Code</button>
+            <button type="button" class="btn btn-primary flex-grow-1" id="btn-submit-join">Redeem Code</button>
         </div>
     </div>
 </div>
@@ -413,67 +413,6 @@
         }
     }
 
-    async function submitJoinGroup() {
-        const input = document.getElementById('join-group-code');
-        const error = document.getElementById('join-group-error');
-        const btn = document.getElementById('btn-submit-join');
-        if (!input) return;
-
-        const code = input.value.trim().toUpperCase();
-        if (!code || (code.length !== 5 && code.length !== 6)) {
-            if (error) {
-                error.textContent = 'Please enter a valid 5-character code.';
-                error.style.display = 'block';
-            }
-            return;
-        }
-
-        if (btn) {
-            btn.disabled = true;
-            btn.textContent = 'Redeeming...';
-        }
-        if (error) error.style.display = 'none';
-
-        try {
-            const timerEl = document.getElementById('session-timer');
-            const mac = (timerEl ? timerEl.dataset.mac : '') || localStorage.getItem('iconnect_mac') || '';
-            const csrf = (document.cookie.split(';').find(c => c.trim().startsWith('csrftoken=')) || '').split('=')[1] || '';
-            const devName = typeof getDeviceName === 'function' ? getDeviceName() : "";
-
-            const response = await fetch('/api/session/join-group/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrf,
-                },
-                body: JSON.stringify({
-                    mac_address: mac,
-                    group_code: code,
-                    device_name: devName,
-                }),
-            });
-            const data = await response.json();
-
-            if (response.ok) {
-                window.location.reload();
-            } else {
-                if (error) {
-                    error.textContent = data.error || 'Failed to redeem group pass.';
-                    error.style.display = 'block';
-                }
-            }
-        } catch (err) {
-            if (error) {
-                error.textContent = 'Network error while redeeming group pass.';
-                error.style.display = 'block';
-            }
-        } finally {
-            if (btn) {
-                btn.disabled = false;
-                btn.textContent = 'Redeem Code';
-            }
-        }
-    }
 
     const COUNTDOWN_SECONDS = {{ insert_coin_countdown_seconds|default:120 }};
     const flowMessage = document.getElementById('extend-flow-message');

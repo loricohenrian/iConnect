@@ -1993,6 +1993,8 @@ function initJoinGroupFlow(macAddress) {
         joinModal.style.display = "flex";
         joinCodeInput.value = "";
         if (joinError) joinError.style.display = "none";
+        btnSubmitJoin.disabled = false;
+        btnSubmitJoin.textContent = "Redeem Code";
         joinCodeInput.focus();
     });
 
@@ -2010,12 +2012,20 @@ function initJoinGroupFlow(macAddress) {
             return;
         }
 
+        const currentMac = macAddress || getMacAddress();
+        if (!currentMac) {
+            if (joinError) {
+                joinError.textContent = "Device identity required. Please open the portal from your Wi-Fi login screen.";
+                joinError.style.display = "block";
+            }
+            return;
+        }
+
         btnSubmitJoin.disabled = true;
         btnSubmitJoin.textContent = "Redeeming...";
         if (joinError) joinError.style.display = "none";
 
         try {
-            const currentMac = macAddress || getMacAddress();
             const devName = typeof getDeviceName === 'function' ? getDeviceName() : "";
             const response = await fetch("/api/session/join-group/", {
                 method: "POST",
@@ -2034,8 +2044,21 @@ function initJoinGroupFlow(macAddress) {
             if (response.ok) {
                 window.location.href = buildPortalUrl("/session/", currentMac);
             } else {
+                let errMsg = data?.error || data?.detail;
+                if (!errMsg && data && typeof data === 'object') {
+                    for (const key of Object.keys(data)) {
+                        const val = data[key];
+                        if (Array.isArray(val) && val.length > 0) {
+                            errMsg = val[0];
+                            break;
+                        } else if (typeof val === 'string') {
+                            errMsg = val;
+                            break;
+                        }
+                    }
+                }
                 if (joinError) {
-                    joinError.textContent = data.error || "Failed to redeem group pass.";
+                    joinError.textContent = errMsg || "Failed to redeem group pass.";
                     joinError.style.display = "block";
                 }
             }

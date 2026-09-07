@@ -1057,7 +1057,11 @@ def session_start(request):
     try:
         with transaction.atomic():
             session_group = None
-            if plan:
+            if is_group_pass:
+                multiplier = 1
+                amount_paid = expected_amount
+                actual_duration = plan.duration_minutes if plan else duration_minutes
+            elif plan:
                 multiplier = total_coins // expected_amount if expected_amount > 0 else 1
                 amount_paid = expected_amount * multiplier
                 actual_duration = duration_minutes * multiplier
@@ -1089,7 +1093,7 @@ def session_start(request):
                     max_devices=group_pass_devices,
                     redeemed_count=1,
                     total_price=amount_paid,
-                    duration_minutes=plan.duration_minutes if plan else actual_duration,
+                    duration_minutes=actual_duration,
                     time_in=timezone.now(),
                     code_expires_at=code_expires_at,
                     status="active"
@@ -1180,7 +1184,18 @@ def session_join_group(request):
     """
     serializer = GroupJoinSerializer(data=request.data)
     if not serializer.is_valid():
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        first_err = None
+        for field, err_list in serializer.errors.items():
+            if isinstance(err_list, list) and len(err_list) > 0:
+                first_err = f"{err_list[0]}"
+                break
+            elif isinstance(err_list, str):
+                first_err = err_list
+                break
+        return Response(
+            {"error": first_err or "Invalid data provided.", "errors": serializer.errors},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     mac_address = serializer.validated_data["mac_address"]
     group_code = serializer.validated_data["group_code"].upper()
@@ -1208,14 +1223,29 @@ def session_join_group(request):
     if not existing_session and Session.objects.filter(status="active").count() >= max_sessions:
         return Response({"error": "Network is currently full."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
-    group = SessionGroup.objects.filter(group_code=group_code, status="active").select_related("plan").first()
+    group = SessionGroup.objects.filter(group_code=group_code).select_related("plan").first()
     if not group:
-        return Response({"error": "Invalid or expired group code."}, status=status.HTTP_404_NOT_FOUND)
+        return Response({"error": "Invalid group code. Please check and try again."}, status=status.HTTP_404_NOT_FOUND)
+
+    # If device already redeemed this group pass, inform them clearly immediately
+    if group.has_mac_redeemed(mac_address):
+        return Response(
+            {"error": "Your device has already redeemed this group pass."},
+            status=status.HTTP_409_CONFLICT,
+        )
+
+    # Check if all slots are used
+    if group.status == "exhausted" or group.is_full():
+        return Response(
+            {"error": f"This group pass is full ({group.redeemed_count}/{group.max_devices} slots used)."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     # Check code's own expiry (separate from session expiry)
-    if group.is_code_expired():
-        group.status = "expired"
-        group.save(update_fields=["status"])
+    if group.status == "expired" or group.is_code_expired():
+        if group.status != "expired":
+            group.status = "expired"
+            group.save(update_fields=["status"])
         return Response({"error": "This group pass has expired."}, status=status.HTTP_400_BAD_REQUEST)
 
     group_plan = group.plan
@@ -1227,13 +1257,6 @@ def session_join_group(request):
             # Lock the group row to prevent race conditions from concurrent clicks
             locked_group = SessionGroup.objects.select_for_update().get(id=group.id)
             
-            # Check if all slots are used
-            if locked_group.is_full():
-                return Response(
-                    {"error": f"This group pass is full ({locked_group.redeemed_count}/{locked_group.max_devices} slots used)."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
             # MAC lock — prevent same device from redeeming twice
             if locked_group.has_mac_redeemed(mac_address):
                 return Response(
@@ -1241,9 +1264,17 @@ def session_join_group(request):
                     status=status.HTTP_409_CONFLICT,
                 )
 
+            # Check if all slots are used
+            if locked_group.is_full():
+                return Response(
+                    {"error": f"This group pass is full ({locked_group.redeemed_count}/{locked_group.max_devices} slots used)."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            pass_duration = locked_group.duration_minutes or group_plan.duration_minutes
             if existing_session:
                 # Extend existing active or paused session
-                existing_session.duration_minutes_purchased += group_plan.duration_minutes
+                existing_session.duration_minutes_purchased += pass_duration
                 existing_session.session_group = locked_group
                 if ip_address:
                     existing_session.ip_address = ip_address
@@ -1262,7 +1293,7 @@ def session_join_group(request):
                     plan=group_plan,
                     session_group=locked_group,
                     time_in=timezone.now(),
-                    duration_minutes_purchased=group_plan.duration_minutes,
+                    duration_minutes_purchased=pass_duration,
                     amount_paid=0,
                     ip_address=ip_address,
                     device_name=device_name,
@@ -1291,6 +1322,9 @@ def session_join_group(request):
 
     except RuntimeError as exc:
         return Response({"error": str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+    except Exception as exc:
+        audit_logger.error("event=session_join_group_error mac=%s error=%s", mac_address, exc)
+        return Response({"error": "Failed to join group pass. Please try again."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     # Clear rate limit on success
     cache.delete(cache_key)
@@ -1615,7 +1649,12 @@ def session_extend_paid(request):
     # Extend the session
     try:
         with transaction.atomic():
-            if plan:
+            if is_group_pass:
+                multiplier = 1
+                amount_paid = expected_amount
+                duration_minutes = plan.duration_minutes if plan else (effective_plan.duration_minutes if effective_plan else 0)
+                effective_plan = plan or effective_plan
+            elif plan:
                 multiplier = total_coins // expected_amount if expected_amount > 0 else 1
                 amount_paid = expected_amount * multiplier
                 duration_minutes = plan.duration_minutes * multiplier
@@ -1661,7 +1700,7 @@ def session_extend_paid(request):
                     max_devices=group_pass_devices,
                     redeemed_count=1,
                     total_price=amount_paid,
-                    duration_minutes=effective_plan.duration_minutes,
+                    duration_minutes=duration_minutes,
                     time_in=timezone.now(),
                     code_expires_at=code_expires_at,
                     status="active"
