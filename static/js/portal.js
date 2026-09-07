@@ -8,8 +8,9 @@ const MAC_ADDRESS_RE = /^([0-9A-F]{2}:){5}[0-9A-F]{2}$/;
 class SessionTimer {
     constructor(elementId, totalSeconds) {
         this.element = document.getElementById(elementId);
-        this.serverSeconds = Math.max(0, Number(totalSeconds) || 0);
-        this.startedAt = this._now();
+        const initialSeconds = Math.max(0, Number(totalSeconds) || 0);
+        this.pausedRemainingSeconds = initialSeconds;
+        this.targetEndTime = Date.now() + (initialSeconds * 1000);
         this.interval = null;
         this.onExpire = null;
         this.onWarning = null;
@@ -31,25 +32,33 @@ class SessionTimer {
         document.addEventListener("visibilitychange", this._boundVisibilityHandler);
     }
 
-    _now() {
-        return Date.now();
-    }
-
     get remaining() {
         if (this.isPaused) {
-            return Math.max(0, this.serverSeconds);
+            return Math.max(0, this.pausedRemainingSeconds);
         }
-        const elapsed = (this._now() - this.startedAt) / 1000;
-        return Math.max(0, this.serverSeconds - elapsed);
+        return Math.max(0, (this.targetEndTime - Date.now()) / 1000);
+    }
+
+    // Backward-compatibility getter/setter for any code accessing serverSeconds
+    get serverSeconds() {
+        return this.remaining;
+    }
+
+    set serverSeconds(val) {
+        const s = Math.max(0, Number(val) || 0);
+        this.pausedRemainingSeconds = s;
+        this.targetEndTime = Date.now() + (s * 1000);
+        this.update();
     }
 
     setRemaining(seconds) {
-        this.serverSeconds = Math.max(0, Number(seconds) || 0);
-        this.startedAt = this._now();
+        const s = Math.max(0, Number(seconds) || 0);
+        this.pausedRemainingSeconds = s;
+        this.targetEndTime = Date.now() + (s * 1000);
         this.isPaused = false;
         this._hasExpired = false;
-        this.warningShown = this.remaining <= 300;
-        this.oneMinWarningShown = this.remaining <= 60;
+        this.warningShown = s <= 300;
+        this.oneMinWarningShown = s <= 60;
         this.expiredNotified = false;
         this.update();
     }
@@ -57,8 +66,7 @@ class SessionTimer {
     syncRemaining(serverRemainingSeconds, force = false) {
         const sSec = Math.max(0, Number(serverRemainingSeconds) || 0);
         if (this.isPaused) {
-            this.serverSeconds = sSec;
-            this.startedAt = this._now();
+            this.pausedRemainingSeconds = sSec;
             this.update();
             return;
         }
@@ -66,10 +74,13 @@ class SessionTimer {
         const currentLocal = this.remaining;
         const diff = Math.abs(currentLocal - sSec);
 
-        // Only resync if forced, time was added (coins/admin), significant drift (>3s), or server expired (<=0)
-        if (force || sSec > currentLocal + 2 || diff > 3 || sSec <= 0) {
-            this.serverSeconds = sSec;
-            this.startedAt = this._now();
+        // Only adjust targetEndTime if:
+        // 1. Force is true (e.g. user toggled pause/resume)
+        // 2. Server time increased by > 2s (time was extended via coins or admin preset)
+        // 3. Significant drift (> 4s) due to device deep sleep/background suspension
+        // 4. Server reports session has expired (<= 0)
+        if (force || sSec > currentLocal + 2 || diff > 4 || sSec <= 0) {
+            this.targetEndTime = Date.now() + (sSec * 1000);
             if (sSec > 0) {
                 this._hasExpired = false;
             }
@@ -81,8 +92,7 @@ class SessionTimer {
     }
 
     pause() {
-        this.serverSeconds = this.remaining;
-        this.startedAt = this._now();
+        this.pausedRemainingSeconds = this.remaining;
         this.isPaused = true;
         this.stop();
         this.update();
@@ -92,7 +102,7 @@ class SessionTimer {
     resume() {
         if (!this.isPaused) return;
         this.isPaused = false;
-        this.startedAt = this._now();
+        this.targetEndTime = Date.now() + (this.pausedRemainingSeconds * 1000);
         this.start();
     }
 
