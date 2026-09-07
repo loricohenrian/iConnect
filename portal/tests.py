@@ -140,6 +140,36 @@ class RatesModalTests(TestCase):
         self.assertEqual(data["smart_combo_examples"][0]["amount"], 7)
         self.assertEqual(data["smart_combo_examples_extend"][0]["duration"], "+1h 20m")
 
+    def test_session_page_renders_popular_plan_badge(self):
+        from sessions_app.models import Session
+        p5 = Plan.objects.get(name="₱5 Plan")
+        for i in range(3):
+            Session.objects.create(
+                mac_address=f"AA:BB:CC:DD:00:0{i}",
+                plan=p5,
+                duration_minutes_purchased=60,
+                amount_paid=5,
+                status="expired",
+            )
+        active_session = Session.objects.create(
+            mac_address="AA:BB:CC:DD:EE:02",
+            plan=p5,
+            duration_minutes_purchased=60,
+            amount_paid=5,
+            status="active",
+        )
+        response = self.client.get(f"/session/?mac={active_session.mac_address}")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["most_popular_plan_id"], p5.id)
+        self.assertContains(response, '<div class="plan-popular">Popular</div>')
+
+        # Also verify live_data marks is_most_popular for p5
+        live_resp = self.client.get("/api/portal/live-data/")
+        self.assertEqual(live_resp.status_code, 200)
+        plans_data = live_resp.json()["plans"]
+        p5_data = next(p for p in plans_data if p["id"] == p5.id)
+        self.assertTrue(p5_data["is_most_popular"])
+
     def test_manual_page_content(self):
         response = self.client.get("/manual/")
         self.assertEqual(response.status_code, 200)

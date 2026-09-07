@@ -99,12 +99,54 @@ def _history_passcode_enabled():
     return False
 
 
+def _get_most_popular_plan_id():
+    """
+    Find the most popular active plan.
+    Calculates the plan with the highest session count over the last 30 days (rolling 30-day window).
+    Falls back to all-time active sessions if no sessions exist in the last 30 days.
+    Only considers active plans, excluding spin prize plans.
+    """
+    from datetime import timedelta
+    from django.db.models import Count
+
+    # 1. Rolling 30-day window
+    last_30_days = timezone.now() - timedelta(days=30)
+    most_popular = (
+        Session.objects.filter(
+            plan__isnull=False,
+            plan__is_active=True,
+            time_in__gte=last_30_days,
+        )
+        .exclude(plan__name__startswith="Prize:")
+        .values("plan_id")
+        .annotate(pick_count=Count("id"))
+        .order_by("-pick_count")
+        .first()
+    )
+    if most_popular and most_popular.get("plan_id"):
+        return most_popular["plan_id"]
+
+    # 2. Fallback to all-time active sessions if no sessions in the last 30 days
+    most_popular_all_time = (
+        Session.objects.filter(
+            plan__isnull=False,
+            plan__is_active=True,
+        )
+        .exclude(plan__name__startswith="Prize:")
+        .values("plan_id")
+        .annotate(pick_count=Count("id"))
+        .order_by("-pick_count")
+        .first()
+    )
+    return most_popular_all_time["plan_id"] if most_popular_all_time else None
+
+
 @never_cache
 def index(request):
     """Plan selection page."""
     mac_address = _get_mac_address(request)
     mac_required = request.GET.get("mac_required") == "1"
-    plans = Plan.objects.filter(is_active=True)
+    plans = Plan.objects.filter(is_active=True).order_by("price", "id")
     announcements = Announcement.objects.filter(is_active=True).exclude(message__contains="interrupted by our ISP")
     expired = request.GET.get("expired", False)
 
@@ -136,15 +178,9 @@ def index(request):
         return redirect(f"/session/?mac={mac_address}")
 
     # Find the most picked plan (highest session count)
-    from django.db.models import Count, Sum
+    from django.db.models import Sum
     from sessions_app.models import CoinEvent
-    most_popular = (
-        Session.objects.values("plan_id")
-        .annotate(pick_count=Count("id"))
-        .order_by("-pick_count")
-        .first()
-    )
-    most_popular_plan_id = most_popular["plan_id"] if most_popular else None
+    most_popular_plan_id = _get_most_popular_plan_id()
 
     # Calculate balance (unlinked coins for this device)
     balance = 0
@@ -267,7 +303,8 @@ def session_page(request):
             else:
                 group_code_remaining_display = f"{h}h {m}m {s}s"
 
-    plans = Plan.objects.filter(is_active=True)
+    plans = Plan.objects.filter(is_active=True).order_by("price", "id")
+    most_popular_plan_id = _get_most_popular_plan_id()
     from sessions_app.views import generate_smart_combo_examples
     smart_combo_examples = generate_smart_combo_examples(plans, is_extend=True)
 
@@ -277,6 +314,7 @@ def session_page(request):
         "mac_address": mac_address,
         "time_remaining_seconds": int(active_session.time_remaining_seconds),
         "plans": plans,
+        "most_popular_plan_id": most_popular_plan_id,
         "smart_combo_examples": smart_combo_examples,
         "active_page": "home",
         "device_profile": device_profile,
@@ -380,14 +418,7 @@ def live_data(request):
     plans = Plan.objects.filter(is_active=True).order_by("price", "id")
     announcements = Announcement.objects.filter(is_active=True).exclude(message__contains="interrupted by our ISP").order_by("-created_at", "-id")
 
-    from django.db.models import Count
-    most_popular = (
-        Session.objects.values("plan_id")
-        .annotate(pick_count=Count("id"))
-        .order_by("-pick_count")
-        .first()
-    )
-    most_popular_plan_id = most_popular["plan_id"] if most_popular else None
+    most_popular_plan_id = _get_most_popular_plan_id()
 
     # Connection slots
     from django.conf import settings
