@@ -1273,6 +1273,7 @@ def analytics_view(request):
     returning_devices = sessions_qs.values('mac_address').annotate(
         sessions_count=CountAgg('id')
     ).filter(sessions_count__gt=1).count()
+    first_time_devices = max(0, unique_devices - returning_devices)
     retention_rate = round((returning_devices / unique_devices) * 100, 1) if unique_devices > 0 else 0
 
     # Avg revenue per session
@@ -1335,6 +1336,8 @@ def analytics_view(request):
         'revenue_growth': revenue_growth,
         'total_sessions': total_sessions_count,
         'unique_devices': unique_devices,
+        'returning_devices': returning_devices,
+        'first_time_devices': first_time_devices,
         'retention_rate': retention_rate,
         'active_page': 'analytics',
     }

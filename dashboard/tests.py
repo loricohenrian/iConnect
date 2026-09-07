@@ -753,6 +753,37 @@ class AnnouncementManagementTests(TestCase):
         self.assertContains(resp, "Settings updated successfully.")
 
 
+class AnalyticsTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+
+    def test_analytics_new_vs_returning_devices_breakdown(self):
+        User = get_user_model()
+        user = User.objects.create_user(
+            username="analytics_admin",
+            password="admin123",
+            is_staff=True,
+            is_superuser=True,
+        )
+        self.client.login(username=user.username, password="admin123")
+
+        plan = Plan.objects.create(name="1hr Plan", price=10, duration_minutes=60)
+        # Device 1: 2 sessions (returning)
+        Session.objects.create(mac_address="AA:BB:CC:DD:EE:01", ip_address="10.0.0.2", plan=plan, amount_paid=10, duration_minutes_purchased=60, status="active")
+        Session.objects.create(mac_address="AA:BB:CC:DD:EE:01", ip_address="10.0.0.2", plan=plan, amount_paid=10, duration_minutes_purchased=60, status="expired")
+        # Device 2: 1 session (first-time)
+        Session.objects.create(mac_address="AA:BB:CC:DD:EE:02", ip_address="10.0.0.3", plan=plan, amount_paid=10, duration_minutes_purchased=60, status="expired")
+
+        resp = self.client.get("/iconnect-ops/analytics/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.context["unique_devices"], 2)
+        self.assertEqual(resp.context["returning_devices"], 1)
+        self.assertEqual(resp.context["first_time_devices"], 1)
+        self.assertEqual(resp.context["retention_rate"], 50.0)
+        self.assertContains(resp, "1 returning · 1 first-time")
+
+
+
 
 
 
