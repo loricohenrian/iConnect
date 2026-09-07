@@ -785,6 +785,12 @@ async function refreshSessionsLive() {
                     </button>`;
                 }
 
+                actionsHtml += `<button class="action-btn action-btn-add-time" title="Add Time (+Mins)" 
+                    data-session-id="${s.id}" data-action="add_time" data-device-name="${escapeHtml(s.device_name || '')}" data-mac="${escapeHtml(s.mac_address || '')}"
+                    onclick="openActionModal(this.dataset.sessionId, this.dataset.action, this.dataset.deviceName, this.dataset.mac)">
+                    <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M8.5 5.5a.5.5 0 0 0-1 0v2.5H5a.5.5 0 0 0 0 1h2.5V11.5a.5.5 0 0 0 1 0V9H11a.5.5 0 0 0 0-1H8.5z"/><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/></svg>
+                </button>`;
+
                 actionsHtml += `<button class="action-btn action-btn-edit" title="Edit Hostname" 
                     data-session-id="${s.id}" data-action="edit" data-device-name="${escapeHtml(s.device_name || '')}" data-mac="${escapeHtml(s.mac_address || '')}"
                     onclick="openActionModal(this.dataset.sessionId, this.dataset.action, this.dataset.deviceName, this.dataset.mac)">
@@ -798,12 +804,6 @@ async function refreshSessionsLive() {
                         <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M5 3.5h6A1.5 1.5 0 0 1 12.5 5v6a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 11V5A1.5 1.5 0 0 1 5 3.5z"/></svg>
                     </button>`;
                 }
-
-                actionsHtml += `<button class="action-btn action-btn-block" title="Block Device (Blacklist)" 
-                    data-session-id="${s.id}" data-action="block" data-device-name="${escapeHtml(s.device_name || '')}" data-mac="${escapeHtml(s.mac_address || '')}"
-                    onclick="openActionModal(this.dataset.sessionId, this.dataset.action, this.dataset.deviceName, this.dataset.mac)">
-                    <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M15 8a6.973 6.973 0 0 0-1.71-4.584l-9.874 9.874A7 7 0 0 0 15 8M2.71 12.584l9.874-9.874A7 7 0 0 0 1 8a6.973 6.973 0 0 0 1.71 4.584M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0"/></svg>
-                </button>`;
 
                 return `<tr>
                     <td>#${s.id}</td>
