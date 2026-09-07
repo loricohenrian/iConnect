@@ -9,7 +9,7 @@
 <div class="filter-bar">
     <form method="GET" action="" class="d-flex gap-md flex-wrap w-100" id="sessions-filter-form">
         <input type="search" name="search" value="{{ search }}" placeholder="Search MAC, device, IP..."
-               class="form-input search-input" id="session-search" onchange="this.form.submit()">
+               class="form-input search-input" id="session-search" maxlength="60" onchange="this.form.submit()">
         <select name="status" class="form-input" id="status-filter" onchange="this.form.submit()">
             <option value="">All Status</option>
             <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>

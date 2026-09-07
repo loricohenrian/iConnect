@@ -591,7 +591,7 @@ def sessions_live_api(request):
     cleanup_expired_and_stale_sessions()
 
     status_filter = request.GET.get('status', '')
-    search = request.GET.get('search', '')
+    search = sanitize_text(request.GET.get('search', ''), max_length=60)
     period = request.GET.get('period', 'today')
 
     sessions = Session.objects.select_related('plan').all()
@@ -979,7 +979,7 @@ def sessions_view(request):
 def export_sessions_csv(request):
     """Export session logs as CSV file."""
     status_filter = request.GET.get('status', '')
-    search = request.GET.get('search', '')
+    search = sanitize_text(request.GET.get('search', ''), max_length=60)
     period = request.GET.get('period', 'today')
     custom_start = request.GET.get('start_date')
     custom_end = request.GET.get('end_date')
@@ -1689,7 +1689,7 @@ def plans_view(request):
 def security_view(request):
     """Suspicious device monitoring and enforcement actions."""
     status_filter = request.GET.get('status', '').strip()
-    search = request.GET.get('search', '').strip()
+    search = sanitize_text(request.GET.get('search', ''), max_length=60)
     action_message = ''
     action_error = ''
 
@@ -2173,7 +2173,7 @@ def logs_view(request):
     from django.conf import settings
     import os
 
-    search_mac = request.GET.get('mac', '').strip().upper()
+    search_mac = sanitize_text(request.GET.get('mac', ''), max_length=30).upper()
 
     coin_events_qs = CoinEvent.objects.all().order_by('-timestamp')
     if search_mac:
@@ -2390,7 +2390,7 @@ def issues_view(request):
     """View and manage customer issue tickets and operator messages."""
     status_filter = request.GET.get('status', 'all')
     category_filter = request.GET.get('category', 'all')
-    search_query = request.GET.get('q', '').strip()
+    search_query = sanitize_text(request.GET.get('q', ''), max_length=100)
 
     reports = IssueReport.objects.all()
 

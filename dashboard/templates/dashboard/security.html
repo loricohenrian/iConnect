@@ -69,7 +69,7 @@
         <h3 class="chart-title">Suspicious Devices & Clone Alerts</h3>
         
         <form method="GET" action="" class="d-flex gap-xs align-items-center flex-wrap">
-            <input type="search" name="search" value="{{ search }}" placeholder="Search MAC, IP..." class="form-input" style="width: 180px; padding: 4px 8px; height: 30px; font-size: 12px;">
+            <input type="search" name="search" value="{{ search }}" placeholder="Search MAC, IP..." class="form-input" maxlength="60" style="width: 180px; padding: 4px 8px; height: 30px; font-size: 12px;">
             <select name="status" class="form-input" style="width: 130px; padding: 4px 8px; height: 30px; font-size: 12px;" onchange="this.form.submit()">
                 <option value="">All Statuses</option>
                 {% for value, label in status_choices %}

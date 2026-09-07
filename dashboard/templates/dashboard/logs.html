@@ -13,7 +13,7 @@
             <span class="text-xs text-muted">Raw coin acceptor hardware events</span>
         </div>
         <form method="get" action="{% url 'dashboard:logs' %}" class="d-flex gap-xs align-items-center">
-            <input type="text" name="mac" placeholder="Search MAC Address" value="{{ search_mac }}" class="form-input" style="width: 170px; padding: 4px 8px; height: 30px; font-size: 12px;">
+            <input type="text" name="mac" placeholder="Search MAC Address" value="{{ search_mac }}" class="form-input" maxlength="30" style="width: 170px; padding: 4px 8px; height: 30px; font-size: 12px;">
             <button type="submit" class="btn btn-primary btn-sm" style="padding: 4px 10px; height: 30px;">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                 Search

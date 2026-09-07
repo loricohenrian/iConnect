@@ -71,7 +71,7 @@
         <h3 class="chart-title">Support Tickets & Messages</h3>
         
         <form method="GET" action="" class="d-flex gap-xs align-items-center flex-wrap">
-            <input type="search" name="q" value="{{ search_query }}" placeholder="Search message, MAC..." class="form-input" style="width: 170px; padding: 5px 10px; height: 32px; font-size: 12px;">
+            <input type="search" name="q" value="{{ search_query }}" placeholder="Search message, MAC..." class="form-input" maxlength="100" style="width: 170px; padding: 5px 10px; height: 32px; font-size: 12px;">
             
             <select name="category" class="form-input" style="width: 150px; padding: 4px 8px; height: 32px; font-size: 12px;" onchange="this.form.submit()">
                 <option value="all">All Categories</option>
