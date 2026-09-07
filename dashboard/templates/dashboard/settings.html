@@ -5,20 +5,6 @@
 
 {% block dashboard_content %}
 
-{% if message %}
-<div class="alert alert-success mb-md animate-fadeIn" style="display: flex; align-items: center; gap: 10px; border-radius: 10px;">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-    <span>{{ message }}</span>
-</div>
-{% endif %}
-
-{% if error_message %}
-<div class="alert alert-danger mb-md animate-fadeIn" style="display: flex; align-items: center; gap: 10px; border-radius: 10px;">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-    <span>{{ error_message }}</span>
-</div>
-{% endif %}
-
 <form method="POST" action="" id="globalSettingsForm">
 {% csrf_token %}
 
@@ -234,17 +220,10 @@
                     </div>
 
                     <div class="dependent-tree-group" id="autoPauseTimeoutGroup">
-                        <div class="settings-grid-2">
-                            <div class="form-group mb-0">
-                                <label class="form-label" for="auto_pause_timeout_seconds">Disconnect Timeout (Seconds)</label>
-                                <input type="number" min="60" class="form-input" id="auto_pause_timeout_seconds" name="auto_pause_timeout_seconds" value="{{ settings.auto_pause_timeout_seconds }}" required>
-                                <small class="form-hint">Grace period before an offline user session is frozen (Default: 300s).</small>
-                            </div>
-                            <div class="form-group mb-0">
-                                <label class="form-label" for="insert_coin_countdown_seconds">Initial Coin Timer (Seconds)</label>
-                                <input type="number" min="10" class="form-input" id="insert_coin_countdown_seconds" name="insert_coin_countdown_seconds" value="{{ settings.insert_coin_countdown_seconds }}" required>
-                                <small class="form-hint">Initial time allowed to insert the first coin (Default: 120s).</small>
-                            </div>
+                        <div class="form-group mb-0">
+                            <label class="form-label" for="auto_pause_timeout_seconds">Disconnect Timeout (Seconds)</label>
+                            <input type="number" min="60" max="86400" class="form-input" id="auto_pause_timeout_seconds" name="auto_pause_timeout_seconds" value="{{ settings.auto_pause_timeout_seconds }}" required>
+                            <small class="form-hint">Grace period before an offline user session is frozen (Default: 300s).</small>
                         </div>
                     </div>
 
@@ -253,10 +232,15 @@
                     <!-- Coin Insertion Countdown Engine -->
                     <div class="settings-subsection-header">
                         <h4 class="settings-subsection-title">Coin Slot Countdown Engine</h4>
-                        <span class="settings-subsection-desc">Configure dynamic time extension behavior as coins are dropped into the slot.</span>
+                        <span class="settings-subsection-desc">Configure dynamic initial timer and extension behavior as coins are dropped into the slot.</span>
                     </div>
 
-                    <div class="settings-grid-3 mb-lg">
+                    <div class="settings-grid-4 mb-lg">
+                        <div class="form-group mb-0">
+                            <label class="form-label" for="insert_coin_countdown_seconds">Initial Timer (Seconds)</label>
+                            <input type="number" min="10" max="600" class="form-input" id="insert_coin_countdown_seconds" name="insert_coin_countdown_seconds" value="{{ settings.insert_coin_countdown_seconds }}" required>
+                            <small class="form-hint">Initial countdown upon clicking Insert Coin (Default: 120s).</small>
+                        </div>
                         <div class="form-group mb-0">
                             <label class="form-label" for="coin_timer_extension_seconds">Bonus / Coin (Seconds)</label>
                             <input type="number" min="1" max="60" class="form-input" id="coin_timer_extension_seconds" name="coin_timer_extension_seconds" value="{{ settings.coin_timer_extension_seconds }}" required>
@@ -319,20 +303,25 @@
                     </div>
 
                     <div class="dependent-tree-group" id="spinWheelParams">
-                        <div class="settings-grid-3">
+                        <div class="settings-grid-4">
+                            <div class="form-group mb-0">
+                                <label class="form-label" for="points_per_peso">Points / ₱1 Spent</label>
+                                <input type="number" min="0" max="1000" class="form-input" id="points_per_peso" name="points_per_peso" value="{{ settings.points_per_peso }}" required>
+                                <small class="form-hint">Points earned per peso inserted (Default: 1).</small>
+                            </div>
                             <div class="form-group mb-0">
                                 <label class="form-label" for="spin_cost_points">Points to Spin</label>
-                                <input type="number" min="1" class="form-input" id="spin_cost_points" name="spin_cost_points" value="{{ settings.spin_cost_points }}" required>
+                                <input type="number" min="1" max="10000" class="form-input" id="spin_cost_points" name="spin_cost_points" value="{{ settings.spin_cost_points }}" required>
                                 <small class="form-hint">Points required for each spin attempt.</small>
                             </div>
                             <div class="form-group mb-0">
                                 <label class="form-label" for="daily_spin_limit">Max Spins / Day</label>
-                                <input type="number" min="1" class="form-input" id="daily_spin_limit" name="daily_spin_limit" value="{{ settings.daily_spin_limit }}" required>
+                                <input type="number" min="1" max="100" class="form-input" id="daily_spin_limit" name="daily_spin_limit" value="{{ settings.daily_spin_limit }}" required>
                                 <small class="form-hint">Maximum spins permitted per student daily.</small>
                             </div>
                             <div class="form-group mb-0">
                                 <label class="form-label" for="points_per_streak_day">Streak Bonus (Points)</label>
-                                <input type="number" min="1" class="form-input" id="points_per_streak_day" name="points_per_streak_day" value="{{ settings.points_per_streak_day }}" required>
+                                <input type="number" min="0" max="1000" class="form-input" id="points_per_streak_day" name="points_per_streak_day" value="{{ settings.points_per_streak_day }}" required>
                                 <small class="form-hint">Points awarded per consecutive day checked in.</small>
                             </div>
                         </div>
@@ -880,6 +869,12 @@
     gap: 16px;
 }
 
+.settings-grid-4 {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+}
+
 /* Form Groups & Typography */
 .form-group {
     margin-bottom: 16px;
@@ -1283,7 +1278,8 @@
         display: none;
     }
 
-    .settings-grid-3 {
+    .settings-grid-3,
+    .settings-grid-4 {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
@@ -1298,7 +1294,8 @@
     }
 
     .settings-grid-2,
-    .settings-grid-3 {
+    .settings-grid-3,
+    .settings-grid-4 {
         grid-template-columns: 1fr;
     }
 
@@ -1392,11 +1389,25 @@ document.addEventListener('DOMContentLoaded', function() {
             const targetSelector = input.dataset.toggleTarget;
             const targetElem = document.querySelector(targetSelector);
             if (targetElem) {
-                if (input.checked) {
+                const isEnabled = input.checked;
+                if (isEnabled) {
                     targetElem.classList.remove('is-dimmed');
                 } else {
                     targetElem.classList.add('is-dimmed');
                 }
+                const childInputs = targetElem.querySelectorAll('input, select, textarea');
+                childInputs.forEach(child => {
+                    if (isEnabled) {
+                        if (child.dataset.wasRequired === 'true') {
+                            child.setAttribute('required', 'required');
+                        }
+                    } else {
+                        if (child.hasAttribute('required')) {
+                            child.dataset.wasRequired = 'true';
+                            child.removeAttribute('required');
+                        }
+                    }
+                });
             }
         });
     }

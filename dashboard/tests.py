@@ -748,7 +748,7 @@ class AnnouncementManagementTests(TestCase):
             "points_per_streak_day": 5,
             "telegram_bot_token": "123456789:ABCdef-gh1234_xyz1234567890ABC",
             "telegram_admin_chat_id": "6261306648",
-        })
+        }, follow=True)
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "Settings updated successfully.")
 
@@ -1139,6 +1139,103 @@ class SecuritySystemHardeningTests(TestCase):
         })
         self.assertEqual(resp.status_code, 403)
         self.assertIn("blocked", resp.json().get("error", ""))
+
+
+class SettingsSystemHardeningTests(TestCase):
+    def setUp(self):
+        from dashboard.models import SystemSettings
+        User = get_user_model()
+        self.admin_user = User.objects.create_superuser('settings_admin', 'settings@test.com', 'password123')
+        self.client.login(username='settings_admin', password='password123')
+        self.settings = SystemSettings.get_settings()
+
+    def test_settings_view_requires_admin(self):
+        self.client.logout()
+        resp = self.client.get('/iconnect-ops/settings/')
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn('/iconnect-ops/login/', resp.url)
+
+    def test_settings_view_get(self):
+        resp = self.client.get('/iconnect-ops/settings/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Coin Slot Countdown Engine")
+        self.assertContains(resp, "Points / ₱1 Spent")
+
+    def test_coin_timer_max_cannot_be_less_than_initial_timer(self):
+        post_data = {
+            'insert_coin_countdown_seconds': '200',
+            'coin_timer_max_seconds': '100',
+            'coin_timer_min_remaining_seconds': '15',
+            'coin_timer_extension_seconds': '8',
+        }
+        resp = self.client.post('/iconnect-ops/settings/', post_data, follow=True)
+        self.assertEqual(resp.status_code, 200)
+        messages_list = list(resp.context['messages'])
+        self.assertTrue(any("cannot be less than the Initial Coin Timer" in str(m) for m in messages_list))
+        self.settings.refresh_from_db()
+        self.assertNotEqual(self.settings.insert_coin_countdown_seconds, 200)
+
+    def test_coin_timer_min_cannot_exceed_max(self):
+        post_data = {
+            'insert_coin_countdown_seconds': '60',
+            'coin_timer_max_seconds': '50',
+            'coin_timer_min_remaining_seconds': '60',
+            'coin_timer_extension_seconds': '8',
+        }
+        resp = self.client.post('/iconnect-ops/settings/', post_data, follow=True)
+        self.assertEqual(resp.status_code, 200)
+        messages_list = list(resp.context['messages'])
+        self.assertTrue(any("cannot exceed Coin Timer Maximum ceiling" in str(m) for m in messages_list))
+
+    def test_coin_timer_valid_save(self):
+        post_data = {
+            'insert_coin_countdown_seconds': '150',
+            'coin_timer_max_seconds': '240',
+            'coin_timer_min_remaining_seconds': '20',
+            'coin_timer_extension_seconds': '10',
+            'points_per_peso': '2',
+        }
+        resp = self.client.post('/iconnect-ops/settings/', post_data, follow=True)
+        self.assertEqual(resp.status_code, 200)
+        self.settings.refresh_from_db()
+        self.assertEqual(self.settings.insert_coin_countdown_seconds, 150)
+        self.assertEqual(self.settings.coin_timer_max_seconds, 240)
+        self.assertEqual(self.settings.coin_timer_min_remaining_seconds, 20)
+        self.assertEqual(self.settings.coin_timer_extension_seconds, 10)
+        self.assertEqual(self.settings.points_per_peso, 2)
+
+    def test_clear_telegram_credentials(self):
+        self.settings.telegram_bot_token = "123456789:ABCdef-gh1234_xyz12345678"
+        self.settings.telegram_admin_chat_id = "12345678"
+        self.settings.save()
+
+        post_data = {
+            'telegram_bot_token': '',
+            'telegram_admin_chat_id': '',
+        }
+        resp = self.client.post('/iconnect-ops/settings/', post_data, follow=True)
+        self.assertEqual(resp.status_code, 200)
+        self.settings.refresh_from_db()
+        self.assertEqual(self.settings.telegram_bot_token, "")
+        self.assertEqual(self.settings.telegram_admin_chat_id, "")
+
+    def test_telegram_invalid_token_rejected(self):
+        post_data = {
+            'telegram_bot_token': 'malformed_token_string',
+        }
+        resp = self.client.post('/iconnect-ops/settings/', post_data, follow=True)
+        self.assertEqual(resp.status_code, 200)
+        messages_list = list(resp.context['messages'])
+        self.assertTrue(any("Telegram Bot Token format appears invalid" in str(m) for m in messages_list))
+
+    def test_backup_database_sqlite(self):
+        resp = self.client.get('/iconnect-ops/settings/backup/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn(resp['Content-Type'], ['application/x-sqlite3', 'application/json'])
+        if resp['Content-Type'] == 'application/x-sqlite3':
+            # SQLite file header check
+            self.assertTrue(resp.content.startswith(b'SQLite format 3\x00'))
+
 
 
 

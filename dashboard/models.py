@@ -258,13 +258,13 @@ class SystemSettings(models.Model):
     )
     telegram_bot_token = models.CharField(
         max_length=150,
-        default="8946483111:AAEQBhy1vOqLFPdKIXjInvGjNrofI3TqgZg",
+        default="",
         blank=True,
         help_text="Telegram Bot Token from @BotFather"
     )
     telegram_admin_chat_id = models.CharField(
         max_length=50,
-        default="6261306648",
+        default="",
         blank=True,
         help_text="Authorized Telegram Admin Chat ID"
     )

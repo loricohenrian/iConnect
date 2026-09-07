@@ -2115,67 +2115,114 @@ def account_view(request):
 def settings_view(request):
     """View to manage global system settings."""
     settings_obj = SystemSettings.get_settings()
-    message = None
-    error_message = None
 
     if request.method == 'POST':
         try:
             # Networking
             settings_obj.enable_anti_tethering = request.POST.get('enable_anti_tethering') == 'on'
             settings_obj.enable_sqm = request.POST.get('enable_sqm') == 'on'
-            settings_obj.isp_download_speed = parse_bounded_int(request.POST.get('isp_download_speed'), 1, 10_000, "ISP Download Speed", default=100)
-            settings_obj.isp_upload_speed = parse_bounded_int(request.POST.get('isp_upload_speed'), 1, 10_000, "ISP Upload Speed", default=100)
+            settings_obj.isp_download_speed = parse_bounded_int(
+                request.POST.get('isp_download_speed'), 1, 10_000, "ISP Download Speed", default=settings_obj.isp_download_speed
+            )
+            settings_obj.isp_upload_speed = parse_bounded_int(
+                request.POST.get('isp_upload_speed'), 1, 10_000, "ISP Upload Speed", default=settings_obj.isp_upload_speed
+            )
             
             # General / UI
             settings_obj.enable_dark_mode = request.POST.get('enable_dark_mode') == 'on'
-            settings_obj.max_concurrent_sessions = parse_bounded_int(request.POST.get('max_concurrent_sessions'), 1, 1_000, "Max Concurrent Sessions", default=20)
-            settings_obj.global_pause_limit_hours = parse_bounded_int(request.POST.get('global_pause_limit_hours'), 0, 720, "Global Max Pause Hours", default=24)
+            settings_obj.max_concurrent_sessions = parse_bounded_int(
+                request.POST.get('max_concurrent_sessions'), 1, 1_000, "Max Concurrent Sessions", default=settings_obj.max_concurrent_sessions
+            )
+            settings_obj.global_pause_limit_hours = parse_bounded_int(
+                request.POST.get('global_pause_limit_hours'), 0, 720, "Global Max Pause Hours", default=settings_obj.global_pause_limit_hours
+            )
             
             # Network & Automation Features
             settings_obj.enable_internet_check = request.POST.get('enable_internet_check') == 'on'
             settings_obj.enable_outage_announcement = request.POST.get('enable_outage_announcement') == 'on'
             settings_obj.enable_outage_auto_pause = request.POST.get('enable_outage_auto_pause') == 'on'
             settings_obj.enable_auto_pause_resume = request.POST.get('enable_auto_pause_resume') == 'on'
-            settings_obj.auto_pause_timeout_seconds = parse_bounded_int(request.POST.get('auto_pause_timeout_seconds'), 60, 86_400, "Auto-Pause Timeout", default=300)
-            settings_obj.insert_coin_countdown_seconds = parse_bounded_int(request.POST.get('insert_coin_countdown_seconds'), 10, 600, "Insert Coin Countdown", default=120)
+            settings_obj.auto_pause_timeout_seconds = parse_bounded_int(
+                request.POST.get('auto_pause_timeout_seconds'), 60, 86_400, "Auto-Pause Timeout", default=settings_obj.auto_pause_timeout_seconds
+            )
+            settings_obj.insert_coin_countdown_seconds = parse_bounded_int(
+                request.POST.get('insert_coin_countdown_seconds'), 10, 600, "Insert Coin Countdown", default=settings_obj.insert_coin_countdown_seconds
+            )
             if 'coin_timer_extension_seconds' in request.POST:
-                settings_obj.coin_timer_extension_seconds = parse_bounded_int(request.POST.get('coin_timer_extension_seconds'), 1, 60, "Coin Timer Extension", default=8)
+                settings_obj.coin_timer_extension_seconds = parse_bounded_int(
+                    request.POST.get('coin_timer_extension_seconds'), 1, 60, "Coin Timer Extension", default=settings_obj.coin_timer_extension_seconds
+                )
             if 'coin_timer_min_remaining_seconds' in request.POST:
-                settings_obj.coin_timer_min_remaining_seconds = parse_bounded_int(request.POST.get('coin_timer_min_remaining_seconds'), 5, 60, "Coin Timer Minimum", default=15)
+                settings_obj.coin_timer_min_remaining_seconds = parse_bounded_int(
+                    request.POST.get('coin_timer_min_remaining_seconds'), 5, 60, "Coin Timer Minimum", default=settings_obj.coin_timer_min_remaining_seconds
+                )
             if 'coin_timer_max_seconds' in request.POST:
-                settings_obj.coin_timer_max_seconds = parse_bounded_int(request.POST.get('coin_timer_max_seconds'), 30, 600, "Coin Timer Maximum", default=180)
+                settings_obj.coin_timer_max_seconds = parse_bounded_int(
+                    request.POST.get('coin_timer_max_seconds'), 30, 600, "Coin Timer Maximum", default=settings_obj.coin_timer_max_seconds
+                )
+
+            # Relational validation for coin timer countdown
+            if settings_obj.coin_timer_min_remaining_seconds > settings_obj.coin_timer_max_seconds:
+                raise ValueError("Coin Timer Minimum floor cannot exceed Coin Timer Maximum ceiling.")
+            if settings_obj.coin_timer_max_seconds < settings_obj.insert_coin_countdown_seconds:
+                raise ValueError(
+                    f"Coin Timer Maximum ceiling ({settings_obj.coin_timer_max_seconds}s) cannot be less than "
+                    f"the Initial Coin Timer ({settings_obj.insert_coin_countdown_seconds}s)."
+                )
             
             # Gamification
             settings_obj.enable_spin_wheel = request.POST.get('enable_spin_wheel') == 'on'
-            settings_obj.spin_cost_points = parse_bounded_int(request.POST.get('spin_cost_points'), 1, 10_000, "Spin Cost Points", default=10)
-            settings_obj.daily_spin_limit = parse_bounded_int(request.POST.get('daily_spin_limit'), 1, 100, "Daily Spin Limit", default=3)
-            settings_obj.points_per_streak_day = parse_bounded_int(request.POST.get('points_per_streak_day'), 0, 1_000, "Points Per Streak Day", default=5)
+            settings_obj.spin_cost_points = parse_bounded_int(
+                request.POST.get('spin_cost_points'), 1, 10_000, "Spin Cost Points", default=settings_obj.spin_cost_points
+            )
+            settings_obj.daily_spin_limit = parse_bounded_int(
+                request.POST.get('daily_spin_limit'), 1, 100, "Daily Spin Limit", default=settings_obj.daily_spin_limit
+            )
+            settings_obj.points_per_streak_day = parse_bounded_int(
+                request.POST.get('points_per_streak_day'), 0, 1_000, "Points Per Streak Day", default=settings_obj.points_per_streak_day
+            )
+            if 'points_per_peso' in request.POST:
+                settings_obj.points_per_peso = parse_bounded_int(
+                    request.POST.get('points_per_peso'), 0, 1_000, "Points Per Peso", default=settings_obj.points_per_peso
+                )
             
             # Family Pass
             if 'enable_family_pass' in request.POST or 'family_pass_base_rate' in request.POST:
                 settings_obj.enable_family_pass = request.POST.get('enable_family_pass') == 'on'
                 if request.POST.get('family_pass_base_rate'):
-                    settings_obj.family_pass_base_rate = parse_bounded_int(request.POST.get('family_pass_base_rate'), 1, 10_000, "Family Pass Base Rate", default=20)
+                    settings_obj.family_pass_base_rate = parse_bounded_int(
+                        request.POST.get('family_pass_base_rate'), 1, 10_000, "Family Pass Base Rate", default=settings_obj.family_pass_base_rate
+                    )
                 if request.POST.get('family_pass_device_rate'):
-                    settings_obj.family_pass_device_rate = parse_bounded_int(request.POST.get('family_pass_device_rate'), 1, 10_000, "Family Pass Extra Device Rate", default=5)
+                    settings_obj.family_pass_device_rate = parse_bounded_int(
+                        request.POST.get('family_pass_device_rate'), 1, 10_000, "Family Pass Extra Device Rate", default=settings_obj.family_pass_device_rate
+                    )
                 if request.POST.get('family_pass_max_devices'):
-                    settings_obj.family_pass_max_devices = parse_bounded_int(request.POST.get('family_pass_max_devices'), 2, 50, "Family Pass Max Devices", default=6)
+                    settings_obj.family_pass_max_devices = parse_bounded_int(
+                        request.POST.get('family_pass_max_devices'), 2, 50, "Family Pass Max Devices", default=settings_obj.family_pass_max_devices
+                    )
                 if request.POST.get('family_pass_speed_limit'):
-                    settings_obj.family_pass_speed_limit = parse_bounded_float(request.POST.get('family_pass_speed_limit'), 0.1, 1000.0, "Family Pass Speed Limit", default=5.0)
+                    settings_obj.family_pass_speed_limit = parse_bounded_float(
+                        request.POST.get('family_pass_speed_limit'), 0.1, 1000.0, "Family Pass Speed Limit", default=settings_obj.family_pass_speed_limit
+                    )
                 if request.POST.get('family_pass_speed_limit_upload'):
-                    settings_obj.family_pass_speed_limit_upload = parse_bounded_float(request.POST.get('family_pass_speed_limit_upload'), 0.1, 1000.0, "Family Pass Upload Limit", default=5.0)
+                    settings_obj.family_pass_speed_limit_upload = parse_bounded_float(
+                        request.POST.get('family_pass_speed_limit_upload'), 0.1, 1000.0, "Family Pass Upload Limit", default=settings_obj.family_pass_speed_limit_upload
+                    )
             if 'group_code_expiry_hours' in request.POST:
-                settings_obj.group_code_expiry_hours = parse_bounded_int(request.POST.get('group_code_expiry_hours'), 0, 720, "Group Code Expiry Hours", default=24)
+                settings_obj.group_code_expiry_hours = parse_bounded_int(
+                    request.POST.get('group_code_expiry_hours'), 0, 720, "Group Code Expiry Hours", default=settings_obj.group_code_expiry_hours
+                )
             
             # Telegram Bot Integration
             if 'telegram_bot_token' in request.POST or 'enable_telegram_bot' in request.POST:
                 settings_obj.enable_telegram_bot = request.POST.get('enable_telegram_bot') == 'on'
-                if request.POST.get('telegram_bot_token'):
+                if 'telegram_bot_token' in request.POST:
                     token = request.POST.get('telegram_bot_token', '').strip()
                     if token and not re.match(r'^\d{6,15}:[A-Za-z0-9_-]{25,60}$', token):
                         raise ValueError("Telegram Bot Token format appears invalid. It should look like 123456789:ABCdef-gh1234_xyz.")
                     settings_obj.telegram_bot_token = token
-                if request.POST.get('telegram_admin_chat_id'):
+                if 'telegram_admin_chat_id' in request.POST:
                     chat_id = request.POST.get('telegram_admin_chat_id', '').strip()
                     if chat_id and not re.match(r'^-?\d{5,25}$', chat_id):
                         raise ValueError("Telegram Admin Chat ID must be numeric (e.g. 6261306648).")
@@ -2185,6 +2232,7 @@ def settings_view(request):
                 settings_obj.telegram_notify_daily_summary = request.POST.get('telegram_notify_daily_summary') == 'on'
 
             settings_obj.save()
+            audit_logger.info("event=settings_updated user=%s ip=%s", request.user.username, _client_ip(request))
             message = "Settings updated successfully."
 
             # Test telegram ping if requested
@@ -2206,16 +2254,19 @@ def settings_view(request):
                 logging.error(f"Failed to apply network settings: {e}")
                 message += " (Note: Network rules could not be applied, please check logs)."
 
-        except ValueError:
-            error_message = "Invalid input for numeric fields."
+            messages.success(request, message)
+            return _safe_redirect_referer(request, fallback='dashboard:settings')
+
+        except ValueError as e:
+            messages.error(request, str(e))
+            return _safe_redirect_referer(request, fallback='dashboard:settings')
         except Exception as e:
-            error_message = f"An error occurred: {e}"
+            messages.error(request, f"An error occurred: {e}")
+            return _safe_redirect_referer(request, fallback='dashboard:settings')
 
     context = {
         'active_page': 'settings',
         'settings': settings_obj,
-        'message': message,
-        'error_message': error_message,
     }
     return render(request, 'dashboard/settings.html', context)
 
@@ -2647,8 +2698,27 @@ def backup_database(request):
 
     if found_path:
         try:
-            with open(found_path, 'rb') as f:
-                content = f.read()
+            # Use SQLite online backup API to flush WAL frames and guarantee atomic snapshot
+            src_conn = sqlite3.connect(str(found_path))
+            dest_conn = sqlite3.connect(':memory:')
+            with dest_conn:
+                src_conn.backup(dest_conn)
+            src_conn.close()
+
+            if hasattr(dest_conn, 'serialize'):
+                content = dest_conn.serialize()
+            else:
+                import tempfile
+                with tempfile.NamedTemporaryFile(suffix='.sqlite3', delete=False) as tmp:
+                    tmp_name = tmp.name
+                file_dest = sqlite3.connect(tmp_name)
+                with file_dest:
+                    dest_conn.backup(file_dest)
+                file_dest.close()
+                with open(tmp_name, 'rb') as f:
+                    content = f.read()
+                Path(tmp_name).unlink(missing_ok=True)
+            dest_conn.close()
 
             response = HttpResponse(content, content_type='application/x-sqlite3')
             timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
@@ -2656,7 +2726,7 @@ def backup_database(request):
             audit_logger.info("event=database_backup_download user=%s size=%d", request.user.username, len(content))
             return response
         except Exception as e:
-            logger.error(f"Error reading SQLite backup file: {e}")
+            logger.error(f"Error executing SQLite online backup: {e}")
 
     # Fallback: Django JSON dumpdata backup
     try:
