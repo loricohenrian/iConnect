@@ -1978,19 +1978,27 @@ def session_status(request):
         )
 
     from dashboard.models import Announcement, SystemSettings
+    from sessions_app.internet_monitor import check_isp_internet_status
 
     session = Session.objects.filter(
         mac_address=mac_address,
         status__in=["active", "paused"],
     ).first()
 
+    isp_info = check_isp_internet_status(force_probe=False)
+    isp_outage = isp_info.get("isp_outage", False)
+    enable_outage_announcement = isp_info.get("enable_outage_announcement", True)
+    enable_outage_auto_pause = isp_info.get("enable_outage_auto_pause", True)
+    outage_message = isp_info.get("message", "")
+
     active_ann = Announcement.objects.filter(is_active=True).first()
     ann_text = active_ann.message if active_ann else None
-    isp_outage = Announcement.objects.filter(is_active=True, message__contains="interrupted by our ISP").exists()
+    if isp_outage and enable_outage_announcement and not ann_text:
+        ann_text = outage_message
 
     if session:
-        # If an ISP outage is active, enforce that the session is paused immediately!
-        if isp_outage and session.status == "active":
+        # If an ISP outage is active and auto-pause is enabled, freeze active session immediately!
+        if isp_outage and enable_outage_auto_pause and session.status == "active":
             session.pause_session()
             try:
                 iptables.block_device(session.mac_address)
@@ -2024,6 +2032,9 @@ def session_status(request):
                     "session": SessionSerializer(session).data,
                     "is_whitelisted": False,
                     "isp_outage": isp_outage,
+                    "enable_outage_announcement": enable_outage_announcement,
+                    "enable_outage_auto_pause": enable_outage_auto_pause,
+                    "outage_message": outage_message,
                     "announcement": ann_text,
                 }
             )
@@ -2071,6 +2082,9 @@ def session_status(request):
                 "session": SessionSerializer(locked_session).data,
                 "is_whitelisted": False,
                 "isp_outage": isp_outage,
+                "enable_outage_announcement": enable_outage_announcement,
+                "enable_outage_auto_pause": enable_outage_auto_pause,
+                "outage_message": outage_message,
                 "announcement": ann_text,
             }
             if locked_session.session_group:
@@ -2089,6 +2103,10 @@ def session_status(request):
             "message": "No active session found",
             "mac_address": mac_address,
             "is_whitelisted": False,
+            "isp_outage": isp_outage,
+            "enable_outage_announcement": enable_outage_announcement,
+            "enable_outage_auto_pause": enable_outage_auto_pause,
+            "outage_message": outage_message,
         }
     )
 

@@ -29,11 +29,31 @@
         <div class="form-group mb-md">
             <label class="d-flex align-items-center gap-xs text-xs font-semibold" style="cursor: pointer;">
                 <input type="checkbox" name="enable_internet_check" {% if settings.enable_internet_check %}checked{% endif %}>
-                <span>Internet Active Checking</span>
+                <span>Internet Active Checking (ISP Outage Monitoring)</span>
             </label>
             <small class="text-xs text-muted" style="display: block; margin-left: 20px; margin-top: 2px;">
-                Disables "Insert Coin" button when the ISP is offline to prevent eating coins.
+                Continuously probes upstream connection and automatically protects users during internet failure.
             </small>
+        </div>
+
+        <div class="form-group mb-md" style="margin-left: 20px; border-left: 2px solid var(--color-border); padding-left: 14px;">
+            <label class="d-flex align-items-center gap-xs text-xs font-semibold" style="cursor: pointer;">
+                <input type="checkbox" name="enable_outage_announcement" {% if settings.enable_outage_announcement %}checked{% endif %}>
+                <span>Auto Announcement & Sound Alert on Outage</span>
+            </label>
+            <small class="text-xs text-muted" style="display: block; margin-left: 20px; margin-top: 2px;">
+                Displays a real-time modal popup and plays an alert chime on the captive portal when the ISP connection is lost.
+            </small>
+
+            <div class="mt-sm">
+                <label class="d-flex align-items-center gap-xs text-xs font-semibold" style="cursor: pointer;">
+                    <input type="checkbox" name="enable_outage_auto_pause" {% if settings.enable_outage_auto_pause %}checked{% endif %}>
+                    <span>Auto-Pause Active Sessions on Outage</span>
+                </label>
+                <small class="text-xs text-muted" style="display: block; margin-left: 20px; margin-top: 2px;">
+                    Instantly freezes and pauses all active student session timers in real time to protect their remaining minutes until the ISP recovers.
+                </small>
+            </div>
         </div>
 
         <div class="form-group mb-md">

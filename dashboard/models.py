@@ -162,10 +162,17 @@ class SystemSettings(models.Model):
         help_text="Global fallback max pause duration in hours (0 = unlimited)"
     )
 
-    # Network & Automation Features
     enable_internet_check = models.BooleanField(
         default=True,
-        help_text="Auto-disable coin insertion and auto-pause sessions when the ISP/Internet is down"
+        help_text="Master switch: monitor ISP connection and detect outages"
+    )
+    enable_outage_announcement = models.BooleanField(
+        default=True,
+        help_text="Show real-time alert popup modal and play sound on captive portal when ISP is down"
+    )
+    enable_outage_auto_pause = models.BooleanField(
+        default=True,
+        help_text="Automatically freeze and pause active student sessions when ISP is down to protect customer time"
     )
     enable_auto_pause_resume = models.BooleanField(
         default=False,

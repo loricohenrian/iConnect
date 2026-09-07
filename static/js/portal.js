@@ -591,6 +591,9 @@ async function syncPortalLiveData() {
         if (data.slots) {
             _updateSlotsIndicator(data.slots);
         }
+
+        // Real-time ISP outage check on portal home
+        handlePortalOutageState(data, false);
     } catch (error) {
         console.error("Live data sync error:", error);
     }
@@ -1482,6 +1485,225 @@ function initExtendSessionFlow(macAddress) {
 }
 
 
+// ============================================
+// Real-Time ISP Outage Audio Alert & Modal Engine
+// ============================================
+let _audioCtx = null;
+let _isOutageActiveInPortal = false;
+
+function _getAudioContext() {
+    if (!_audioCtx) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioContextClass) {
+            _audioCtx = new AudioContextClass();
+        }
+    }
+    if (_audioCtx && _audioCtx.state === "suspended") {
+        _audioCtx.resume().catch(() => {});
+    }
+    return _audioCtx;
+}
+
+// Automatically unlock audio context on first user interaction
+if (typeof document !== "undefined") {
+    const unlockAudio = () => {
+        _getAudioContext();
+    };
+    document.addEventListener("click", unlockAudio, { passive: true });
+    document.addEventListener("touchstart", unlockAudio, { passive: true });
+}
+
+// Play distinctive two-tone alert chime (520Hz -> 660Hz)
+function playOutageAlertSound() {
+    try {
+        const ctx = _getAudioContext();
+        if (!ctx) return;
+        const now = ctx.currentTime;
+
+        // Tone 1: 520Hz
+        const osc1 = ctx.createOscillator();
+        const gain1 = ctx.createGain();
+        osc1.type = "sine";
+        osc1.frequency.setValueAtTime(520, now);
+        gain1.gain.setValueAtTime(0.18, now);
+        gain1.gain.exponentialRampToValueAtTime(0.01, now + 0.18);
+        osc1.connect(gain1);
+        gain1.connect(ctx.destination);
+        osc1.start(now);
+        osc1.stop(now + 0.18);
+
+        // Tone 2: 660Hz alert
+        const osc2 = ctx.createOscillator();
+        const gain2 = ctx.createGain();
+        osc2.type = "sine";
+        osc2.frequency.setValueAtTime(660, now + 0.22);
+        gain2.gain.setValueAtTime(0.22, now + 0.22);
+        gain2.gain.exponentialRampToValueAtTime(0.01, now + 0.45);
+        osc2.connect(gain2);
+        gain2.connect(ctx.destination);
+        osc2.start(now + 0.22);
+        osc2.stop(now + 0.45);
+    } catch (e) {
+        console.warn("Audio alert prevented or unsupported:", e);
+    }
+}
+
+// Play upbeat three-tone recovery chime (440Hz -> 587Hz -> 880Hz)
+function playRestoredSound() {
+    try {
+        const ctx = _getAudioContext();
+        if (!ctx) return;
+        const now = ctx.currentTime;
+        const freqs = [440, 587, 880];
+        freqs.forEach((f, i) => {
+            const t = now + i * 0.12;
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = "sine";
+            osc.frequency.setValueAtTime(f, t);
+            gain.gain.setValueAtTime(0.16, t);
+            gain.gain.exponentialRampToValueAtTime(0.01, t + 0.15);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(t);
+            osc.stop(t + 0.15);
+        });
+    } catch (e) {
+        console.warn("Recovery chime prevented or unsupported:", e);
+    }
+}
+
+function openIspOutageModal(customMessage, canAutoPause = true) {
+    const modal = document.getElementById("ispOutageModal");
+    if (!modal) return;
+
+    if (customMessage) {
+        const msgEl = document.getElementById("isp-outage-modal-message");
+        if (msgEl) msgEl.textContent = customMessage;
+    }
+
+    const badgeEl = document.getElementById("isp-outage-modal-badge");
+    if (badgeEl) {
+        badgeEl.style.display = canAutoPause ? "inline-flex" : "none";
+    }
+
+    modal.style.display = "flex";
+}
+
+function closeIspOutageModal(e) {
+    if (e && e.target && e.target !== e.currentTarget) return;
+    const modal = document.getElementById("ispOutageModal");
+    if (modal) modal.style.display = "none";
+}
+
+function showRestoredToast() {
+    const toast = document.getElementById("ispRestoredToast");
+    if (!toast) return;
+    toast.style.display = "flex";
+    setTimeout(() => {
+        toast.style.display = "none";
+    }, 4500);
+}
+
+window.openIspOutageModal = openIspOutageModal;
+window.closeIspOutageModal = closeIspOutageModal;
+
+function _showIspOutageBanner(customText) {
+    let el = document.getElementById("isp-outage-banner");
+    if (!el) {
+        el = document.createElement("div");
+        el.id = "isp-outage-banner";
+        el.className = "alert alert-danger animate-fadeIn";
+        el.style.cssText =
+            "background: #fef2f2; color: #991b1b; border: 1.5px solid #f87171; padding: 10px 14px; border-radius: 10px; font-size: 12px; font-weight: 600; margin-bottom: 12px; text-align: center; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.15);";
+        const card = document.querySelector(".portal-card") || document.querySelector(".container") || document.body;
+        if (card.firstChild) {
+            card.insertBefore(el, card.firstChild);
+        } else {
+            card.appendChild(el);
+        }
+    }
+    const msg = customText || "⚠️ Internet connection is temporarily interrupted. Your timer is FROZEN to protect your time!";
+    el.innerHTML = `<i class="bi bi-wifi-off"></i> ${escapeHtml(msg)}`;
+    el.style.display = "block";
+}
+
+function _hideIspOutageBanner() {
+    const el = document.getElementById("isp-outage-banner");
+    if (el) el.remove();
+}
+
+function _showIspOutageHomeBanner(customText) {
+    let el = document.getElementById("isp-outage-banner-home");
+    if (!el) {
+        el = document.createElement("div");
+        el.id = "isp-outage-banner-home";
+        el.className = "alert alert-danger animate-fadeIn mb-md";
+        el.style.cssText =
+            "display: flex; align-items: center; gap: 12px; border-left: 4px solid #ef4444; background: #fee2e2; color: #b91c1c; padding: 12px 16px; border-radius: 8px; font-size: 13px;";
+        const target = document.getElementById("start-session-panel") || document.querySelector(".portal-container");
+        if (target) {
+            target.parentNode.insertBefore(el, target);
+        }
+    }
+    const msg = customText || "Internet Service is Currently Offline. Coin insertion is temporarily paused to protect your coins.";
+    el.innerHTML = `<i class="bi bi-wifi-off" style="font-size: 24px; line-height: 1; flex-shrink: 0;"></i><div><strong style="font-size: 14px;">Internet Service is Offline</strong><br><span class="text-xs" style="color: #991b1b;">${escapeHtml(msg)}</span></div>`;
+    el.style.display = "flex";
+}
+
+function _hideIspOutageHomeBanner() {
+    const el = document.getElementById("isp-outage-banner-home");
+    if (el) el.remove();
+}
+
+function handlePortalOutageState(data, isSessionPage) {
+    const isOutage = Boolean(data.isp_outage);
+    const annEnabled = data.enable_outage_announcement !== false;
+    const pauseEnabled = data.enable_outage_auto_pause !== false;
+    const outageMsg = data.outage_message || data.announcement || "⚠️ Internet is temporarily interrupted by our ISP. All user timers have been FROZEN to protect your remaining time!";
+
+    if (isOutage) {
+        if (!_isOutageActiveInPortal) {
+            _isOutageActiveInPortal = true;
+            if (annEnabled) {
+                openIspOutageModal(outageMsg, pauseEnabled);
+                playOutageAlertSound();
+            }
+        }
+
+        if (isSessionPage) {
+            _showIspOutageBanner(outageMsg);
+        } else {
+            _showIspOutageHomeBanner(outageMsg);
+            const insertBtn = document.getElementById("request-slot-btn");
+            if (insertBtn) {
+                insertBtn.disabled = true;
+                insertBtn.setAttribute("data-outage-disabled", "1");
+                insertBtn.innerHTML = '<i class="bi bi-wifi-off"></i> Internet Offline (Paused)';
+            }
+        }
+    } else {
+        if (_isOutageActiveInPortal) {
+            _isOutageActiveInPortal = false;
+            closeIspOutageModal();
+            showRestoredToast();
+            playRestoredSound();
+
+            if (isSessionPage) {
+                _hideIspOutageBanner();
+            } else {
+                _hideIspOutageHomeBanner();
+                const insertBtn = document.getElementById("request-slot-btn");
+                if (insertBtn && insertBtn.getAttribute("data-outage-disabled") === "1") {
+                    insertBtn.disabled = false;
+                    insertBtn.removeAttribute("data-outage-disabled");
+                    insertBtn.innerHTML = '<i class="bi bi-coin"></i> Insert Coins 🪙';
+                }
+            }
+        }
+    }
+}
+
 function pollSessionStatus(macAddress, intervalMs = 3000) {
     setInterval(async () => {
         try {
@@ -1495,13 +1717,18 @@ function pollSessionStatus(macAddress, intervalMs = 3000) {
                 return;
             }
 
-            // Real-time synchronization of Pause / Resume / Outage state
+            // Real-time synchronization of Outage / Pause / Resume
+            handlePortalOutageState(data, true);
+
+            const isOutage = Boolean(data.isp_outage);
+            const pauseEnabled = data.enable_outage_auto_pause !== false;
+
             const pauseWarningEl = document.getElementById("pause-duration-warning");
             const pauseBtn = document.getElementById("pause-btn");
             const timerEl = document.getElementById("session-timer");
             const connectionStatusEl = document.getElementById("connection-status");
 
-            if (data.isp_outage || data.status === "paused") {
+            if ((isOutage && pauseEnabled) || data.status === "paused") {
                 if (window.sessionTimer && !window.sessionTimer.isPaused) {
                     window.sessionTimer.pause();
                 }
@@ -1515,11 +1742,13 @@ function pollSessionStatus(macAddress, intervalMs = 3000) {
                     timerEl.classList.add("timer-amber");
                 }
                 if (connectionStatusEl) {
-                    connectionStatusEl.innerHTML = '<span class="status-dot" style="background: var(--color-warning);"></span><span>Paused</span>';
+                    connectionStatusEl.innerHTML = isOutage
+                        ? '<span class="status-dot" style="background: var(--color-warning);"></span><span>Paused (No Internet)</span>'
+                        : '<span class="status-dot" style="background: var(--color-warning);"></span><span>Paused</span>';
                 }
                 if (pauseBtn) {
                     pauseBtn.classList.add("paused");
-                    if (data.isp_outage) {
+                    if (isOutage) {
                         pauseBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5zm5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5z"/></svg><span>Frozen (No Internet)</span>';
                         pauseBtn.disabled = true;
                     } else {
@@ -1530,10 +1759,7 @@ function pollSessionStatus(macAddress, intervalMs = 3000) {
                 if (pauseWarningEl) {
                     pauseWarningEl.style.display = "block";
                 }
-                if (data.isp_outage) {
-                    _showIspOutageBanner(data.announcement);
-                }
-            } else if (data.status === "active" && !data.isp_outage) {
+            } else if (data.status === "active" && !isOutage) {
                 if (window.sessionTimer && window.sessionTimer.isPaused) {
                     window.sessionTimer.resume();
                 }
@@ -1560,17 +1786,17 @@ function pollSessionStatus(macAddress, intervalMs = 3000) {
             }
 
             _updatePortalAnnouncement(data.announcement);
-            
+
             if (data.group_max && data.group_redeemed !== undefined) {
                 const groupStatusEl = document.getElementById("group-plan-status");
                 if (groupStatusEl) {
                     groupStatusEl.innerText = `${data.group_redeemed} / ${data.group_max} slots redeemed`;
                 }
-                
+
                 if (data.group_code_expires_at) {
                     const expiryTimerEl = document.getElementById("group-code-expiry-timer");
-                    if (expiryTimerEl && !expiryTimerEl.getAttribute('data-expires')) {
-                         expiryTimerEl.setAttribute('data-expires', data.group_code_expires_at);
+                    if (expiryTimerEl && !expiryTimerEl.getAttribute("data-expires")) {
+                        expiryTimerEl.setAttribute("data-expires", data.group_code_expires_at);
                     }
                 }
             }
@@ -1578,30 +1804,6 @@ function pollSessionStatus(macAddress, intervalMs = 3000) {
             console.error("Status poll error:", error);
         }
     }, intervalMs);
-}
-
-function _showIspOutageBanner(customText) {
-    let el = document.getElementById('isp-outage-banner');
-    if (!el) {
-        el = document.createElement('div');
-        el.id = 'isp-outage-banner';
-        el.className = 'alert alert-danger animate-fadeIn';
-        el.style.cssText = 'background: #fef2f2; color: #991b1b; border: 1.5px solid #f87171; padding: 10px 14px; border-radius: 10px; font-size: 12px; font-weight: 600; margin-bottom: 12px; text-align: center; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.15);';
-        const card = document.querySelector('.portal-card') || document.querySelector('.container') || document.body;
-        if (card.firstChild) {
-            card.insertBefore(el, card.firstChild);
-        } else {
-            card.appendChild(el);
-        }
-    }
-    const msg = customText || "⚠️ Internet connection is temporarily interrupted. Your timer is FROZEN to protect your time!";
-    el.innerHTML = `<i class="bi bi-wifi-off"></i> ${msg}`;
-    el.style.display = 'block';
-}
-
-function _hideIspOutageBanner() {
-    const el = document.getElementById('isp-outage-banner');
-    if (el) el.remove();
 }
 
 function _updatePortalAnnouncement(announcementText) {

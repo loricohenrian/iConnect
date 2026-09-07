@@ -161,9 +161,9 @@ def index(request):
     active_count = Session.objects.filter(status='active').count()
     available_slots = max(0, max_slots - active_count)
 
-    is_internet_offline = False
-    if settings_obj.enable_internet_check:
-        is_internet_offline = Announcement.objects.filter(is_active=True, message__contains="interrupted by our ISP").exists()
+    from sessions_app.internet_monitor import check_isp_internet_status
+    isp_info = check_isp_internet_status(force_probe=False)
+    is_internet_offline = isp_info.get("isp_outage", False)
 
     from sessions_app.views import generate_smart_combo_examples
     smart_combo_examples = generate_smart_combo_examples(plans, is_extend=False)
@@ -207,10 +207,13 @@ def session_page(request):
         status__in=["active", "paused"],
     ).select_related("plan", "session_group").first()
 
+    from sessions_app.internet_monitor import check_isp_internet_status
+    isp_info = check_isp_internet_status(force_probe=False)
+    isp_outage = isp_info.get("isp_outage", False)
+
     if active_session:
-        # Check if ISP is currently down and enforce pause
-        isp_outage = Announcement.objects.filter(is_active=True, message__contains="interrupted by our ISP").exists()
-        if isp_outage and active_session.status == "active":
+        # Check if ISP is currently down and auto-pause is enabled
+        if isp_outage and isp_info.get("enable_outage_auto_pause", True) and active_session.status == "active":
             active_session.pause_session()
             try:
                 iptables.block_device(active_session.mac_address)
@@ -280,6 +283,10 @@ def session_page(request):
         "insert_coin_countdown_seconds": SystemSettings.get_settings().insert_coin_countdown_seconds,
         "group_code_remaining_display": group_code_remaining_display,
         "group_code_remaining_seconds": group_code_remaining_seconds,
+        "isp_outage": isp_outage,
+        "enable_outage_announcement": isp_info.get("enable_outage_announcement", True),
+        "enable_outage_auto_pause": isp_info.get("enable_outage_auto_pause", True),
+        "outage_message": isp_info.get("message", ""),
     }
     
     # Calculate pause info for display
@@ -407,6 +414,9 @@ def live_data(request):
     ]
 
     from sessions_app.views import generate_smart_combo_examples
+    from sessions_app.internet_monitor import check_isp_internet_status
+    isp_info = check_isp_internet_status(force_probe=False)
+
     smart_combos = generate_smart_combo_examples(plans, is_extend=False)
     smart_combos_extend = generate_smart_combo_examples(plans, is_extend=True)
 
@@ -416,6 +426,10 @@ def live_data(request):
             "smart_combo_examples": smart_combos,
             "smart_combo_examples_extend": smart_combos_extend,
             "announcements": announcement_payload,
+            "isp_outage": isp_info.get("isp_outage", False),
+            "enable_outage_announcement": isp_info.get("enable_outage_announcement", True),
+            "enable_outage_auto_pause": isp_info.get("enable_outage_auto_pause", True),
+            "outage_message": isp_info.get("message", ""),
             "slots": {
                 "active": active_count,
                 "max": max_slots,

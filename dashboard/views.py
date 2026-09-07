@@ -1861,6 +1861,8 @@ def settings_view(request):
             
             # Network & Automation Features
             settings_obj.enable_internet_check = request.POST.get('enable_internet_check') == 'on'
+            settings_obj.enable_outage_announcement = request.POST.get('enable_outage_announcement') == 'on'
+            settings_obj.enable_outage_auto_pause = request.POST.get('enable_outage_auto_pause') == 'on'
             settings_obj.enable_auto_pause_resume = request.POST.get('enable_auto_pause_resume') == 'on'
             settings_obj.auto_pause_timeout_seconds = int(request.POST.get('auto_pause_timeout_seconds', 300))
             settings_obj.insert_coin_countdown_seconds = int(request.POST.get('insert_coin_countdown_seconds', 120))
