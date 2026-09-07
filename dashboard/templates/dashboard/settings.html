@@ -6,311 +6,1502 @@
 {% block dashboard_content %}
 
 {% if message %}
-<div class="alert alert-success mb-md">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-    {{ message }}
+<div class="alert alert-success mb-md animate-fadeIn" style="display: flex; align-items: center; gap: 10px; border-radius: 10px;">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+    <span>{{ message }}</span>
 </div>
 {% endif %}
 
 {% if error_message %}
-<div class="alert alert-danger mb-md">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-    {{ error_message }}
+<div class="alert alert-danger mb-md animate-fadeIn" style="display: flex; align-items: center; gap: 10px; border-radius: 10px;">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+    <span>{{ error_message }}</span>
 </div>
 {% endif %}
 
-<form method="POST" action="">
+<form method="POST" action="" id="globalSettingsForm">
 {% csrf_token %}
-<div class="grid-2">
-    <!-- Networking Settings -->
-    <div class="chart-card animate-fadeIn">
-        <h3 class="chart-title mb-md">Advanced Networking</h3>
-        
-        <div class="form-group mb-md">
-            <label class="d-flex align-items-center gap-xs text-xs font-semibold" style="cursor: pointer;">
-                <input type="checkbox" name="enable_internet_check" {% if settings.enable_internet_check %}checked{% endif %}>
-                <span>Internet Active Checking (ISP Outage Monitoring)</span>
-            </label>
-            <small class="text-xs text-muted" style="display: block; margin-left: 20px; margin-top: 2px;">
-                Continuously probes upstream connection and automatically protects users during internet failure.
-            </small>
-        </div>
 
-        <div class="form-group mb-md" style="margin-left: 20px; border-left: 2px solid var(--color-border); padding-left: 14px;">
-            <label class="d-flex align-items-center gap-xs text-xs font-semibold" style="cursor: pointer;">
-                <input type="checkbox" name="enable_outage_announcement" {% if settings.enable_outage_announcement %}checked{% endif %}>
-                <span>Auto Announcement & Sound Alert on Outage</span>
-            </label>
-            <small class="text-xs text-muted" style="display: block; margin-left: 20px; margin-top: 2px;">
-                Displays a real-time modal popup and plays an alert chime on the captive portal when the ISP connection is lost.
-            </small>
+<div class="settings-layout">
+    <!-- Left Navigation / Category Tabs -->
+    <aside class="settings-nav" aria-label="Settings Categories">
+        <div class="settings-nav-header">
+            <span class="settings-nav-title">Categories</span>
+        </div>
+        <div class="settings-nav-list" role="tablist">
+            <button type="button" class="settings-tab-btn active" data-tab="networking" role="tab" aria-selected="true" id="tab-btn-networking">
+                <span class="tab-icon-wrap">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"></path><path d="M1.42 9a16 16 0 0 1 21.16 0"></path><path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path><line x1="12" y1="20" x2="12.01" y2="20"></line></svg>
+                </span>
+                <span class="tab-label">Networking</span>
+            </button>
 
-            <div class="mt-sm">
-                <label class="d-flex align-items-center gap-xs text-xs font-semibold" style="cursor: pointer;">
-                    <input type="checkbox" name="enable_outage_auto_pause" {% if settings.enable_outage_auto_pause %}checked{% endif %}>
-                    <span>Auto-Pause Active Sessions on Outage</span>
-                </label>
-                <small class="text-xs text-muted" style="display: block; margin-left: 20px; margin-top: 2px;">
-                    Instantly freezes and pauses all active student session timers in real time to protect their remaining minutes until the ISP recovers.
-                </small>
-            </div>
-        </div>
+            <button type="button" class="settings-tab-btn" data-tab="general" role="tab" aria-selected="false" id="tab-btn-general">
+                <span class="tab-icon-wrap">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                </span>
+                <span class="tab-label">General</span>
+            </button>
 
-        <div class="form-group mb-md">
-            <label class="d-flex align-items-center gap-xs text-xs font-semibold" style="cursor: pointer;">
-                <input type="checkbox" name="enable_anti_tethering" {% if settings.enable_anti_tethering %}checked{% endif %}>
-                <span>Anti-Tethering (TTL=1)</span>
-            </label>
-            <small class="text-xs text-muted" style="display: block; margin-left: 20px; margin-top: 2px;">
-                Blocks hotspot/bluetooth sharing by forcing packet time-to-live to 1.
-            </small>
-        </div>
+            <button type="button" class="settings-tab-btn" data-tab="gamification" role="tab" aria-selected="false" id="tab-btn-gamification">
+                <span class="tab-icon-wrap">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                </span>
+                <span class="tab-label">Gamification</span>
+            </button>
 
-        <div class="form-group mb-md">
-            <label class="d-flex align-items-center gap-xs text-xs font-semibold" style="cursor: pointer;">
-                <input type="checkbox" name="enable_sqm" {% if settings.enable_sqm %}checked{% endif %}>
-                <span>SQM CAKE (Anti-Bufferbloat)</span>
-            </label>
-            <small class="text-xs text-muted" style="display: block; margin-left: 20px; margin-top: 2px; margin-bottom: 8px;">
-                Reduces ping spikes when under heavy student load.
-            </small>
-        </div>
-        
-        <div class="grid-2" style="margin-left: 20px;">
-            <div class="form-group">
-                <label class="form-label">ISP Download (Mbps)</label>
-                <input type="number" min="1" class="form-input" name="isp_download_speed" value="{{ settings.isp_download_speed }}" required>
-            </div>
-            <div class="form-group">
-                <label class="form-label">ISP Upload (Mbps)</label>
-                <input type="number" min="1" class="form-input" name="isp_upload_speed" value="{{ settings.isp_upload_speed }}" required>
-            </div>
-        </div>
-        <small class="text-xs text-muted" style="display: block; margin-left: 20px; margin-top: 2px;">
-            * Set to 90-95% of true maximum ISP speed for CAKE to optimize traffic.
-        </small>
-    </div>
+            <button type="button" class="settings-tab-btn" data-tab="family" role="tab" aria-selected="false" id="tab-btn-family">
+                <span class="tab-icon-wrap">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                </span>
+                <span class="tab-label">Family Pass</span>
+            </button>
 
-    <!-- General Settings -->
-    <div class="chart-card animate-fadeIn">
-        <h3 class="chart-title mb-md">General Preferences</h3>
-        
-        <div class="grid-2 mb-sm">
-            <div class="form-group">
-                <label class="form-label">Max Concurrent Users</label>
-                <input type="number" min="1" class="form-input" name="max_concurrent_sessions" value="{{ settings.max_concurrent_sessions }}" required>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Global Max Pause (Hrs)</label>
-                <input type="number" min="0" class="form-input" name="global_pause_limit_hours" value="{{ settings.global_pause_limit_hours }}" required>
-            </div>
-        </div>
+            <button type="button" class="settings-tab-btn" data-tab="integrations" role="tab" aria-selected="false" id="tab-btn-integrations">
+                <span class="tab-icon-wrap">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"></path><path d="M22 2 11 13"></path></svg>
+                </span>
+                <span class="tab-label">Integrations</span>
+            </button>
 
-        <div class="form-group mb-md">
-            <label class="d-flex align-items-center gap-xs text-xs font-semibold" style="cursor: pointer;">
-                <input type="checkbox" name="enable_auto_pause_resume" {% if settings.enable_auto_pause_resume %}checked{% endif %}>
-                <span>Auto-Pause & Resume</span>
-            </label>
-            <small class="text-xs text-muted" style="display: block; margin-left: 20px; margin-top: 2px;">
-                Pauses session on WiFi disconnect, and resumes automatically when reconnected.
-            </small>
-        </div>
-        
-        <div class="grid-2" style="margin-left: 20px;">
-            <div class="form-group">
-                <label class="form-label">Disconnect Timeout (s)</label>
-                <input type="number" min="60" class="form-input" name="auto_pause_timeout_seconds" value="{{ settings.auto_pause_timeout_seconds }}" required>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Initial Coin Timer (s)</label>
-                <input type="number" min="10" class="form-input" name="insert_coin_countdown_seconds" value="{{ settings.insert_coin_countdown_seconds }}" required>
-            </div>
-        </div>
+            <button type="button" class="settings-tab-btn" data-tab="backup" role="tab" aria-selected="false" id="tab-btn-backup">
+                <span class="tab-icon-wrap">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                </span>
+                <span class="tab-label">Backup</span>
+            </button>
 
-        <div class="grid-3 mt-sm" style="margin-left: 20px;">
-            <div class="form-group">
-                <label class="form-label">Bonus / Coin (s)</label>
-                <input type="number" min="1" max="60" class="form-input" name="coin_timer_extension_seconds" value="{{ settings.coin_timer_extension_seconds }}" required>
-                <small class="text-xs text-muted">Added per coin dropped (Default: 8s)</small>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Min Guaranteed (s)</label>
-                <input type="number" min="5" max="60" class="form-input" name="coin_timer_min_remaining_seconds" value="{{ settings.coin_timer_min_remaining_seconds }}" required>
-                <small class="text-xs text-muted">Minimum floor on insert (Default: 15s)</small>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Timer Ceiling (s)</label>
-                <input type="number" min="30" max="600" class="form-input" name="coin_timer_max_seconds" value="{{ settings.coin_timer_max_seconds }}" required>
-                <small class="text-xs text-muted">Max countdown ceiling (Default: 180s)</small>
-            </div>
-        </div>
+            <div class="settings-nav-divider"></div>
 
-        <div class="form-group mt-md">
-            <label class="d-flex align-items-center gap-xs text-xs font-semibold" style="cursor: pointer;">
-                <input type="checkbox" name="enable_dark_mode" {% if settings.enable_dark_mode %}checked{% endif %}>
-                <span>Force Dark Theme</span>
-            </label>
-            <small class="text-xs text-muted" style="display: block; margin-left: 20px; margin-top: 2px;">
-                Forces the admin interface to always render in dark mode.
-            </small>
-        </div>
-    </div>
-
-    <!-- Gamification Settings -->
-    <div class="chart-card animate-fadeIn">
-        <h3 class="chart-title mb-md">Gamification Engine</h3>
-        
-        <div class="form-group mb-sm">
-            <label class="d-flex align-items-center gap-xs text-xs font-semibold" style="cursor: pointer;">
-                <input type="checkbox" name="enable_spin_wheel" {% if settings.enable_spin_wheel %}checked{% endif %}>
-                <span>Enable Spin The Wheel</span>
-            </label>
-            <small class="text-xs text-muted" style="display: block; margin-left: 20px; margin-top: 2px;">
-                Allows students to earn daily streak points and spin for bonus WiFi time.
-            </small>
-        </div>
-
-        <div class="grid-3 mt-md" style="margin-left: 20px;">
-            <div class="form-group">
-                <label class="form-label">Points to Spin</label>
-                <input type="number" min="1" class="form-input" name="spin_cost_points" value="{{ settings.spin_cost_points }}" required>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Max Spins/Day</label>
-                <input type="number" min="1" class="form-input" name="daily_spin_limit" value="{{ settings.daily_spin_limit }}" required>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Streak Bonus</label>
-                <input type="number" min="1" class="form-input" name="points_per_streak_day" value="{{ settings.points_per_streak_day }}" required>
-            </div>
-        </div>
-    </div>
-
-    <!-- Family Pass Settings -->
-    <div class="chart-card animate-fadeIn">
-        <h3 class="chart-title mb-md">Family & Group Pass</h3>
-        
-        <div class="form-group mb-md">
-            <label class="d-flex align-items-center gap-xs text-xs font-semibold" style="cursor: pointer;">
-                <input type="checkbox" name="enable_family_pass" {% if settings.enable_family_pass %}checked{% endif %}>
-                <span>Enable Family Pass Sharing</span>
-            </label>
-            <small class="text-xs text-muted" style="display: block; margin-left: 20px; margin-top: 2px;">
-                Allow users to generate a 5-character group pass code to share active time.
-            </small>
-        </div>
-
-        <div class="grid-2" style="margin-left: 20px;">
-            <div class="form-group">
-                <label class="form-label">Base Rate (₱/hr for 1 device)</label>
-                <input type="number" min="1" class="form-input" name="family_pass_base_rate" value="{{ settings.family_pass_base_rate }}" required>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Extra Device Rate (₱/hr each)</label>
-                <input type="number" min="1" class="form-input" name="family_pass_device_rate" value="{{ settings.family_pass_device_rate }}" required>
-            </div>
-        </div>
-
-        <div class="grid-3 mt-sm" style="margin-left: 20px;">
-            <div class="form-group">
-                <label class="form-label">Max Devices</label>
-                <input type="number" min="2" max="20" class="form-input" name="family_pass_max_devices" value="{{ settings.family_pass_max_devices }}" required>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Download Limit (Mbps)</label>
-                <input type="number" min="0.5" step="0.5" class="form-input" name="family_pass_speed_limit" value="{{ settings.family_pass_speed_limit }}" required>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Upload Limit (Mbps)</label>
-                <input type="number" min="0.5" step="0.5" class="form-input" name="family_pass_speed_limit_upload" value="{{ settings.family_pass_speed_limit_upload }}" required>
-            </div>
-        </div>
-
-        <div class="form-group mt-sm" style="margin-left: 20px;">
-            <label class="form-label">Group Code Expiry (Hours)</label>
-            <input type="number" class="form-input" name="group_code_expiry_hours" min="0" max="168" value="{{ settings.group_code_expiry_hours }}">
-            <small class="text-xs text-muted" style="display: block; margin-top: 2px;">
-                Set to 0 for unlimited validity.
-            </small>
-        </div>
-    </div>
-
-    <!-- Telegram Bot Remote Operations -->
-    <div class="chart-card animate-fadeIn" style="grid-column: 1 / -1;">
-        <div class="d-flex justify-content-between align-items-center mb-md flex-wrap gap-sm">
-            <div>
-                <h3 class="chart-title" style="display: flex; align-items: center; gap: 8px;">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="color: #0088cc;"><path d="m20.665 3.717-17.73 6.837c-1.21.486-1.203 1.161-.222 1.462l4.552 1.42 10.532-6.645c.498-.303.953-.14.579.192l-8.533 7.701h-.002l-.313 4.676c.459 0 .661-.21.919-.462l2.207-2.145 4.588 3.39c.847.467 1.455.226 1.666-.787l3.007-14.167c.309-1.239-.473-1.8-1.282-1.474z"/></svg>
-                    Telegram Bot Remote Controller
-                </h3>
-                <p class="text-xs text-muted" style="margin: 0;">
-                    Manage your Piso WiFi node from your smartphone via Telegram (<a href="https://t.me/iConnect_Ops_bot" target="_blank" style="color: var(--color-primary); font-weight: 600;">@iConnect_Ops_bot</a>).
-                </p>
-            </div>
-            <button type="submit" name="test_telegram" value="1" class="btn btn-secondary btn-sm" style="font-size: 12px; display: inline-flex; align-items: center; gap: 6px;">
-                🔔 Test Ping
+            <button type="button" class="settings-tab-btn" data-tab="all" role="tab" aria-selected="false" id="tab-btn-all">
+                <span class="tab-icon-wrap">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                </span>
+                <span class="tab-label">Show All</span>
             </button>
         </div>
+    </aside>
 
-        <div class="form-group mb-md">
-            <label class="d-flex align-items-center gap-xs text-xs font-semibold" style="cursor: pointer;">
-                <input type="checkbox" name="enable_telegram_bot" {% if settings.enable_telegram_bot %}checked{% endif %}>
-                <span>Enable Telegram Bot Remote Operations</span>
-            </label>
-        </div>
+    <!-- Main Content Panels -->
+    <div class="settings-panels">
 
-        <div class="grid-2">
-            <div class="form-group">
-                <label class="form-label">Bot Token (from @BotFather)</label>
-                <input type="text" class="form-input" name="telegram_bot_token" value="{{ settings.telegram_bot_token }}" placeholder="e.g., 8946483111:AAEQBhy1vOqLFPdKIXjInvGjNrofI3TqgZg">
+        <!-- ================= 1. NETWORKING PANEL ================= -->
+        <section class="settings-panel active" id="panel-networking" data-tab="networking" role="tabpanel" aria-labelledby="tab-btn-networking">
+            <div class="settings-card">
+                <div class="settings-card-header">
+                    <div class="settings-card-title-group">
+                        <div class="settings-card-icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"></path><path d="M1.42 9a16 16 0 0 1 21.16 0"></path><path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path><line x1="12" y1="20" x2="12.01" y2="20"></line></svg>
+                        </div>
+                        <div>
+                            <h3 class="settings-card-title">Advanced Networking</h3>
+                            <p class="settings-card-subtitle">WAN health probing, captive portal outage alerts, anti-tethering, and bandwidth optimization.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-card-body">
+                    <!-- Parent Toggle: Internet Active Checking -->
+                    <div class="setting-toggle-row">
+                        <div class="setting-toggle-info">
+                            <label for="enable_internet_check" class="setting-toggle-title">Internet Active Checking (ISP Outage Monitoring)</label>
+                            <span class="setting-toggle-desc">Continuously probes upstream connection to detect WAN loss instantly and protect users.</span>
+                        </div>
+                        <label class="custom-switch">
+                            <input type="checkbox" id="enable_internet_check" name="enable_internet_check" {% if settings.enable_internet_check %}checked{% endif %} data-toggle-target="#outageSubOptions">
+                            <span class="switch-slider"></span>
+                        </label>
+                    </div>
+
+                    <!-- Dependent Children: Outage Announcement & Auto-Pause -->
+                    <div class="dependent-tree-group" id="outageSubOptions">
+                        <div class="dependent-branch-item">
+                            <div class="setting-toggle-row compact">
+                                <div class="setting-toggle-info">
+                                    <label for="enable_outage_announcement" class="setting-toggle-title">Auto Announcement & Sound Alert on Outage</label>
+                                    <span class="setting-toggle-desc">Displays a real-time modal popup and plays an alert chime on connected captive portals during internet loss.</span>
+                                </div>
+                                <label class="custom-switch">
+                                    <input type="checkbox" id="enable_outage_announcement" name="enable_outage_announcement" {% if settings.enable_outage_announcement %}checked{% endif %}>
+                                    <span class="switch-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="dependent-branch-item">
+                            <div class="setting-toggle-row compact">
+                                <div class="setting-toggle-info">
+                                    <label for="enable_outage_auto_pause" class="setting-toggle-title">Auto-Pause Active Sessions on Outage</label>
+                                    <span class="setting-toggle-desc">Instantly freezes all active student session countdown timers in real time until ISP recovers.</span>
+                                </div>
+                                <label class="custom-switch">
+                                    <input type="checkbox" id="enable_outage_auto_pause" name="enable_outage_auto_pause" {% if settings.enable_outage_auto_pause %}checked{% endif %}>
+                                    <span class="switch-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="settings-divider"></div>
+
+                    <!-- Anti-Tethering -->
+                    <div class="setting-toggle-row">
+                        <div class="setting-toggle-info">
+                            <label for="enable_anti_tethering" class="setting-toggle-title">Anti-Tethering (TTL=1)</label>
+                            <span class="setting-toggle-desc">Prevents hotspot and Bluetooth sharing by forcing packet Time-To-Live to 1.</span>
+                        </div>
+                        <label class="custom-switch">
+                            <input type="checkbox" id="enable_anti_tethering" name="enable_anti_tethering" {% if settings.enable_anti_tethering %}checked{% endif %}>
+                            <span class="switch-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="settings-divider"></div>
+
+                    <!-- SQM CAKE -->
+                    <div class="setting-toggle-row">
+                        <div class="setting-toggle-info">
+                            <label for="enable_sqm" class="setting-toggle-title">SQM CAKE (Anti-Bufferbloat)</label>
+                            <span class="setting-toggle-desc">Eliminates ping spikes and keeps latency ultra-low even under heavy concurrent student load.</span>
+                        </div>
+                        <label class="custom-switch">
+                            <input type="checkbox" id="enable_sqm" name="enable_sqm" {% if settings.enable_sqm %}checked{% endif %} data-toggle-target="#sqmBandwidthGrid">
+                            <span class="switch-slider"></span>
+                        </label>
+                    </div>
+
+                    <!-- Dependent SQM Speeds -->
+                    <div class="dependent-tree-group" id="sqmBandwidthGrid">
+                        <div class="settings-grid-2">
+                            <div class="form-group mb-0">
+                                <label class="form-label" for="isp_download_speed">ISP Download Speed (Mbps)</label>
+                                <input type="number" min="1" class="form-input" id="isp_download_speed" name="isp_download_speed" value="{{ settings.isp_download_speed }}" required>
+                                <small class="form-hint">Set to 90–95% of your measured download speed.</small>
+                            </div>
+                            <div class="form-group mb-0">
+                                <label class="form-label" for="isp_upload_speed">ISP Upload Speed (Mbps)</label>
+                                <input type="number" min="1" class="form-input" id="isp_upload_speed" name="isp_upload_speed" value="{{ settings.isp_upload_speed }}" required>
+                                <small class="form-hint">Set to 90–95% of your measured upload speed.</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="form-group">
-                <label class="form-label">Authorized Admin Chat ID</label>
-                <input type="text" class="form-input" name="telegram_admin_chat_id" value="{{ settings.telegram_admin_chat_id }}" placeholder="e.g., 6261306648">
-            </div>
-        </div>
+        </section>
 
-        <div class="mt-sm" style="display: flex; flex-wrap: wrap; gap: 20px;">
-            <label class="d-flex align-items-center gap-xs text-xs font-semibold" style="cursor: pointer;">
-                <input type="checkbox" name="telegram_notify_tickets" {% if settings.telegram_notify_tickets %}checked{% endif %}>
-                <span>Instant Ticket Alerts (Student Stuck Coins)</span>
-            </label>
-            <label class="d-flex align-items-center gap-xs text-xs font-semibold" style="cursor: pointer;">
-                <input type="checkbox" name="telegram_notify_isp_down" {% if settings.telegram_notify_isp_down %}checked{% endif %}>
-                <span>ISP Outage & Recovery Alerts</span>
-            </label>
-            <label class="d-flex align-items-center gap-xs text-xs font-semibold" style="cursor: pointer;">
-                <input type="checkbox" name="telegram_notify_daily_summary" {% if settings.telegram_notify_daily_summary %}checked{% endif %}>
-                <span>Midnight Sales Closeout Report</span>
-            </label>
-        </div>
-    </div>
+        <!-- ================= 2. GENERAL PREFERENCES PANEL ================= -->
+        <section class="settings-panel" id="panel-general" data-tab="general" role="tabpanel" aria-labelledby="tab-btn-general">
+            <div class="settings-card">
+                <div class="settings-card-header">
+                    <div class="settings-card-title-group">
+                        <div class="settings-card-icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                        </div>
+                        <div>
+                            <h3 class="settings-card-title">General Preferences</h3>
+                            <p class="settings-card-subtitle">Node concurrency capacity, session automation, and coin insertion countdown parameters.</p>
+                        </div>
+                    </div>
+                </div>
 
-    <!-- Data Management -->
-    <div class="chart-card animate-fadeIn" style="grid-column: 1 / -1;">
-        <div class="d-flex justify-content-between align-items-center flex-wrap gap-md">
-            <div>
-                <h3 class="chart-title">Database Backup</h3>
-                <p class="text-xs text-muted mt-xs" style="margin: 0;">
-                    Download a full snapshot of your current database (active sessions, revenue history, settings, and gamification points).
-                </p>
+                <div class="settings-card-body">
+                    <!-- Concurrency & Pause Limits -->
+                    <div class="settings-grid-2 mb-lg">
+                        <div class="form-group mb-0">
+                            <label class="form-label" for="max_concurrent_sessions">Max Concurrent Users</label>
+                            <input type="number" min="1" class="form-input" id="max_concurrent_sessions" name="max_concurrent_sessions" value="{{ settings.max_concurrent_sessions }}" required>
+                            <small class="form-hint">Maximum number of active connected devices allowed simultaneously.</small>
+                        </div>
+                        <div class="form-group mb-0">
+                            <label class="form-label" for="global_pause_limit_hours">Global Max Pause (Hours)</label>
+                            <input type="number" min="0" class="form-input" id="global_pause_limit_hours" name="global_pause_limit_hours" value="{{ settings.global_pause_limit_hours }}" required>
+                            <small class="form-hint">Maximum accumulated paused time allowed before session expires.</small>
+                        </div>
+                    </div>
+
+                    <div class="settings-divider"></div>
+
+                    <!-- Auto-Pause & Resume -->
+                    <div class="setting-toggle-row">
+                        <div class="setting-toggle-info">
+                            <label for="enable_auto_pause_resume" class="setting-toggle-title">Auto-Pause & Resume on Disconnect</label>
+                            <span class="setting-toggle-desc">Automatically freezes session when user disconnects from WiFi, and resumes upon reconnecting.</span>
+                        </div>
+                        <label class="custom-switch">
+                            <input type="checkbox" id="enable_auto_pause_resume" name="enable_auto_pause_resume" {% if settings.enable_auto_pause_resume %}checked{% endif %} data-toggle-target="#autoPauseTimeoutGroup">
+                            <span class="switch-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="dependent-tree-group" id="autoPauseTimeoutGroup">
+                        <div class="settings-grid-2">
+                            <div class="form-group mb-0">
+                                <label class="form-label" for="auto_pause_timeout_seconds">Disconnect Timeout (Seconds)</label>
+                                <input type="number" min="60" class="form-input" id="auto_pause_timeout_seconds" name="auto_pause_timeout_seconds" value="{{ settings.auto_pause_timeout_seconds }}" required>
+                                <small class="form-hint">Grace period before an offline user session is frozen (Default: 300s).</small>
+                            </div>
+                            <div class="form-group mb-0">
+                                <label class="form-label" for="insert_coin_countdown_seconds">Initial Coin Timer (Seconds)</label>
+                                <input type="number" min="10" class="form-input" id="insert_coin_countdown_seconds" name="insert_coin_countdown_seconds" value="{{ settings.insert_coin_countdown_seconds }}" required>
+                                <small class="form-hint">Initial time allowed to insert the first coin (Default: 120s).</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="settings-divider"></div>
+
+                    <!-- Coin Insertion Countdown Engine -->
+                    <div class="settings-subsection-header">
+                        <h4 class="settings-subsection-title">Coin Slot Countdown Engine</h4>
+                        <span class="settings-subsection-desc">Configure dynamic time extension behavior as coins are dropped into the slot.</span>
+                    </div>
+
+                    <div class="settings-grid-3 mb-lg">
+                        <div class="form-group mb-0">
+                            <label class="form-label" for="coin_timer_extension_seconds">Bonus / Coin (Seconds)</label>
+                            <input type="number" min="1" max="60" class="form-input" id="coin_timer_extension_seconds" name="coin_timer_extension_seconds" value="{{ settings.coin_timer_extension_seconds }}" required>
+                            <small class="form-hint">Seconds added per inserted coin (Default: 8s).</small>
+                        </div>
+                        <div class="form-group mb-0">
+                            <label class="form-label" for="coin_timer_min_remaining_seconds">Min Guaranteed Floor (s)</label>
+                            <input type="number" min="5" max="60" class="form-input" id="coin_timer_min_remaining_seconds" name="coin_timer_min_remaining_seconds" value="{{ settings.coin_timer_min_remaining_seconds }}" required>
+                            <small class="form-hint">Guaranteed minimum timer on coin drop (Default: 15s).</small>
+                        </div>
+                        <div class="form-group mb-0">
+                            <label class="form-label" for="coin_timer_max_seconds">Timer Ceiling (Seconds)</label>
+                            <input type="number" min="30" max="600" class="form-input" id="coin_timer_max_seconds" name="coin_timer_max_seconds" value="{{ settings.coin_timer_max_seconds }}" required>
+                            <small class="form-hint">Absolute maximum countdown ceiling (Default: 180s).</small>
+                        </div>
+                    </div>
+
+                    <div class="settings-divider"></div>
+
+                    <!-- Dark Mode Preference -->
+                    <div class="setting-toggle-row">
+                        <div class="setting-toggle-info">
+                            <label for="enable_dark_mode" class="setting-toggle-title">Force Dark Theme</label>
+                            <span class="setting-toggle-desc">Always render the admin console in high-contrast dark theme.</span>
+                        </div>
+                        <label class="custom-switch">
+                            <input type="checkbox" id="enable_dark_mode" name="enable_dark_mode" {% if settings.enable_dark_mode %}checked{% endif %}>
+                            <span class="switch-slider"></span>
+                        </label>
+                    </div>
+                </div>
             </div>
-            <a href="{% url 'dashboard:backup_database' %}" class="btn btn-secondary btn-sm">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                Download db.sqlite3
-            </a>
-        </div>
+        </section>
+
+        <!-- ================= 3. GAMIFICATION PANEL ================= -->
+        <section class="settings-panel" id="panel-gamification" data-tab="gamification" role="tabpanel" aria-labelledby="tab-btn-gamification">
+            <div class="settings-card">
+                <div class="settings-card-header">
+                    <div class="settings-card-title-group">
+                        <div class="settings-card-icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                        </div>
+                        <div>
+                            <h3 class="settings-card-title">Gamification Engine</h3>
+                            <p class="settings-card-subtitle">Encourage student loyalty with daily login streaks, reward points, and spin-the-wheel WiFi prizes.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-card-body">
+                    <div class="setting-toggle-row">
+                        <div class="setting-toggle-info">
+                            <label for="enable_spin_wheel" class="setting-toggle-title">Enable Spin The Wheel</label>
+                            <span class="setting-toggle-desc">Allows students to spend earned points on the captive portal to spin for bonus WiFi minutes.</span>
+                        </div>
+                        <label class="custom-switch">
+                            <input type="checkbox" id="enable_spin_wheel" name="enable_spin_wheel" {% if settings.enable_spin_wheel %}checked{% endif %} data-toggle-target="#spinWheelParams">
+                            <span class="switch-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="dependent-tree-group" id="spinWheelParams">
+                        <div class="settings-grid-3">
+                            <div class="form-group mb-0">
+                                <label class="form-label" for="spin_cost_points">Points to Spin</label>
+                                <input type="number" min="1" class="form-input" id="spin_cost_points" name="spin_cost_points" value="{{ settings.spin_cost_points }}" required>
+                                <small class="form-hint">Points required for each spin attempt.</small>
+                            </div>
+                            <div class="form-group mb-0">
+                                <label class="form-label" for="daily_spin_limit">Max Spins / Day</label>
+                                <input type="number" min="1" class="form-input" id="daily_spin_limit" name="daily_spin_limit" value="{{ settings.daily_spin_limit }}" required>
+                                <small class="form-hint">Maximum spins permitted per student daily.</small>
+                            </div>
+                            <div class="form-group mb-0">
+                                <label class="form-label" for="points_per_streak_day">Streak Bonus (Points)</label>
+                                <input type="number" min="1" class="form-input" id="points_per_streak_day" name="points_per_streak_day" value="{{ settings.points_per_streak_day }}" required>
+                                <small class="form-hint">Points awarded per consecutive day checked in.</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= 4. FAMILY PASS PANEL ================= -->
+        <section class="settings-panel" id="panel-family" data-tab="family" role="tabpanel" aria-labelledby="tab-btn-family">
+            <div class="settings-card">
+                <div class="settings-card-header">
+                    <div class="settings-card-title-group">
+                        <div class="settings-card-icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                        </div>
+                        <div>
+                            <h3 class="settings-card-title">Family & Group Pass</h3>
+                            <p class="settings-card-subtitle">Allow users to share an active session code across multiple family devices with custom bandwidth limits.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-card-body">
+                    <div class="setting-toggle-row">
+                        <div class="setting-toggle-info">
+                            <label for="enable_family_pass" class="setting-toggle-title">Enable Family Pass Sharing</label>
+                            <span class="setting-toggle-desc">Enables generation of a 5-character group code so other devices can join the host's active time pool.</span>
+                        </div>
+                        <label class="custom-switch">
+                            <input type="checkbox" id="enable_family_pass" name="enable_family_pass" {% if settings.enable_family_pass %}checked{% endif %} data-toggle-target="#familyPassParams">
+                            <span class="switch-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="dependent-tree-group" id="familyPassParams">
+                        <div class="settings-grid-2 mb-md">
+                            <div class="form-group mb-0">
+                                <label class="form-label" for="family_pass_base_rate">Base Rate (₱/hr for 1 device)</label>
+                                <input type="number" min="1" class="form-input" id="family_pass_base_rate" name="family_pass_base_rate" value="{{ settings.family_pass_base_rate }}" required>
+                                <small class="form-hint">Hourly rate for the first primary device.</small>
+                            </div>
+                            <div class="form-group mb-0">
+                                <label class="form-label" for="family_pass_device_rate">Extra Device Rate (₱/hr each)</label>
+                                <input type="number" min="1" class="form-input" id="family_pass_device_rate" name="family_pass_device_rate" value="{{ settings.family_pass_device_rate }}" required>
+                                <small class="form-hint">Added cost per additional device attached.</small>
+                            </div>
+                        </div>
+
+                        <div class="settings-grid-3 mb-md">
+                            <div class="form-group mb-0">
+                                <label class="form-label" for="family_pass_max_devices">Max Allowed Devices</label>
+                                <input type="number" min="2" max="20" class="form-input" id="family_pass_max_devices" name="family_pass_max_devices" value="{{ settings.family_pass_max_devices }}" required>
+                                <small class="form-hint">Ceiling on concurrent linked devices.</small>
+                            </div>
+                            <div class="form-group mb-0">
+                                <label class="form-label" for="family_pass_speed_limit">Download Limit (Mbps)</label>
+                                <input type="number" min="0.5" step="0.5" class="form-input" id="family_pass_speed_limit" name="family_pass_speed_limit" value="{{ settings.family_pass_speed_limit }}" required>
+                                <small class="form-hint">Maximum download speed per group device.</small>
+                            </div>
+                            <div class="form-group mb-0">
+                                <label class="form-label" for="family_pass_speed_limit_upload">Upload Limit (Mbps)</label>
+                                <input type="number" min="0.5" step="0.5" class="form-input" id="family_pass_speed_limit_upload" name="family_pass_speed_limit_upload" value="{{ settings.family_pass_speed_limit_upload }}" required>
+                                <small class="form-hint">Maximum upload speed per group device.</small>
+                            </div>
+                        </div>
+
+                        <div class="settings-grid-2">
+                            <div class="form-group mb-0">
+                                <label class="form-label" for="group_code_expiry_hours">Group Code Expiry (Hours)</label>
+                                <input type="number" min="0" max="168" class="form-input" id="group_code_expiry_hours" name="group_code_expiry_hours" value="{{ settings.group_code_expiry_hours }}">
+                                <small class="form-hint">Hours before a share code expires (Set to 0 for unlimited).</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= 5. INTEGRATIONS (TELEGRAM) PANEL ================= -->
+        <section class="settings-panel" id="panel-integrations" data-tab="integrations" role="tabpanel" aria-labelledby="tab-btn-integrations">
+            <div class="settings-card">
+                <div class="settings-card-header">
+                    <div class="settings-card-title-group">
+                        <div class="settings-card-icon" style="background: rgba(0, 136, 204, 0.1); color: #0088cc;">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="m20.665 3.717-17.73 6.837c-1.21.486-1.203 1.161-.222 1.462l4.552 1.42 10.532-6.645c.498-.303.953-.14.579.192l-8.533 7.701h-.002l-.313 4.676c.459 0 .661-.21.919-.462l2.207-2.145 4.588 3.39c.847.467 1.455.226 1.666-.787l3.007-14.167c.309-1.239-.473-1.8-1.282-1.474z"/></svg>
+                        </div>
+                        <div>
+                            <h3 class="settings-card-title">Telegram Bot Remote Controller</h3>
+                            <p class="settings-card-subtitle">
+                                Manage your Piso WiFi node directly from your smartphone via Telegram (<a href="https://t.me/iConnect_Ops_bot" target="_blank" rel="noopener noreferrer" style="color: var(--color-primary); font-weight: 600;">@iConnect_Ops_bot</a>).
+                            </p>
+                        </div>
+                    </div>
+                    <div>
+                        <button type="submit" name="test_telegram" value="1" class="btn btn-secondary btn-sm" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 600;">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+                            Test Ping
+                        </button>
+                    </div>
+                </div>
+
+                <div class="settings-card-body">
+                    <div class="setting-toggle-row">
+                        <div class="setting-toggle-info">
+                            <label for="enable_telegram_bot" class="setting-toggle-title">Enable Telegram Bot Remote Operations</label>
+                            <span class="setting-toggle-desc">Enables webhook polling for real-time sales queries, node restarts, and instant outage alerts.</span>
+                        </div>
+                        <label class="custom-switch">
+                            <input type="checkbox" id="enable_telegram_bot" name="enable_telegram_bot" {% if settings.enable_telegram_bot %}checked{% endif %} data-toggle-target="#telegramParams">
+                            <span class="switch-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="dependent-tree-group" id="telegramParams">
+                        <div class="settings-grid-2 mb-md">
+                            <!-- Sensitive Masked Bot Token -->
+                            <div class="form-group mb-0">
+                                <label class="form-label" for="telegram_bot_token">Bot Token (from @BotFather)</label>
+                                <div class="masked-input-wrapper">
+                                    <input type="password" class="form-input" id="telegram_bot_token" name="telegram_bot_token" value="{{ settings.telegram_bot_token }}" placeholder="e.g. 8946483111:AAEQBhy1vOqLFPdKIXjInvGjNrofI3TqgZg" spellcheck="false" autocomplete="off">
+                                    <button type="button" class="btn-toggle-mask" id="toggleBotTokenVisibility" title="Show or hide token" aria-label="Toggle token visibility">
+                                        <svg class="icon-eye-show" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                        <svg class="icon-eye-hide" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: none;"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+                                    </button>
+                                </div>
+                                <small class="form-hint">Obtained securely from the official @BotFather on Telegram.</small>
+                            </div>
+
+                            <div class="form-group mb-0">
+                                <label class="form-label" for="telegram_admin_chat_id">Authorized Admin Chat ID</label>
+                                <input type="text" class="form-input" id="telegram_admin_chat_id" name="telegram_admin_chat_id" value="{{ settings.telegram_admin_chat_id }}" placeholder="e.g. 6261306648" spellcheck="false">
+                                <small class="form-hint">Only messages from this specific Chat ID will be processed.</small>
+                            </div>
+                        </div>
+
+                        <!-- Notification Alert Checkboxes -->
+                        <div class="settings-subsection-header">
+                            <h4 class="settings-subsection-title">Automated Instant Broadcasts</h4>
+                            <span class="settings-subsection-desc">Select which event notifications will be dispatched directly to your Telegram chat.</span>
+                        </div>
+
+                        <div class="settings-checkbox-card-grid">
+                            <label class="checkbox-card-label" for="telegram_notify_tickets">
+                                <input type="checkbox" id="telegram_notify_tickets" name="telegram_notify_tickets" {% if settings.telegram_notify_tickets %}checked{% endif %}>
+                                <div class="checkbox-card-content">
+                                    <span class="checkbox-card-title">Instant Support Tickets</span>
+                                    <span class="checkbox-card-desc">Immediate alerts when a student reports a stuck coin or portal issue.</span>
+                                </div>
+                            </label>
+
+                            <label class="checkbox-card-label" for="telegram_notify_isp_down">
+                                <input type="checkbox" id="telegram_notify_isp_down" name="telegram_notify_isp_down" {% if settings.telegram_notify_isp_down %}checked{% endif %}>
+                                <div class="checkbox-card-content">
+                                    <span class="checkbox-card-title">ISP Outage & Recovery</span>
+                                    <span class="checkbox-card-desc">Alerts when upstream WAN connection fails or recovers.</span>
+                                </div>
+                            </label>
+
+                            <label class="checkbox-card-label" for="telegram_notify_daily_summary">
+                                <input type="checkbox" id="telegram_notify_daily_summary" name="telegram_notify_daily_summary" {% if settings.telegram_notify_daily_summary %}checked{% endif %}>
+                                <div class="checkbox-card-content">
+                                    <span class="checkbox-card-title">Midnight Sales Closeout</span>
+                                    <span class="checkbox-card-desc">Nightly summary of daily gross revenue, student sessions, and coin totals.</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= 6. DATABASE BACKUP PANEL ================= -->
+        <section class="settings-panel" id="panel-backup" data-tab="backup" role="tabpanel" aria-labelledby="tab-btn-backup">
+            <div class="settings-card">
+                <div class="settings-card-header">
+                    <div class="settings-card-title-group">
+                        <div class="settings-card-icon" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                        </div>
+                        <div>
+                            <h3 class="settings-card-title">Database Backup & Snapshots</h3>
+                            <p class="settings-card-subtitle">Download a secure snapshot of your current database for safe offsite archiving.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-card-body">
+                    <div class="backup-cta-box">
+                        <div class="backup-cta-info">
+                            <h4 class="backup-cta-title">Export Complete SQLite Database</h4>
+                            <p class="backup-cta-desc">
+                                Contains all active sessions, transactions, revenue records, rates, support tickets, streak points, and node configuration settings.
+                            </p>
+                        </div>
+                        <a href="{% url 'dashboard:backup_database' %}" class="btn btn-secondary" style="display: inline-flex; align-items: center; gap: 8px; font-weight: 600; white-space: nowrap;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                            Download db.sqlite3
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
     </div>
 </div>
 
-<!-- Save Action Bar -->
-<div class="d-flex justify-content-end mt-lg">
-    <button type="submit" class="btn btn-primary" style="padding: 9px 24px; font-size: 14px;">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
-        Save All Settings
-    </button>
+<!-- ================= STICKY ACTION BAR ================= -->
+<div class="settings-sticky-bar" id="settingsStickyBar">
+    <div class="settings-bar-status">
+        <div id="statusSynced" class="settings-status-pill synced">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            <span>All settings saved</span>
+        </div>
+        <div id="statusUnsaved" class="settings-status-pill unsaved" style="display: none;">
+            <span class="pulse-indicator"></span>
+            <span>Unsaved changes</span>
+            <span class="shortcut-tip">(Ctrl+S)</span>
+        </div>
+    </div>
+
+    <div class="settings-bar-actions">
+        <button type="submit" class="btn btn-primary settings-save-btn" id="saveAllSettingsBtn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+            <span>Save All Settings</span>
+        </button>
+    </div>
 </div>
 
 </form>
-{% endblock %}
 
+<style>
+/* ==========================================================================
+   GLOBAL SETTINGS PAGE STYLES
+   ========================================================================== */
+
+/* Main Layout */
+.settings-layout {
+    display: flex;
+    gap: 24px;
+    align-items: flex-start;
+    position: relative;
+}
+
+/* Left Sub-Navigation */
+.settings-nav {
+    width: 230px;
+    flex-shrink: 0;
+    position: sticky;
+    top: 20px;
+    background: #ffffff;
+    border: 1px solid var(--color-border, #e2e8f0);
+    border-radius: 14px;
+    padding: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.settings-nav-header {
+    padding: 6px 12px 10px 12px;
+}
+
+.settings-nav-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-gray, #64748b);
+}
+
+.settings-nav-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.settings-tab-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: none;
+    background: transparent;
+    color: var(--color-gray, #64748b);
+    font-size: 13px;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.18s ease-in-out;
+}
+
+.settings-tab-btn:hover {
+    background: var(--color-light, #f8fafc);
+    color: var(--color-dark, #1e293b);
+}
+
+.settings-tab-btn.active {
+    background: var(--color-primary-light, #fef2f2);
+    color: var(--color-primary, #7b2d3b);
+    font-weight: 700;
+}
+
+.tab-icon-wrap {
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(100, 116, 139, 0.08);
+    color: inherit;
+    flex-shrink: 0;
+    transition: background 0.18s ease;
+}
+
+.settings-tab-btn.active .tab-icon-wrap {
+    background: rgba(123, 45, 59, 0.12);
+    color: var(--color-primary, #7b2d3b);
+}
+
+.settings-nav-divider {
+    height: 1px;
+    background: var(--color-border, #e2e8f0);
+    margin: 6px 0;
+}
+
+/* Panels Area */
+.settings-panels {
+    flex: 1;
+    min-width: 0;
+}
+
+.settings-panel {
+    display: none;
+}
+
+.settings-panel.active {
+    display: block;
+    animation: fadeInTab 0.2s ease-in-out;
+}
+
+@keyframes fadeInTab {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Card Styling */
+.settings-card {
+    background: #ffffff;
+    border: 1px solid var(--color-border, #e2e8f0);
+    border-radius: 14px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+    padding: 24px 26px;
+    margin-bottom: 22px;
+}
+
+.settings-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 14px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--color-border, #e2e8f0);
+    margin-bottom: 22px;
+}
+
+.settings-card-title-group {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.settings-card-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    background: rgba(123, 45, 59, 0.08);
+    color: var(--color-primary, #7b2d3b);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.settings-card-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--color-dark, #1e293b);
+    margin: 0 0 3px 0;
+    line-height: 1.2;
+}
+
+.settings-card-subtitle {
+    font-size: 12.5px;
+    color: var(--color-gray, #64748b);
+    margin: 0;
+    line-height: 1.4;
+}
+
+.settings-divider {
+    height: 1px;
+    background: var(--color-border, #e2e8f0);
+    margin: 20px 0;
+}
+
+/* Subsections */
+.settings-subsection-header {
+    margin-bottom: 16px;
+}
+
+.settings-subsection-title {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--color-dark, #1e293b);
+    margin: 0 0 2px 0;
+}
+
+.settings-subsection-desc {
+    font-size: 12px;
+    color: var(--color-gray, #64748b);
+    display: block;
+}
+
+/* Toggle Switch Component */
+.setting-toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.setting-toggle-row.compact {
+    padding: 6px 0;
+}
+
+.setting-toggle-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.setting-toggle-title {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--color-dark, #1e293b);
+    margin-bottom: 2px;
+    cursor: pointer;
+    display: inline-block;
+}
+
+.setting-toggle-desc {
+    font-size: 12px;
+    color: var(--color-gray, #64748b);
+    display: block;
+    line-height: 1.4;
+}
+
+.custom-switch {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 24px;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.custom-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+    position: absolute;
+}
+
+.switch-slider {
+    position: absolute;
+    inset: 0;
+    background-color: #cbd5e1;
+    border-radius: 999px;
+    transition: background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.switch-slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: #ffffff;
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.custom-switch input:checked + .switch-slider {
+    background-color: var(--color-primary, #7b2d3b);
+}
+
+.custom-switch input:focus-visible + .switch-slider {
+    outline: 2px solid var(--color-primary, #7b2d3b);
+    outline-offset: 2px;
+}
+
+.custom-switch input:checked + .switch-slider:before {
+    transform: translateX(20px);
+}
+
+/* Dependent Options Branch Tree */
+.dependent-tree-group {
+    margin-left: 20px;
+    padding-left: 18px;
+    border-left: 2px dashed #cbd5e1;
+    margin-top: 14px;
+    margin-bottom: 18px;
+    transition: opacity 0.22s ease, filter 0.22s ease;
+}
+
+.dependent-tree-group.is-dimmed {
+    opacity: 0.4;
+    filter: grayscale(30%);
+    pointer-events: none;
+}
+
+.dependent-branch-item {
+    position: relative;
+    padding-left: 4px;
+    margin-bottom: 12px;
+}
+
+.dependent-branch-item:last-child {
+    margin-bottom: 0;
+}
+
+/* Responsive Grids */
+.settings-grid-2 {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.settings-grid-3 {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+}
+
+/* Form Groups & Typography */
+.form-group {
+    margin-bottom: 16px;
+}
+
+.form-group.mb-0 {
+    margin-bottom: 0;
+}
+
+.form-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-gray, #64748b);
+    margin-bottom: 6px;
+    display: block;
+}
+
+.form-input {
+    width: 100%;
+    height: 40px;
+    padding: 0 12px;
+    border: 1px solid var(--color-border, #e2e8f0);
+    border-radius: 8px;
+    font-size: 13.5px;
+    color: var(--color-dark, #1e293b);
+    background: #ffffff;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.form-input:focus {
+    border-color: var(--color-primary, #7b2d3b);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(123, 45, 59, 0.12);
+}
+
+.form-hint {
+    font-size: 11.5px;
+    color: var(--color-gray, #64748b);
+    margin-top: 4px;
+    display: block;
+    line-height: 1.4;
+}
+
+/* Sensitive Field Masked Wrapper */
+.masked-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.masked-input-wrapper .form-input {
+    padding-right: 40px;
+    font-family: inherit;
+}
+
+.masked-input-wrapper .form-input[type="text"] {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    font-size: 13px;
+}
+
+.btn-toggle-mask {
+    position: absolute;
+    right: 8px;
+    background: transparent;
+    border: none;
+    color: var(--color-gray, #64748b);
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.15s, background 0.15s;
+}
+
+.btn-toggle-mask:hover {
+    color: var(--color-dark, #1e293b);
+    background: rgba(0, 0, 0, 0.05);
+}
+
+/* Checkbox Cards Grid (for Telegram Notifications) */
+.settings-checkbox-card-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.checkbox-card-label {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 14px;
+    border: 1px solid var(--color-border, #e2e8f0);
+    border-radius: 10px;
+    background: #ffffff;
+    cursor: pointer;
+    transition: border-color 0.18s, background 0.18s, box-shadow 0.18s;
+}
+
+.checkbox-card-label:hover {
+    border-color: #cbd5e1;
+    background: var(--color-light, #f8fafc);
+}
+
+.checkbox-card-label input[type="checkbox"] {
+    margin-top: 3px;
+    accent-color: var(--color-primary, #7b2d3b);
+    cursor: pointer;
+}
+
+.checkbox-card-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.checkbox-card-title {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--color-dark, #1e293b);
+    display: block;
+    line-height: 1.3;
+}
+
+.checkbox-card-desc {
+    font-size: 11px;
+    color: var(--color-gray, #64748b);
+    display: block;
+    margin-top: 2px;
+    line-height: 1.35;
+}
+
+/* Database Backup CTA Box */
+.backup-cta-box {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    flex-wrap: wrap;
+    background: var(--color-light, #f8fafc);
+    border: 1px solid var(--color-border, #e2e8f0);
+    border-radius: 10px;
+    padding: 20px 22px;
+}
+
+.backup-cta-info {
+    flex: 1;
+    min-width: 240px;
+}
+
+.backup-cta-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--color-dark, #1e293b);
+    margin: 0 0 4px 0;
+}
+
+.backup-cta-desc {
+    font-size: 12px;
+    color: var(--color-gray, #64748b);
+    margin: 0;
+    line-height: 1.45;
+}
+
+/* ================= Sticky Bottom Action Bar ================= */
+.settings-sticky-bar {
+    position: sticky;
+    bottom: 16px;
+    z-index: 80;
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--color-border, #e2e8f0);
+    border-radius: 14px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.03);
+    padding: 12px 22px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-top: 24px;
+}
+
+.settings-bar-status {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.settings-status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 5px 12px;
+    border-radius: 999px;
+    transition: all 0.2s ease;
+}
+
+.settings-status-pill.synced {
+    background: #ecfdf5;
+    color: #047857;
+    border: 1px solid #a7f3d0;
+}
+
+.settings-status-pill.unsaved {
+    background: #fffbeb;
+    color: #b45309;
+    border: 1px solid #fde68a;
+    animation: fadeInBadge 0.25s ease-out;
+}
+
+.shortcut-tip {
+    font-size: 11px;
+    opacity: 0.75;
+    margin-left: 2px;
+}
+
+@keyframes fadeInBadge {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.pulse-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #f59e0b;
+    display: inline-block;
+    animation: pulseDot 1.8s infinite;
+}
+
+@keyframes pulseDot {
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7); }
+    70% { transform: scale(1.1); box-shadow: 0 0 0 6px rgba(245, 158, 11, 0); }
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+}
+
+.settings-save-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 22px;
+    font-size: 13.5px;
+    font-weight: 600;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(123, 45, 59, 0.25);
+    transition: transform 0.15s, box-shadow 0.15s, background-color 0.15s;
+}
+
+.settings-save-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(123, 45, 59, 0.35);
+}
+
+.settings-save-btn:active {
+    transform: translateY(0);
+}
+
+/* ================= Dark Mode Overrides ================= */
+.dashboard-wrapper[data-theme="dark"] .settings-nav {
+    background: #1e293b;
+    border-color: #334155;
+}
+
+.dashboard-wrapper[data-theme="dark"] .settings-tab-btn {
+    color: #94a3b8;
+}
+
+.dashboard-wrapper[data-theme="dark"] .settings-tab-btn:hover {
+    background: #0f172a;
+    color: #f8fafc;
+}
+
+.dashboard-wrapper[data-theme="dark"] .settings-tab-btn.active {
+    background: rgba(123, 45, 59, 0.25);
+    color: #fca5a5;
+}
+
+.dashboard-wrapper[data-theme="dark"] .tab-icon-wrap {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.dashboard-wrapper[data-theme="dark"] .settings-tab-btn.active .tab-icon-wrap {
+    background: rgba(252, 165, 165, 0.15);
+    color: #fca5a5;
+}
+
+.dashboard-wrapper[data-theme="dark"] .settings-card {
+    background: #1e293b;
+    border-color: #334155;
+}
+
+.dashboard-wrapper[data-theme="dark"] .settings-card-header {
+    border-color: #334155;
+}
+
+.dashboard-wrapper[data-theme="dark"] .settings-divider {
+    background: #334155;
+}
+
+.dashboard-wrapper[data-theme="dark"] .settings-card-title,
+.dashboard-wrapper[data-theme="dark"] .setting-toggle-title,
+.dashboard-wrapper[data-theme="dark"] .settings-subsection-title,
+.dashboard-wrapper[data-theme="dark"] .checkbox-card-title,
+.dashboard-wrapper[data-theme="dark"] .backup-cta-title {
+    color: #f8fafc;
+}
+
+.dashboard-wrapper[data-theme="dark"] .settings-card-subtitle,
+.dashboard-wrapper[data-theme="dark"] .setting-toggle-desc,
+.dashboard-wrapper[data-theme="dark"] .form-label,
+.dashboard-wrapper[data-theme="dark"] .form-hint,
+.dashboard-wrapper[data-theme="dark"] .settings-subsection-desc,
+.dashboard-wrapper[data-theme="dark"] .checkbox-card-desc,
+.dashboard-wrapper[data-theme="dark"] .backup-cta-desc {
+    color: #94a3b8;
+}
+
+.dashboard-wrapper[data-theme="dark"] .form-input {
+    background: #0f172a;
+    border-color: #334155;
+    color: #f8fafc;
+}
+
+.dashboard-wrapper[data-theme="dark"] .checkbox-card-label {
+    background: #0f172a;
+    border-color: #334155;
+}
+
+.dashboard-wrapper[data-theme="dark"] .checkbox-card-label:hover {
+    background: #1e293b;
+    border-color: #475569;
+}
+
+.dashboard-wrapper[data-theme="dark"] .backup-cta-box {
+    background: #0f172a;
+    border-color: #334155;
+}
+
+.dashboard-wrapper[data-theme="dark"] .dependent-tree-group {
+    border-color: #334155;
+}
+
+.dashboard-wrapper[data-theme="dark"] .switch-slider {
+    background-color: #475569;
+}
+
+.dashboard-wrapper[data-theme="dark"] .settings-sticky-bar {
+    background: rgba(30, 41, 59, 0.94);
+    border-color: #334155;
+}
+
+.dashboard-wrapper[data-theme="dark"] .settings-status-pill.synced {
+    background: rgba(6, 78, 59, 0.3);
+    color: #34d399;
+    border-color: #065f46;
+}
+
+.dashboard-wrapper[data-theme="dark"] .settings-status-pill.unsaved {
+    background: rgba(120, 53, 15, 0.3);
+    color: #fbbf24;
+    border-color: #92400e;
+}
+
+/* ================= Responsive Breakpoints ================= */
+@media (max-width: 960px) {
+    .settings-layout {
+        flex-direction: column;
+    }
+
+    .settings-nav {
+        width: 100%;
+        position: static;
+        padding: 8px;
+        margin-bottom: 16px;
+    }
+
+    .settings-nav-header {
+        display: none;
+    }
+
+    .settings-nav-list {
+        flex-direction: row;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        gap: 6px;
+        padding-bottom: 2px;
+    }
+
+    .settings-tab-btn {
+        flex: 0 0 auto;
+        width: auto;
+        padding: 8px 14px;
+        white-space: nowrap;
+    }
+
+    .settings-nav-divider {
+        display: none;
+    }
+
+    .settings-grid-3 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .settings-checkbox-card-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 640px) {
+    .settings-card {
+        padding: 18px 16px;
+    }
+
+    .settings-grid-2,
+    .settings-grid-3 {
+        grid-template-columns: 1fr;
+    }
+
+    .dependent-tree-group {
+        margin-left: 8px;
+        padding-left: 12px;
+    }
+
+    .setting-toggle-row {
+        gap: 12px;
+    }
+
+    .settings-sticky-bar {
+        padding: 10px 14px;
+        bottom: 10px;
+    }
+
+    .shortcut-tip {
+        display: none;
+    }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('globalSettingsForm');
+    const tabButtons = document.querySelectorAll('.settings-tab-btn');
+    const panels = document.querySelectorAll('.settings-panel');
+    const statusSynced = document.getElementById('statusSynced');
+    const statusUnsaved = document.getElementById('statusUnsaved');
+    let isFormDirty = false;
+
+    // -------------------------------------------------------------
+    // 1. Tab Navigation & Sub-Menu Controller
+    // -------------------------------------------------------------
+    function switchTab(targetTab) {
+        if (!targetTab) return;
+
+        tabButtons.forEach(btn => {
+            const isActive = btn.dataset.tab === targetTab;
+            btn.classList.toggle('active', isActive);
+            btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+        });
+
+        if (targetTab === 'all') {
+            // Show all panels stacked
+            panels.forEach(panel => {
+                panel.classList.add('active');
+            });
+        } else {
+            // Show only target panel
+            panels.forEach(panel => {
+                const isMatch = panel.dataset.tab === targetTab;
+                panel.classList.toggle('active', isMatch);
+            });
+        }
+
+        // Store preference in localStorage and update hash
+        try {
+            localStorage.setItem('iconnect_settings_active_tab', targetTab);
+            if (window.location.hash !== '#' + targetTab) {
+                history.replaceState(null, '', '#' + targetTab);
+            }
+        } catch (e) {}
+    }
+
+    tabButtons.forEach(btn => {
+        btn.addEventListener('click', function() {
+            switchTab(this.dataset.tab);
+        });
+    });
+
+    // Initialize tab from URL Hash or localStorage
+    const hash = window.location.hash.replace('#', '');
+    const validTabs = ['networking', 'general', 'gamification', 'family', 'integrations', 'backup', 'all'];
+    if (hash && validTabs.includes(hash)) {
+        switchTab(hash);
+    } else {
+        const savedTab = localStorage.getItem('iconnect_settings_active_tab');
+        if (savedTab && validTabs.includes(savedTab)) {
+            switchTab(savedTab);
+        }
+    }
+
+    // -------------------------------------------------------------
+    // 2. Dynamic Dependency Dimming (Parent-Child Toggles)
+    // -------------------------------------------------------------
+    function updateDependencyGroups() {
+        const dependencyTriggers = document.querySelectorAll('[data-toggle-target]');
+        dependencyTriggers.forEach(input => {
+            const targetSelector = input.dataset.toggleTarget;
+            const targetElem = document.querySelector(targetSelector);
+            if (targetElem) {
+                if (input.checked) {
+                    targetElem.classList.remove('is-dimmed');
+                } else {
+                    targetElem.classList.add('is-dimmed');
+                }
+            }
+        });
+    }
+
+    form.addEventListener('change', function(e) {
+        if (e.target && e.target.hasAttribute('data-toggle-target')) {
+            updateDependencyGroups();
+        }
+    });
+    // Run initial check
+    updateDependencyGroups();
+
+    // -------------------------------------------------------------
+    // 3. Masked Sensitive Token Toggle (Show / Hide)
+    // -------------------------------------------------------------
+    const tokenInput = document.getElementById('telegram_bot_token');
+    const toggleMaskBtn = document.getElementById('toggleBotTokenVisibility');
+    if (tokenInput && toggleMaskBtn) {
+        const iconShow = toggleMaskBtn.querySelector('.icon-eye-show');
+        const iconHide = toggleMaskBtn.querySelector('.icon-eye-hide');
+
+        toggleMaskBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const isMasked = tokenInput.type === 'password';
+            tokenInput.type = isMasked ? 'text' : 'password';
+            if (iconShow && iconHide) {
+                iconShow.style.display = isMasked ? 'none' : 'block';
+                iconHide.style.display = isMasked ? 'block' : 'none';
+            }
+        });
+    }
+
+    // -------------------------------------------------------------
+    // 4. Form Dirty Tracking & Sticky Bar Indicator
+    // -------------------------------------------------------------
+    function getFormDataSnapshot() {
+        const formData = new FormData(form);
+        const entries = [];
+        for (const [key, value] of formData.entries()) {
+            entries.push(`${key}=${value}`);
+        }
+        return entries.sort().join('&');
+    }
+
+    const initialSnapshot = getFormDataSnapshot();
+
+    function evaluateDirtyState() {
+        const currentSnapshot = getFormDataSnapshot();
+        const changed = currentSnapshot !== initialSnapshot;
+        if (changed !== isFormDirty) {
+            isFormDirty = changed;
+            if (isFormDirty) {
+                statusSynced.style.display = 'none';
+                statusUnsaved.style.display = 'inline-flex';
+            } else {
+                statusSynced.style.display = 'inline-flex';
+                statusUnsaved.style.display = 'none';
+            }
+        }
+    }
+
+    form.addEventListener('input', evaluateDirtyState);
+    form.addEventListener('change', evaluateDirtyState);
+
+    // Reset dirty on submit
+    form.addEventListener('submit', function() {
+        isFormDirty = false;
+    });
+
+    // Warn before navigating away if unsaved
+    window.addEventListener('beforeunload', function(e) {
+        if (isFormDirty) {
+            e.preventDefault();
+            e.returnValue = 'You have unsaved setting changes. Are you sure you want to leave?';
+        }
+    });
+
+    // -------------------------------------------------------------
+    // 5. Keyboard Shortcut (Ctrl+S / Cmd+S)
+    // -------------------------------------------------------------
+    window.addEventListener('keydown', function(e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+            e.preventDefault();
+            const saveBtn = document.getElementById('saveAllSettingsBtn');
+            if (saveBtn) {
+                saveBtn.click();
+            }
+        }
+    });
+
+    // -------------------------------------------------------------
+    // 6. Form Validation Tab Interceptor
+    // -------------------------------------------------------------
+    // If a hidden tab contains an invalid required field, auto-switch to it
+    form.addEventListener('invalid', function(e) {
+        const invalidElem = e.target;
+        const parentPanel = invalidElem.closest('.settings-panel');
+        if (parentPanel && !parentPanel.classList.contains('active')) {
+            switchTab(parentPanel.dataset.tab);
+            setTimeout(() => {
+                invalidElem.focus();
+            }, 100);
+        }
+    }, true);
+});
+</script>
+
+{% endblock %}
