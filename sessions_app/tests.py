@@ -328,12 +328,13 @@ class SessionApiTests(TestCase):
         self.assertEqual(start_res.status_code, 201)
         group_code = start_res.data["session_group"]
 
-        # Phone 2 joins with code
+        # Phone 2 joins with code and blank device_name (common portal scenario)
         join_res = self.client.post(
             reverse("sessions_app:session-join-group"),
             {
                 "mac_address": self.mac_two,
                 "group_code": group_code,
+                "device_name": "",
             },
             format="json",
         )
@@ -370,6 +371,38 @@ class SessionApiTests(TestCase):
         )
         self.assertEqual(full_res.status_code, 400)
         self.assertIn("full", full_res.data["error"].lower())
+
+    @patch("sessions_app.views._mac_from_arp")
+    @patch("sessions_app.views.iptables.enforce_firewall_baseline", return_value=True)
+    @patch("sessions_app.views.iptables.allow_device", return_value=True)
+    def test_group_pass_join_arp_mac_resolution(self, allow_mock, base_mock, arp_mock):
+        arp_mock.return_value = self.mac_two
+        p1_plan = Plan.objects.create(name="P1 Plan ARP", price=1, duration_minutes=15, is_active=True)
+        CoinEvent.objects.create(amount=2, denomination=1, mac_address=self.mac_one)
+        start_res = self.client.post(
+            reverse("sessions_app:session-start"),
+            {
+                "mac_address": self.mac_one,
+                "plan_id": p1_plan.id,
+                "is_group_pass": True,
+                "group_pass_devices": 2,
+            },
+            format="json",
+        )
+        self.assertEqual(start_res.status_code, 201)
+        group_code = start_res.data["session_group"]
+
+        # Phone 2 joins with only group_code (no mac provided, resolved via ARP)
+        join_res = self.client.post(
+            reverse("sessions_app:session-join-group"),
+            {
+                "group_code": group_code,
+                "device_name": "",
+            },
+            format="json",
+        )
+        self.assertEqual(join_res.status_code, 201)
+        self.assertTrue(Session.objects.filter(mac_address=self.mac_two, status="active").exists())
 
     def test_protected_endpoints_require_admin_auth(self):
         checks = [

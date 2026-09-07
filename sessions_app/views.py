@@ -37,6 +37,7 @@ from .serializers import (
     SessionStartSerializer,
     GroupJoinSerializer,
     WhitelistedDeviceSerializer,
+    normalize_mac_address,
 )
 
 
@@ -71,6 +72,25 @@ def _client_ip(request):
     if real_ip:
         return real_ip.strip()
     return request.META.get("REMOTE_ADDR", "unknown")
+
+
+def _mac_from_arp(ip_address):
+    """Look up MAC address from Linux ARP table based on client IP."""
+    if not ip_address or ip_address in ("unknown", "127.0.0.1", "::1"):
+        return ""
+    try:
+        with open("/proc/net/arp", "r") as f:
+            for line in f:
+                parts = line.split()
+                if len(parts) >= 4 and parts[0] == ip_address:
+                    candidate = parts[3].strip()
+                    try:
+                        return normalize_mac_address(candidate)
+                    except Exception:
+                        return ""
+    except (OSError, IOError):
+        pass
+    return ""
 
 
 def _coin_rate_limited(request):
@@ -1187,19 +1207,45 @@ def session_join_group(request):
         first_err = None
         for field, err_list in serializer.errors.items():
             if isinstance(err_list, list) and len(err_list) > 0:
-                first_err = f"{err_list[0]}"
+                first_err = f"{field}: {err_list[0]}" if field != "group_code" else f"{err_list[0]}"
                 break
             elif isinstance(err_list, str):
-                first_err = err_list
+                first_err = f"{field}: {err_list}" if field != "group_code" else f"{err_list}"
                 break
         return Response(
             {"error": first_err or "Invalid data provided.", "errors": serializer.errors},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    mac_address = serializer.validated_data["mac_address"]
+    mac_address = (serializer.validated_data.get("mac_address") or "").strip().upper()
     group_code = serializer.validated_data["group_code"].upper()
     ip_address = _client_ip(request)
+
+    if not mac_address:
+        mac_address = _mac_from_arp(ip_address)
+
+    if not mac_address and hasattr(request, "session"):
+        stored_mac = request.session.get("portal_mac_address", "") or request.session.get("mac", "")
+        if stored_mac:
+            try:
+                mac_address = normalize_mac_address(stored_mac)
+            except Exception:
+                pass
+
+    if not mac_address:
+        header_mac = request.META.get("HTTP_X_MAC_ADDRESS", "") or request.GET.get("mac", "")
+        if header_mac:
+            try:
+                mac_address = normalize_mac_address(header_mac)
+            except Exception:
+                pass
+
+    if not mac_address:
+        return Response(
+            {"error": "Could not detect your device's MAC address. Please connect to the Wi-Fi network and try again."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
     device_name = _extract_device_name(request, serializer.validated_data.get("device_name"), mac_address)
 
     # Rate limiting

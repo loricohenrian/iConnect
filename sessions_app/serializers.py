@@ -101,8 +101,8 @@ class CoinInsertedSerializer(serializers.Serializer):
 class SessionStartSerializer(serializers.Serializer):
     mac_address = serializers.CharField(max_length=17)
     plan_id = serializers.IntegerField(required=False, allow_null=True)
-    ip_address = serializers.IPAddressField(required=False)
-    device_name = serializers.CharField(max_length=100, required=False)
+    ip_address = serializers.IPAddressField(required=False, allow_blank=True, allow_null=True)
+    device_name = serializers.CharField(max_length=100, required=False, allow_blank=True)
     
     is_group_pass = serializers.BooleanField(default=False)
     group_pass_devices = serializers.IntegerField(required=False, allow_null=True)
@@ -140,10 +140,12 @@ class WhitelistedDeviceSerializer(serializers.ModelSerializer):
 
 
 class GroupJoinSerializer(serializers.Serializer):
-    group_code = serializers.CharField(max_length=10)
-    mac_address = serializers.CharField(max_length=17)
-    ip_address = serializers.IPAddressField(required=False)
-    device_name = serializers.CharField(max_length=100, required=False)
+    group_code = serializers.CharField(max_length=10, trim_whitespace=True)
+    mac_address = serializers.CharField(max_length=17, required=False, allow_blank=True)
+    ip_address = serializers.IPAddressField(required=False, allow_blank=True, allow_null=True)
+    device_name = serializers.CharField(max_length=100, required=False, allow_blank=True)
 
     def validate_mac_address(self, value):
+        if not value:
+            return ""
         return normalize_mac_address(value)

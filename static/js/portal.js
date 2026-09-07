@@ -2002,6 +2002,13 @@ function initJoinGroupFlow(macAddress) {
         joinModal.style.display = "none";
     });
 
+    joinCodeInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+            e.preventDefault();
+            btnSubmitJoin.click();
+        }
+    });
+
     btnSubmitJoin.addEventListener("click", async () => {
         const code = joinCodeInput.value.trim().toUpperCase();
         if (!code || (code.length !== 5 && code.length !== 6)) {
@@ -2013,13 +2020,6 @@ function initJoinGroupFlow(macAddress) {
         }
 
         const currentMac = macAddress || getMacAddress();
-        if (!currentMac) {
-            if (joinError) {
-                joinError.textContent = "Device identity required. Please open the portal from your Wi-Fi login screen.";
-                joinError.style.display = "block";
-            }
-            return;
-        }
 
         btnSubmitJoin.disabled = true;
         btnSubmitJoin.textContent = "Redeeming...";
@@ -2027,22 +2027,34 @@ function initJoinGroupFlow(macAddress) {
 
         try {
             const devName = typeof getDeviceName === 'function' ? getDeviceName() : "";
+            const payload = {
+                group_code: code,
+            };
+            if (currentMac) {
+                payload.mac_address = currentMac;
+            }
+            if (devName && devName.trim()) {
+                payload.device_name = devName.trim();
+            }
+
             const response = await fetch("/api/session/join-group/", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                     "X-CSRFToken": getCSRFToken(),
                 },
-                body: JSON.stringify({
-                    mac_address: currentMac,
-                    group_code: code,
-                    device_name: devName,
-                }),
+                body: JSON.stringify(payload),
             });
             const data = await parseJsonSafe(response);
 
             if (response.ok) {
-                window.location.href = buildPortalUrl("/session/", currentMac);
+                const targetMac = data?.session?.mac_address || currentMac;
+                if (targetMac) {
+                    try {
+                        localStorage.setItem("iconnect_mac", targetMac);
+                    } catch (e) {}
+                }
+                window.location.href = buildPortalUrl("/session/", targetMac);
             } else {
                 let errMsg = data?.error || data?.detail;
                 if (!errMsg && data && typeof data === 'object') {
