@@ -87,8 +87,8 @@ html {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     scroll-behavior: smooth;
-    overscroll-behavior-y: none;
-    overscroll-behavior: none;
+    overscroll-behavior-y: auto;
+    overscroll-behavior: auto;
 }
 
 body {
@@ -99,8 +99,8 @@ body {
     color: var(--color-dark);
     background-color: var(--color-white);
     letter-spacing: -0.011em;
-    overscroll-behavior-y: none;
-    overscroll-behavior: none;
+    overscroll-behavior-y: auto;
+    overscroll-behavior: auto;
 }
 
 html.modal-open,

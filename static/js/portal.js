@@ -2534,4 +2534,94 @@ window.closeRatesModal = function() {
     }, { passive: false });
 })();
 
+// ============================================
+// Pull-to-Refresh for Captive Portal & WebViews
+// ============================================
+(function initPullToRefresh() {
+    let startY = 0;
+    let isTracking = false;
+    let ptrIndicator = null;
+
+    function getIndicator() {
+        if (!ptrIndicator) {
+            ptrIndicator = document.createElement('div');
+            ptrIndicator.className = 'ptr-indicator';
+            ptrIndicator.innerHTML = `
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                </svg>
+            `;
+            document.body.appendChild(ptrIndicator);
+        }
+        return ptrIndicator;
+    }
+
+    // Detect if running in an embedded WebView or captive portal login client without native PTR
+    const isWebView = /wv|Android.*Version\/[0-9]\.[0-9]|CaptiveNetwork|WebSheet/i.test(navigator.userAgent) ||
+                      (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+
+    // If regular mobile browser (Chrome/Safari/Samsung), native PTR is enabled via CSS (overscroll-behavior-y: auto)
+    if (!isWebView) return;
+
+    document.addEventListener('touchstart', function(e) {
+        if (document.body.classList.contains('modal-open') || document.documentElement.classList.contains('modal-open')) return;
+        if (window.scrollY > 5) return;
+        if (e.touches.length !== 1) return;
+
+        startY = e.touches[0].clientY;
+        isTracking = true;
+    }, { passive: true });
+
+    document.addEventListener('touchmove', function(e) {
+        if (!isTracking) return;
+        if (document.body.classList.contains('modal-open') || document.documentElement.classList.contains('modal-open')) {
+            isTracking = false;
+            return;
+        }
+        if (window.scrollY > 5) {
+            isTracking = false;
+            const ind = getIndicator();
+            ind.style.top = '-50px';
+            ind.style.opacity = '0';
+            return;
+        }
+        if (e.touches.length !== 1) return;
+
+        const currentY = e.touches[0].clientY;
+        const delta = currentY - startY;
+
+        if (delta > 15) {
+            const ind = getIndicator();
+            const pullY = Math.min(delta * 0.4, 75);
+            ind.style.top = (10 + pullY) + 'px';
+            ind.style.opacity = Math.min(pullY / 40, 1).toString();
+            const svg = ind.querySelector('svg');
+            if (svg) {
+                svg.style.transform = `rotate(${delta * 2.5}deg)`;
+            }
+        }
+    }, { passive: true });
+
+    document.addEventListener('touchend', function() {
+        if (!isTracking) return;
+        isTracking = false;
+
+        const ind = getIndicator();
+        const topPos = parseInt(ind.style.top || '-50', 10);
+
+        if (topPos >= 38) {
+            ind.classList.add('refreshing');
+            ind.style.top = '25px';
+            ind.style.opacity = '1';
+            setTimeout(() => {
+                window.location.reload();
+            }, 250);
+        } else {
+            ind.style.top = '-50px';
+            ind.style.opacity = '0';
+        }
+    }, { passive: true });
+})();
+
+
 

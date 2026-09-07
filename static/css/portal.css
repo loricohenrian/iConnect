@@ -8,8 +8,8 @@
    Portal Layout & Wrapper
    ============================================ */
 html, body {
-    overscroll-behavior-y: none;
-    overscroll-behavior: none;
+    overscroll-behavior-y: auto;
+    overscroll-behavior: auto;
 }
 
 .portal-wrapper {
@@ -1222,3 +1222,42 @@ body.modal-open {
     from { opacity: 1; transform: scale(1); }
     to { opacity: 0.85; transform: scale(1.02); }
 }
+
+/* ============================================
+   Pull-to-Refresh Indicator (Captive Portal & WebViews)
+   ============================================ */
+.ptr-indicator {
+    position: fixed;
+    top: -50px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 40px;
+    height: 40px;
+    background: var(--color-white, #ffffff);
+    border-radius: 50%;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1500;
+    pointer-events: none;
+    transition: opacity 0.2s ease, top 0.2s ease;
+    opacity: 0;
+    color: var(--color-primary, #7b2d3b);
+}
+
+.ptr-indicator svg {
+    width: 20px;
+    height: 20px;
+    transition: transform 0.15s ease-out;
+}
+
+.ptr-indicator.refreshing svg {
+    animation: ptr-spin 0.75s linear infinite;
+}
+
+@keyframes ptr-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
