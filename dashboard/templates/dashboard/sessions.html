@@ -250,19 +250,25 @@
             <input type="hidden" id="modalSelectedPlanId" value="">
             
             <label class="form-label mb-xs" style="font-weight: 600; font-size: 13px;">Plan Presets</label>
-            <div class="d-flex gap-xs mb-sm flex-wrap" id="planPresetsContainer">
+            <div class="plan-presets-grid mb-sm" id="planPresetsContainer">
                 {% for p in active_plans %}
-                <button type="button" class="btn btn-sm btn-secondary preset-plan-btn"
+                <button type="button" class="preset-plan-card"
                     data-plan-id="{{ p.id }}"
                     data-minutes="{{ p.duration_minutes }}"
                     data-dl="{{ p.speed_limit|default_if_none:'' }}"
-                    data-ul="{{ p.speed_limit_upload|default_if_none:'' }}"
+                    data-ul="{% if p.speed_limit_upload %}{{ p.speed_limit_upload }}{% elif p.speed_limit %}{{ p.speed_limit }}{% endif %}"
                     onclick="selectPlanPreset(this)">
-                    <strong>{{ p.name }}</strong>
-                    <span class="preset-meta text-xs" style="margin-left: 3px; opacity: 0.85;">({{ p.duration_display }}{% if p.speed_limit %} · {{ p.speed_limit }}M{% endif %})</span>
+                    <div class="preset-plan-row">
+                        <span class="preset-plan-title">{{ p.name }}</span>
+                        <span class="preset-plan-time">{{ p.duration_display }}</span>
+                    </div>
+                    <div class="preset-plan-speeds">
+                        <span class="speed-badge dl-badge">↓ {{ p.speed_limit|default_if_none:"2.0" }}M</span>
+                        <span class="speed-badge ul-badge">↑ {% if p.speed_limit_upload %}{{ p.speed_limit_upload }}{% elif p.speed_limit %}{{ p.speed_limit }}{% else %}2.0{% endif %}M</span>
+                    </div>
                 </button>
                 {% empty %}
-                <span class="text-xs text-muted">No active plans configured. Use custom fields below.</span>
+                <span class="text-xs text-muted" style="grid-column: 1 / -1;">No active plans configured. Use custom fields below.</span>
                 {% endfor %}
             </div>
 
@@ -349,32 +355,84 @@
     color: #ef4444;
     background: rgba(239,68,68,0.08);
 }
-.preset-plan-btn {
-    padding: 5px 9px;
-    font-size: 12px;
-    border-radius: 6px;
-    border: 1px solid var(--color-border, #e2e8f0);
+.plan-presets-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+}
+.preset-plan-card {
+    border: 1.5px solid var(--color-border, #e2e8f0);
     background: #f8fafc;
     color: var(--color-dark, #1e293b);
+    padding: 8px 10px;
+    border-radius: 8px;
     cursor: pointer;
     transition: all 0.15s ease;
-    display: inline-flex;
-    align-items: center;
-    line-height: 1.2;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    text-align: left;
+    outline: none;
+    width: 100%;
+    box-sizing: border-box;
 }
-.preset-plan-btn:hover {
+.preset-plan-card:hover {
     border-color: #10b981;
-    background: #ecfdf5;
-    color: #065f46;
+    background: #f0fdf4;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(16, 185, 129, 0.12);
 }
-.preset-plan-btn.active {
+.preset-plan-card.active {
     border-color: #059669 !important;
     background: #059669 !important;
     color: #ffffff !important;
-    box-shadow: 0 2px 6px rgba(5,150,105,0.25);
+    box-shadow: 0 3px 8px rgba(5, 150, 105, 0.28);
 }
-.preset-plan-btn.active .preset-meta {
-    color: rgba(255, 255, 255, 0.9) !important;
+.preset-plan-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+}
+.preset-plan-title {
+    font-weight: 700;
+    font-size: 13px;
+    color: inherit;
+}
+.preset-plan-time {
+    font-size: 11px;
+    opacity: 0.85;
+    color: inherit;
+    font-weight: 500;
+}
+.preset-plan-speeds {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 600;
+}
+.speed-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.05);
+    font-size: 10.5px;
+    line-height: 1.3;
+}
+.dl-badge {
+    color: #0284c7;
+}
+.ul-badge {
+    color: #7c3aed;
+}
+.preset-plan-card.active .speed-badge,
+.preset-plan-card.active .dl-badge,
+.preset-plan-card.active .ul-badge {
+    background: rgba(255, 255, 255, 0.2);
+    color: #ffffff !important;
 }
 </style>
 
@@ -435,13 +493,13 @@
             bodyText.innerHTML = `Choose a plan preset or enter custom minutes and speed limits for this user:`;
             if (addTimeContainer) {
                 addTimeContainer.style.display = 'block';
-                document.querySelectorAll('.preset-plan-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.preset-plan-card').forEach(b => b.classList.remove('active'));
                 const planIdHidden = document.getElementById('modalSelectedPlanId');
                 if (planIdHidden) planIdHidden.value = planId || '';
 
                 let matchedBtn = null;
                 if (planId) {
-                    matchedBtn = document.querySelector(`.preset-plan-btn[data-plan-id="${planId}"]`);
+                    matchedBtn = document.querySelector(`.preset-plan-card[data-plan-id="${planId}"]`);
                 }
                 if (matchedBtn) {
                     matchedBtn.classList.add('active');
@@ -494,7 +552,7 @@
     }
 
     function selectPlanPreset(btn) {
-        document.querySelectorAll('.preset-plan-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.preset-plan-card').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         const planId = btn.dataset.planId || '';
         document.getElementById('modalSelectedPlanId').value = planId;
@@ -506,7 +564,7 @@
     }
 
     function clearPlanPresetSelection() {
-        document.querySelectorAll('.preset-plan-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.preset-plan-card').forEach(b => b.classList.remove('active'));
         document.getElementById('modalSelectedPlanId').value = '';
     }
 
