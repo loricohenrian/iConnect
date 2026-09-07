@@ -1209,7 +1209,7 @@ def heatmap(request):
 
 @user_passes_test(_is_dashboard_admin, login_url='dashboard:login')
 def analytics_view(request):
-    """User behavior analytics page with diagnostic & prescriptive insights."""
+    """User behavior analytics page with performance benchmarks and charts."""
     period = request.GET.get('period', 'month')
     custom_start = request.GET.get('start_date')
     custom_end = request.GET.get('end_date')
@@ -1323,47 +1323,6 @@ def analytics_view(request):
     else:
         revenue_growth = 100 if this_week_rev > 0 else 0
 
-    # Prescriptive Insights
-    insights = []
-    if peak_hour_data and peak_hour != 'N/A':
-        insights.append({
-            'title': 'Optimize for Peak Hours',
-            'text': f"Your busiest traffic occurs around {peak_hour}. Consider offering longer study passes or promos to maximize revenue during this peak window.",
-            'type': 'tip'
-        })
-    if revenue_growth < 0:
-        insights.append({
-            'title': 'Weekly Revenue Adjustment',
-            'text': f"Revenue dipped {abs(revenue_growth)}% compared to last week. Consider introducing a new high-value plan or launching a promo announcement.",
-            'type': 'warning'
-        })
-    elif revenue_growth > 15:
-        insights.append({
-            'title': 'Strong Growth Momentum',
-            'text': f"Weekly revenue grew +{revenue_growth}% — excellent student adoption! Your current rate tiers are performing effectively.",
-            'type': 'success'
-        })
-    if retention_rate > 0 and retention_rate < 35:
-        insights.append({
-            'title': 'Student Retention Opportunity',
-            'text': f"{retention_rate}% of connected devices are returning users. Adding loyalty point rewards or daily streak bonuses can boost repeat visits.",
-            'type': 'warning'
-        })
-    elif retention_rate >= 50:
-        insights.append({
-            'title': 'High Student Loyalty',
-            'text': f"{retention_rate}% of devices return regularly, showing solid student retention and campus demand.",
-            'type': 'success'
-        })
-    if top_plan != 'N/A' and plan_stats and len(plan_stats) > 1:
-        top_pct = round((plan_stats[0]['count'] / total_sessions_count) * 100) if total_sessions_count > 0 else 0
-        if top_pct > 65:
-            insights.append({
-                'title': 'Single Plan Dominance',
-                'text': f"{top_plan} accounts for {top_pct}% of total purchases. Consider adjusting intermediate plan durations to encourage variety.",
-                'type': 'info'
-            })
-
     context = {
         'period': period,
         'start_date': start_date.strftime('%Y-%m-%d') if start_date else '',
@@ -1378,7 +1337,6 @@ def analytics_view(request):
         'total_sessions': total_sessions_count,
         'unique_devices': unique_devices,
         'retention_rate': retention_rate,
-        'insights': insights,
         'active_page': 'analytics',
     }
     return render(request, 'dashboard/analytics.html', context)
