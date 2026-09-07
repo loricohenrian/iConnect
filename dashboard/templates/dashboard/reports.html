@@ -47,6 +47,13 @@
         <div class="stat-info">
             <div class="stat-label">Cumulative Expenses</div>
             <div class="stat-value" style="color: #ef4444;">₱{{ total_expenses|default:"0" }}</div>
+            {% if itemized_expenses %}
+            <div class="text-xs text-muted" style="margin-top: 4px; font-weight: 500;">
+                <a href="#expenses-breakdown" style="color: inherit; text-decoration: underline; text-decoration-style: dotted;">
+                    {{ itemized_expenses|length }} itemized line{{ itemized_expenses|length|pluralize }} &darr;
+                </a>
+            </div>
+            {% endif %}
         </div>
         <div class="static-icon" style="background: rgba(239,68,68,0.12); color: #ef4444; width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
             <svg width="22" height="22" viewBox="0 0 16 16" fill="currentColor"><path d="M1.5 0A1.5 1.5 0 0 0 0 1.5v13A1.5 1.5 0 0 0 1.5 16h13a1.5 1.5 0 0 0 1.5-1.5V2.914a1.5 1.5 0 0 0-.44-1.06L14.147.439A1.5 1.5 0 0 0 13.086 0zM4 3.5a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5M4 6.5a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5M4 9.5a.5.5 0 0 1 .5-.5h4a.5.5 0 0 1 0 1h-4a.5.5 0 0 1-.5-.5"/></svg>
@@ -149,6 +156,7 @@
                         <th>Plan Name</th>
                         <th>Rate Price</th>
                         <th>Sold</th>
+                        <th>% of Total</th>
                         <th style="text-align: right;">Total Generated</th>
                     </tr>
                 </thead>
@@ -162,6 +170,10 @@
                         </td>
                         <td>₱{{ plan.plan__price }}</td>
                         <td>{{ plan.count }}</td>
+                        <td title="{{ plan.pct_revenue }}% of total revenue · {{ plan.pct_count }}% of sales volume">
+                            <span class="font-semibold" style="color: #0284c7;">{{ plan.pct_revenue }}%</span>
+                            <span class="text-xs text-muted" style="margin-left: 2px;">({{ plan.pct_count }}% vol)</span>
+                        </td>
                         <td class="font-semibold" style="text-align: right; color: #10b981;">₱{{ plan.total|default:"0" }}</td>
                     </tr>
                     {% endfor %}
@@ -245,6 +257,63 @@
             </div>
         </div>
     </div>
+</div>
+
+<!-- Section 4: Itemized Expense Breakdown -->
+<div id="expenses-breakdown" class="chart-card animate-fadeIn mb-md" style="animation-delay: 500ms">
+    <div class="chart-header">
+        <div>
+            <h3 class="chart-title">Itemized Operating & Capital Expenses</h3>
+            <span class="text-xs text-muted">Recurring utility, ISP bills, and hardware investments matching ROI Tracker</span>
+        </div>
+        <a href="{% url 'dashboard:roi' %}" class="btn btn-sm btn-secondary" style="font-size: 12px; padding: 5px 12px;">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" style="vertical-align: -1px; margin-right: 3px;"><path d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2z"/><path d="M4 8a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7A.5.5 0 0 1 4 8"/></svg>
+            Manage in ROI Tracker &rarr;
+        </a>
+    </div>
+
+    {% if itemized_expenses %}
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Expense Item</th>
+                    <th>Billing Frequency</th>
+                    <th>Date Added</th>
+                    <th style="text-align: right;">Cost / Rate</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for expense in itemized_expenses %}
+                <tr>
+                    <td class="font-semibold">{{ expense.name }}</td>
+                    <td>
+                        <span class="badge {% if expense.frequency == 'One-time' %}badge-paused{% else %}badge-info{% endif %}" style="font-size: 11px; padding: 2px 6px;">
+                            {{ expense.frequency }}
+                        </span>
+                    </td>
+                    <td class="text-xs text-muted">{{ expense.date|date:"M d, Y" }}</td>
+                    <td class="font-semibold" style="text-align: right; color: #ef4444;">₱{{ expense.amount }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="d-flex justify-content-between align-items-center mt-sm pt-sm flex-wrap gap-sm" style="border-top: 1px solid var(--color-border); padding: 10px 14px; background: rgba(0,0,0,0.02); border-radius: 6px;">
+        <span class="font-semibold text-small">Cumulative Operational Incurred ({{ days_operating }} day{{ days_operating|pluralize }}):</span>
+        <div class="d-flex align-items-center gap-md">
+            {% if total_investment > 0 %}
+            <span class="text-xs text-muted">Capital Investment: <strong>₱{{ total_investment }}</strong></span>
+            {% endif %}
+            <span class="font-bold" style="color: #ef4444; font-size: 15px;">₱{{ total_expenses }}</span>
+        </div>
+    </div>
+    {% else %}
+    <div class="empty-state" style="padding: 24px;">
+        <p class="font-semibold" style="margin: 0;">No expenses recorded yet</p>
+        <small class="text-muted"><a href="{% url 'dashboard:roi' %}">Add expenses in ROI Tracker</a> to itemize ISP bills, utilities, and hardware costs.</small>
+    </div>
+    {% endif %}
 </div>
 
 {% endblock %}

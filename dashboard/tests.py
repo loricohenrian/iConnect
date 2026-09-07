@@ -845,6 +845,68 @@ class RoiTrackerEnhancementTests(TestCase):
         self.assertEqual(values[-1], 260.0)
 
 
+class ReportsEnhancementTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+
+    def test_reports_itemized_expenses_and_plan_percentages(self):
+        from dashboard.models import ProjectCost, OperatingExpense
+        from django.utils import timezone
+        from datetime import timedelta
+
+        User = get_user_model()
+        user = User.objects.create_user(
+            username="reports_admin",
+            password="admin123",
+            is_staff=True,
+            is_superuser=True,
+        )
+        self.client.login(username=user.username, password="admin123")
+
+        now = timezone.now()
+        # Create ProjectCost and OperatingExpense
+        ProjectCost.objects.create(description="Hardware Router", amount=1800, date_added=now)
+        OperatingExpense.objects.create(name="PLDT Fiber", amount=1500, period="monthly", date_added=now)
+
+        # Create plans and sessions
+        p1 = Plan.objects.create(name="1hr Plan", price=10, duration_minutes=60)
+        p2 = Plan.objects.create(name="3hr Plan", price=25, duration_minutes=180)
+
+        # 3 sessions for p1 (₱30)
+        for _ in range(3):
+            Session.objects.create(mac_address="AA:BB:CC:DD:EE:01", ip_address="10.0.0.2", plan=p1, amount_paid=10, duration_minutes_purchased=60, status="expired", time_in=now)
+        # 1 session for p2 (₱25)
+        Session.objects.create(mac_address="AA:BB:CC:DD:EE:02", ip_address="10.0.0.3", plan=p2, amount_paid=25, duration_minutes_purchased=180, status="expired", time_in=now)
+
+        resp = self.client.get("/iconnect-ops/reports/")
+        self.assertEqual(resp.status_code, 200)
+
+        # Check itemized expenses in context
+        itemized = resp.context["itemized_expenses"]
+        self.assertEqual(len(itemized), 2)
+        names = [item["name"] for item in itemized]
+        self.assertIn("PLDT Fiber", names)
+        self.assertIn("Hardware Router", names)
+
+        # Check % of Total column and itemized table in HTML
+        self.assertContains(resp, "% of Total")
+        self.assertContains(resp, "Itemized Operating & Capital Expenses")
+        self.assertContains(resp, "PLDT Fiber")
+        self.assertContains(resp, "Hardware Router")
+
+        # Total revenue = 55. Total count = 4.
+        # p1: 30 / 55 = 54.5% rev, 3 / 4 = 75.0% vol
+        # p2: 25 / 55 = 45.5% rev, 1 / 4 = 25.0% vol
+        top_plans = resp.context["top_plans"]
+        p1_data = next(p for p in top_plans if p["plan__name"] == "1hr Plan")
+        self.assertEqual(p1_data["pct_revenue"], 54.5)
+        self.assertEqual(p1_data["pct_count"], 75.0)
+
+        self.assertContains(resp, "54.5%")
+        self.assertContains(resp, "(75.0% vol)")
+
+
+
 
 
 

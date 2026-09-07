@@ -1133,32 +1133,84 @@ def reports(request):
     sessions_month = Session.objects.filter(time_in__date__gte=month_ago).count()
     sessions_total = Session.objects.count()
 
-    # === Operating Expenses ===
+    # === Operating Expenses & Capital Costs ===
     first_session = Session.objects.order_by('time_in').first()
-    days_operating = max((timezone.now() - first_session.time_in).days, 1) if first_session else 0
+    first_coin = CoinEvent.objects.order_by('timestamp').first()
+    from dashboard.models import OperatingExpense, ProjectCost
+    first_cost = ProjectCost.objects.order_by('date_added').first()
 
-    from dashboard.models import OperatingExpense
+    first_dates = []
+    if first_cost and first_cost.date_added:
+        first_dates.append(first_cost.date_added)
+    if first_session and first_session.time_in:
+        first_dates.append(first_session.time_in)
+    if first_coin and first_coin.timestamp:
+        first_dates.append(first_coin.timestamp)
+
+    if first_dates:
+        earliest_date = min(first_dates)
+        days_operating = max((timezone.now() - earliest_date).days + 1, 1)
+    else:
+        days_operating = 1
+
     total_expenses = OperatingExpense.calculate_total_expenses(days_operating)
-    
-    # We still need to pass operating_expenses to the template
-    operating_expenses = OperatingExpense.objects.all()
+    operating_expenses = OperatingExpense.objects.all().order_by('-date_added')
+    capital_costs = ProjectCost.objects.all().order_by('-date_added')
+
+    # Itemized expenses list matching ROI tracker
+    itemized_expenses = []
+    for exp in operating_expenses:
+        itemized_expenses.append({
+            'name': exp.name,
+            'frequency': exp.get_period_display(),
+            'amount': exp.amount,
+            'date': exp.date_added,
+            'type': 'recurring',
+        })
+    for cost in capital_costs:
+        itemized_expenses.append({
+            'name': cost.description,
+            'frequency': 'One-time',
+            'amount': cost.amount,
+            'date': cost.date_added,
+            'type': 'capital',
+        })
 
     # === Financial Summary ===
-    from dashboard.models import ProjectCost
     total_investment = ProjectCost.total_cost()
     net_profit = round(revenue_all_time - total_expenses, 2)
     roi_pct = round((net_profit / total_investment * 100), 1) if total_investment > 0 else 0
 
-    # === Top Plans (Excluding ₱0 prizes) ===
-    top_plans = Session.objects.filter(
+    # === Top Plans (Excluding ₱0 prizes) with % of Total ===
+    month_plan_qs = Session.objects.filter(
         time_in__date__gte=month_ago,
         status__in=['active', 'expired', 'paused'],
         amount_paid__gt=0,
         plan__isnull=False
-    ).exclude(plan__name__startswith="Prize:").values('plan__name', 'plan__price').annotate(
+    ).exclude(plan__name__startswith="Prize:")
+
+    total_month_plan_rev = month_plan_qs.aggregate(total=Sum('amount_paid'))['total'] or 0
+    total_month_plan_count = month_plan_qs.count()
+
+    top_plans_raw = month_plan_qs.values('plan__name', 'plan__price').annotate(
         count=Count('id'),
         total=Sum('amount_paid'),
     ).order_by('-count')[:5]
+
+    top_plans = []
+    for p in top_plans_raw:
+        plan_rev = float(p['total'] or 0)
+        plan_count = int(p['count'] or 0)
+        pct_rev = round((plan_rev / total_month_plan_rev) * 100, 1) if total_month_plan_rev > 0 else 0.0
+        pct_cnt = round((plan_count / total_month_plan_count) * 100, 1) if total_month_plan_count > 0 else 0.0
+        top_plans.append({
+            'plan__name': p['plan__name'],
+            'plan__price': p['plan__price'],
+            'count': plan_count,
+            'total': plan_rev,
+            'pct_revenue': pct_rev,
+            'pct_count': pct_cnt,
+        })
 
     # === Daily revenue for last 7 days (for chart) ===
     daily_revenue = []
@@ -1185,12 +1237,15 @@ def reports(request):
         # Financial
         'total_expenses': total_expenses,
         'operating_expenses': operating_expenses,
+        'itemized_expenses': itemized_expenses,
         'net_profit': net_profit,
         'total_investment': total_investment,
         'roi_percentage': roi_pct,
         'days_operating': days_operating,
         # Data
         'top_plans': top_plans,
+        'total_month_plan_rev': total_month_plan_rev,
+        'total_month_plan_count': total_month_plan_count,
         'daily_revenue': daily_revenue,
         'active_page': 'reports',
     }
