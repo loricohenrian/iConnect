@@ -27,6 +27,8 @@ from rest_framework.response import Response
 
 from .models import Announcement, RevenueGoal, ProjectCost, DailyRevenueSummary, SystemSettings, IssueReport
 from .serializers import AnnouncementSerializer, RevenueGoalSerializer, ProjectCostSerializer
+from .validators import validate_password_strength, validate_username, sanitize_text, parse_bounded_int, parse_bounded_float
+from django.core.validators import validate_email
 from sessions_app import iptables
 from sessions_app.models import Session, CoinEvent, Plan, WhitelistedDevice, SuspiciousDevice, PurchaseTransaction
 from django.conf import settings
@@ -1379,30 +1381,48 @@ def roi(request):
     if request.method == 'POST':
         action = request.POST.get('action')
         if action == 'add_cost':
-            desc = request.POST.get('description', '').strip()
-            amount = request.POST.get('amount', '').strip()
-            if desc and amount:
+            desc = sanitize_text(request.POST.get('description', ''), max_length=100)
+            amount_raw = request.POST.get('amount', '').strip()
+            if not desc or len(desc) < 2:
+                messages.error(request, 'Cost description must be between 2 and 100 characters.')
+            else:
                 try:
-                    ProjectCost.objects.create(description=desc, amount=int(amount))
-                except (ValueError, TypeError):
-                    pass
+                    amount = parse_bounded_int(amount_raw, 1, 10_000_000, 'Cost amount')
+                    ProjectCost.objects.create(description=desc, amount=amount)
+                    messages.success(request, f'Capital investment "{desc}" (₱{amount:,}) added.')
+                except ValueError as e:
+                    messages.error(request, str(e))
         elif action == 'delete_cost':
             cost_id = request.POST.get('cost_id')
             if cost_id:
-                ProjectCost.objects.filter(id=cost_id).delete()
-        elif action == 'add_expense':
-            name = request.POST.get('name', '').strip()
-            amount = request.POST.get('amount', '').strip()
-            period = request.POST.get('period', 'monthly').strip()
-            if name and amount:
                 try:
-                    OperatingExpense.objects.create(name=name, amount=int(amount), period=period)
+                    ProjectCost.objects.filter(id=int(cost_id)).delete()
+                    messages.success(request, 'Capital investment cost deleted.')
                 except (ValueError, TypeError):
-                    pass
+                    messages.error(request, 'Invalid cost ID.')
+        elif action == 'add_expense':
+            name = sanitize_text(request.POST.get('name', ''), max_length=100)
+            amount_raw = request.POST.get('amount', '').strip()
+            period = request.POST.get('period', 'monthly').strip().lower()
+            if not name or len(name) < 2:
+                messages.error(request, 'Expense name must be between 2 and 100 characters.')
+            elif period not in ['daily', 'monthly', 'yearly']:
+                messages.error(request, 'Invalid recurring period. Choose Daily, Monthly, or Yearly.')
+            else:
+                try:
+                    amount = parse_bounded_int(amount_raw, 1, 10_000_000, 'Expense amount')
+                    OperatingExpense.objects.create(name=name, amount=amount, period=period)
+                    messages.success(request, f'Operating expense "{name}" (₱{amount:,}/{period}) added.')
+                except ValueError as e:
+                    messages.error(request, str(e))
         elif action == 'delete_expense':
             expense_id = request.POST.get('expense_id')
             if expense_id:
-                OperatingExpense.objects.filter(id=expense_id).delete()
+                try:
+                    OperatingExpense.objects.filter(id=int(expense_id)).delete()
+                    messages.success(request, 'Operating expense deleted.')
+                except (ValueError, TypeError):
+                    messages.error(request, 'Invalid expense ID.')
         return redirect('dashboard:roi')
 
     # === INVESTMENT (one-time capital project costs) ===
@@ -1515,25 +1535,48 @@ def announcements_view(request):
     if request.method == 'POST':
         action = request.POST.get('action')
         if action == 'create':
-            message = request.POST.get('message', '').strip()
-            if message:
+            message = sanitize_text(request.POST.get('message', ''), max_length=500, allow_multiline=True)
+            if not message or len(message) < 3:
+                messages.error(request, 'Announcement message must be at least 3 characters long.')
+            else:
                 Announcement.objects.create(message=message)
+                messages.success(request, 'Announcement published successfully.')
         elif action == 'update':
             ann_id = request.POST.get('announcement_id')
-            message = request.POST.get('message', '').strip()
-            if ann_id and message:
-                Announcement.objects.filter(id=ann_id).update(message=message)
+            message = sanitize_text(request.POST.get('message', ''), max_length=500, allow_multiline=True)
+            if not message or len(message) < 3:
+                messages.error(request, 'Announcement message must be at least 3 characters long.')
+            elif not ann_id:
+                messages.error(request, 'Announcement ID is required.')
+            else:
+                try:
+                    updated = Announcement.objects.filter(id=int(ann_id)).update(message=message)
+                    if updated:
+                        messages.success(request, 'Announcement updated successfully.')
+                    else:
+                        messages.error(request, 'Announcement not found.')
+                except (ValueError, TypeError):
+                    messages.error(request, 'Invalid announcement ID.')
         elif action == 'toggle':
             ann_id = request.POST.get('announcement_id')
             try:
-                ann = Announcement.objects.get(id=ann_id)
+                ann = Announcement.objects.get(id=int(ann_id))
                 ann.is_active = not ann.is_active
                 ann.save()
-            except Announcement.DoesNotExist:
-                pass
+                status_text = 'activated' if ann.is_active else 'deactivated'
+                messages.success(request, f'Announcement {status_text}.')
+            except (Announcement.DoesNotExist, ValueError, TypeError):
+                messages.error(request, 'Announcement not found.')
         elif action == 'delete':
             ann_id = request.POST.get('announcement_id')
-            Announcement.objects.filter(id=ann_id).delete()
+            try:
+                deleted, _ = Announcement.objects.filter(id=int(ann_id)).delete()
+                if deleted:
+                    messages.success(request, 'Announcement deleted successfully.')
+                else:
+                    messages.error(request, 'Announcement not found.')
+            except (ValueError, TypeError):
+                messages.error(request, 'Invalid announcement ID.')
 
         return redirect('dashboard:announcements')
 
@@ -1566,28 +1609,24 @@ def plans_view(request):
             is_active = request.POST.get('is_active') in ('on', 'true', '1')
 
             try:
-                price = int(price_raw)
-                duration_minutes = int(duration_raw)
-                pause_limit = int(pause_limit_raw) if pause_limit_raw else 0
-                pause_duration_limit = int(pause_duration_limit_raw) if pause_duration_limit_raw else 0
-                
+                name = sanitize_text(request.POST.get('name', ''), max_length=50)
+                price = parse_bounded_int(price_raw, 1, 50_000, "Price")
+                duration_minutes = parse_bounded_int(duration_raw, 1, 43_200, "Duration")
+                pause_limit = parse_bounded_int(pause_limit_raw, 0, 100, "Pause limit", default=0)
+                pause_duration_limit = parse_bounded_int(pause_duration_limit_raw, 0, 1440, "Pause duration limit", default=0)
+
                 if not name:
                     name = f"₱{price} Plan"
-                    
-                if price <= 0 or duration_minutes <= 0:
-                    raise ValueError('Price and duration must be positive.')
 
                 speed_limit = None
                 if speed_limit_raw:
-                    speed_limit = Decimal(speed_limit_raw)
-                    if speed_limit <= 0:
-                        raise ValueError('Speed limit must be positive when provided.')
+                    sl_val = parse_bounded_float(speed_limit_raw, 0.1, 1000.0, "Download speed limit")
+                    speed_limit = Decimal(str(sl_val))
 
                 speed_limit_upload = None
                 if speed_limit_upload_raw:
-                    speed_limit_upload = Decimal(speed_limit_upload_raw)
-                    if speed_limit_upload <= 0:
-                        raise ValueError('Upload speed limit must be positive when provided.')
+                    slu_val = parse_bounded_float(speed_limit_upload_raw, 0.1, 1000.0, "Upload speed limit")
+                    speed_limit_upload = Decimal(str(slu_val))
 
                 if action == 'create':
                     Plan.objects.create(
@@ -1600,6 +1639,7 @@ def plans_view(request):
                         pause_duration_limit=pause_duration_limit,
                         is_active=is_active,
                     )
+                    messages.success(request, f'WiFi rate plan "{name}" created successfully.')
                 else:
                     plan = Plan.objects.filter(id=plan_id).first()
                     if plan:
@@ -1612,6 +1652,9 @@ def plans_view(request):
                         plan.pause_duration_limit = pause_duration_limit
                         plan.is_active = is_active
                         plan.save()
+                        messages.success(request, f'WiFi rate plan "{name}" updated successfully.')
+                    else:
+                        error_message = 'Plan not found.'
             except (ValueError, InvalidOperation) as exc:
                 error_message = str(exc)
 
@@ -1652,8 +1695,12 @@ def security_view(request):
 
     if request.method == 'POST':
         action = request.POST.get('action', '').strip()
-        incident_id = request.POST.get('incident_id', '').strip()
-        incident = SuspiciousDevice.objects.filter(id=incident_id).first()
+        incident_id_raw = request.POST.get('incident_id', '').strip()
+        try:
+            inc_id = parse_bounded_int(incident_id_raw, 1, 2147483647, 'incident_id')
+            incident = SuspiciousDevice.objects.filter(id=inc_id).first()
+        except ValueError:
+            incident = None
 
         if not incident:
             action_error = 'Suspicious device record not found.'
@@ -1754,17 +1801,25 @@ def account_view(request):
         action = request.POST.get('action')
         if action == 'update_email':
             email = request.POST.get('email', '').strip()
-            if email:
-                request.user.email = email
-                request.user.save(update_fields=['email'])
-                email_message = 'Email updated successfully.'
-                audit_logger.info("event=admin_email_updated user=%s email=%s", request.user.username, email)
-            else:
+            if not email:
                 email_error = 'Email cannot be empty.'
+            else:
+                try:
+                    validate_email(email)
+                    request.user.email = email
+                    request.user.save(update_fields=['email'])
+                    email_message = 'Email updated successfully.'
+                    audit_logger.info("event=admin_email_updated user=%s email=%s", request.user.username, email)
+                except ValidationError:
+                    email_error = 'Please enter a valid email address (e.g., admin@example.com).'
 
         elif action == 'change_password':
             password_form = PasswordChangeForm(request.user, request.POST)
-            if password_form.is_valid():
+            new_pass = request.POST.get('new_password1', '')
+            pass_ok, pass_err = validate_password_strength(new_pass, request.user.username)
+            if not pass_ok:
+                password_form.add_error('new_password1', pass_err)
+            elif password_form.is_valid():
                 user = password_form.save()
                 update_session_auth_hash(request, user)
                 password_message = 'Password updated successfully.'
@@ -1775,31 +1830,40 @@ def account_view(request):
             new_username = request.POST.get('new_username', '').strip()
             new_email = request.POST.get('new_email', '').strip()
             new_password = request.POST.get('new_password', '').strip()
-            new_role = request.POST.get('new_role', 'staff')
 
-            if not new_username:
-                admin_error = 'Username cannot be empty.'
-            elif len(new_password) < 6:
-                admin_error = 'Password must be at least 6 characters long.'
+            u_ok, u_err = validate_username(new_username)
+            p_ok, p_err = validate_password_strength(new_password, new_username)
+
+            if not u_ok:
+                admin_error = u_err
             elif User.objects.filter(username__iexact=new_username).exists():
                 admin_error = f'Username "{new_username}" is already taken.'
-            else:
+            elif new_email:
                 try:
-                    is_superuser = (new_role == 'superuser')
+                    validate_email(new_email)
+                except ValidationError:
+                    admin_error = 'Please enter a valid email address.'
+
+            if not admin_error and not p_ok:
+                admin_error = p_err
+
+            if not admin_error:
+                try:
+                    # All accounts created are Superadmins (Superadmin role only)
                     new_user = User.objects.create_user(
                         username=new_username,
                         email=new_email,
                         password=new_password,
                     )
                     new_user.is_staff = True
-                    new_user.is_superuser = is_superuser
+                    new_user.is_superuser = True
                     new_user.is_active = True
                     new_user.save()
 
-                    admin_message = f'Admin account "{new_username}" created successfully.'
+                    admin_message = f'Superadmin account "{new_username}" created successfully.'
                     audit_logger.info(
-                        "event=admin_created creator=%s created_user=%s is_superuser=%s",
-                        request.user.username, new_username, is_superuser
+                        "event=admin_created creator=%s created_user=%s is_superuser=True",
+                        request.user.username, new_username
                     )
                 except Exception as e:
                     admin_error = f'Error creating account: {e}'
@@ -1810,17 +1874,17 @@ def account_view(request):
                 target_user = User.objects.get(id=target_id, is_staff=True)
                 if target_user.id == request.user.id:
                     admin_error = 'You cannot delete your own active administrator account.'
-                elif target_user.is_superuser and User.objects.filter(is_superuser=True, is_staff=True).count() <= 1:
-                    admin_error = 'Cannot delete the only remaining Superadmin account.'
+                elif User.objects.filter(is_staff=True).count() <= 1:
+                    admin_error = 'Cannot delete the only remaining administrator account.'
                 else:
                     deleted_name = target_user.username
                     target_user.delete()
-                    admin_message = f'Admin account "{deleted_name}" deleted successfully.'
+                    admin_message = f'Administrator account "{deleted_name}" deleted successfully.'
                     audit_logger.info(
                         "event=admin_deleted by=%s deleted_user=%s",
                         request.user.username, deleted_name
                     )
-            except User.DoesNotExist:
+            except (User.DoesNotExist, ValueError):
                 admin_error = 'User not found.'
             except Exception as e:
                 admin_error = f'Error deleting account: {e}'
@@ -1851,57 +1915,63 @@ def settings_view(request):
             # Networking
             settings_obj.enable_anti_tethering = request.POST.get('enable_anti_tethering') == 'on'
             settings_obj.enable_sqm = request.POST.get('enable_sqm') == 'on'
-            settings_obj.isp_download_speed = int(request.POST.get('isp_download_speed', 100))
-            settings_obj.isp_upload_speed = int(request.POST.get('isp_upload_speed', 100))
+            settings_obj.isp_download_speed = parse_bounded_int(request.POST.get('isp_download_speed'), 1, 10_000, "ISP Download Speed", default=100)
+            settings_obj.isp_upload_speed = parse_bounded_int(request.POST.get('isp_upload_speed'), 1, 10_000, "ISP Upload Speed", default=100)
             
             # General / UI
             settings_obj.enable_dark_mode = request.POST.get('enable_dark_mode') == 'on'
-            settings_obj.max_concurrent_sessions = int(request.POST.get('max_concurrent_sessions', 20))
-            settings_obj.global_pause_limit_hours = max(1, int(request.POST.get('global_pause_limit_hours', 24)))
+            settings_obj.max_concurrent_sessions = parse_bounded_int(request.POST.get('max_concurrent_sessions'), 1, 1_000, "Max Concurrent Sessions", default=20)
+            settings_obj.global_pause_limit_hours = parse_bounded_int(request.POST.get('global_pause_limit_hours'), 0, 720, "Global Max Pause Hours", default=24)
             
             # Network & Automation Features
             settings_obj.enable_internet_check = request.POST.get('enable_internet_check') == 'on'
             settings_obj.enable_outage_announcement = request.POST.get('enable_outage_announcement') == 'on'
             settings_obj.enable_outage_auto_pause = request.POST.get('enable_outage_auto_pause') == 'on'
             settings_obj.enable_auto_pause_resume = request.POST.get('enable_auto_pause_resume') == 'on'
-            settings_obj.auto_pause_timeout_seconds = int(request.POST.get('auto_pause_timeout_seconds', 300))
-            settings_obj.insert_coin_countdown_seconds = int(request.POST.get('insert_coin_countdown_seconds', 120))
+            settings_obj.auto_pause_timeout_seconds = parse_bounded_int(request.POST.get('auto_pause_timeout_seconds'), 60, 86_400, "Auto-Pause Timeout", default=300)
+            settings_obj.insert_coin_countdown_seconds = parse_bounded_int(request.POST.get('insert_coin_countdown_seconds'), 10, 600, "Insert Coin Countdown", default=120)
             if 'coin_timer_extension_seconds' in request.POST:
-                settings_obj.coin_timer_extension_seconds = max(1, int(request.POST.get('coin_timer_extension_seconds', 8)))
+                settings_obj.coin_timer_extension_seconds = parse_bounded_int(request.POST.get('coin_timer_extension_seconds'), 1, 60, "Coin Timer Extension", default=8)
             if 'coin_timer_min_remaining_seconds' in request.POST:
-                settings_obj.coin_timer_min_remaining_seconds = max(5, int(request.POST.get('coin_timer_min_remaining_seconds', 15)))
+                settings_obj.coin_timer_min_remaining_seconds = parse_bounded_int(request.POST.get('coin_timer_min_remaining_seconds'), 5, 60, "Coin Timer Minimum", default=15)
             if 'coin_timer_max_seconds' in request.POST:
-                settings_obj.coin_timer_max_seconds = max(30, int(request.POST.get('coin_timer_max_seconds', 180)))
+                settings_obj.coin_timer_max_seconds = parse_bounded_int(request.POST.get('coin_timer_max_seconds'), 30, 600, "Coin Timer Maximum", default=180)
             
             # Gamification
             settings_obj.enable_spin_wheel = request.POST.get('enable_spin_wheel') == 'on'
-            settings_obj.spin_cost_points = int(request.POST.get('spin_cost_points', 10))
-            settings_obj.daily_spin_limit = int(request.POST.get('daily_spin_limit', 3))
-            settings_obj.points_per_streak_day = int(request.POST.get('points_per_streak_day', 5))
+            settings_obj.spin_cost_points = parse_bounded_int(request.POST.get('spin_cost_points'), 1, 10_000, "Spin Cost Points", default=10)
+            settings_obj.daily_spin_limit = parse_bounded_int(request.POST.get('daily_spin_limit'), 1, 100, "Daily Spin Limit", default=3)
+            settings_obj.points_per_streak_day = parse_bounded_int(request.POST.get('points_per_streak_day'), 0, 1_000, "Points Per Streak Day", default=5)
             
             # Family Pass
             if 'enable_family_pass' in request.POST or 'family_pass_base_rate' in request.POST:
                 settings_obj.enable_family_pass = request.POST.get('enable_family_pass') == 'on'
                 if request.POST.get('family_pass_base_rate'):
-                    settings_obj.family_pass_base_rate = int(request.POST.get('family_pass_base_rate', 20))
+                    settings_obj.family_pass_base_rate = parse_bounded_int(request.POST.get('family_pass_base_rate'), 1, 10_000, "Family Pass Base Rate", default=20)
                 if request.POST.get('family_pass_device_rate'):
-                    settings_obj.family_pass_device_rate = int(request.POST.get('family_pass_device_rate', 5))
+                    settings_obj.family_pass_device_rate = parse_bounded_int(request.POST.get('family_pass_device_rate'), 1, 10_000, "Family Pass Extra Device Rate", default=5)
                 if request.POST.get('family_pass_max_devices'):
-                    settings_obj.family_pass_max_devices = int(request.POST.get('family_pass_max_devices', 6))
+                    settings_obj.family_pass_max_devices = parse_bounded_int(request.POST.get('family_pass_max_devices'), 2, 50, "Family Pass Max Devices", default=6)
                 if request.POST.get('family_pass_speed_limit'):
-                    settings_obj.family_pass_speed_limit = float(request.POST.get('family_pass_speed_limit', 5.0))
+                    settings_obj.family_pass_speed_limit = parse_bounded_float(request.POST.get('family_pass_speed_limit'), 0.1, 1000.0, "Family Pass Speed Limit", default=5.0)
                 if request.POST.get('family_pass_speed_limit_upload'):
-                    settings_obj.family_pass_speed_limit_upload = float(request.POST.get('family_pass_speed_limit_upload', 5.0))
+                    settings_obj.family_pass_speed_limit_upload = parse_bounded_float(request.POST.get('family_pass_speed_limit_upload'), 0.1, 1000.0, "Family Pass Upload Limit", default=5.0)
             if 'group_code_expiry_hours' in request.POST:
-                settings_obj.group_code_expiry_hours = max(0, int(request.POST.get('group_code_expiry_hours', 24)))
+                settings_obj.group_code_expiry_hours = parse_bounded_int(request.POST.get('group_code_expiry_hours'), 0, 720, "Group Code Expiry Hours", default=24)
             
             # Telegram Bot Integration
             if 'telegram_bot_token' in request.POST or 'enable_telegram_bot' in request.POST:
                 settings_obj.enable_telegram_bot = request.POST.get('enable_telegram_bot') == 'on'
                 if request.POST.get('telegram_bot_token'):
-                    settings_obj.telegram_bot_token = request.POST.get('telegram_bot_token', '').strip()
+                    token = request.POST.get('telegram_bot_token', '').strip()
+                    if token and not re.match(r'^\d{6,15}:[A-Za-z0-9_-]{25,60}$', token):
+                        raise ValueError("Telegram Bot Token format appears invalid. It should look like 123456789:ABCdef-gh1234_xyz.")
+                    settings_obj.telegram_bot_token = token
                 if request.POST.get('telegram_admin_chat_id'):
-                    settings_obj.telegram_admin_chat_id = request.POST.get('telegram_admin_chat_id', '').strip()
+                    chat_id = request.POST.get('telegram_admin_chat_id', '').strip()
+                    if chat_id and not re.match(r'^-?\d{5,25}$', chat_id):
+                        raise ValueError("Telegram Admin Chat ID must be numeric (e.g. 6261306648).")
+                    settings_obj.telegram_admin_chat_id = chat_id
                 settings_obj.telegram_notify_tickets = request.POST.get('telegram_notify_tickets') == 'on'
                 settings_obj.telegram_notify_isp_down = request.POST.get('telegram_notify_isp_down') == 'on'
                 settings_obj.telegram_notify_daily_summary = request.POST.get('telegram_notify_daily_summary') == 'on'
@@ -2083,10 +2153,11 @@ def admin_session_action(request, session_id, action):
     elif action == 'edit':
         try:
             data = json.loads(request.body)
-            new_name = data.get('device_name')
-            if new_name is not None:
-                session.device_name = new_name
-                session.save(update_fields=['device_name'])
+            new_name = sanitize_text(data.get('device_name', ''), max_length=60)
+            if not new_name:
+                return JsonResponse({'success': False, 'error': 'Device name cannot be empty (max 60 characters)'}, status=400)
+            session.device_name = new_name
+            session.save(update_fields=['device_name'])
         except Exception as e:
             return JsonResponse({'success': False, 'error': str(e)}, status=400)
             
@@ -2157,33 +2228,36 @@ def gamification_view(request):
         if action == "update_settings":
             settings_obj.enable_spin_wheel = request.POST.get("enable_spin_wheel") == "on"
             try:
-                settings_obj.spin_cost_points = int(request.POST.get("spin_cost_points", 10))
-                settings_obj.points_per_streak_day = int(request.POST.get("points_per_streak_day", 5))
-                settings_obj.points_per_peso = int(request.POST.get("points_per_peso", 1))
+                settings_obj.spin_cost_points = parse_bounded_int(request.POST.get("spin_cost_points"), 1, 10_000, "Points to spin", default=10)
+                settings_obj.points_per_streak_day = parse_bounded_int(request.POST.get("points_per_streak_day"), 0, 1_000, "Points per streak day", default=5)
+                settings_obj.points_per_peso = parse_bounded_int(request.POST.get("points_per_peso"), 0, 1_000, "Points per peso", default=1)
                 settings_obj.save()
                 messages.success(request, "Gamification point rules updated successfully.")
-            except ValueError:
-                messages.error(request, "Invalid input for settings. Values must be numbers.")
+            except ValueError as e:
+                messages.error(request, str(e))
                 
         elif action == "add_prize" or action == "edit_prize":
             try:
                 prize_id = request.POST.get("prize_id")
-                name = request.POST.get("name", "").strip()
-                minutes = int(request.POST.get("minutes_reward", 0))
-                weight = int(request.POST.get("probability_weight", 10))
+                name = sanitize_text(request.POST.get("name", ""), max_length=50)
+                if not name or len(name) < 2:
+                    raise ValueError("Prize name must be between 2 and 50 characters.")
+
+                minutes = parse_bounded_int(request.POST.get("minutes_reward"), 0, 43_200, "Minutes reward", default=0)
+                weight = parse_bounded_int(request.POST.get("probability_weight"), 1, 1_000, "Probability weight", default=10)
                 is_active = request.POST.get("is_active") == "on"
                 
                 speed_limit = request.POST.get("speed_limit")
-                speed_limit = float(speed_limit) if speed_limit else None
+                speed_limit = parse_bounded_float(speed_limit, 0.1, 1000.0, "Speed limit") if speed_limit else None
                 
                 speed_limit_upload = request.POST.get("speed_limit_upload")
-                speed_limit_upload = float(speed_limit_upload) if speed_limit_upload else None
+                speed_limit_upload = parse_bounded_float(speed_limit_upload, 0.1, 1000.0, "Upload speed limit") if speed_limit_upload else None
                 
-                pause_limit = int(request.POST.get("pause_limit") or 0)
-                pause_duration_limit = int(request.POST.get("pause_duration_limit") or 0)
+                pause_limit = parse_bounded_int(request.POST.get("pause_limit"), 0, 100, "Pause limit", default=0)
+                pause_duration_limit = parse_bounded_int(request.POST.get("pause_duration_limit"), 0, 1440, "Pause duration limit", default=0)
                 
                 if action == "edit_prize" and prize_id:
-                    prize = SpinPrize.objects.get(id=prize_id)
+                    prize = SpinPrize.objects.get(id=int(prize_id))
                     prize.name = name
                     prize.minutes_reward = minutes
                     prize.probability_weight = weight
@@ -2206,8 +2280,8 @@ def gamification_view(request):
                         pause_duration_limit=pause_duration_limit
                     )
                     messages.success(request, f'New prize "{name}" added to wheel.')
-            except ValueError:
-                messages.error(request, "Invalid input for prize parameters.")
+            except ValueError as e:
+                messages.error(request, str(e))
             except SpinPrize.DoesNotExist:
                 messages.error(request, "Prize record not found.")
                 
@@ -2372,7 +2446,7 @@ def update_issue_status(request, issue_id):
             issue.resolved_at = None
 
     if admin_notes is not None:
-        issue.admin_notes = admin_notes.strip()
+        issue.admin_notes = sanitize_text(admin_notes, max_length=1000, allow_multiline=True)
 
     issue.save()
     messages.success(request, f'Ticket #{issue.id} updated.')

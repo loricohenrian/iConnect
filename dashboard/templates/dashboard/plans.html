@@ -106,40 +106,40 @@
 
             <div class="form-group mb-sm">
                 <label class="form-label">Plan Name</label>
-                <input type="text" class="form-input" name="name" id="planModalName" placeholder="e.g. ₱5 Regular, Study Pass">
+                <input type="text" class="form-input" name="name" id="planModalName" placeholder="e.g. ₱5 Regular, Study Pass" required minlength="2" maxlength="50">
             </div>
 
             <div class="grid-2 mb-sm">
                 <div class="form-group">
                     <label class="form-label">Price (₱)</label>
-                    <input type="number" min="1" class="form-input" name="price" id="planModalPrice" required>
+                    <input type="number" min="1" max="50000" step="any" class="form-input" name="price" id="planModalPrice" required>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Duration (minutes)</label>
-                    <input type="number" min="1" class="form-input" name="duration_minutes" id="planModalDuration" required>
+                    <input type="number" min="1" max="43200" class="form-input" name="duration_minutes" id="planModalDuration" required>
                 </div>
             </div>
 
             <div class="grid-2 mb-sm">
                 <div class="form-group">
                     <label class="form-label">Download Speed (Mbps)</label>
-                    <input type="number" step="0.1" min="0.5" class="form-input" name="speed_limit" id="planModalSpeed" placeholder="Default">
+                    <input type="number" step="0.1" min="0.1" max="1000" class="form-input" name="speed_limit" id="planModalSpeed" placeholder="Default">
                 </div>
                 <div class="form-group">
                     <label class="form-label">Upload Speed (Mbps)</label>
-                    <input type="number" step="0.1" min="0.5" class="form-input" name="speed_limit_upload" id="planModalSpeedUp" placeholder="Default">
+                    <input type="number" step="0.1" min="0.1" max="1000" class="form-input" name="speed_limit_upload" id="planModalSpeedUp" placeholder="Default">
                 </div>
             </div>
 
             <div class="grid-2 mb-sm">
                 <div class="form-group">
                     <label class="form-label">Pause Limit (Count)</label>
-                    <input type="number" min="0" class="form-input" name="pause_limit" id="planModalPauseLimit" value="0" required>
+                    <input type="number" min="0" max="100" class="form-input" name="pause_limit" id="planModalPauseLimit" value="0" required>
                     <small class="text-xs text-muted">0 = unlimited</small>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Pause Max Duration (Hours)</label>
-                    <input type="number" min="0" class="form-input" name="pause_duration_limit" id="planModalPauseMax" value="0" required>
+                    <input type="number" min="0" max="1440" class="form-input" name="pause_duration_limit" id="planModalPauseMax" value="0" required>
                     <small class="text-xs text-muted">0 = unlimited</small>
                 </div>
             </div>

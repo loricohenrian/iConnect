@@ -249,19 +249,18 @@ class DashboardSecurityTests(TestCase):
         )
         self.client.login(username=user.username, password="admin123")
 
-        # 1. Create a new staff operator
+        # 1. Create a new admin (now uniformly Superadmin)
         create_resp = self.client.post("/iconnect-ops/account/", {
             "action": "create_admin",
             "new_username": "technician_bob",
             "new_email": "bob@tech.com",
-            "new_password": "bobpassword123",
-            "new_role": "staff",
+            "new_password": "BobPass123!",
         })
         self.assertEqual(create_resp.status_code, 200)
         self.assertTrue(User.objects.filter(username="technician_bob").exists())
         bob = User.objects.get(username="technician_bob")
         self.assertTrue(bob.is_staff)
-        self.assertFalse(bob.is_superuser)
+        self.assertTrue(bob.is_superuser)
 
         # 2. Cannot delete yourself
         del_self_resp = self.client.post("/iconnect-ops/account/", {
@@ -513,6 +512,111 @@ class AnnouncementManagementTests(TestCase):
         session.refresh_from_db()
         self.assertEqual(session.status, "expired")
         self.assertEqual(session.time_remaining_seconds, 0)
+
+    def test_admin_creation_rejects_weak_password(self):
+        User = get_user_model()
+        user = User.objects.create_user(
+            username="security_master",
+            password="admin123",
+            is_staff=True,
+            is_superuser=True,
+        )
+        self.client.login(username=user.username, password="admin123")
+
+        # Weak password (all lowercase, no special symbol)
+        resp = self.client.post("/iconnect-ops/account/", {
+            "action": "create_admin",
+            "new_username": "weak_user",
+            "new_email": "weak@example.com",
+            "new_password": "weakpassword1",
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertFalse(User.objects.filter(username="weak_user").exists())
+
+    def test_admin_creation_rejects_invalid_username(self):
+        User = get_user_model()
+        user = User.objects.create_user(
+            username="security_master_2",
+            password="admin123",
+            is_staff=True,
+            is_superuser=True,
+        )
+        self.client.login(username=user.username, password="admin123")
+
+        # Username with XSS script injection characters
+        resp = self.client.post("/iconnect-ops/account/", {
+            "action": "create_admin",
+            "new_username": "evil<script>",
+            "new_email": "evil@example.com",
+            "new_password": "StrongPass123!",
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertFalse(User.objects.filter(username="evil<script>").exists())
+
+    def test_roi_rejects_negative_and_zero_cost(self):
+        from dashboard.models import ProjectCost
+        User = get_user_model()
+        user = User.objects.create_user(
+            username="roi_admin",
+            password="admin123",
+            is_staff=True,
+            is_superuser=True,
+        )
+        self.client.login(username=user.username, password="admin123")
+
+        # Negative amount
+        resp = self.client.post("/iconnect-ops/roi/", {
+            "action": "add_cost",
+            "description": "Hardware Routers",
+            "amount": "-500",
+        }, follow=True)
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Cost amount must be at least 1")
+        self.assertFalse(ProjectCost.objects.filter(description="Hardware Routers").exists())
+
+    def test_validators_utility(self):
+        from dashboard.validators import (
+            validate_password_strength,
+            validate_username,
+            sanitize_text,
+            parse_bounded_int,
+            parse_bounded_float,
+        )
+
+        # Password rules
+        valid, msg = validate_password_strength("weak")
+        self.assertFalse(valid)
+        valid, msg = validate_password_strength("NoSymbols123")
+        self.assertFalse(valid)
+        valid, msg = validate_password_strength("NoNumber!Pass")
+        self.assertFalse(valid)
+        valid, msg = validate_password_strength("validUser123!", username="validUser123!")
+        self.assertFalse(valid)
+        valid, msg = validate_password_strength("P@ssw0rd2026!")
+        self.assertTrue(valid)
+
+        # Username rules
+        valid, msg = validate_username("ab")  # too short
+        self.assertFalse(valid)
+        valid, msg = validate_username("admin; DROP TABLE--")
+        self.assertFalse(valid)
+        valid, msg = validate_username("valid_admin-01")
+        self.assertTrue(valid)
+
+        # Sanitizer
+        cleaned = sanitize_text("<script>alert('xss')</script>")
+        self.assertNotIn("<script>", cleaned)
+        self.assertIn("&lt;script&gt;", cleaned)
+
+        # Bounded parsing
+        self.assertEqual(parse_bounded_int("42", 1, 100), 42)
+        with self.assertRaises(ValueError):
+            parse_bounded_int("-5", 1, 100)
+        with self.assertRaises(ValueError):
+            parse_bounded_int("9999", 1, 100)
+        with self.assertRaises(ValueError):
+            parse_bounded_float("-1.5", 0.0, 10.0)
+
 
 
 

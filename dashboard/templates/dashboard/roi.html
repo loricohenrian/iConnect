@@ -289,11 +289,11 @@
             <input type="hidden" name="action" value="add_cost">
             <div class="form-group mb-sm">
                 <label class="form-label" style="font-size: 13px; font-weight: 600;">Item / Description</label>
-                <input type="text" name="description" class="form-input" placeholder="e.g., Orange Pi Zero 3 + UCB Board" required>
+                <input type="text" name="description" class="form-input" placeholder="e.g., Orange Pi Zero 3 + UCB Board" required minlength="2" maxlength="100">
             </div>
             <div class="form-group mb-md">
                 <label class="form-label" style="font-size: 13px; font-weight: 600;">Cost Amount (₱)</label>
-                <input type="number" name="amount" min="1" class="form-input" placeholder="e.g., 2500" required>
+                <input type="number" name="amount" min="1" max="10000000" step="any" class="form-input" placeholder="e.g., 2500" required>
             </div>
             <div class="d-flex gap-sm">
                 <button type="button" class="btn btn-secondary w-100" onclick="closeAddCostModal()">Cancel</button>
@@ -320,11 +320,11 @@
             <input type="hidden" name="action" value="add_expense">
             <div class="form-group mb-sm">
                 <label class="form-label" style="font-size: 13px; font-weight: 600;">Expense Name</label>
-                <input type="text" name="name" class="form-input" placeholder="e.g., PLDT Fiber / Prepaid SIM" required>
+                <input type="text" name="name" class="form-input" placeholder="e.g., PLDT Fiber / Prepaid SIM" required minlength="2" maxlength="100">
             </div>
             <div class="form-group mb-sm">
                 <label class="form-label" style="font-size: 13px; font-weight: 600;">Cost Amount (₱)</label>
-                <input type="number" name="amount" min="1" class="form-input" placeholder="e.g., 1500" required>
+                <input type="number" name="amount" min="1" max="10000000" step="any" class="form-input" placeholder="e.g., 1500" required>
             </div>
             <div class="form-group mb-md">
                 <label class="form-label" style="font-size: 13px; font-weight: 600;">Billing Frequency</label>

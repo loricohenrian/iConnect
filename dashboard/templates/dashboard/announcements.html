@@ -13,9 +13,13 @@
             {% csrf_token %}
             <input type="hidden" name="action" value="create">
             <div class="form-group mb-md">
-                <label class="form-label" for="announcement-message">Announcement Message</label>
+                <div class="d-flex justify-content-between align-items-center mb-xs">
+                    <label class="form-label mb-0" for="announcement-message">Announcement Message</label>
+                    <span class="text-xs text-muted" id="ann-char-counter">0 / 500</span>
+                </div>
                 <textarea name="message" id="announcement-message" rows="4" class="form-input"
-                          placeholder="e.g., Scheduled maintenance tonight at 11:00 PM." required></textarea>
+                          placeholder="e.g., Scheduled maintenance tonight at 11:00 PM." required minlength="3" maxlength="500"
+                          oninput="document.getElementById('ann-char-counter').innerText = this.value.length + ' / 500'"></textarea>
             </div>
             <button type="submit" class="btn btn-primary w-100" id="post-announcement-btn">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
@@ -52,7 +56,7 @@
                         <input type="hidden" name="action" value="update">
                         <input type="hidden" name="announcement_id" value="{{ ann.id }}">
                         <div class="d-flex gap-xs">
-                            <input type="text" name="message" class="form-input" value="{{ ann.message }}" required style="font-size: 12px; padding: 6px 10px;">
+                            <input type="text" name="message" class="form-input" value="{{ ann.message }}" required minlength="3" maxlength="500" style="font-size: 12px; padding: 6px 10px;">
                             <button type="submit" class="btn btn-sm btn-primary">Save</button>
                             <button type="button" class="btn btn-sm btn-secondary" onclick="toggleEdit('{{ ann.id }}')">Cancel</button>
                         </div>
