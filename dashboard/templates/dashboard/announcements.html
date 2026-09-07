@@ -38,7 +38,7 @@
         {% if announcements %}
         <div class="d-flex flex-column gap-sm mt-sm">
             {% for ann in announcements %}
-            <div class="announcement-item {% if not ann.is_active %}inactive{% endif %}" style="background: #ffffff; border: 1px solid var(--color-border); border-radius: 8px; padding: 14px 16px;">
+            <div class="announcement-item {% if not ann.is_active %}inactive{% endif %}" style="background: #ffffff; border: 1px solid var(--color-border); border-radius: 8px; padding: 14px 16px; opacity: 1;">
                 <div class="ann-message" style="flex: 1;">
                     <div class="font-semibold text-small mb-xs" id="text-ann-{{ ann.id }}">{{ ann.message }}</div>
                     <div class="d-flex align-items-center gap-sm text-xs text-muted">
@@ -74,11 +74,11 @@
                         {% csrf_token %}
                         <input type="hidden" name="action" value="toggle">
                         <input type="hidden" name="announcement_id" value="{{ ann.id }}">
-                        <button type="submit" class="btn btn-sm {% if ann.is_active %}btn-secondary{% else %}btn-primary{% endif %}" title="{% if ann.is_active %}Deactivate{% else %}Activate{% endif %}">
+                        <button type="submit" class="btn btn-sm btn-secondary" title="{% if ann.is_active %}Deactivate{% else %}Activate{% endif %}">
                             {% if ann.is_active %}
                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>
                             {% else %}
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #059669;"><polyline points="20 6 9 17 4 12"></polyline></svg>
                             {% endif %}
                         </button>
                     </form>
