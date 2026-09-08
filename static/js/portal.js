@@ -654,7 +654,6 @@ function _updateSlotsIndicator(slots) {
     const { active, max: maxSlots, available } = slots;
 
     // Update text
-    // Update text
     if (available > 0) {
         text.textContent = `${available} / ${maxSlots} slots available`;
     } else {
@@ -665,6 +664,19 @@ function _updateSlotsIndicator(slots) {
     badge.className = 'slots-badge ' + (available > 5 ? 'available' : (available > 0 ? 'low' : 'full'));
     badge.removeAttribute('style');
     dot.removeAttribute('style');
+
+    // Keep group plan device counter max slots live-synced
+    const gpDeviceCount = document.getElementById('gp-device-count');
+    if (gpDeviceCount) {
+        gpDeviceCount.setAttribute('data-max-slots', available);
+        if (typeof currentGpDevices !== 'undefined' && currentGpDevices > available && available >= 2) {
+            currentGpDevices = available;
+            gpDeviceCount.value = currentGpDevices;
+            if (typeof updateGroupPlanPrice === 'function') {
+                updateGroupPlanPrice();
+            }
+        }
+    }
 }
 
 function initPortalRealtime() {

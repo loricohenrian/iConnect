@@ -1053,7 +1053,7 @@ def session_start(request):
     if not _ensure_firewall_ready_for_session_start():
         return Response({"error": "Firewall baseline is not ready. Please retry shortly."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
-    max_sessions = getattr(settings, "PISONET_MAX_CONCURRENT_SESSIONS", 20)
+    max_sessions = settings_obj.max_concurrent_sessions if settings_obj else getattr(settings, "PISONET_MAX_CONCURRENT_SESSIONS", 50)
     active_count = Session.objects.filter(status="active").count()
     if active_count >= max_sessions:
         return Response({"error": f"Maximum concurrent users ({max_sessions}) reached. Please try again later."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
@@ -1265,7 +1265,9 @@ def session_join_group(request):
     if not _ensure_firewall_ready_for_session_start():
         return Response({"error": "Firewall is not ready. Please retry shortly."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
-    max_sessions = getattr(settings, "PISONET_MAX_CONCURRENT_SESSIONS", 20)
+    from dashboard.models import SystemSettings
+    settings_obj = SystemSettings.get_settings()
+    max_sessions = settings_obj.max_concurrent_sessions if settings_obj else getattr(settings, "PISONET_MAX_CONCURRENT_SESSIONS", 50)
     if not existing_session and Session.objects.filter(status="active").count() >= max_sessions:
         return Response({"error": "Network is currently full."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
@@ -2007,7 +2009,9 @@ def session_pause_toggle(request):
                 )
 
         # Check if network is full before allowing resume
-        max_sessions = getattr(settings, "PISONET_MAX_CONCURRENT_SESSIONS", 20)
+        from dashboard.models import SystemSettings
+        settings_obj = SystemSettings.get_settings()
+        max_sessions = settings_obj.max_concurrent_sessions if settings_obj else getattr(settings, "PISONET_MAX_CONCURRENT_SESSIONS", 50)
         active_count = Session.objects.filter(status="active").count()
         if active_count >= max_sessions:
             return Response(

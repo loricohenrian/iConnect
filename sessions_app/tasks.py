@@ -455,8 +455,9 @@ def auto_resume_connected_sessions():
                     continue
 
             # Check if network is full before allowing resume
-            from django.conf import settings
-            max_sessions = getattr(settings, "PISONET_MAX_CONCURRENT_SESSIONS", 20)
+            from dashboard.models import SystemSettings
+            settings_obj = SystemSettings.get_settings()
+            max_sessions = settings_obj.max_concurrent_sessions if settings_obj else getattr(settings, "PISONET_MAX_CONCURRENT_SESSIONS", 50)
             active_count = Session.objects.filter(status="active").count()
             if active_count >= max_sessions:
                 logger.warning(f'Cannot auto-resume {session.mac_address} — network full')
