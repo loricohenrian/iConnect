@@ -2152,6 +2152,87 @@ class SystemLogsTests(TestCase):
         self.assertNotContains(search_resp, "DD:EE:FF:44:55:66")
 
 
+class PlanManagementTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        User = get_user_model()
+        self.admin = User.objects.create_user(
+            username="plans_admin",
+            password="admin123",
+            is_staff=True,
+            is_superuser=True,
+        )
+        self.client.login(username="plans_admin", password="admin123")
+
+    def test_plan_create_update_delete(self):
+        from sessions_app.models import Plan, Session
+        from django.utils import timezone
+
+        # 1. Create plan
+        resp = self.client.post("/iconnect-ops/plans/", {
+            "action": "create",
+            "name": "Super Fast 10",
+            "price": "10",
+            "duration_minutes": "60",
+            "speed_limit": "15.5",
+            "speed_limit_upload": "10.0",
+            "pause_limit": "3",
+            "pause_duration_limit": "2",
+            "is_active": "on",
+        })
+        self.assertEqual(resp.status_code, 302)
+        plan = Plan.objects.get(name="Super Fast 10")
+        self.assertEqual(plan.price, 10)
+        self.assertEqual(plan.duration_minutes, 60)
+        self.assertEqual(float(plan.speed_limit), 15.5)
+
+        # 2. Update plan
+        resp = self.client.post("/iconnect-ops/plans/", {
+            "action": "update",
+            "plan_id": plan.id,
+            "name": "Super Fast 10 Updated",
+            "price": "12",
+            "duration_minutes": "90",
+            "speed_limit": "20.0",
+            "speed_limit_upload": "15.0",
+            "pause_limit": "5",
+            "pause_duration_limit": "4",
+            "is_active": "on",
+        })
+        self.assertEqual(resp.status_code, 302)
+        plan.refresh_from_db()
+        self.assertEqual(plan.name, "Super Fast 10 Updated")
+        self.assertEqual(plan.price, 12)
+
+        # 3. Block delete when plan has active session
+        sess = Session.objects.create(
+            mac_address="AA:BB:CC:99:88:77",
+            plan=plan,
+            amount_paid=12,
+            duration_minutes_purchased=90,
+            status="active",
+            time_in=timezone.now(),
+        )
+        del_resp = self.client.post("/iconnect-ops/plans/", {
+            "action": "delete",
+            "plan_id": plan.id,
+        })
+        self.assertEqual(del_resp.status_code, 200)
+        self.assertContains(del_resp, "Cannot delete this plan. It is currently used by 1 active sessions")
+        self.assertTrue(Plan.objects.filter(id=plan.id).exists())
+
+        # 4. Successful delete once session is expired
+        sess.status = "expired"
+        sess.save()
+        del_resp2 = self.client.post("/iconnect-ops/plans/", {
+            "action": "delete",
+            "plan_id": plan.id,
+        })
+        self.assertEqual(del_resp2.status_code, 302)
+        self.assertFalse(Plan.objects.filter(id=plan.id).exists())
+
+
+
 
 
 

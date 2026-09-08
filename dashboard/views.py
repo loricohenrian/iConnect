@@ -2064,7 +2064,7 @@ def plans_view(request):
                     speed_limit_upload = Decimal(str(slu_val))
 
                 if action == 'create':
-                    Plan.objects.create(
+                    new_plan = Plan.objects.create(
                         name=name,
                         price=price,
                         duration_minutes=duration_minutes,
@@ -2073,6 +2073,10 @@ def plans_view(request):
                         pause_limit=pause_limit,
                         pause_duration_limit=pause_duration_limit,
                         is_active=is_active,
+                    )
+                    audit_logger.info(
+                        "event=plan_created user=%s plan_id=%d name=%s price=%d duration=%d ip=%s",
+                        request.user.username, new_plan.id, name, price, duration_minutes, _client_ip(request)
                     )
                     messages.success(request, f'WiFi rate plan "{name}" created successfully.')
                 else:
@@ -2087,6 +2091,10 @@ def plans_view(request):
                         plan.pause_duration_limit = pause_duration_limit
                         plan.is_active = is_active
                         plan.save()
+                        audit_logger.info(
+                            "event=plan_updated user=%s plan_id=%d name=%s price=%d duration=%d ip=%s",
+                            request.user.username, plan.id, name, price, duration_minutes, _client_ip(request)
+                        )
                         messages.success(request, f'WiFi rate plan "{name}" updated successfully.')
                     else:
                         error_message = 'Plan not found.'
@@ -2106,7 +2114,14 @@ def plans_view(request):
                     error_message = f'Cannot delete this plan. It is currently used by {active_sessions} active sessions and {active_groups} active group passes. Set it inactive instead.'
                 else:
                     try:
+                        deleted_name = plan.name
+                        plan_pk = plan.id
                         plan.delete()
+                        audit_logger.info(
+                            "event=plan_deleted user=%s plan_id=%d name=%s ip=%s",
+                            request.user.username, plan_pk, deleted_name, _client_ip(request)
+                        )
+                        messages.success(request, f'WiFi rate plan "{deleted_name}" deleted successfully.')
                     except ProtectedError:
                         error_message = 'Cannot delete this plan because it is restricted by the database. Set it inactive instead.'
         if not error_message:
