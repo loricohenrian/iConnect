@@ -657,7 +657,7 @@ class SessionApiTests(TestCase):
         session = Session.objects.get(mac_address=self.mac_one, status="active")
         self.assertEqual(session.ip_address, "127.0.0.1")
 
-    @patch("sessions_app.bandwidth.get_device_bandwidth_mb", return_value=5.0)
+    @patch("sessions_app.bandwidth.get_device_bandwidth_mb", side_effect=[0.0, 5.0])
     def test_session_status_updates_bandwidth_usage(self, mock_bandwidth):
         session = Session.objects.create(
             mac_address=self.mac_one,
@@ -678,6 +678,79 @@ class SessionApiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         session.refresh_from_db()
         self.assertGreater(session.bandwidth_used_mb, 0)
+
+    @patch("sessions_app.bandwidth.get_device_bandwidth_mb")
+    def test_consecutive_sessions_start_at_zero_bandwidth(self, mock_bandwidth):
+        from sessions_app.bandwidth import refresh_session_bandwidth_usage
+
+        # Session 1 starts with 0 hardware counters, uses 66.1 MB
+        mock_bandwidth.return_value = 0.0
+        sess1 = Session.objects.create(
+            mac_address=self.mac_one,
+            plan=self.plan,
+            duration_minutes_purchased=self.plan.duration_minutes,
+            amount_paid=self.plan.price,
+            status="active",
+            ip_address="127.0.0.1",
+        )
+        mock_bandwidth.return_value = 66.1
+        refresh_session_bandwidth_usage(sess1)
+        sess1.refresh_from_db()
+        self.assertEqual(sess1.bandwidth_used_mb, 66.1)
+        sess1.status = "expired"
+        sess1.save(update_fields=["status"])
+
+        # Session 2 starts for the same device when hardware counter is 66.1 MB
+        sess2 = Session.objects.create(
+            mac_address=self.mac_one,
+            plan=self.plan,
+            duration_minutes_purchased=self.plan.duration_minutes,
+            amount_paid=self.plan.price,
+            status="active",
+            ip_address="127.0.0.1",
+        )
+        self.assertEqual(sess2.initial_bandwidth_mb, 66.1)
+
+        # Before device transmits any new data, hardware counter is 66.1 MB
+        refresh_session_bandwidth_usage(sess2)
+        sess2.refresh_from_db()
+        self.assertEqual(sess2.bandwidth_used_mb, 0.0)
+
+        # Device uses 2.5 MB (hardware counter reaches 68.6 MB)
+        mock_bandwidth.return_value = 68.6
+        refresh_session_bandwidth_usage(sess2)
+        sess2.refresh_from_db()
+        self.assertEqual(sess2.bandwidth_used_mb, 2.5)
+
+    @patch("sessions_app.bandwidth.get_device_bandwidth_mb", return_value=66.2)
+    def test_retroactive_baseline_correction_for_existing_session(self, mock_bandwidth):
+        from sessions_app.bandwidth import refresh_session_bandwidth_usage
+
+        # Session 1 expired with 66.1 MB
+        sess1 = Session.objects.create(
+            mac_address=self.mac_one,
+            plan=self.plan,
+            duration_minutes_purchased=self.plan.duration_minutes,
+            amount_paid=self.plan.price,
+            status="expired",
+            bandwidth_used_mb=66.1,
+            initial_bandwidth_mb=0,
+        )
+        # Session 2 was created before baseline tracking (initial_bandwidth_mb=0, bandwidth_used_mb=66.2)
+        sess2 = Session.objects.create(
+            mac_address=self.mac_one,
+            plan=self.plan,
+            duration_minutes_purchased=self.plan.duration_minutes,
+            amount_paid=self.plan.price,
+            status="active",
+            bandwidth_used_mb=66.2,
+            initial_bandwidth_mb=0,
+        )
+        # Refresh should detect baseline from sess1 and correct sess2 to 0.1 MB
+        refresh_session_bandwidth_usage(sess2)
+        sess2.refresh_from_db()
+        self.assertEqual(sess2.initial_bandwidth_mb, 66.1)
+        self.assertEqual(sess2.bandwidth_used_mb, 0.1)
 
     @override_settings(PISONET_DEVICE_API_KEY="test-device-key")
     def test_session_start_request_creates_queue_entry(self):

@@ -160,6 +160,12 @@ class Session(models.Model):
         help_text="6-character voucher for session extension",
     )
     bandwidth_used_mb = models.FloatField(default=0)
+    initial_bandwidth_mb = models.FloatField(
+        default=None,
+        null=True,
+        blank=True,
+        help_text="Baseline hardware byte counter (in MB) at session start",
+    )
     ip_address = models.GenericIPAddressField(null=True, blank=True)
     device_name = models.CharField(max_length=100, null=True, blank=True)
     paused_at = models.DateTimeField(null=True, blank=True, help_text="When session was paused")
@@ -321,6 +327,15 @@ class Session(models.Model):
         except Exception:
             pass
         return True
+
+    def save(self, *args, **kwargs):
+        if self.pk is None and self.initial_bandwidth_mb is None and self.mac_address:
+            try:
+                from .bandwidth import get_device_bandwidth_mb
+                self.initial_bandwidth_mb = get_device_bandwidth_mb(self.mac_address) or 0.0
+            except Exception:
+                pass
+        super().save(*args, **kwargs)
 
     @staticmethod
     def generate_voucher_code():
