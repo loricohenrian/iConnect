@@ -1753,8 +1753,8 @@ def roi(request):
             period = request.POST.get('period', 'monthly').strip().lower()
             if not name or len(name) < 2:
                 messages.error(request, 'Expense name must be between 2 and 100 characters.')
-            elif period not in ['daily', 'monthly', 'yearly']:
-                messages.error(request, 'Invalid recurring period. Choose Daily, Monthly, or Yearly.')
+            elif period not in ['daily', 'weekly', 'monthly', 'yearly']:
+                messages.error(request, 'Invalid recurring period. Choose Daily, Weekly, Monthly, or Yearly.')
             else:
                 try:
                     amount = parse_bounded_int(amount_raw, 1, 10_000_000, 'Expense amount')
