@@ -260,6 +260,12 @@ def session_page(request):
                 iptables.block_device(active_session.mac_address)
             except Exception:
                 pass
+            try:
+                from django.core.cache import cache as dj_cache
+                dj_cache.set(f"manual_pause_{active_session.id}", True, timeout=86400 * 7)
+                dj_cache.delete(f"auto_paused_{active_session.id}")
+            except Exception:
+                pass
             active_session.refresh_from_db()
 
     if active_session and request_ip and active_session.ip_address != request_ip:

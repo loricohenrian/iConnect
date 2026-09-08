@@ -2105,6 +2105,12 @@ def session_status(request):
                 iptables.block_device(session.mac_address)
             except Exception:
                 pass
+            try:
+                from django.core.cache import cache as dj_cache
+                dj_cache.set(f"manual_pause_{session.id}", True, timeout=86400 * 7)
+                dj_cache.delete(f"auto_paused_{session.id}")
+            except Exception:
+                pass
             session.refresh_from_db()
 
         if session.status == "paused":

@@ -172,11 +172,18 @@ def check_isp_internet_status(force_probe=False):
             if settings_obj.enable_outage_auto_pause:
                 active_sessions = list(Session.objects.filter(status="active"))
                 paused_ids = _safe_cache_get(CACHE_KEY_PAUSED_IDS) or []
+                from django.core.cache import cache as dj_cache
                 for s in active_sessions:
                     try:
                         s.pause_session()
                         try:
                             iptables.block_device(s.mac_address)
+                        except Exception:
+                            pass
+                        # Tag as manual_pause so Celery auto_resume_connected_sessions NEVER auto-resumes it!
+                        try:
+                            dj_cache.set(f"manual_pause_{s.id}", True, timeout=86400 * 7)
+                            dj_cache.delete(f"auto_paused_{s.id}")
                         except Exception:
                             pass
                         if s.id not in paused_ids:
@@ -228,23 +235,9 @@ def check_isp_internet_status(force_probe=False):
             _safe_cache_delete(CACHE_KEY_SUCCESS_COUNT)
             _safe_cache_delete(CACHE_KEY_ALERT_SENT)
 
-            # 1. Restore iptables internet access for paused sessions WITHOUT resuming the timer.
-            #    This ensures internet works again when the user returns, but the timer only
-            #    starts counting once the user explicitly taps "Resume" — protecting users who
-            #    left home during the outage from losing time they didn't use.
-            restored_access_count = 0
-            if paused_ids:
-                sessions_to_unblock = Session.objects.filter(id__in=paused_ids, status="paused")
-                for s in sessions_to_unblock:
-                    try:
-                        rate = int(s.plan.speed_limit * 1024) if (s.plan and s.plan.speed_limit) else None
-                        iptables.allow_device(s.mac_address, rate_kbps=rate)
-                        restored_access_count += 1
-                    except Exception as e:
-                        logger.error("Failed to restore iptables for session %s: %s", s.id, e)
-                # Keep CACHE_KEY_PAUSED_IDS so we know which sessions were ISP-paused
-                # (cleared by the session resume endpoint when the user manually resumes)
-                _safe_cache_delete(CACHE_KEY_PAUSED_IDS)
+            # Sessions remain PAUSED and BLOCKED in iptables.
+            # Neither the timer nor iptables access will resume until the user explicitly taps "Resume".
+            _safe_cache_delete(CACHE_KEY_PAUSED_IDS)
 
             # 2. Remove outage announcement
             Announcement.objects.filter(message__contains=OUTAGE_IDENTIFIER).delete()
@@ -257,8 +250,7 @@ def check_isp_internet_status(force_probe=False):
                     send_telegram_message(
                         f"🟢 *ISP INTERNET RESTORED!*\n"
                         f"Upstream connection is back online.\n\n"
-                        f"⏸ *Sessions kept paused* — users must tap Resume themselves.\n"
-                        f"✅ Internet access restored for `{restored_access_count}` session(s).\n"
+                        f"⏸ *Sessions kept paused* — users must tap Resume on portal.\n"
                         f"🧹 Captive portal outage popup cleared."
                     )
             except Exception as tg_err:
