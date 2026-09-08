@@ -781,22 +781,25 @@ function formatCoinRequestMeta(coinRequest) {
         timeDisplay = "Calculating...";
     }
 
+    const miniCoinSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="mini-coin-svg"><circle cx="12" cy="12" r="9"></circle><path d="M14.5 9h-5a2 2 0 0 0 0 4h3a2 2 0 0 1 0 4h-5"></path><line x1="12" y1="7" x2="12" y2="9"></line><line x1="12" y1="17" x2="12" y2="19"></line></svg>`;
+    const miniClockSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="mini-clock-svg"><circle cx="12" cy="12" r="9"></circle><polyline points="12 7 12 12 15 15"></polyline></svg>`;
+
     return `
     <div class="coin-flow-metrics">
         <div class="coin-metric-tile">
-            <div class="coin-metric-icon-wrap coin-icon-peso">🪙</div>
-            <div class="coin-metric-content">
-                <div class="coin-metric-label">Coins Inserted</div>
-                <div class="coin-metric-value coin-val-peso">₱${credited}</div>
+            <div class="coin-metric-header">
+                <span class="coin-metric-icon-wrap">${miniCoinSvg}</span>
+                <span class="coin-metric-label">Coins Inserted</span>
             </div>
+            <div class="coin-metric-value coin-val-peso">₱${credited}</div>
         </div>
         <div class="coin-metric-tile ${credited > 0 ? 'tile-highlight' : ''}">
-            <div class="coin-metric-icon-wrap coin-icon-time">⏱️</div>
-            <div class="coin-metric-content">
-                <div class="coin-metric-label">Internet Time</div>
-                <div class="coin-metric-value coin-val-time">${timeDisplay}</div>
-                ${breakdownHtml}
+            <div class="coin-metric-header">
+                <span class="coin-metric-icon-wrap">${miniClockSvg}</span>
+                <span class="coin-metric-label">Internet Time</span>
             </div>
+            <div class="coin-metric-value coin-val-time">${timeDisplay}</div>
+            ${breakdownHtml}
         </div>
     </div>
     <div class="coin-flow-status-bar">

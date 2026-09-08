@@ -191,8 +191,9 @@
     </p>
 
     <div class="d-flex" style="flex-direction: column; gap: 10px;">
-        <button type="button" class="btn btn-primary w-100" id="extend-request-btn" style="font-size: 1.15rem; padding: 14px; font-weight: 700; border-radius: 12px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);">
-            <i class="bi bi-coin"></i> Insert Coins 🪙
+        <button type="button" class="btn btn-primary w-100" id="extend-request-btn" style="font-size: 1.15rem; padding: 14px; font-weight: 700; border-radius: 12px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25); display: flex; align-items: center; justify-content: center; gap: 8px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="mini-coin-svg"><circle cx="12" cy="12" r="9"></circle><path d="M14.5 9h-5a2 2 0 0 0 0 4h3a2 2 0 0 1 0 4h-5"></path><line x1="12" y1="7" x2="12" y2="9"></line><line x1="12" y1="17" x2="12" y2="19"></line></svg>
+            <span>Insert Coins</span>
         </button>
         <button type="button" class="btn btn-outline-primary w-100" id="btn-view-rates" onclick="openRatesModal()" style="border-radius: 12px; font-weight: 600; padding: 11px 14px; display: flex; align-items: center; justify-content: center; gap: 8px; border-width: 1.5px;">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; flex-shrink: 0;"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
@@ -217,17 +218,19 @@
         <!-- Helpful Guidance Message / Step Notice -->
         <div id="extend-flow-message" class="coin-flow-message alert alert-info" style="display:none;"></div>
 
-        <!-- Actions: Extend Button & Cancel -->
+        <!-- Actions: Extend Button & Centered Cancel -->
         <div id="coin-actions-container" class="coin-actions-box" style="display:none;">
             <button type="button" class="btn btn-connect-now w-100 animate-fadeIn" id="extend-now-btn" disabled style="display: none;">
                 <i class="bi bi-plus-circle"></i> <span>Extend Now</span>
             </button>
-            <button type="button" class="btn btn-cancel-coin" id="btn-cancel-coin-request">
-                <i class="bi bi-x-circle"></i> Cancel Request
-            </button>
-            <a href="javascript:void(0)" id="link-cancel-coin-request" class="link-cancel-coin" style="display: none;">
-                Cancel Request
-            </a>
+            <div class="coin-cancel-wrap">
+                <button type="button" class="btn btn-cancel-coin" id="btn-cancel-coin-request">
+                    <i class="bi bi-x-circle"></i> Cancel Request
+                </button>
+                <a href="javascript:void(0)" id="link-cancel-coin-request" class="link-cancel-coin" style="display: none;">
+                    Cancel Request
+                </a>
+            </div>
         </div>
     </div>
 
