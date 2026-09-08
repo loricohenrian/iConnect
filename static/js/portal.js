@@ -1786,9 +1786,10 @@ function showRestoredToast() {
     const toast = document.getElementById("ispRestoredToast");
     if (!toast) return;
     toast.style.display = "flex";
+    // Keep visible for 10 seconds — long enough for users to notice and tap Resume
     setTimeout(() => {
         toast.style.display = "none";
-    }, 4500);
+    }, 10000);
 }
 
 window.openIspOutageModal = openIspOutageModal;
@@ -1877,6 +1878,8 @@ function handlePortalOutageState(data, isSessionPage) {
             // Outage newly started — flag active, reset dismissed state, and alert once
             _setOutageActive(true);
             try { sessionStorage.removeItem("iconnect_outage_modal_dismissed"); } catch {}
+            // Reset restored-toast debounce so it always fires fresh on the next restoration
+            try { sessionStorage.removeItem("iconnect_last_restored_toast"); } catch {}
             if (annEnabled) {
                 openIspOutageModal(outageMsg, pauseEnabled);
                 playOutageAlertSound();
@@ -1976,9 +1979,11 @@ function pollSessionStatus(macAddress, intervalMs = 3000) {
                 if (pauseBtn) {
                     pauseBtn.classList.add("paused");
                     if (isOutage) {
+                        // Still in outage — lock the Resume button
                         pauseBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5zm5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5z"/></svg><span>Frozen (No Internet)</span>';
                         pauseBtn.disabled = true;
                     } else {
+                        // Outage over OR manual pause — Resume button is clickable
                         pauseBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z"/></svg><span>Resume</span>';
                         pauseBtn.disabled = false;
                     }

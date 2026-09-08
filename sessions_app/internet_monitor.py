@@ -216,25 +216,26 @@ def check_isp_internet_status(force_probe=False):
                 return result
 
             # Confirmed restored!
-            logger.info("ISP internet restored! Resuming student sessions...")
+            logger.info("ISP internet restored! Sessions kept paused — users must manually resume.")
             _safe_cache_delete(CACHE_KEY_SUCCESS_COUNT)
             _safe_cache_delete(CACHE_KEY_ALERT_SENT)
 
-            # 1. Resume paused sessions
-            resumed_count = 0
+            # 1. Restore iptables internet access for paused sessions WITHOUT resuming the timer.
+            #    This ensures internet works again when the user returns, but the timer only
+            #    starts counting once the user explicitly taps "Resume" — protecting users who
+            #    left home during the outage from losing time they didn't use.
+            restored_access_count = 0
             if paused_ids:
-                sessions_to_resume = Session.objects.filter(id__in=paused_ids, status="paused")
-                for s in sessions_to_resume:
+                sessions_to_unblock = Session.objects.filter(id__in=paused_ids, status="paused")
+                for s in sessions_to_unblock:
                     try:
-                        s.resume_session()
-                        try:
-                            rate = int(s.plan.speed_limit * 1024) if (s.plan and s.plan.speed_limit) else None
-                            iptables.allow_device(s.mac_address, rate_kbps=rate)
-                        except Exception:
-                            pass
-                        resumed_count += 1
+                        rate = int(s.plan.speed_limit * 1024) if (s.plan and s.plan.speed_limit) else None
+                        iptables.allow_device(s.mac_address, rate_kbps=rate)
+                        restored_access_count += 1
                     except Exception as e:
-                        logger.error("Failed to resume session %s: %s", s.id, e)
+                        logger.error("Failed to restore iptables for session %s: %s", s.id, e)
+                # Keep CACHE_KEY_PAUSED_IDS so we know which sessions were ISP-paused
+                # (cleared by the session resume endpoint when the user manually resumes)
                 _safe_cache_delete(CACHE_KEY_PAUSED_IDS)
 
             # 2. Remove outage announcement
@@ -248,14 +249,15 @@ def check_isp_internet_status(force_probe=False):
                     send_telegram_message(
                         f"🟢 *ISP INTERNET RESTORED!*\n"
                         f"Upstream connection is back online.\n\n"
-                        f"▶️ *Action Taken:* Resumed `{resumed_count}` student session(s).\n"
+                        f"⏸ *Sessions kept paused* — users must tap Resume themselves.\n"
+                        f"✅ Internet access restored for `{restored_access_count}` session(s).\n"
                         f"🧹 Captive portal outage popup cleared."
                     )
             except Exception as tg_err:
                 logger.warning("Failed to send Telegram recovery alert: %s", tg_err)
 
             result["recovered"] = True
-            result["resumed_count"] = resumed_count
+            result["resumed_count"] = 0  # No sessions auto-resumed; users resume manually
 
     # Cache result for 10 seconds
     _safe_cache_set(CACHE_KEY_STATUS, result, timeout=10)
