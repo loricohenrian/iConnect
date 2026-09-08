@@ -628,7 +628,7 @@ class DeviceProfile(models.Model):
 
         settings_obj = SystemSettings.get_settings()
         profile, created = cls.objects.get_or_create(mac_address=mac_address)
-        today = timezone.now().date()
+        today = timezone.localdate()
 
         if profile.last_connected_date == today:
             return profile

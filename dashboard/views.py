@@ -3028,7 +3028,20 @@ def gamification_view(request):
                 settings_obj.spin_cost_points = parse_bounded_int(request.POST.get("spin_cost_points"), 1, 10_000, "Points to spin", default=10)
                 settings_obj.points_per_streak_day = parse_bounded_int(request.POST.get("points_per_streak_day"), 0, 1_000, "Points per streak day", default=5)
                 settings_obj.points_per_peso = parse_bounded_int(request.POST.get("points_per_peso"), 0, 1_000, "Points per peso", default=1)
+                settings_obj.daily_spin_limit = parse_bounded_int(
+                    request.POST.get("daily_spin_limit"), 1, 100, "Daily spin limit", default=settings_obj.daily_spin_limit
+                )
                 settings_obj.save()
+                audit_logger.info(
+                    "event=gamification_rules_updated user=%s enable_spin=%s spin_cost=%d streak_pts=%d peso_pts=%d daily_spins=%d ip=%s",
+                    request.user.username,
+                    settings_obj.enable_spin_wheel,
+                    settings_obj.spin_cost_points,
+                    settings_obj.points_per_streak_day,
+                    settings_obj.points_per_peso,
+                    settings_obj.daily_spin_limit,
+                    _client_ip(request)
+                )
                 messages.success(request, "Gamification point rules updated successfully.")
             except ValueError as e:
                 messages.error(request, str(e))
@@ -3064,9 +3077,13 @@ def gamification_view(request):
                     prize.pause_limit = pause_limit
                     prize.pause_duration_limit = pause_duration_limit
                     prize.save()
+                    audit_logger.info(
+                        "event=prize_updated user=%s prize_id=%d name=%s minutes=%d weight=%d ip=%s",
+                        request.user.username, prize.id, name, minutes, weight, _client_ip(request)
+                    )
                     messages.success(request, f'Prize "{name}" updated successfully.')
                 else:
-                    SpinPrize.objects.create(
+                    new_prize = SpinPrize.objects.create(
                         name=name,
                         minutes_reward=minutes,
                         probability_weight=weight,
@@ -3075,6 +3092,10 @@ def gamification_view(request):
                         speed_limit_upload=speed_limit_upload,
                         pause_limit=pause_limit,
                         pause_duration_limit=pause_duration_limit
+                    )
+                    audit_logger.info(
+                        "event=prize_created user=%s prize_id=%d name=%s minutes=%d weight=%d ip=%s",
+                        request.user.username, new_prize.id, name, minutes, weight, _client_ip(request)
                     )
                     messages.success(request, f'New prize "{name}" added to wheel.')
             except ValueError as e:
@@ -3112,7 +3133,13 @@ def delete_prize_view(request, prize_id):
     if request.method == 'POST':
         try:
             prize = SpinPrize.objects.get(id=prize_id)
+            deleted_name = prize.name
+            prize_pk = prize.id
             prize.delete()
+            audit_logger.info(
+                "event=prize_deleted user=%s prize_id=%d name=%s ip=%s",
+                request.user.username, prize_pk, deleted_name, _client_ip(request)
+            )
             messages.success(request, 'Prize deleted successfully.')
         except SpinPrize.DoesNotExist:
             messages.error(request, 'Prize not found.')

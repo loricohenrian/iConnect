@@ -100,10 +100,17 @@
                 <span class="text-xs text-muted">Bonus loyalty points given when a student connects consecutive days.</span>
             </div>
 
-            <div class="form-group mb-md">
-                <label class="form-label" style="font-weight: 600; font-size: 13px;">Points Earned per ₱1 Coin Inserted</label>
-                <input type="number" name="points_per_peso" class="form-input" value="{{ settings.points_per_peso }}" min="0" max="1000" required>
-                <span class="text-xs text-muted">Example: 1 = student gets 5 points when inserting ₱5 coin.</span>
+            <div class="grid-2 mb-md">
+                <div class="form-group">
+                    <label class="form-label" style="font-weight: 600; font-size: 13px;">Points Earned per ₱1 Coin</label>
+                    <input type="number" name="points_per_peso" class="form-input" value="{{ settings.points_per_peso }}" min="0" max="1000" required>
+                    <span class="text-xs text-muted">Example: 1 = student gets 5 pts for ₱5 coin.</span>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" style="font-weight: 600; font-size: 13px;">Max Spins / Day</label>
+                    <input type="number" name="daily_spin_limit" class="form-input" value="{{ settings.daily_spin_limit }}" min="1" max="100" required>
+                    <span class="text-xs text-muted">Maximum wheel plays per device/day.</span>
+                </div>
             </div>
 
             <button type="submit" class="btn btn-primary w-100" style="padding: 10px; font-weight: 600;">
@@ -241,7 +248,7 @@
                 </div>
             </div>
 
-            <div class="grid-2 mb-md">
+            <div class="grid-2 mb-sm">
                 <div class="form-group">
                     <label class="form-label" style="font-size: 13px; font-weight: 600;">Probability Weight</label>
                     <input type="number" name="probability_weight" id="prizeWeightInput" class="form-input" value="10" min="1" max="1000" required>
@@ -250,8 +257,14 @@
                 <div class="form-group">
                     <label class="form-label" style="font-size: 13px; font-weight: 600;">Max Pause Limit</label>
                     <input type="number" name="pause_limit" id="prizePauseInput" class="form-input" value="0" min="0" max="100">
-                    <span class="text-xs text-muted">Times student can pause.</span>
+                    <span class="text-xs text-muted">0 = unli pauses.</span>
                 </div>
+            </div>
+
+            <div class="form-group mb-md">
+                <label class="form-label" style="font-size: 13px; font-weight: 600;">Pause Max Duration (Hours)</label>
+                <input type="number" name="pause_duration_limit" id="prizeDurationLimitInput" class="form-input" value="0" min="0" max="1440">
+                <span class="text-xs text-muted">Max total hours prize session can remain paused (0 = unlimited).</span>
             </div>
 
             <div class="form-group mb-md">
@@ -306,6 +319,7 @@ function openAddPrizeModal() {
     document.getElementById('prizeUploadInput').value = '';
     document.getElementById('prizeWeightInput').value = '10';
     document.getElementById('prizePauseInput').value = '0';
+    document.getElementById('prizeDurationLimitInput').value = '0';
     document.getElementById('prizeActiveInput').checked = true;
     document.getElementById('prizeSubmitBtn').innerText = 'Add Prize to Wheel';
     document.getElementById('prizeModal').style.display = 'flex';
@@ -321,6 +335,7 @@ function openEditPrizeModal(btn) {
     document.getElementById('prizeSpeedInput').value = btn.dataset.speed;
     document.getElementById('prizeUploadInput').value = btn.dataset.upload;
     document.getElementById('prizePauseInput').value = btn.dataset.pause;
+    document.getElementById('prizeDurationLimitInput').value = btn.dataset.duration || '0';
     document.getElementById('prizeActiveInput').checked = (btn.dataset.active === 'true');
     document.getElementById('prizeSubmitBtn').innerText = 'Update Prize Slices';
     document.getElementById('prizeModal').style.display = 'flex';

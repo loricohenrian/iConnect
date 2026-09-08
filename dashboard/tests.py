@@ -2232,6 +2232,81 @@ class PlanManagementTests(TestCase):
         self.assertFalse(Plan.objects.filter(id=plan.id).exists())
 
 
+class GamificationManagementTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        User = get_user_model()
+        self.admin = User.objects.create_user(
+            username="gamify_admin",
+            password="admin123",
+            is_staff=True,
+            is_superuser=True,
+        )
+        self.client.login(username="gamify_admin", password="admin123")
+
+    def test_gamification_settings_and_prize_crud(self):
+        from dashboard.models import SystemSettings
+        from sessions_app.models import SpinPrize
+
+        # 1. Update point rules
+        resp = self.client.post("/iconnect-ops/gamification/", {
+            "action": "update_settings",
+            "enable_spin_wheel": "on",
+            "spin_cost_points": "15",
+            "points_per_streak_day": "10",
+            "points_per_peso": "2",
+            "daily_spin_limit": "5",
+        })
+        self.assertEqual(resp.status_code, 302)
+        settings_obj = SystemSettings.get_settings()
+        self.assertTrue(settings_obj.enable_spin_wheel)
+        self.assertEqual(settings_obj.spin_cost_points, 15)
+        self.assertEqual(settings_obj.points_per_streak_day, 10)
+        self.assertEqual(settings_obj.points_per_peso, 2)
+        self.assertEqual(settings_obj.daily_spin_limit, 5)
+
+        # 2. Add prize
+        resp2 = self.client.post("/iconnect-ops/gamification/", {
+            "action": "add_prize",
+            "name": "30 Mins Mega Bonus",
+            "minutes_reward": "30",
+            "probability_weight": "25",
+            "speed_limit": "20.0",
+            "speed_limit_upload": "10.0",
+            "pause_limit": "2",
+            "pause_duration_limit": "3",
+            "is_active": "on",
+        })
+        self.assertEqual(resp2.status_code, 302)
+        prize = SpinPrize.objects.get(name="30 Mins Mega Bonus")
+        self.assertEqual(prize.minutes_reward, 30)
+        self.assertEqual(prize.probability_weight, 25)
+
+        # 3. Edit prize
+        resp3 = self.client.post("/iconnect-ops/gamification/", {
+            "action": "edit_prize",
+            "prize_id": prize.id,
+            "name": "45 Mins Super Bonus",
+            "minutes_reward": "45",
+            "probability_weight": "15",
+            "speed_limit": "25.0",
+            "speed_limit_upload": "15.0",
+            "pause_limit": "3",
+            "pause_duration_limit": "4",
+            "is_active": "on",
+        })
+        self.assertEqual(resp3.status_code, 302)
+        prize.refresh_from_db()
+        self.assertEqual(prize.name, "45 Mins Super Bonus")
+        self.assertEqual(prize.minutes_reward, 45)
+
+        # 4. Delete prize
+        del_resp = self.client.post(f"/iconnect-ops/gamification/prize/{prize.id}/delete/")
+        self.assertEqual(del_resp.status_code, 302)
+        self.assertFalse(SpinPrize.objects.filter(id=prize.id).exists())
+
+
+
 
 
 
