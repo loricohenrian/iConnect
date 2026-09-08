@@ -612,7 +612,11 @@ function renderSmartCombos(combos) {
 
 let _lastPlansJson = "";
 
+let _syncLiveDataInFlight = false;
+
 async function syncPortalLiveData() {
+    if (_syncLiveDataInFlight) return;
+    _syncLiveDataInFlight = true;
     try {
         const response = await fetch(`/api/portal/live-data/?t=${Date.now()}`, {
             headers: { "Cache-Control": "no-cache" },
@@ -649,6 +653,8 @@ async function syncPortalLiveData() {
         handlePortalOutageState(data, false);
     } catch (error) {
         console.error("Live data sync error:", error);
+    } finally {
+        _syncLiveDataInFlight = false;
     }
 }
 
@@ -1735,6 +1741,13 @@ function playRestoredSound() {
 }
 
 function openIspOutageModal(customMessage, canAutoPause = true) {
+    // If user already dismissed the modal during this outage event, do NOT re-pop it
+    try {
+        if (sessionStorage.getItem("iconnect_outage_modal_dismissed") === "1") {
+            return;
+        }
+    } catch {}
+
     const modal = document.getElementById("ispOutageModal");
     if (!modal) return;
 
@@ -1753,13 +1766,15 @@ function openIspOutageModal(customMessage, canAutoPause = true) {
 
 function closeIspOutageModal(e) {
     if (e && e.target && e.target !== e.currentTarget) return;
+    // Remember that the user dismissed the modal so it never interrupts them again during this outage
+    try { sessionStorage.setItem("iconnect_outage_modal_dismissed", "1"); } catch {}
     const modal = document.getElementById("ispOutageModal");
     if (modal) modal.style.display = "none";
 }
 
 function showRestoredToast() {
     const now = Date.now();
-    if (now - _restoredToastLastFired < 30000) return; // debounce: max once per 30s
+    if (now - _restoredToastLastFired < 60000) return; // debounce: max once per 60s
     _restoredToastLastFired = now;
 
     const toast = document.getElementById("ispRestoredToast");
@@ -1825,15 +1840,15 @@ function handlePortalOutageState(data, isSessionPage) {
     const isOutage = Boolean(data.isp_outage);
     const annEnabled = data.enable_outage_announcement !== false;
     const pauseEnabled = data.enable_outage_auto_pause !== false;
-    // Use outage_message only — never use data.announcement here as it may be a regular announcement
     const outageMsg = data.outage_message || "⚠️ Internet is temporarily interrupted by our ISP. All user timers have been FROZEN to protect your remaining time!";
 
     const wasActive = _getOutageActive();
 
     if (isOutage) {
         if (!wasActive) {
-            // Outage just started — set flag and fire alert once
+            // Outage newly started — flag active, reset dismissed state, and alert once
             _setOutageActive(true);
+            try { sessionStorage.removeItem("iconnect_outage_modal_dismissed"); } catch {}
             if (annEnabled) {
                 openIspOutageModal(outageMsg, pauseEnabled);
                 playOutageAlertSound();
@@ -1853,9 +1868,11 @@ function handlePortalOutageState(data, isSessionPage) {
         }
     } else {
         if (wasActive) {
-            // Outage just ended — clear flag and show Restored toast (debounced internally)
+            // Outage confirmed ended — clear all outage flags
             _setOutageActive(false);
-            closeIspOutageModal();
+            try { sessionStorage.removeItem("iconnect_outage_modal_dismissed"); } catch {}
+            const modal = document.getElementById("ispOutageModal");
+            if (modal) modal.style.display = "none";
             showRestoredToast();
             playRestoredSound();
 
