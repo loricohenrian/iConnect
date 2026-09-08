@@ -729,7 +729,7 @@ function setStartFlowMessage(message, type = "info") {
         info: "alert-info",
     };
 
-    messageEl.className = `alert ${classMap[type] || "alert-info"} mt-md`;
+    messageEl.className = `alert coin-flow-message ${classMap[type] || "alert-info"} mt-md`;
     messageEl.textContent = message;
     messageEl.style.display = "block";
 }
@@ -751,33 +751,60 @@ function formatCoinRequestMeta(coinRequest) {
     const credited = Number(coinRequest.credited_amount || 0);
     const expected = Number(coinRequest.expected_amount || 0);
 
-    let statusBadge = "";
+    let statusBadgeClass = "badge-neutral";
+    let statusText = status;
     if (status === "ACTIVE") {
-        statusBadge = `<span style="background:#10B981; color:#fff; padding:2px 8px; border-radius:6px; font-weight:700; font-size:11px; letter-spacing:0.5px; display:inline-block;">ACTIVE</span>`;
+        statusBadgeClass = "badge-active";
+        statusText = "Coin Slot Active";
     } else if (status === "PENDING") {
-        statusBadge = `<span style="background:#F59E0B; color:#fff; padding:2px 8px; border-radius:6px; font-weight:700; font-size:11px; letter-spacing:0.5px; display:inline-block;">PENDING</span>`;
+        statusBadgeClass = "badge-pending";
+        statusText = "In Queue";
     } else if (status === "COMPLETED") {
-        statusBadge = `<span style="background:#3B82F6; color:#fff; padding:2px 8px; border-radius:6px; font-weight:700; font-size:11px; letter-spacing:0.5px; display:inline-block;">READY</span>`;
-    } else {
-        statusBadge = `<span style="background:#64748B; color:#fff; padding:2px 8px; border-radius:6px; font-weight:700; font-size:11px; letter-spacing:0.5px; display:inline-block;">${status}</span>`;
+        statusBadgeClass = "badge-ready";
+        statusText = "Payment Ready";
     }
 
-    const parts = [];
-    if (status) {
-        parts.push(`Status: ${statusBadge}`);
-    }
+    let timeDisplay = "--";
+    let breakdownHtml = "";
     if (coinRequest.is_group_pass) {
-        parts.push(`Payment: <strong>₱${credited} / ₱${expected}</strong>`);
-    } else if (coinRequest.combo_duration_display) {
-        parts.push(`Coins Inserted: <strong>₱${credited}</strong> &nbsp;➔&nbsp; <span style="color:#10B981; font-weight:700;">⏱️ ${escapeHtml(coinRequest.combo_duration_display)}</span>`);
-        if (coinRequest.combo_breakdown_text) {
-            parts.push(`<span class="text-muted" style="font-size:11px;">(${escapeHtml(coinRequest.combo_breakdown_text)})</span>`);
+        timeDisplay = `₱${credited} / ₱${expected}`;
+        if (expected > 0) {
+            const pct = Math.min(100, Math.round((credited / expected) * 100));
+            breakdownHtml = `<div class="coin-metric-sub">${pct}% funded</div>`;
         }
-    } else {
-        parts.push(`Coins Inserted: <strong>₱${credited}</strong>`);
+    } else if (coinRequest.combo_duration_display) {
+        timeDisplay = escapeHtml(coinRequest.combo_duration_display);
+        if (coinRequest.combo_breakdown_text) {
+            breakdownHtml = `<div class="coin-metric-sub">${escapeHtml(coinRequest.combo_breakdown_text)}</div>`;
+        }
+    } else if (credited > 0) {
+        timeDisplay = "Calculating...";
     }
 
-    return parts.join(" &nbsp;|&nbsp; ");
+    return `
+    <div class="coin-flow-metrics">
+        <div class="coin-metric-tile">
+            <div class="coin-metric-icon-wrap coin-icon-peso">🪙</div>
+            <div class="coin-metric-content">
+                <div class="coin-metric-label">Coins Inserted</div>
+                <div class="coin-metric-value coin-val-peso">₱${credited}</div>
+            </div>
+        </div>
+        <div class="coin-metric-tile ${credited > 0 ? 'tile-highlight' : ''}">
+            <div class="coin-metric-icon-wrap coin-icon-time">⏱️</div>
+            <div class="coin-metric-content">
+                <div class="coin-metric-label">Internet Time</div>
+                <div class="coin-metric-value coin-val-time">${timeDisplay}</div>
+                ${breakdownHtml}
+            </div>
+        </div>
+    </div>
+    <div class="coin-flow-status-bar">
+        <span class="coin-status-dot ${status.toLowerCase()}"></span>
+        <span class="coin-status-label">Slot Status:</span>
+        <span class="coin-status-badge ${statusBadgeClass}">${statusText}</span>
+    </div>
+    `;
 }
 
 function coinRequestStatusMessage(coinRequest, context = "start") {
@@ -788,8 +815,8 @@ function coinRequestStatusMessage(coinRequest, context = "start") {
     const status = coinRequest.status;
     if (status === "completed") {
         return context === "extend"
-            ? "Payment complete. Tap Extend Now to add more time."
-            : "Payment complete. Tap Connect Now to start your session.";
+            ? "Payment complete! Tap Extend Now below to add your time."
+            : "Payment complete! Tap Connect Now below to start your internet.";
     }
     if (status === "active") {
         if (coinRequest.ready_to_start) {
@@ -799,10 +826,10 @@ function coinRequestStatusMessage(coinRequest, context = "start") {
             }
             return `Coins detected! Insert more coins for more time, or tap ${actionWord}.`;
         }
-        return "Insert coins now. Your device currently owns the coin slot window.";
+        return "Insert coins now. Drop your coins (₱1, ₱5, ₱10, ₱20) into the machine.";
     }
     if (status === "pending") {
-        return "Request queued. Wait for your turn to insert coins.";
+        return "Request queued. Please wait for your turn to insert coins.";
     }
     if (status === "expired") {
         return "Coin window expired. Tap Insert Coins again.";
@@ -973,6 +1000,15 @@ function initProductionStartFlow(macAddress) {
         const btnCancel = document.getElementById("btn-cancel-coin-request");
         const linkCancel = document.getElementById("link-cancel-coin-request");
         const isTerminal = ["expired", "cancelled"].includes(coinRequest?.status);
+
+        const activeCard = document.getElementById("coin-deposit-active-card");
+        if (activeCard) {
+            if (coinRequest && (!isTerminal || state.readyToStart)) {
+                activeCard.style.display = "block";
+            } else if (!coinRequest || isTerminal) {
+                activeCard.style.display = "none";
+            }
+        }
 
         if (coinRequest && (!isTerminal || state.readyToStart)) {
             if (actionsContainer) actionsContainer.style.display = "block";
@@ -1235,7 +1271,7 @@ function initExtendSessionFlow(macAddress) {
         if (!el) return;
         if (!message) { el.style.display = "none"; return; }
         const classMap = { success: "alert-success", warning: "alert-warning", danger: "alert-danger", error: "alert-danger", info: "alert-info" };
-        el.className = `alert ${classMap[type] || "alert-info"} mt-md`;
+        el.className = `alert coin-flow-message ${classMap[type] || "alert-info"} mt-md`;
         el.textContent = message;
         el.style.display = "block";
     };
@@ -1277,6 +1313,15 @@ function initExtendSessionFlow(macAddress) {
         const btnCancel = document.getElementById("btn-cancel-coin-request");
         const linkCancel = document.getElementById("link-cancel-coin-request");
         const isTerminal = ["expired", "cancelled"].includes(coinRequest?.status);
+
+        const activeCard = document.getElementById("coin-deposit-active-card");
+        if (activeCard) {
+            if (coinRequest && (!isTerminal || state.readyToStart)) {
+                activeCard.style.display = "block";
+            } else if (!coinRequest || isTerminal) {
+                activeCard.style.display = "none";
+            }
+        }
 
         if (coinRequest && (!isTerminal || state.readyToStart)) {
             if (actionsContainer) actionsContainer.style.display = "block";
