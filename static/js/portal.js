@@ -947,10 +947,31 @@ function scrollToCoinActions() {
                              document.getElementById("btn-cancel-coin-request") ||
                              document.getElementById("coin-actions-container") ||
                              document.getElementById("coin-deposit-active-card");
-        if (cancelTarget) {
-            cancelTarget.scrollIntoView({ behavior: "smooth", block: "end" });
+        if (!cancelTarget) return;
+
+        // Calculate clearance so the action buttons sit comfortably above the floating navbar
+        const navEl = document.querySelector(".portal-nav");
+        let navClearance = 105; // Fallback: 16px bottom + ~48px navbar height + ~41px breathing space
+        if (navEl) {
+            const navRect = navEl.getBoundingClientRect();
+            if (navRect.top > 0) {
+                navClearance = (window.innerHeight - navRect.top) + 32;
+            }
         }
-    }, 200);
+
+        const rect = cancelTarget.getBoundingClientRect();
+        const targetViewportBottom = window.innerHeight - navClearance;
+        const diff = rect.bottom - targetViewportBottom;
+
+        if (diff > 0) {
+            window.scrollBy({
+                top: diff,
+                behavior: "smooth"
+            });
+        } else if (rect.top < 20) {
+            cancelTarget.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+    }, 220);
 }
 
 function initProductionStartFlow(macAddress) {
