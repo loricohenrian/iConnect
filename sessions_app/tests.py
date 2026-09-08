@@ -1371,6 +1371,56 @@ class SessionEarlyEndAndTimezoneTests(TestCase):
         self.assertEqual(rendered, "Sep 07, 04:26 PM")
 
 
+class BandwidthTrackingTests(TestCase):
+    @patch("sessions_app.bandwidth._is_simulation", return_value=False)
+    @patch("sessions_app.bandwidth.subprocess.run")
+    @patch("sessions_app.bandwidth._get_mac_to_ip_map")
+    @patch("sessions_app.bandwidth._get_ip_to_mac_map")
+    def test_get_iptables_byte_counters_aggregates_upload_and_download(
+        self, ip_to_mac_mock, mac_to_ip_mock, subprocess_mock, sim_mock
+    ):
+        from sessions_app.bandwidth import get_iptables_byte_counters, get_device_bandwidth_mb
+        import subprocess
+
+        mac = "AA:BB:CC:DD:EE:99"
+        ip = "10.10.10.99"
+        mac_to_ip_mock.return_value = {mac: ip}
+        ip_to_mac_mock.return_value = {ip: mac}
+
+        # Mock iptables FORWARD (Upload: 11.5 MB = 12058624 bytes)
+        forward_stdout = (
+            "Chain FORWARD (policy DROP 0 packets, 0 bytes)\n"
+            f" pkts bytes target prot opt in out source destination\n"
+            f" 1000 12058624 ACCEPT all -- * * 0.0.0.0/0 0.0.0.0/0 MAC {mac}\n"
+        )
+
+        # Mock iptables mangle POSTROUTING (Download: 145 MB = 152043520 bytes)
+        mangle_stdout = (
+            "Chain POSTROUTING (policy ACCEPT 0 packets, 0 bytes)\n"
+            f" pkts bytes target prot opt in out source destination\n"
+            f" 50000 152043520 MARK all -- * * 0.0.0.0/0 {ip} MARK set 0x63\n"
+        )
+
+        def mock_subprocess_run(cmd, *args, **kwargs):
+            if "mangle" in cmd:
+                return subprocess.CompletedProcess(cmd, returncode=0, stdout=mangle_stdout)
+            elif "FORWARD" in cmd:
+                return subprocess.CompletedProcess(cmd, returncode=0, stdout=forward_stdout)
+            elif "tc" in cmd:
+                return subprocess.CompletedProcess(cmd, returncode=0, stdout="")
+            return subprocess.CompletedProcess(cmd, returncode=0, stdout="")
+
+        subprocess_mock.side_effect = mock_subprocess_run
+
+        counters = get_iptables_byte_counters()
+        self.assertIn(mac, counters)
+        # Expected: 12058624 + 152043520 = 164102144 bytes (~156.5 MB)
+        self.assertEqual(counters[mac], 164102144)
+        mb = get_device_bandwidth_mb(mac)
+        self.assertAlmostEqual(mb, 156.5, places=1)
+
+
+
 
 
 

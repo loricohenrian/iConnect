@@ -193,6 +193,17 @@ def block_device(mac_address):
     Kills existing connections so apps lose internet immediately.
     """
     mac = mac_address.upper()
+
+    # Sync latest bandwidth data before deleting rules so final megabytes are recorded
+    try:
+        from .models import Session
+        from .bandwidth import refresh_session_bandwidth_usage
+        active_session = Session.objects.filter(mac_address=mac, status__in=['active', 'paused']).order_by('-id').first()
+        if active_session:
+            refresh_session_bandwidth_usage(active_session)
+    except Exception:
+        pass
+
     cmd = ['iptables', '-D', 'FORWARD', '-m', 'mac', '--mac-source', mac, '-j', 'ACCEPT']
 
     # Keep deleting until no more such rules exist (to handle potential legacy duplicates)
