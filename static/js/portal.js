@@ -621,7 +621,14 @@ async function syncPortalLiveData() {
         if (!response.ok) return;
 
         const data = await response.json();
-        renderAnnouncements(data.announcements || []);
+        // Hide the top announcements bar during an active outage to avoid double-notification.
+        // The outage modal + inline banner are the sole outage indicators.
+        if (_getOutageActive() || Boolean(data.isp_outage)) {
+            const annContainer = document.getElementById("portal-announcements");
+            if (annContainer) annContainer.style.display = "none";
+        } else {
+            renderAnnouncements(data.announcements || []);
+        }
 
         // Only re-render plans if they actually changed (prevents blinking)
         const plansJson = JSON.stringify(data.plans || []);
@@ -1997,9 +2004,9 @@ function pollSessionStatus(macAddress, intervalMs = 3000) {
 
 function _updatePortalAnnouncement(announcementText) {
     let bar = document.getElementById('announcement-banner-top');
-    // Filter out any outage-related text — use the same identifier as the backend OUTAGE_IDENTIFIER
+    // Filter out outage text AND suppress any announcement during an active outage
     const isOutageText = announcementText && announcementText.includes("interrupted by our ISP");
-    if (announcementText && !isOutageText) {
+    if (announcementText && !isOutageText && !_getOutageActive()) {
         if (!bar) {
             bar = document.createElement('div');
             bar.id = 'announcement-banner-top';
@@ -2014,6 +2021,7 @@ function _updatePortalAnnouncement(announcementText) {
         bar.style.display = 'none';
     }
 }
+
 
 function showFiveMinuteWarning() {
     if (document.getElementById("time-warning")) {
