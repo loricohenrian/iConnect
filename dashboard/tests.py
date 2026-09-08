@@ -429,7 +429,7 @@ class IspOutageManagementTests(TestCase):
         isp_msg = (
             "⚠️ NOTICE: Internet is temporarily interrupted by our ISP. "
             "All user timers have been FROZEN to protect your remaining time! "
-            "Your timer will automatically resume as soon as connection is restored."
+            "Once connection is restored, tap Resume whenever you are ready."
         )
         Announcement.objects.create(message=isp_msg, is_active=False)
         Announcement.objects.create(message=isp_msg, is_active=False)

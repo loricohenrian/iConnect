@@ -16,7 +16,7 @@ OUTAGE_IDENTIFIER = "interrupted by our ISP"
 OUTAGE_ANNOUNCEMENT_TEXT = (
     "⚠️ NOTICE: Internet is temporarily interrupted by our ISP. "
     "All user timers have been FROZEN to protect your remaining time! "
-    "Your timer will automatically resume as soon as connection is restored."
+    "Once connection is restored, tap Resume whenever you are ready."
 )
 
 
