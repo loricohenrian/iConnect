@@ -603,21 +603,28 @@ def revenue_live_api(request):
     if not _is_dashboard_admin(request.user):
         return Response({'detail': 'Authentication required.'}, status=status.HTTP_401_UNAUTHORIZED)
 
-    period = request.GET.get('period', 'today').lower()
     custom_start = request.GET.get('start_date')
     custom_end = request.GET.get('end_date')
+    period_param = request.GET.get('period')
+    if period_param:
+        period = period_param.lower()
+    elif custom_start or custom_end:
+        period = 'custom'
+    else:
+        period = 'today'
     search = sanitize_text(request.GET.get('search', ''), max_length=60)
 
     today = timezone.localdate()
     start_date = None
     end_date = None
 
-    if period == 'custom' or (custom_start or custom_end):
-        period = 'custom'
+    if period == 'custom':
         if custom_start:
             start_date = parse_date(custom_start)
         if custom_end:
             end_date = parse_date(custom_end)
+        if start_date and end_date and start_date > end_date:
+            start_date, end_date = end_date, start_date
     elif period == 'today':
         start_date = today
         end_date = today
@@ -633,8 +640,10 @@ def revenue_live_api(request):
         period = 'year'
         start_date = today.replace(month=1, day=1)
         end_date = today
-    elif period == 'all':
-        pass
+    elif period in ('all', 'all_time'):
+        period = 'all'
+        start_date = None
+        end_date = None
     else:
         period = 'today'
         start_date = today
@@ -746,27 +755,47 @@ def sessions_live_api(request):
         cleanup_expired_and_stale_sessions()
         cache.set('cleanup_sessions_throttle', True, 20)
 
+    # Throttle active session bandwidth refresh to at most once per 5 seconds
+    if not cache.get('bandwidth_refresh_throttle'):
+        from sessions_app.bandwidth import refresh_session_bandwidth_usage
+        for active_sess in Session.objects.filter(status='active'):
+            refresh_session_bandwidth_usage(active_sess)
+        cache.set('bandwidth_refresh_throttle', True, 5)
+
     status_filter = request.GET.get('status', '')
     search = sanitize_text(request.GET.get('search', ''), max_length=60)
-    period = request.GET.get('period', 'today')
+    period = request.GET.get('period', 'today').lower()
 
     sessions = Session.objects.select_related('plan').all()
 
     now = timezone.now()
     today = timezone.localdate()
-    if period == 'today' or not period:
+    if period == 'custom':
+        custom_start = request.GET.get('start_date')
+        custom_end = request.GET.get('end_date')
+        if custom_start:
+            s_date = parse_date(custom_start)
+            if s_date:
+                sessions = sessions.filter(time_in__date__gte=s_date)
+        if custom_end:
+            e_date = parse_date(custom_end)
+            if e_date:
+                sessions = sessions.filter(time_in__date__lte=e_date)
+    elif period == 'today' or not period:
         sessions = sessions.filter(
             Q(status='active') |
             Q(time_in__date=today) |
             Q(status='paused', paused_at__date=today) |
             Q(status='expired', time_out__date=today)
         )
-    elif period == 'week':
+    elif period in ('week', 'weekly'):
         sessions = sessions.filter(Q(status='active') | Q(time_in__gte=now - timedelta(days=7)))
-    elif period == 'month':
+    elif period in ('month', 'monthly'):
         sessions = sessions.filter(Q(status='active') | Q(time_in__gte=now - timedelta(days=30)))
-    elif period == 'year':
+    elif period in ('year', 'yearly'):
         sessions = sessions.filter(Q(status='active') | Q(time_in__gte=now - timedelta(days=365)))
+    elif period in ('all', 'all_time'):
+        pass
 
     total_users = sessions.count()
     connected_users = sessions.filter(status='active').count()
@@ -986,9 +1015,15 @@ def revenue(request):
             return redirect(request.get_full_path())
 
     # Process GET parameters for date filtering
-    period = request.GET.get('period', 'today').lower()
     custom_start = request.GET.get('start_date')
     custom_end = request.GET.get('end_date')
+    period_param = request.GET.get('period')
+    if period_param:
+        period = period_param.lower()
+    elif custom_start or custom_end:
+        period = 'custom'
+    else:
+        period = 'today'
     search = sanitize_text(request.GET.get('search', ''), max_length=60)
     
     today = timezone.localdate()
@@ -997,12 +1032,13 @@ def revenue(request):
     start_date = None
     end_date = None
     
-    if period == 'custom' or (custom_start or custom_end):
-        period = 'custom'
+    if period == 'custom':
         if custom_start:
             start_date = parse_date(custom_start)
         if custom_end:
             end_date = parse_date(custom_end)
+        if start_date and end_date and start_date > end_date:
+            start_date, end_date = end_date, start_date
     elif period == 'today':
         start_date = today
         end_date = today
@@ -1018,8 +1054,10 @@ def revenue(request):
         period = 'year'
         start_date = today.replace(month=1, day=1)
         end_date = today
-    elif period == 'all':
-        pass
+    elif period in ('all', 'all_time'):
+        period = 'all'
+        start_date = None
+        end_date = None
     else:
         # fallback to today
         period = 'today'
@@ -1208,16 +1246,22 @@ def export_sessions_csv(request):
     """Export session logs as CSV file."""
     status_filter = request.GET.get('status', '')
     search = sanitize_text(request.GET.get('search', ''), max_length=60)
-    period = request.GET.get('period', 'today').lower()
     custom_start = request.GET.get('start_date')
     custom_end = request.GET.get('end_date')
+    period_param = request.GET.get('period')
+    if period_param:
+        period = period_param.lower()
+    elif custom_start or custom_end:
+        period = 'custom'
+    else:
+        period = 'today'
 
     sessions = Session.objects.select_related('plan').all()
 
     now = timezone.now()
     today = timezone.localdate()
     
-    if period == 'custom' or (custom_start or custom_end):
+    if period == 'custom':
         if custom_start:
             s_date = parse_date(custom_start)
             if s_date:
@@ -1242,6 +1286,8 @@ def export_sessions_csv(request):
     elif period in ('year', 'yearly'):
         year_start = today.replace(month=1, day=1)
         sessions = sessions.filter(Q(status='active') | Q(time_in__date__gte=year_start))
+    elif period in ('all', 'all_time'):
+        pass
 
     if status_filter:
         sessions = sessions.filter(status=status_filter)

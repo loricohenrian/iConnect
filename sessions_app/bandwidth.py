@@ -113,15 +113,18 @@ def get_iptables_byte_counters():
     
     Combines:
     1. iptables FORWARD chain rule counters (Upload via source MAC)
-    2. iptables mangle POSTROUTING / FORWARD counters (Download via destination IP & mark)
-    3. tc class counters on LAN interface (Download) & WAN interface (Upload)
+    2. iptables mangle POSTROUTING counters (Download via destination IP)
+    3. tc class counters on LAN interface (Download via class 1:<mark>)
+    
+    Total = Upload + max(mangle_download, tc_download)
     
     Returns dict: { 'AA:BB:CC:DD:EE:FF': bytes_int, ... }
     """
     if _is_simulation():
         return {}
 
-    counters = {}
+    upload_by_mac = {}
+    download_by_mac = {}
     mac_to_ip = _get_mac_to_ip_map()
     ip_to_mac = _get_ip_to_mac_map()
 
@@ -145,7 +148,7 @@ def get_iptables_byte_counters():
                 if len(parts) >= 2:
                     try:
                         byte_count = int(parts[1])
-                        counters[mac] = counters.get(mac, 0) + byte_count
+                        upload_by_mac[mac] = upload_by_mac.get(mac, 0) + byte_count
                     except ValueError:
                         continue
     except Exception as e:
@@ -167,12 +170,11 @@ def get_iptables_byte_counters():
                 if len(parts) >= 2:
                     try:
                         byte_count = int(parts[1])
-                        # Find any matching client IP in line
                         ips_in_line = ip_pattern.findall(line)
                         for dest_ip in ips_in_line:
                             if dest_ip in ip_to_mac:
                                 mac = ip_to_mac[dest_ip]
-                                counters[mac] = counters.get(mac, 0) + byte_count
+                                download_by_mac[mac] = download_by_mac.get(mac, 0) + byte_count
                                 break
                     except (ValueError, IndexError):
                         continue
@@ -180,7 +182,6 @@ def get_iptables_byte_counters():
         logger.debug('Failed to read iptables mangle counters: %s', e)
 
     # 3. Read tc class counters on LAN interface for Download
-    # Each device has a tc class 1:<last_octet> on LAN interface (e.g., 10.10.10.150 -> 1:150)
     lan_iface = _get_lan_interface()
     lan_tc_bytes = _get_tc_class_bytes(lan_iface)
     if lan_tc_bytes:
@@ -191,10 +192,18 @@ def get_iptables_byte_counters():
                 class_id = f'1:{mark}'
                 dl_bytes = lan_tc_bytes.get(class_id, 0)
                 if dl_bytes > 0:
-                    current_val = counters.get(mac, 0)
-                    counters[mac] = max(current_val, dl_bytes)
+                    current_dl = download_by_mac.get(mac, 0)
+                    download_by_mac[mac] = max(current_dl, dl_bytes)
             except (ValueError, IndexError):
                 continue
+
+    # Combine Upload + Download
+    all_macs = set(upload_by_mac.keys()) | set(download_by_mac.keys())
+    counters = {}
+    for mac in all_macs:
+        ul = upload_by_mac.get(mac, 0)
+        dl = download_by_mac.get(mac, 0)
+        counters[mac] = ul + dl
 
     return counters
 
