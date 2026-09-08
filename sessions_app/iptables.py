@@ -42,6 +42,33 @@ def _ensure_forward_rule(rule_spec):
     return _run_command(add_cmd)
 
 
+def _ensure_mangle_forward_rule(rule_spec):
+    """Ensure a rule exists in the mangle FORWARD chain; insert at top if missing."""
+    check_cmd = ['iptables', '-t', 'mangle', '-C', 'FORWARD'] + rule_spec
+    if _run_command(check_cmd, ignore_errors=True):
+        return True
+    add_cmd = ['iptables', '-t', 'mangle', '-I', 'FORWARD', '1'] + rule_spec
+    return _run_command(add_cmd)
+
+
+def _ensure_quic_rejected_top():
+    """
+    Ensure the QUIC rejection rule stays at the very top (rule 1) of the FORWARD chain.
+    This guarantees UDP 443 is rejected before per-MAC accept rules, forcing YouTube,
+    Google One, and other Google services to immediately fall back to TCP HTTPS (HTTP/2)
+    with zero delay, avoiding UDP MTU black holes and broken QUIC stalls.
+    """
+    rule = ['-p', 'udp', '--dport', '443', '-j', 'REJECT', '--reject-with', 'icmp-port-unreachable']
+    res = _run_command_capture(['iptables', '-S', 'FORWARD', '1'])
+    if res and res.returncode == 0 and '--dport 443' in res.stdout and 'REJECT' in res.stdout:
+        return True
+
+    while _run_command(['iptables', '-D', 'FORWARD'] + rule, ignore_errors=True):
+        pass
+
+    return _run_command(['iptables', '-I', 'FORWARD', '1'] + rule)
+
+
 def _run_command(cmd, ignore_errors=False):
     """Execute an iptables command or log it in simulation mode."""
     if _is_simulation():
@@ -133,6 +160,9 @@ def allow_device(mac_address, rate_kbps=None, upload_kbps=None):
         # of hitting cached NAT redirect entries that cause "No Internet".
         _flush_conntrack(mac_address)
         apply_bandwidth_limit(mac, rate_kbps=rate_kbps, upload_kbps=upload_kbps)
+        _ensure_quic_rejected_top()
+        _ensure_mangle_forward_rule(['-p', 'tcp', '--tcp-flags', 'SYN,RST', 'SYN', '-j', 'TCPMSS', '--clamp-mss-to-pmtu'])
+        _ensure_forward_rule(['-m', 'conntrack', '--ctstate', 'RELATED,ESTABLISHED', '-j', 'ACCEPT'])
     return success
 
 
@@ -192,14 +222,27 @@ def block_device(mac_address):
 
 def setup_default_policy():
     """
-    Set default FORWARD policy to DROP.
-    All devices are blocked unless explicitly allowed.
+    Set default FORWARD policy to DROP and enforce essential routing rules:
+    1. Stateful return traffic: conntrack RELATED,ESTABLISHED ACCEPT.
+    2. TCP MSS clamping: prevent MTU black holes on YouTube video streams & TLS handshakes.
+    3. QUIC (UDP 443) rejection: force instant TCP fallback for YouTube & Google services.
     """
     cmd = ['iptables', '-P', 'FORWARD', 'DROP']
     success = _run_command(cmd)
-    if success:
-        logger.info('Default FORWARD policy set to DROP')
-    return success
+    if not success:
+        return False
+
+    # 1. Stateful connection tracking: Allow return traffic for established connections
+    _ensure_forward_rule(['-m', 'conntrack', '--ctstate', 'RELATED,ESTABLISHED', '-j', 'ACCEPT'])
+
+    # 2. TCP MSS clamping: Prevent MTU black holes (YouTube, large SSL certs, Google One)
+    _ensure_mangle_forward_rule(['-p', 'tcp', '--tcp-flags', 'SYN,RST', 'SYN', '-j', 'TCPMSS', '--clamp-mss-to-pmtu'])
+
+    # 3. QUIC (UDP 443) rejection: Reject with ICMP port-unreachable so YouTube & Google apps instantly fall back to TCP
+    _ensure_quic_rejected_top()
+
+    logger.info('Default FORWARD policy set to DROP with stateful tracking, MSS clamping, and QUIC rejection')
+    return True
 
 
 def get_forward_default_policy():

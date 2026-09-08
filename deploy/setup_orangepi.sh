@@ -28,9 +28,21 @@ apt-get install -y python3-venv python3-pip nginx redis-server dnsmasq iptables 
 echo "=== 2/7: Configuring dnsmasq for USB-to-LAN adapter ==="
 mkdir -p /etc/dnsmasq.d
 cp "$PROJECT_ROOT/deploy/dnsmasq/bind-dynamic.conf" /etc/dnsmasq.d/bind-dynamic.conf
+if [ -f "$PROJECT_ROOT/deploy/dnsmasq/filter-aaaa.conf" ]; then
+    cp "$PROJECT_ROOT/deploy/dnsmasq/filter-aaaa.conf" /etc/dnsmasq.d/filter-aaaa.conf
+fi
 
 mkdir -p /etc/systemd/system/dnsmasq.service.d
 cp "$PROJECT_ROOT/deploy/dnsmasq/wait-for-usblan0.conf" /etc/systemd/system/dnsmasq.service.d/wait-for-usblan0.conf
+
+# Disable IPv6 on client interface to prevent Android/iOS from attempting broken IPv6 connections
+mkdir -p /etc/sysctl.d
+cat << 'EOF' > /etc/sysctl.d/99-disable-ipv6-usblan0.conf
+net.ipv6.conf.usblan0.disable_ipv6 = 1
+net.ipv6.conf.all.disable_ipv6 = 1
+net.ipv6.conf.default.disable_ipv6 = 1
+EOF
+sysctl -p /etc/sysctl.d/99-disable-ipv6-usblan0.conf 2>/dev/null || true
 
 # Silence cosmetic resolvconf warning on Armbian / systemd-resolved
 if [ -f /etc/default/dnsmasq ]; then
