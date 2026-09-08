@@ -2310,10 +2310,8 @@ def security_view(request):
 @user_passes_test(_is_dashboard_admin, login_url='dashboard:login')
 def account_view(request):
     """Dashboard account settings for admin email, password, and multi-admin management."""
-    if not request.user.is_authenticated:
-        return redirect('dashboard:login')
-
     from django.contrib.auth import get_user_model
+    from django.db import transaction
     User = get_user_model()
     email_message = ''
     email_error = ''
@@ -2366,6 +2364,9 @@ def account_view(request):
             elif new_email:
                 try:
                     validate_email(new_email)
+                    # Guard against duplicate email to prevent password-reset confusion
+                    if User.objects.filter(email__iexact=new_email).exists():
+                        admin_error = 'That email address is already used by another admin account.'
                 except ValidationError:
                     admin_error = 'Please enter a valid email address.'
 
@@ -2399,16 +2400,22 @@ def account_view(request):
                 target_user = User.objects.get(id=target_id, is_staff=True)
                 if target_user.id == request.user.id:
                     admin_error = 'You cannot delete your own active administrator account.'
-                elif User.objects.filter(is_staff=True).count() <= 1:
-                    admin_error = 'Cannot delete the only remaining administrator account.'
                 else:
-                    deleted_name = target_user.username
-                    target_user.delete()
-                    admin_message = f'Administrator account "{deleted_name}" deleted successfully.'
-                    audit_logger.info(
-                        "event=admin_deleted by=%s deleted_user=%s",
-                        request.user.username, deleted_name
-                    )
+                    # Use atomic + select_for_update to prevent a TOCTOU race where two
+                    # concurrent delete requests could simultaneously pass the last-admin check
+                    # and both delete, leaving zero admin accounts.
+                    with transaction.atomic():
+                        staff_count = User.objects.select_for_update().filter(is_staff=True).count()
+                        if staff_count <= 1:
+                            admin_error = 'Cannot delete the only remaining administrator account.'
+                        else:
+                            deleted_name = target_user.username
+                            target_user.delete()
+                            admin_message = f'Administrator account "{deleted_name}" deleted successfully.'
+                            audit_logger.info(
+                                "event=admin_deleted by=%s deleted_user=%s",
+                                request.user.username, deleted_name
+                            )
             except (User.DoesNotExist, ValueError):
                 admin_error = 'User not found.'
             except Exception as e:

@@ -53,7 +53,7 @@ def validate_username(username):
     """
     Validates an admin username:
     - 3 to 30 characters
-    - Alphanumeric, underscores, and hyphens only
+    - Alphanumeric, underscores, hyphens, and dots only
     Returns (is_valid, error_message).
     """
     if not username:
@@ -68,7 +68,7 @@ def validate_username(username):
         return False, "Username cannot exceed 30 characters."
 
     if not re.match(r'^[a-zA-Z0-9_.-]+$', username):
-        return False, "Username can only contain letters, numbers, hyphens, and underscores."
+        return False, "Username can only contain letters, numbers, hyphens, underscores, and dots."
 
     return True, ""
 

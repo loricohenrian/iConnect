@@ -414,7 +414,15 @@ function closeAddAdminModal() {
 
 function openDeleteAdminModal(userId, username) {
     document.getElementById('deleteTargetUserId').value = userId;
-    document.getElementById('deleteAdminText').innerHTML = `Are you sure you want to delete administrator <strong>"${username}"</strong>? They will immediately lose dashboard access.`;
+    const msgEl = document.getElementById('deleteAdminText');
+    msgEl.textContent = '';
+    const pre = document.createTextNode('Are you sure you want to delete administrator ');
+    const strong = document.createElement('strong');
+    strong.textContent = '"' + username + '"';
+    const post = document.createTextNode('? They will immediately lose dashboard access.');
+    msgEl.appendChild(pre);
+    msgEl.appendChild(strong);
+    msgEl.appendChild(post);
     document.getElementById('deleteAdminModal').style.display = 'flex';
 }
 function closeDeleteAdminModal() {
