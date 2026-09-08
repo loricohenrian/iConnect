@@ -1630,7 +1630,20 @@ function initExtendSessionFlow(macAddress) {
 // Real-Time ISP Outage Audio Alert & Modal Engine
 // ============================================
 let _audioCtx = null;
-let _isOutageActiveInPortal = false;
+
+// Use sessionStorage so the outage state survives tab switches & visibilitychange
+// within the same browser session, preventing false "Restored" toasts on re-focus.
+const _OUTAGE_SS_KEY = "iconnect_outage_active";
+function _getOutageActive() {
+    try { return sessionStorage.getItem(_OUTAGE_SS_KEY) === "1"; } catch { return false; }
+}
+function _setOutageActive(val) {
+    try { sessionStorage.setItem(_OUTAGE_SS_KEY, val ? "1" : "0"); } catch {}
+}
+
+// Debounce: only fire the "Restored" toast once per 30 seconds to absorb cache bouncing
+let _restoredToastLastFired = 0;
+
 
 function _getAudioContext() {
     if (!_audioCtx) {
@@ -1738,6 +1751,10 @@ function closeIspOutageModal(e) {
 }
 
 function showRestoredToast() {
+    const now = Date.now();
+    if (now - _restoredToastLastFired < 30000) return; // debounce: max once per 30s
+    _restoredToastLastFired = now;
+
     const toast = document.getElementById("ispRestoredToast");
     if (!toast) return;
     toast.style.display = "flex";
@@ -1801,11 +1818,15 @@ function handlePortalOutageState(data, isSessionPage) {
     const isOutage = Boolean(data.isp_outage);
     const annEnabled = data.enable_outage_announcement !== false;
     const pauseEnabled = data.enable_outage_auto_pause !== false;
-    const outageMsg = data.outage_message || data.announcement || "⚠️ Internet is temporarily interrupted by our ISP. All user timers have been FROZEN to protect your remaining time!";
+    // Use outage_message only — never use data.announcement here as it may be a regular announcement
+    const outageMsg = data.outage_message || "⚠️ Internet is temporarily interrupted by our ISP. All user timers have been FROZEN to protect your remaining time!";
+
+    const wasActive = _getOutageActive();
 
     if (isOutage) {
-        if (!_isOutageActiveInPortal) {
-            _isOutageActiveInPortal = true;
+        if (!wasActive) {
+            // Outage just started — set flag and fire alert once
+            _setOutageActive(true);
             if (annEnabled) {
                 openIspOutageModal(outageMsg, pauseEnabled);
                 playOutageAlertSound();
@@ -1824,8 +1845,9 @@ function handlePortalOutageState(data, isSessionPage) {
             }
         }
     } else {
-        if (_isOutageActiveInPortal) {
-            _isOutageActiveInPortal = false;
+        if (wasActive) {
+            // Outage just ended — clear flag and show Restored toast (debounced internally)
+            _setOutageActive(false);
             closeIspOutageModal();
             showRestoredToast();
             playRestoredSound();
@@ -1842,8 +1864,10 @@ function handlePortalOutageState(data, isSessionPage) {
                 }
             }
         }
+        // If wasActive was already false, do nothing — no false "Restored" toast
     }
 }
+
 
 function pollSessionStatus(macAddress, intervalMs = 3000) {
     let inFlight = false;
@@ -1973,7 +1997,9 @@ function pollSessionStatus(macAddress, intervalMs = 3000) {
 
 function _updatePortalAnnouncement(announcementText) {
     let bar = document.getElementById('announcement-banner-top');
-    if (announcementText && !announcementText.includes("temporarily interrupted by our ISP")) {
+    // Filter out any outage-related text — use the same identifier as the backend OUTAGE_IDENTIFIER
+    const isOutageText = announcementText && announcementText.includes("interrupted by our ISP");
+    if (announcementText && !isOutageText) {
         if (!bar) {
             bar = document.createElement('div');
             bar.id = 'announcement-banner-top';

@@ -2093,8 +2093,9 @@ def session_status(request):
 
     active_ann = Announcement.objects.filter(is_active=True).exclude(message__contains="interrupted by our ISP").first()
     ann_text = active_ann.message if active_ann else None
-    if isp_outage and enable_outage_announcement and not ann_text:
-        ann_text = outage_message
+    # NOTE: Do NOT merge outage_message into ann_text here.
+    # The JS already handles outage display separately via isp_outage + handlePortalOutageState().
+    # Merging it here causes a second banner to appear alongside the modal.
 
     if session:
         # If an ISP outage is active and auto-pause is enabled, freeze active session immediately!
