@@ -1974,7 +1974,11 @@ def announcements_view(request):
             if not message or len(message) < 3:
                 messages.error(request, 'Announcement message must be at least 3 characters long.')
             else:
-                Announcement.objects.create(message=message)
+                new_ann = Announcement.objects.create(message=message)
+                audit_logger.info(
+                    "event=announcement_created user=%s ann_id=%d ip=%s",
+                    request.user.username, new_ann.id, _client_ip(request)
+                )
                 messages.success(request, 'Announcement published successfully.')
         elif action == 'update':
             ann_id = request.POST.get('announcement_id')
@@ -1985,8 +1989,14 @@ def announcements_view(request):
                 messages.error(request, 'Announcement ID is required.')
             else:
                 try:
-                    updated = Announcement.objects.filter(id=int(ann_id)).update(message=message)
-                    if updated:
+                    ann = Announcement.objects.filter(id=int(ann_id)).first()
+                    if ann:
+                        ann.message = message
+                        ann.save()
+                        audit_logger.info(
+                            "event=announcement_updated user=%s ann_id=%d ip=%s",
+                            request.user.username, ann.id, _client_ip(request)
+                        )
                         messages.success(request, 'Announcement updated successfully.')
                     else:
                         messages.error(request, 'Announcement not found.')
@@ -1999,14 +2009,24 @@ def announcements_view(request):
                 ann.is_active = not ann.is_active
                 ann.save()
                 status_text = 'activated' if ann.is_active else 'deactivated'
+                audit_logger.info(
+                    "event=announcement_toggled user=%s ann_id=%d is_active=%s ip=%s",
+                    request.user.username, ann.id, ann.is_active, _client_ip(request)
+                )
                 messages.success(request, f'Announcement {status_text}.')
             except (Announcement.DoesNotExist, ValueError, TypeError):
                 messages.error(request, 'Announcement not found.')
         elif action == 'delete':
             ann_id = request.POST.get('announcement_id')
             try:
-                deleted, _ = Announcement.objects.filter(id=int(ann_id)).delete()
-                if deleted:
+                ann = Announcement.objects.filter(id=int(ann_id)).first()
+                if ann:
+                    ann_pk = ann.id
+                    ann.delete()
+                    audit_logger.info(
+                        "event=announcement_deleted user=%s ann_id=%d ip=%s",
+                        request.user.username, ann_pk, _client_ip(request)
+                    )
                     messages.success(request, 'Announcement deleted successfully.')
                 else:
                     messages.error(request, 'Announcement not found.')

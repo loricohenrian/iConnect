@@ -2306,6 +2306,59 @@ class GamificationManagementTests(TestCase):
         self.assertFalse(SpinPrize.objects.filter(id=prize.id).exists())
 
 
+class AnnouncementManagementTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        User = get_user_model()
+        self.admin = User.objects.create_user(
+            username="ann_admin",
+            password="admin123",
+            is_staff=True,
+            is_superuser=True,
+        )
+        self.client.login(username="ann_admin", password="admin123")
+
+    def test_announcement_crud_and_toggle(self):
+        from dashboard.models import Announcement
+
+        # 1. Create
+        resp = self.client.post("/iconnect-ops/announcements/", {
+            "action": "create",
+            "message": "Campus WiFi will be offline for 15 mins at 2:00 AM.",
+        })
+        self.assertEqual(resp.status_code, 302)
+        ann = Announcement.objects.get(message="Campus WiFi will be offline for 15 mins at 2:00 AM.")
+        self.assertTrue(ann.is_active)
+
+        # 2. Update
+        resp2 = self.client.post("/iconnect-ops/announcements/", {
+            "action": "update",
+            "announcement_id": ann.id,
+            "message": "Campus WiFi will be offline for 30 mins at 3:00 AM.",
+        })
+        self.assertEqual(resp2.status_code, 302)
+        ann.refresh_from_db()
+        self.assertEqual(ann.message, "Campus WiFi will be offline for 30 mins at 3:00 AM.")
+
+        # 3. Toggle inactive
+        resp3 = self.client.post("/iconnect-ops/announcements/", {
+            "action": "toggle",
+            "announcement_id": ann.id,
+        })
+        self.assertEqual(resp3.status_code, 302)
+        ann.refresh_from_db()
+        self.assertFalse(ann.is_active)
+
+        # 4. Delete
+        resp4 = self.client.post("/iconnect-ops/announcements/", {
+            "action": "delete",
+            "announcement_id": ann.id,
+        })
+        self.assertEqual(resp4.status_code, 302)
+        self.assertFalse(Announcement.objects.filter(id=ann.id).exists())
+
+
+
 
 
 

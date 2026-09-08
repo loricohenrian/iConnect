@@ -2091,7 +2091,7 @@ def session_status(request):
     enable_outage_auto_pause = isp_info.get("enable_outage_auto_pause", True)
     outage_message = isp_info.get("message", "")
 
-    active_ann = Announcement.objects.filter(is_active=True).first()
+    active_ann = Announcement.objects.filter(is_active=True).exclude(message__contains="interrupted by our ISP").first()
     ann_text = active_ann.message if active_ann else None
     if isp_outage and enable_outage_announcement and not ann_text:
         ann_text = outage_message
