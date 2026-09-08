@@ -1135,6 +1135,69 @@ class SecuritySystemHardeningTests(TestCase):
             self.assertTrue(data_resp.json().get("is_blocked"))
             self.assertFalse(data_resp.json().get("enabled"))
 
+    def test_spin_wheel_successful_execution(self):
+        from dashboard.models import SystemSettings
+        from sessions_app.models import DeviceProfile, SpinPrize
+        sys_settings = SystemSettings.get_settings()
+        sys_settings.enable_spin_wheel = True
+        sys_settings.spin_cost_points = 10
+        sys_settings.daily_spin_limit = 5
+        sys_settings.save()
+
+        # Create active prizes
+        SpinPrize.objects.create(
+            name="15 Mins Free",
+            minutes_reward=15,
+            probability_weight=50,
+            is_active=True
+        )
+        SpinPrize.objects.create(
+            name="Try Again",
+            minutes_reward=0,
+            probability_weight=50,
+            is_active=True
+        )
+
+        good_mac = "AA:BB:CC:11:22:33"
+        profile = DeviceProfile.objects.create(mac_address=good_mac, points=50)
+
+        client = APIClient()
+        with patch("portal.views._get_mac_address", return_value=good_mac):
+            resp = client.post("/api/execute_spin/", {}, format="json")
+            self.assertEqual(resp.status_code, 200)
+            data = resp.json()
+            self.assertEqual(data["status"], "success")
+            self.assertIn("prize", data)
+            self.assertIn("name", data["prize"])
+            self.assertIn("minutes", data["prize"])
+            self.assertIn("mid_deg", data["prize"])
+            self.assertIn("updated", data)
+            self.assertEqual(data["updated"]["points"], 40)
+            self.assertEqual(data["updated"]["remaining_spins"], 4)
+
+            # Check profile updated in DB
+            profile.refresh_from_db()
+            self.assertEqual(profile.points, 40)
+            self.assertEqual(profile.spins_today, 1)
+
+        # Test spin with existing active session
+        test_plan = Plan.objects.create(name="Spin Plan", price=10, duration_minutes=30)
+        session = Session.objects.create(
+            mac_address=good_mac,
+            plan=test_plan,
+            duration_minutes_purchased=30,
+            amount_paid=10,
+            status="active"
+        )
+        with patch("portal.views._get_mac_address", return_value=good_mac):
+            resp2 = client.post("/api/execute_spin/", {}, format="json")
+            self.assertEqual(resp2.status_code, 200)
+            data2 = resp2.json()
+            self.assertEqual(data2["status"], "success")
+            session.refresh_from_db()
+            if data2["prize"]["minutes"] > 0:
+                self.assertGreater(session.duration_minutes_purchased, 30)
+
     def test_voucher_extension_rejects_blocked_device(self):
         client = APIClient()
         resp = client.post("/api/session/extend/", {

@@ -701,7 +701,10 @@ def api_execute_spin(request):
                     rate_kbps = int(selected_prize.speed_limit * 1024) if selected_prize.speed_limit else None
                     upload_kbps = int(selected_prize.speed_limit_upload * 1024) if selected_prize.speed_limit_upload else rate_kbps
                     
-                    iptables.allow_device(mac_address, rate_kbps=rate_kbps, upload_kbps=upload_kbps)
+                    try:
+                        iptables.allow_device(mac_address, rate_kbps=rate_kbps, upload_kbps=upload_kbps)
+                    except Exception as ipt_err:
+                        logger.warning("iptables allow_device warning during spin prize award: %s", ipt_err)
                     prize_applied = True
 
             # Calculate remaining spins for the response
@@ -712,18 +715,23 @@ def api_execute_spin(request):
                 "prize": {
                     "id": selected_prize.id,
                     "name": selected_prize.name,
-                    "type": selected_prize.prize_type,
                     "minutes": selected_prize.minutes_reward,
-                    "points": selected_prize.points_reward,
-                    "badge_color": selected_prize.badge_color,
-                    "icon_type": selected_prize.icon_type,
+                    "mid_deg": round(target_deg, 2),
+                    "applied": prize_applied,
+                    "type": "minutes" if selected_prize.minutes_reward > 0 else "none",
+                    "points": 0,
                 },
-                "target_deg": target_deg,
+                "target_deg": round(target_deg, 2),
                 "remaining_points": device_profile.points,
                 "remaining_spins": remaining_spins,
                 "applied_to_session": prize_applied,
+                "updated": {
+                    "points": device_profile.points,
+                    "remaining_spins": remaining_spins,
+                }
             })
     except Exception as e:
+        logger.exception("Error executing spin: %s", e)
         return JsonResponse({"status": "error", "message": "An error occurred during spin processing"}, status=500)
 
 
