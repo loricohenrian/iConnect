@@ -1116,7 +1116,7 @@ def sessions_view(request):
     cleanup_expired_and_stale_sessions()
 
     status_filter = request.GET.get('status', '')
-    search = request.GET.get('search', '')
+    search = sanitize_text(request.GET.get('search', '') or request.GET.get('mac', ''), max_length=60)
     period = request.GET.get('period', 'today')
 
     sessions = Session.objects.select_related('plan').all()
@@ -2953,11 +2953,12 @@ def logs_view(request):
     """View for system logs and coin events."""
     from sessions_app.models import CoinEvent
     from django.conf import settings
+    from collections import deque
     import os
 
     search_mac = sanitize_text(request.GET.get('mac', ''), max_length=30).upper()
 
-    coin_events_qs = CoinEvent.objects.all().order_by('-timestamp')
+    coin_events_qs = CoinEvent.objects.select_related('session').all().order_by('-timestamp')
     if search_mac:
         coin_events_qs = coin_events_qs.filter(mac_address__icontains=search_mac)
 
@@ -2971,16 +2972,15 @@ def logs_view(request):
     except EmptyPage:
         coin_events = paginator.page(paginator.num_pages)
 
-    # Read audit.log
+    # Read audit.log efficiently
     audit_log_lines = []
     log_path = os.path.join(settings.BASE_DIR, 'logs', 'audit.log')
     if os.path.exists(log_path):
         try:
-            with open(log_path, 'r', encoding='utf-8') as f:
-                # Read last 500 lines
-                lines = f.readlines()
-                audit_log_lines = lines[-500:] if len(lines) > 500 else lines
-                audit_log_lines.reverse()  # Newest first
+            with open(log_path, 'r', encoding='utf-8', errors='replace') as f:
+                last_lines = list(deque(f, maxlen=500))
+                last_lines.reverse()
+                audit_log_lines = [line.strip() for line in last_lines if line.strip()]
         except Exception as e:
             audit_log_lines = [f'Error reading log file: {e}']
     else:

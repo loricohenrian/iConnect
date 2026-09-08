@@ -2100,6 +2100,59 @@ class AnalyticsHardeningTests(TestCase):
         self.assertIn("planLabels", content)
 
 
+class SystemLogsTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        User = get_user_model()
+        self.admin = User.objects.create_user(
+            username="logs_admin",
+            password="admin123",
+            is_staff=True,
+            is_superuser=True,
+        )
+        self.client.login(username="logs_admin", password="admin123")
+
+    def test_logs_view_renders_and_filters_mac(self):
+        from sessions_app.models import CoinEvent, Session
+        from django.utils import timezone
+
+        sess = Session.objects.create(
+            mac_address="AA:BB:CC:11:22:33",
+            ip_address="10.0.0.5",
+            amount_paid=10,
+            duration_minutes_purchased=60,
+            status="active",
+            time_in=timezone.now(),
+        )
+        CoinEvent.objects.create(
+            mac_address="AA:BB:CC:11:22:33",
+            amount=10,
+            denomination=10,
+            session=sess,
+            timestamp=timezone.now(),
+        )
+        CoinEvent.objects.create(
+            mac_address="DD:EE:FF:44:55:66",
+            amount=5,
+            denomination=5,
+            session=None,
+            timestamp=timezone.now(),
+        )
+
+        resp = self.client.get("/iconnect-ops/logs/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "AA:BB:CC:11:22:33")
+        self.assertContains(resp, "DD:EE:FF:44:55:66")
+        self.assertContains(resp, f"Session #{sess.id}")
+
+        # Test MAC search filter
+        search_resp = self.client.get("/iconnect-ops/logs/?mac=AA:BB:CC")
+        self.assertEqual(search_resp.status_code, 200)
+        self.assertContains(search_resp, "AA:BB:CC:11:22:33")
+        self.assertNotContains(search_resp, "DD:EE:FF:44:55:66")
+
+
+
 
 
 

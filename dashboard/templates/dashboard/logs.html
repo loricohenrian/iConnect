@@ -46,7 +46,7 @@
                     </td>
                     <td>
                         {% if event.session %}
-                        <a href="{% url 'dashboard:sessions' %}?mac={{ event.session.mac_address }}" class="text-xs font-semibold" style="color: var(--color-primary); text-decoration: none;">
+                        <a href="{% url 'dashboard:sessions' %}?search={{ event.session.mac_address }}&period=all" class="text-xs font-semibold" style="color: var(--color-primary); text-decoration: none;">
                             Session #{{ event.session.id }}
                         </a>
                         {% else %}
