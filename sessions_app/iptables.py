@@ -53,20 +53,12 @@ def _ensure_mangle_forward_rule(rule_spec):
 
 def _ensure_quic_rejected_top():
     """
-    Ensure the QUIC rejection rule stays at the very top (rule 1) of the FORWARD chain.
-    This guarantees UDP 443 is rejected before per-MAC accept rules, forcing YouTube,
-    Google One, and other Google services to immediately fall back to TCP HTTPS (HTTP/2)
-    with zero delay, avoiding UDP MTU black holes and broken QUIC stalls.
+    Ensure the QUIC rejection rule exists in the FORWARD chain baseline
+    so unauthenticated captive portal traffic immediately fails UDP 443
+    and triggers instant captive portal detection, without blocking authenticated users.
     """
     rule = ['-p', 'udp', '--dport', '443', '-j', 'REJECT', '--reject-with', 'icmp-port-unreachable']
-    res = _run_command_capture(['iptables', '-S', 'FORWARD', '1'])
-    if res and res.returncode == 0 and '--dport 443' in res.stdout and 'REJECT' in res.stdout:
-        return True
-
-    while _run_command(['iptables', '-D', 'FORWARD'] + rule, ignore_errors=True):
-        pass
-
-    return _run_command(['iptables', '-I', 'FORWARD', '1'] + rule)
+    return _ensure_forward_rule(rule)
 
 
 def _run_command(cmd, ignore_errors=False):
@@ -160,7 +152,6 @@ def allow_device(mac_address, rate_kbps=None, upload_kbps=None):
         # of hitting cached NAT redirect entries that cause "No Internet".
         _flush_conntrack(mac_address)
         apply_bandwidth_limit(mac, rate_kbps=rate_kbps, upload_kbps=upload_kbps)
-        _ensure_quic_rejected_top()
         _ensure_mangle_forward_rule(['-p', 'tcp', '--tcp-flags', 'SYN,RST', 'SYN', '-j', 'TCPMSS', '--clamp-mss-to-pmtu'])
         _ensure_forward_rule(['-m', 'conntrack', '--ctstate', 'RELATED,ESTABLISHED', '-j', 'ACCEPT'])
     return success

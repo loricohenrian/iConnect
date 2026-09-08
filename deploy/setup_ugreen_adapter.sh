@@ -76,7 +76,35 @@ else
     fi
 fi
 
-# 5. Restart dnsmasq and iConnect services
+# 5. Disable IPv6 to prevent broken Google/Android dual-stack connection stalls
+mkdir -p /etc/sysctl.d
+cat << 'EOF' > /etc/sysctl.d/99-disable-ipv6.conf
+net.ipv6.conf.all.disable_ipv6 = 1
+net.ipv6.conf.default.disable_ipv6 = 1
+net.ipv6.conf.lo.disable_ipv6 = 1
+EOF
+sysctl -p /etc/sysctl.d/99-disable-ipv6.conf 2>/dev/null || true
+
+# 6. Configure dnsmasq with dynamic binding and IPv6 AAAA filtering
+mkdir -p /etc/dnsmasq.d
+if [ -f "$SCRIPT_DIR/dnsmasq/filter-aaaa.conf" ]; then
+    cp "$SCRIPT_DIR/dnsmasq/filter-aaaa.conf" /etc/dnsmasq.d/filter-aaaa.conf
+else
+    cat << 'EOF' > /etc/dnsmasq.d/filter-aaaa.conf
+filter-AAAA
+EOF
+fi
+
+if [ -f "$SCRIPT_DIR/dnsmasq/bind-dynamic.conf" ]; then
+    cp "$SCRIPT_DIR/dnsmasq/bind-dynamic.conf" /etc/dnsmasq.d/bind-dynamic.conf
+else
+    cat << 'EOF' > /etc/dnsmasq.d/bind-dynamic.conf
+bind-dynamic
+EOF
+fi
+echo "[OK] Installed dnsmasq filter-AAAA and bind-dynamic configurations"
+
+# 7. Restart dnsmasq and iConnect services
 systemctl restart dnsmasq 2>/dev/null || true
 systemctl restart pisowifi 2>/dev/null || true
 
