@@ -1492,9 +1492,56 @@ class BandwidthTrackingTests(TestCase):
         mb = get_device_bandwidth_mb(mac)
         self.assertAlmostEqual(mb, 156.5, places=1)
 
+    def test_session_extend_increases_pause_limit_and_pauses_left(self):
+        """Test that extending an active session increases pause limit and pauses left."""
+        mac = "AA:BB:CC:DD:EE:01"
+        plan1 = Plan.objects.create(name="Plan 1", price=5, duration_minutes=30, pause_limit=2)
+        plan2 = Plan.objects.create(name="Plan 2", price=5, duration_minutes=30, pause_limit=3)
 
+        session = Session.objects.create(
+            mac_address=mac,
+            plan=plan1,
+            time_in=timezone.now(),
+            duration_minutes_purchased=30,
+            amount_paid=5,
+            status="active",
+        )
+        self.assertEqual(session.effective_pause_limit, 2)
+        self.assertEqual(session.pauses_left, 2)
 
+        # Simulate user pausing once
+        session.pause_session()
+        self.assertEqual(session.pause_count, 1)
+        self.assertEqual(session.pauses_left, 1)
+        session.resume_session()
 
+        # Add coins to pay for plan2
+        CoinEvent.objects.create(
+            mac_address=mac,
+            amount=5,
+            denomination=5,
+        )
 
+        response = self.client.post(
+            reverse("sessions_app:session-extend-paid"),
+            {"mac_address": mac, "plan_id": plan2.id},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["status"], "success")
 
+        session.refresh_from_db()
+        # Initial limit was 2, plan2 added 3 pauses -> total pause limit = 5
+        self.assertEqual(session.effective_pause_limit, 5)
+        # Paused once, so pauses left = 5 - 1 = 4
+        self.assertEqual(session.pauses_left, 4)
+        self.assertEqual(response.data["pauses_left"], 4)
+
+        # Verify session-status endpoint reflects this
+        status_res = self.client.get(
+            reverse("sessions_app:session-status"),
+            {"mac_address": mac},
+        )
+        self.assertEqual(status_res.status_code, 200)
+        self.assertEqual(status_res.data["pauses_left"], 4)
 

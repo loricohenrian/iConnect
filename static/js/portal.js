@@ -1613,6 +1613,12 @@ function initExtendSessionFlow(macAddress) {
                             durationEl.textContent = `${mins} mins`;
                         }
                     }
+
+                    const pausesLeftEl = document.getElementById("pauses-left-display");
+                    const newPauses = data.pauses_left !== undefined ? data.pauses_left : data.session?.pauses_left;
+                    if (pausesLeftEl && newPauses !== undefined) {
+                        pausesLeftEl.innerText = newPauses;
+                    }
                 }
 
                 // Reset extend state
@@ -2036,6 +2042,12 @@ function pollSessionStatus(macAddress, intervalMs = 3000) {
             }
 
             _updatePortalAnnouncement(data.announcement);
+
+            const pausesLeftEl = document.getElementById("pauses-left-display");
+            const pausesVal = data.pauses_left !== undefined ? data.pauses_left : data.session?.pauses_left;
+            if (pausesLeftEl && pausesVal !== undefined) {
+                pausesLeftEl.innerText = pausesVal;
+            }
 
             if (data.group_max && data.group_redeemed !== undefined) {
                 const groupStatusEl = document.getElementById("group-plan-status");

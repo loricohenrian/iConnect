@@ -323,11 +323,12 @@ def auto_pause_disconnected_sessions():
                 elapsed = (now - first_unreachable).total_seconds()
 
                 if elapsed >= timeout_seconds:
-                    # Respect plan pause limit: if user has exhausted pauses, do not auto-pause
-                    if session.plan and session.plan.pause_limit > 0 and session.pause_count >= session.plan.pause_limit:
+                    # Respect session pause limit: if user has exhausted pauses, do not auto-pause
+                    limit = session.effective_pause_limit
+                    if limit > 0 and session.pause_count >= limit:
                         logger.info(
                             f'Skipping auto-pause for session {session.id} ({session.mac_address}): '
-                            f'pause limit ({session.plan.pause_limit}) reached.'
+                            f'pause limit ({limit}) reached.'
                         )
                         continue
 

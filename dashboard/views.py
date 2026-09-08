@@ -2957,6 +2957,10 @@ def admin_session_action(request, session_id, action):
                 selected_plan = Plan.objects.filter(id=plan_id, is_active=True).first()
                 if selected_plan:
                     session.plan = selected_plan
+                    if selected_plan.pause_limit == 0:
+                        session.pause_limit = 0
+                    else:
+                        session.add_pauses(selected_plan.pause_limit)
             except Exception as e:
                 logging.warning(f"Failed to assign plan {plan_id} on add_time: {e}")
 

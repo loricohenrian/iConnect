@@ -339,10 +339,7 @@ def session_page(request):
     }
     
     # Calculate pause info for display
-    if active_session.plan and active_session.plan.pause_limit > 0:
-        context["pauses_left"] = max(0, active_session.plan.pause_limit - active_session.pause_count)
-    else:
-        context["pauses_left"] = "Unlimited"
+    context["pauses_left"] = active_session.pauses_left
         
     if active_session.plan and active_session.plan.pause_duration_limit > 0:
         context["pause_max_hours"] = active_session.plan.pause_duration_limit
@@ -658,7 +655,14 @@ def api_execute_spin(request):
 
                 if session:
                     session.duration_minutes_purchased += selected_prize.minutes_reward
-                    session.save(update_fields=['duration_minutes_purchased'])
+                    update_fields = ['duration_minutes_purchased']
+                    if selected_prize.pause_limit is not None:
+                        if selected_prize.pause_limit == 0:
+                            session.pause_limit = 0
+                        else:
+                            session.add_pauses(selected_prize.pause_limit)
+                        update_fields.append('pause_limit')
+                    session.save(update_fields=update_fields)
                     prize_applied = True
                 else:
                     # No active session, so we create a completely free one for the reward!

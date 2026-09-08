@@ -1502,12 +1502,11 @@ def session_extend(request):
         if voucher_session.plan:
             v_limit = voucher_session.plan.pause_limit
             if v_limit == 0:
-                if active_session.pause_count > 0:
-                    active_session.pause_count = 0
-                    update_fields.append("pause_count")
-            elif v_limit > 0 and active_session.pause_count > 0:
-                active_session.pause_count = max(0, active_session.pause_count - v_limit)
-                update_fields.append("pause_count")
+                active_session.pause_limit = 0
+                update_fields.append("pause_limit")
+            elif v_limit > 0:
+                active_session.add_pauses(v_limit)
+                update_fields.append("pause_limit")
 
         active_session.save(update_fields=update_fields)
 
@@ -1532,6 +1531,7 @@ def session_extend(request):
                 "status": "success",
                 "message": f"Session extended by {voucher_session.duration_minutes_purchased} minutes",
                 "session": SessionSerializer(active_session).data,
+                "pauses_left": active_session.pauses_left,
             }
         )
 
@@ -1789,15 +1789,16 @@ def session_extend_paid(request):
             if is_group_pass and session_group:
                 update_fields.append("session_group")
 
-            # Additive Pause Replenishment (Zero Loophole: grants earned pauses of new plan)
-            if effective_plan.pause_limit == 0:
-                if active_session.pause_count > 0:
-                    active_session.pause_count = 0
-                    update_fields.append("pause_count")
-            elif effective_plan.pause_limit > 0 and active_session.pause_count > 0:
-                earned_pauses = effective_plan.pause_limit * multiplier
-                active_session.pause_count = max(0, active_session.pause_count - earned_pauses)
-                update_fields.append("pause_count")
+            # Additive Pause Replenishment:
+            # Grants earned pauses of the new plan upon extension
+            if effective_plan:
+                if effective_plan.pause_limit == 0:
+                    active_session.pause_limit = 0
+                    update_fields.append("pause_limit")
+                else:
+                    earned_pauses = effective_plan.pause_limit * multiplier
+                    active_session.add_pauses(earned_pauses)
+                    update_fields.append("pause_limit")
                 
             active_session.save(update_fields=update_fields)
             
@@ -1873,6 +1874,7 @@ def session_extend_paid(request):
             "status": "success",
             "message": msg,
             "session": SessionSerializer(active_session).data,
+            "pauses_left": active_session.pauses_left,
             "session_group": session_group.group_code if session_group else None,
         }
     )
@@ -1963,9 +1965,10 @@ def session_pause_toggle(request):
     _session_ip_matches_request(session, request)
 
     if session.status == "active":
-        if session.plan.pause_limit > 0 and session.pause_count >= session.plan.pause_limit:
+        limit = session.effective_pause_limit
+        if limit > 0 and session.pause_count >= limit:
             return Response(
-                {"error": f"You have reached the maximum number of pauses ({session.plan.pause_limit}) for this plan."},
+                {"error": f"You have reached the maximum number of pauses ({limit}) for this session."},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
@@ -1974,11 +1977,7 @@ def session_pause_toggle(request):
         cache.set(f"manual_pause_{session.id}", True, timeout=86400 * 7)
         cache.delete(f"auto_paused_{session.id}")
 
-        pauses_left = (
-            max(0, session.plan.pause_limit - session.pause_count)
-            if session.plan and session.plan.pause_limit > 0
-            else "Unlimited"
-        )
+        pauses_left = session.pauses_left
         audit_logger.info(
             "event=session_paused mac=%s blocked=%s ip=%s",
             mac_address, blocked, _client_ip(request),
@@ -2025,11 +2024,7 @@ def session_pause_toggle(request):
         dl_kbps = int(session.plan.speed_limit * 1024) if session.plan and session.plan.speed_limit else None
         ul_kbps = int(session.plan.speed_limit_upload * 1024) if session.plan and session.plan.speed_limit_upload else dl_kbps
         allowed = iptables.allow_device(mac_address, rate_kbps=dl_kbps, upload_kbps=ul_kbps)
-        pauses_left = (
-            max(0, session.plan.pause_limit - session.pause_count)
-            if session.plan and session.plan.pause_limit > 0
-            else "Unlimited"
-        )
+        pauses_left = session.pauses_left
         audit_logger.info(
             "event=session_resumed mac=%s allowed=%s ip=%s",
             mac_address, allowed, _client_ip(request),
@@ -2138,6 +2133,7 @@ def session_status(request):
                     "time_remaining_seconds": session.time_remaining_seconds,
                     "message": "Session is paused",
                     "session": SessionSerializer(session).data,
+                    "pauses_left": session.pauses_left,
                     "is_whitelisted": False,
                     "isp_outage": isp_outage,
                     "enable_outage_announcement": enable_outage_announcement,
@@ -2191,6 +2187,7 @@ def session_status(request):
                 "status": "active",
                 "time_remaining_seconds": locked_session.time_remaining_seconds,
                 "session": SessionSerializer(locked_session).data,
+                "pauses_left": locked_session.pauses_left,
                 "is_whitelisted": False,
                 "isp_outage": isp_outage,
                 "enable_outage_announcement": enable_outage_announcement,

@@ -171,6 +171,12 @@ class Session(models.Model):
     paused_at = models.DateTimeField(null=True, blank=True, help_text="When session was paused")
     total_paused_seconds = models.FloatField(default=0, help_text="Total seconds spent paused")
     pause_count = models.PositiveIntegerField(default=0, help_text="Number of times paused")
+    pause_limit = models.PositiveIntegerField(
+        default=None,
+        null=True,
+        blank=True,
+        help_text="Total pauses allowed for this session (None = inherit from plan, 0 = unlimited)",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -273,8 +279,36 @@ class Session(models.Model):
             return 0
         return max(0, int((end_time - self.time_in).total_seconds() // 60))
 
-    def extend_session(self, additional_minutes):
-        """Extend the session by adding more time."""
+    @property
+    def effective_pause_limit(self):
+        """Return total allowed pauses for this session. 0 means unlimited."""
+        if self.pause_limit is not None:
+            return self.pause_limit
+        if self.plan:
+            return self.plan.pause_limit
+        return 0
+
+    @property
+    def pauses_left(self):
+        """Return number of pauses remaining, or 'Unlimited' if 0."""
+        limit = self.effective_pause_limit
+        if limit == 0:
+            return "Unlimited"
+        return max(0, limit - self.pause_count)
+
+    def add_pauses(self, count):
+        """
+        Add pause chances to this session upon extension.
+        If count is 0 (unlimited plan), sets session to unlimited (0).
+        Otherwise adds count to existing effective limit.
+        """
+        if count == 0:
+            self.pause_limit = 0
+        elif self.effective_pause_limit != 0:
+            self.pause_limit = self.effective_pause_limit + count
+
+    def extend_session(self, additional_minutes, additional_pauses=None):
+        """Extend the session by adding more time and optional pause chances."""
         if not self.time_in:
             self.time_in = timezone.now()
         self.duration_minutes_purchased = (self.duration_minutes_purchased or 0) + additional_minutes
@@ -285,6 +319,11 @@ class Session(models.Model):
             self.duration_minutes_purchased = additional_minutes
             self.total_paused_seconds = 0
             self.paused_at = None
+            self.pause_count = 0
+            if self.plan:
+                self.pause_limit = self.plan.pause_limit
+        if additional_pauses is not None:
+            self.add_pauses(additional_pauses)
 
     def expire_session(self):
         """Mark session as expired and set time_out."""

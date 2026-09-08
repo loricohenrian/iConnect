@@ -35,6 +35,8 @@ class SessionSerializer(serializers.ModelSerializer):
     remaining_minutes = serializers.SerializerMethodField()
     time_remaining_display = serializers.ReadOnlyField()
     time_remaining_seconds = serializers.ReadOnlyField()
+    pauses_left = serializers.ReadOnlyField()
+    pause_count = serializers.ReadOnlyField()
 
     def get_plan_name(self, obj):
         if obj.plan:
@@ -54,7 +56,7 @@ class SessionSerializer(serializers.ModelSerializer):
             'remaining_minutes', 'amount_paid', 'status',
             'voucher_code', 'bandwidth_used_mb', 'ip_address',
             'device_name', 'time_remaining_display',
-            'time_remaining_seconds', 'created_at'
+            'time_remaining_seconds', 'pause_count', 'pauses_left', 'created_at'
         ]
 
 
