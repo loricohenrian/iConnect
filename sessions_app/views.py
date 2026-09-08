@@ -1512,7 +1512,8 @@ def session_extend(request):
                     active_session.pause_limit = 0
                     update_fields.append("pause_limit")
                 elif v_limit > 0:
-                    active_session.add_pauses(v_limit, cap=pause_cap)
+                    plan_cap = max(pause_cap, v_limit) if pause_cap > 0 else 0
+                    active_session.add_pauses(v_limit, cap=plan_cap)
                     update_fields.append("pause_limit")
 
         active_session.save(update_fields=update_fields)
@@ -1808,7 +1809,8 @@ def session_extend_paid(request):
                     update_fields.append("pause_limit")
                 else:
                     earned_pauses = effective_plan.pause_limit * multiplier
-                    active_session.add_pauses(earned_pauses, cap=pause_cap)
+                    plan_cap = max(pause_cap, effective_plan.pause_limit) if pause_cap > 0 else 0
+                    active_session.add_pauses(earned_pauses, cap=plan_cap)
                     update_fields.append("pause_limit")
                 
             active_session.save(update_fields=update_fields)

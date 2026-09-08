@@ -320,6 +320,10 @@ class Session(models.Model):
                 except Exception:
                     cap = 5
 
+            # If the session's plan offers more pauses than the default cap, honor the higher limit!
+            if self.plan and self.plan.pause_limit > (cap or 0):
+                cap = self.plan.pause_limit
+
             new_left = current_left + count
             if cap and cap > 0 and new_left > cap:
                 new_left = cap

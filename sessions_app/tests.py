@@ -1626,4 +1626,47 @@ class BandwidthTrackingTests(TestCase):
         self.assertEqual(session.pauses_left, 5)  # Capped at 5!
         self.assertEqual(response.data["pauses_left"], 5)
 
+    def test_higher_tier_plan_elevates_pause_cap(self):
+        """Test that purchasing a higher tier plan with a pause limit exceeding global cap honors the higher limit."""
+        from dashboard.models import SystemSettings
+        sys_settings = SystemSettings.get_settings()
+        sys_settings.min_extend_amount_for_pause = 5
+        sys_settings.max_session_pause_cap = 5
+        sys_settings.save()
+
+        mac = "AA:BB:CC:DD:EE:04"
+        plan_normal = Plan.objects.create(name="P5", price=5, duration_minutes=60, pause_limit=2)
+        plan_vip = Plan.objects.create(name="VIP Plan", price=50, duration_minutes=1440, pause_limit=10)
+
+        session = Session.objects.create(
+            mac_address=mac,
+            plan=plan_normal,
+            time_in=timezone.now(),
+            duration_minutes_purchased=60,
+            amount_paid=5,
+            status="active",
+        )
+        self.assertEqual(session.pauses_left, 2)
+
+        # Extend with ₱50 VIP plan (pause_limit = 10, which is higher than default cap of 5)
+        CoinEvent.objects.create(
+            mac_address=mac,
+            amount=50,
+            denomination=20,
+        )
+
+        response = self.client.post(
+            reverse("sessions_app:session-extend-paid"),
+            {"mac_address": mac, "plan_id": plan_vip.id},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+
+        session.refresh_from_db()
+        # Cap was elevated to 10 because the VIP plan explicitly comes with 10 pauses!
+        self.assertEqual(session.effective_pause_limit, 10)
+        self.assertEqual(session.pauses_left, 10)
+        self.assertEqual(response.data["pauses_left"], 10)
+
+
 
