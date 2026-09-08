@@ -274,3 +274,57 @@ def refresh_session_bandwidth_usage(session, now=None):
         return True
     return False
 
+
+_THROUGHPUT_CACHE_KEY = 'bw_snapshot'
+_THROUGHPUT_TTL = 60  # seconds before snapshot expires
+
+
+def get_live_throughput_mbps():
+    """Compute real-time network throughput in Mbps by diffing iptables byte counter snapshots.
+
+    On the first call it stores a snapshot and returns 0 Mbps.
+    Subsequent calls diff the new snapshot against the stored one to compute speed.
+
+    Returns a dict:
+        {
+            'total_mbps': float,           # combined up+down for all devices
+            'by_mac': {'MAC': float, ...}, # per-device Mbps (only those > 0)
+        }
+    """
+    import time
+    try:
+        from django.core.cache import cache
+    except Exception:
+        return {'total_mbps': 0.0, 'by_mac': {}}
+
+    now_ts = time.time()
+    current_counters = get_iptables_byte_counters()
+
+    snapshot = cache.get(_THROUGHPUT_CACHE_KEY)
+    cache.set(_THROUGHPUT_CACHE_KEY, {'ts': now_ts, 'counters': current_counters}, _THROUGHPUT_TTL)
+
+    if not snapshot:
+        # First call — no previous snapshot yet; return 0 and wait for next poll
+        return {'total_mbps': 0.0, 'by_mac': {}}
+
+    elapsed = now_ts - snapshot['ts']
+    if elapsed < 0.5:
+        # Interval too short — reading would be unreliable
+        return {'total_mbps': 0.0, 'by_mac': {}}
+
+    prev_counters = snapshot['counters']
+    by_mac = {}
+    total_bytes_delta = 0
+
+    all_macs = set(current_counters.keys()) | set(prev_counters.keys())
+    for mac in all_macs:
+        curr = current_counters.get(mac, 0)
+        prev = prev_counters.get(mac, 0)
+        delta = max(0, curr - prev)  # guard against counter resets
+        total_bytes_delta += delta
+        mbps = round((delta * 8) / (elapsed * 1_000_000), 3)  # bytes→bits→Mbps
+        if mbps > 0:
+            by_mac[mac] = mbps
+
+    total_mbps = round((total_bytes_delta * 8) / (elapsed * 1_000_000), 3)
+    return {'total_mbps': total_mbps, 'by_mac': by_mac}

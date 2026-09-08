@@ -2254,10 +2254,11 @@ def bandwidth_usage(request):
     if auth_error:
         return auth_error
 
-    from .bandwidth import get_all_device_bandwidth_mb
+    from .bandwidth import get_all_device_bandwidth_mb, get_live_throughput_mbps
 
     # Get real bandwidth from iptables
     device_bandwidth = get_all_device_bandwidth_mb()
+    throughput = get_live_throughput_mbps()
 
     # Match MACs with active sessions for device names
     active_sessions = {
@@ -2275,11 +2276,13 @@ def bandwidth_usage(request):
             'mac_address': mac,
             'device_name': active_sessions.get(mac, 'Unknown'),
             'bandwidth_used_mb': mb,
+            'live_mbps': throughput['by_mac'].get(mac, 0.0),
         })
 
     return Response({
         "users": users,
         "total_bandwidth_mb": round(total_bandwidth, 2),
+        "live_speed_mbps": throughput['total_mbps'],
     })
 
 

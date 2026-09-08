@@ -652,6 +652,7 @@ async function fetchConnectedUsersData() {
 
 async function refreshLiveNetworkPanels() {
     const totalBandwidthEl = document.getElementById('live-total-bandwidth');
+    const liveSpeedEl = document.getElementById('live-speed-mbps');
     const activeUsersEl = document.getElementById('live-active-users');
     const metaEl = document.getElementById('live-network-meta');
     if (!totalBandwidthEl || !activeUsersEl || !metaEl) return;
@@ -666,8 +667,25 @@ async function refreshLiveNetworkPanels() {
         return;
     }
 
+    // Update cumulative data today
     totalBandwidthEl.textContent = `${Number(bandwidthData.total_bandwidth_mb || 0).toFixed(1)} MB`;
     activeUsersEl.textContent = connectedData.total_connected || 0;
+
+    // Update live speed (Mbps)
+    if (liveSpeedEl) {
+        const mbps = Number(bandwidthData.live_speed_mbps || 0);
+        if (mbps === 0) {
+            liveSpeedEl.textContent = '0 Mbps';
+            liveSpeedEl.style.color = 'var(--color-muted, #94a3b8)';
+        } else if (mbps < 1) {
+            liveSpeedEl.textContent = `${(mbps * 1000).toFixed(0)} Kbps`;
+            liveSpeedEl.style.color = 'var(--color-primary)';
+        } else {
+            liveSpeedEl.textContent = `${mbps.toFixed(2)} Mbps`;
+            liveSpeedEl.style.color = 'var(--color-primary)';
+        }
+    }
+
     metaEl.textContent = `Updated ${new Date().toLocaleTimeString()}`;
 }
 
@@ -682,7 +700,11 @@ function initOverviewLiveMonitoring() {
                                 document.querySelector('.dashboard-hero-layout');
     if (!hasOverviewMainPoll) {
         refreshLiveNetworkPanels();
-        setInterval(refreshLiveNetworkPanels, 10000);
+        setInterval(refreshLiveNetworkPanels, 5000);
+    } else {
+        // Dashboard page: still refresh live speed every 5s (dashboard stats only refreshes daily totals)
+        refreshLiveNetworkPanels();
+        setInterval(refreshLiveNetworkPanels, 5000);
     }
 }
 
