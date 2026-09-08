@@ -655,9 +655,9 @@ function _updateSlotsIndicator(slots) {
 
     // Update text
     if (available > 0) {
-        text.textContent = `${available} / ${maxSlots} slots available`;
+        text.textContent = `Active Users: ${active} / ${maxSlots}`;
     } else {
-        text.textContent = 'Full — please try again shortly';
+        text.textContent = `Network Full (${maxSlots} / ${maxSlots})`;
     }
 
     // Update classes based on availability

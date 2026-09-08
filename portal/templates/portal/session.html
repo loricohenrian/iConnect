@@ -10,9 +10,9 @@
         <span class="slots-dot" id="slots-dot"></span>
         <span id="slots-text">
             {% if slots_available > 0 %}
-                {{ slots_available }} / {{ slots_max }} slots available
+                Active Users: {{ slots_active }} / {{ slots_max }}
             {% else %}
-                Full — please try again shortly
+                Network Full ({{ slots_max }} / {{ slots_max }})
             {% endif %}
         </span>
     </div>
