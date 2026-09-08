@@ -147,7 +147,7 @@ def index(request):
     mac_address = _get_mac_address(request)
     mac_required = request.GET.get("mac_required") == "1"
     plans = Plan.objects.filter(is_active=True).order_by("price", "id")
-    announcements = Announcement.objects.filter(is_active=True).exclude(message__contains="interrupted by our ISP")
+    announcements = Announcement.objects.filter(is_active=True).exclude(message__contains="interrupted by our ISP").exclude(message__contains="automatically resume")
     expired = request.GET.get("expired", False)
 
     is_whitelisted = False
@@ -241,7 +241,7 @@ def session_page(request):
     if not mac_address:
         return redirect("/?mac_required=1")
 
-    announcements = Announcement.objects.filter(is_active=True).exclude(message__contains="interrupted by our ISP")
+    announcements = Announcement.objects.filter(is_active=True).exclude(message__contains="interrupted by our ISP").exclude(message__contains="automatically resume")
     request_ip = _client_ip(request)
     active_session = Session.objects.filter(
         mac_address=mac_address,
@@ -416,7 +416,7 @@ def manual(request):
 def live_data(request):
     """Public portal API for realtime announcements, plan updates, and connection slots."""
     plans = Plan.objects.filter(is_active=True).order_by("price", "id")
-    announcements = Announcement.objects.filter(is_active=True).exclude(message__contains="interrupted by our ISP").order_by("-created_at", "-id")
+    announcements = Announcement.objects.filter(is_active=True).exclude(message__contains="interrupted by our ISP").exclude(message__contains="automatically resume").order_by("-created_at", "-id")
 
     most_popular_plan_id = _get_most_popular_plan_id()
 

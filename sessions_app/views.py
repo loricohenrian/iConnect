@@ -2091,7 +2091,7 @@ def session_status(request):
     enable_outage_auto_pause = isp_info.get("enable_outage_auto_pause", True)
     outage_message = isp_info.get("message", "")
 
-    active_ann = Announcement.objects.filter(is_active=True).exclude(message__contains="interrupted by our ISP").first()
+    active_ann = Announcement.objects.filter(is_active=True).exclude(message__contains="interrupted by our ISP").exclude(message__contains="automatically resume").first()
     ann_text = active_ann.message if active_ann else None
     # NOTE: Do NOT merge outage_message into ann_text here.
     # The JS already handles outage display separately via isp_outage + handlePortalOutageState().

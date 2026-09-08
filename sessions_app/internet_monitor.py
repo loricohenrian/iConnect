@@ -123,6 +123,13 @@ def check_isp_internet_status(force_probe=False):
     is_online = probe_upstream_internet(timeout=1.5)
     _safe_cache_set("internet_status_ok", is_online, timeout=120)
 
+    # Clean up any stale announcements with old auto-resume wording
+    from django.db.models import Q
+    Announcement.objects.filter(
+        Q(message__contains="automatically resume") |
+        Q(message__contains="will automatically resume")
+    ).delete()
+
     existing_announcement = Announcement.objects.filter(
         is_active=True, message__contains=OUTAGE_IDENTIFIER
     ).first()
@@ -153,11 +160,12 @@ def check_isp_internet_status(force_probe=False):
             # 1. Auto Announcement Popup
             if settings_obj.enable_outage_announcement:
                 result["message"] = OUTAGE_ANNOUNCEMENT_TEXT
-                if not existing_outage:
-                    Announcement.objects.filter(message__contains=OUTAGE_IDENTIFIER).delete()
+                # Replace any outdated outage announcements with the new wording
+                Announcement.objects.filter(message__contains=OUTAGE_IDENTIFIER).exclude(message=OUTAGE_ANNOUNCEMENT_TEXT).delete()
+                if not Announcement.objects.filter(message=OUTAGE_ANNOUNCEMENT_TEXT, is_active=True).exists():
                     Announcement.objects.create(message=OUTAGE_ANNOUNCEMENT_TEXT, is_active=True)
-            elif existing_outage:
-                # If announcement disabled by admin, remove old outage announcements
+            else:
+                # If announcement disabled by admin, remove all outage announcements
                 Announcement.objects.filter(message__contains=OUTAGE_IDENTIFIER).delete()
 
             # 2. Auto-Pause Active Sessions

@@ -457,14 +457,21 @@ function renderAnnouncements(announcements) {
         return;
     }
 
-    if (!Array.isArray(announcements) || announcements.length === 0) {
+    const validAnnouncements = (Array.isArray(announcements) ? announcements : []).filter((a) => {
+        const msg = a && a.message ? a.message : "";
+        return !msg.includes("interrupted by our ISP") &&
+               !msg.includes("automatically resume") &&
+               !msg.includes("FROZEN to protect your remaining time");
+    });
+
+    if (validAnnouncements.length === 0) {
         container.innerHTML = "";
         container.style.display = "none";
         return;
     }
 
     container.style.display = "";
-    container.innerHTML = announcements
+    container.innerHTML = validAnnouncements
         .map((announcement) => {
             const safeMessage = escapeHtml(announcement.message || "");
             return `
@@ -1741,6 +1748,17 @@ function playRestoredSound() {
     }
 }
 
+function _sanitizeOutageText(text) {
+    if (!text || typeof text !== "string") return text;
+    let s = text;
+    if (s.includes("automatically resume") || s.includes("will automatically resume")) {
+        s = s.replace(/Your (?:timer|session) will automatically resume as soon as connection is restored\.?/gi, "Once connection is restored, tap Resume whenever you are ready.");
+        s = s.replace(/will automatically resume as soon as connection is restored\.?/gi, "can be resumed once connection is restored.");
+        s = s.replace(/will automatically resume/gi, "can be resumed");
+    }
+    return s;
+}
+
 function openIspOutageModal(customMessage, canAutoPause = true) {
     // If user already dismissed the modal in this session, keep it dismissed!
     // The red inline banner on the page will remain visible instead.
@@ -1756,7 +1774,7 @@ function openIspOutageModal(customMessage, canAutoPause = true) {
 
     if (customMessage) {
         const msgEl = document.getElementById("isp-outage-modal-message");
-        if (msgEl) msgEl.textContent = customMessage;
+        if (msgEl) msgEl.textContent = _sanitizeOutageText(customMessage);
     }
 
     const badgeEl = document.getElementById("isp-outage-modal-badge");
@@ -1839,9 +1857,9 @@ function _showIspOutageBanner(customText, isSessionPage) {
 
     const title = isSession ? "Internet Interrupted" : "Internet Service is Offline";
     const defaultMsg = isSession
-        ? "Internet connection is temporarily interrupted. Your timer is FROZEN to protect your time!"
+        ? "Internet connection is temporarily interrupted. Your timer is FROZEN to protect your time! Once connection is restored, tap Resume whenever you are ready."
         : "Internet Service is Currently Offline. Coin insertion is temporarily paused to protect your coins.";
-    const msg = customText || defaultMsg;
+    const msg = _sanitizeOutageText(customText || defaultMsg);
 
     el.innerHTML = `<i class="bi bi-wifi-off" style="font-size: 22px; line-height: 1; flex-shrink: 0;"></i><div><strong style="font-size: 13.5px;">${escapeHtml(title)}</strong><br><span class="text-xs" style="color: #991b1b;">${escapeHtml(msg)}</span></div>`;
     el.style.display = "flex";
@@ -2051,8 +2069,12 @@ function pollSessionStatus(macAddress, intervalMs = 3000) {
 
 function _updatePortalAnnouncement(announcementText) {
     let bar = document.getElementById('announcement-banner-top');
-    // Filter out outage text AND suppress any announcement during an active outage
-    const isOutageText = announcementText && announcementText.includes("interrupted by our ISP");
+    // Filter out outage text, old auto-resume wording, AND suppress any announcement during an active outage
+    const isOutageText = announcementText && (
+        announcementText.includes("interrupted by our ISP") ||
+        announcementText.includes("automatically resume") ||
+        announcementText.includes("FROZEN to protect your remaining time")
+    );
     if (announcementText && !isOutageText && !_getOutageActive()) {
         if (!bar) {
             bar = document.createElement('div');

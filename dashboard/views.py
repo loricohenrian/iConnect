@@ -2012,6 +2012,7 @@ def announcements_view(request):
     """Announcement management page."""
     # Clean up any stale or historical auto ISP outage notices so they never stack
     Announcement.objects.filter(message__contains="interrupted by our ISP", is_active=False).delete()
+    Announcement.objects.filter(message__contains="automatically resume").delete()
 
     if request.method == 'POST':
         action = request.POST.get('action')
