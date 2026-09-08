@@ -24,9 +24,9 @@
         </div>
 
         <div id="customDateContainer" class="d-flex align-items-center gap-sm flex-wrap" style="display: {% if period == 'custom' %}flex{% else %}none{% endif %};">
-            <input type="date" name="start_date" value="{{ start_date }}" class="form-input" style="padding: 5px 10px; font-size: 13px;" title="Start Date">
+            <input type="date" name="start_date" value="{{ start_date|date:'Y-m-d' }}" class="form-input" style="padding: 5px 10px; font-size: 13px;" title="Start Date">
             <span class="text-muted text-xs">to</span>
-            <input type="date" name="end_date" value="{{ end_date }}" class="form-input" style="padding: 5px 10px; font-size: 13px;" title="End Date">
+            <input type="date" name="end_date" value="{{ end_date|date:'Y-m-d' }}" class="form-input" style="padding: 5px 10px; font-size: 13px;" title="End Date">
             <button type="submit" class="btn btn-primary btn-sm" style="padding: 6px 14px; font-size: 13px;">Apply Filter</button>
         </div>
     </form>
@@ -235,14 +235,33 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Session trend line chart
     try {
         if (typeof fetchRevenueData === 'function' && typeof initSessionsChart === 'function') {
-            const data = await fetchRevenueData('{{ period|default:"month" }}', '{{ start_date }}', '{{ end_date }}');
+            // For named periods let the API compute its own canonical window.
+            // For 'custom' always pass ISO-formatted dates so the API can filter correctly.
+            {% if period == 'custom' %}
+            const data = await fetchRevenueData('custom', '{{ start_date|date:"Y-m-d" }}', '{{ end_date|date:"Y-m-d" }}');
+            {% else %}
+            const data = await fetchRevenueData('{{ period|default:"month" }}');
+            {% endif %}
+            const trendCanvas = document.getElementById('session-trend-chart');
             if (data && data.revenue_data && data.revenue_data.length > 0) {
                 const labels = data.revenue_data.map(d => {
-                    const date = new Date(d.day);
+                    // d.day is "YYYY-MM-DD" — append T00:00 to force local-time parse
+                    const date = new Date(d.day + 'T00:00');
                     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
                 });
                 const values = data.revenue_data.map(d => d.sessions);
                 initSessionsChart('session-trend-chart', { labels, values });
+            } else if (trendCanvas) {
+                // Show empty state inside the chart area
+                trendCanvas.style.display = 'none';
+                const wrapper = trendCanvas.closest('.chart-wrapper');
+                if (wrapper && !wrapper.querySelector('.trend-empty')) {
+                    const msg = document.createElement('div');
+                    msg.className = 'trend-empty text-center text-muted p-md';
+                    msg.style.cssText = 'font-size:13px;padding:40px 0;';
+                    msg.textContent = 'No sessions in this period.';
+                    wrapper.appendChild(msg);
+                }
             }
         }
     } catch (err) {

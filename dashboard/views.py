@@ -507,10 +507,14 @@ def revenue_data_api(request):
     custom_start = request.query_params.get('start_date') or request.query_params.get('custom_start')
     custom_end = request.query_params.get('end_date') or request.query_params.get('custom_end')
 
+    today = timezone.localdate()
     start_date = None
     end_date = None
 
-    if custom_start or custom_end or period == 'custom':
+    # Only honour explicit date params when the period is 'custom'.
+    # For all named periods the canonical window is computed below so that the
+    # API works correctly whether or not the caller passes date strings.
+    if period == 'custom':
         from django.utils.dateparse import parse_date
         if custom_start:
             start_date = parse_date(custom_start)
@@ -534,6 +538,7 @@ def revenue_data_api(request):
         start_date = None
         end_date = None
     else:
+        # Unknown period — fall back to last 30 days
         start_date = today - timedelta(days=30)
         end_date = today
 
