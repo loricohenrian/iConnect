@@ -24,7 +24,7 @@
     </header>
 
     <!-- Announcements -->
-    <div class="portal-container" id="portal-announcements" style="padding-bottom: 0;{% if not announcements %} display: none;{% endif %}">
+    <div class="portal-container" id="portal-announcements" style="padding-bottom: 0;{% if not announcements or is_internet_offline or isp_outage %} display: none;{% endif %}">
         {% for ann in announcements %}
         <div class="announcement-banner" data-announcement-id="{{ ann.id }}">
             <span>{{ ann.message }}</span>

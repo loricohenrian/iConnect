@@ -649,8 +649,9 @@ async function syncPortalLiveData() {
             _updateSlotsIndicator(data.slots);
         }
 
-        // Real-time ISP outage check on portal home
-        handlePortalOutageState(data, false);
+        // Real-time ISP outage check on portal (dynamically detect session page)
+        const isSession = Boolean(document.getElementById("session-timer"));
+        handlePortalOutageState(data, isSession);
     } catch (error) {
         console.error("Live data sync error:", error);
     } finally {
@@ -1793,12 +1794,29 @@ function showRestoredToast() {
 window.openIspOutageModal = openIspOutageModal;
 window.closeIspOutageModal = closeIspOutageModal;
 
-function _showIspOutageBanner(customText) {
-    // Remove any stray banners that were accidentally placed outside main/above header
-    const strays = document.querySelectorAll("body > #isp-outage-banner, body > #isp-outage-banner-home");
-    strays.forEach(s => s.remove());
+function _showIspOutageBanner(customText, isSessionPage) {
+    const isSession = isSessionPage !== undefined
+        ? Boolean(isSessionPage)
+        : Boolean(document.getElementById("session-timer"));
 
-    let el = document.getElementById("isp-outage-banner");
+    // Deduplicate: Find all outage banners in DOM (both home and session IDs, and any stray body children)
+    const allOutageBanners = document.querySelectorAll(
+        "#isp-outage-banner, #isp-outage-banner-home, body > #isp-outage-banner, body > #isp-outage-banner-home, [id^='isp-outage-banner']"
+    );
+    // Keep at most one element, delete any extras immediately
+    if (allOutageBanners.length > 1) {
+        for (let i = 1; i < allOutageBanners.length; i++) {
+            allOutageBanners[i].remove();
+        }
+    }
+
+    // Suppress general announcements and top bars during an outage to ensure ONLY ONE notification
+    const annContainer = document.getElementById("portal-announcements");
+    if (annContainer) annContainer.style.display = "none";
+    const topBar = document.getElementById("announcement-banner-top");
+    if (topBar) topBar.style.display = "none";
+
+    let el = allOutageBanners.length > 0 ? allOutageBanners[0] : null;
     if (!el) {
         el = document.createElement("div");
         el.id = "isp-outage-banner";
@@ -1809,42 +1827,38 @@ function _showIspOutageBanner(customText) {
         if (main) {
             main.insertBefore(el, main.firstChild);
         }
+    } else {
+        el.id = "isp-outage-banner"; // standardize to canonical ID
+        // If the element was misplaced outside main, move it inside main
+        const main = document.querySelector("main.portal-container") || document.querySelector(".portal-container");
+        if (main && el.parentElement !== main) {
+            main.insertBefore(el, main.firstChild);
+        }
     }
-    const msg = customText || "⚠️ Internet connection is temporarily interrupted. Your timer is FROZEN to protect your time!";
-    el.innerHTML = `<i class="bi bi-wifi-off" style="font-size: 22px; line-height: 1; flex-shrink: 0;"></i><div><strong style="font-size: 13.5px;">Internet Interrupted</strong><br><span class="text-xs" style="color: #991b1b;">${escapeHtml(msg)}</span></div>`;
+
+    const title = isSession ? "Internet Interrupted" : "Internet Service is Offline";
+    const defaultMsg = isSession
+        ? "Internet connection is temporarily interrupted. Your timer is FROZEN to protect your time!"
+        : "Internet Service is Currently Offline. Coin insertion is temporarily paused to protect your coins.";
+    const msg = customText || defaultMsg;
+
+    el.innerHTML = `<i class="bi bi-wifi-off" style="font-size: 22px; line-height: 1; flex-shrink: 0;"></i><div><strong style="font-size: 13.5px;">${escapeHtml(title)}</strong><br><span class="text-xs" style="color: #991b1b;">${escapeHtml(msg)}</span></div>`;
     el.style.display = "flex";
 }
 
 function _hideIspOutageBanner() {
-    const banners = document.querySelectorAll("#isp-outage-banner, body > #isp-outage-banner");
+    const banners = document.querySelectorAll(
+        "#isp-outage-banner, #isp-outage-banner-home, body > #isp-outage-banner, body > #isp-outage-banner-home, [id^='isp-outage-banner']"
+    );
     banners.forEach(b => b.remove());
 }
 
 function _showIspOutageHomeBanner(customText) {
-    // Remove any stray banners that were accidentally placed outside main/above header
-    const strays = document.querySelectorAll("body > #isp-outage-banner, body > #isp-outage-banner-home");
-    strays.forEach(s => s.remove());
-
-    let el = document.getElementById("isp-outage-banner-home");
-    if (!el) {
-        el = document.createElement("div");
-        el.id = "isp-outage-banner-home";
-        el.className = "alert alert-danger animate-fadeIn mb-md";
-        el.style.cssText =
-            "display: flex; align-items: center; gap: 12px; border-left: 4px solid #ef4444; background: #fee2e2; color: #b91c1c; padding: 12px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 14px;";
-        const main = document.querySelector("main.portal-container") || document.querySelector(".portal-container");
-        if (main) {
-            main.insertBefore(el, main.firstChild);
-        }
-    }
-    const msg = customText || "Internet Service is Currently Offline. Coin insertion is temporarily paused to protect your coins.";
-    el.innerHTML = `<i class="bi bi-wifi-off" style="font-size: 22px; line-height: 1; flex-shrink: 0;"></i><div><strong style="font-size: 13.5px;">Internet Service is Offline</strong><br><span class="text-xs" style="color: #991b1b;">${escapeHtml(msg)}</span></div>`;
-    el.style.display = "flex";
+    _showIspOutageBanner(customText, false);
 }
 
 function _hideIspOutageHomeBanner() {
-    const banners = document.querySelectorAll("#isp-outage-banner-home, body > #isp-outage-banner-home");
-    banners.forEach(b => b.remove());
+    _hideIspOutageBanner();
 }
 
 function handlePortalOutageState(data, isSessionPage) {
@@ -1854,6 +1868,9 @@ function handlePortalOutageState(data, isSessionPage) {
     const outageMsg = data.outage_message || "⚠️ Internet is temporarily interrupted by our ISP. All user timers have been FROZEN to protect your remaining time!";
 
     const wasActive = _getOutageActive();
+    const isSession = isSessionPage !== undefined
+        ? Boolean(isSessionPage)
+        : Boolean(document.getElementById("session-timer"));
 
     if (isOutage) {
         if (!wasActive) {
@@ -1866,10 +1883,10 @@ function handlePortalOutageState(data, isSessionPage) {
             }
         }
 
-        if (isSessionPage) {
-            _showIspOutageBanner(outageMsg);
-        } else {
-            _showIspOutageHomeBanner(outageMsg);
+        // Show single canonical outage banner
+        _showIspOutageBanner(outageMsg, isSession);
+
+        if (!isSession) {
             const insertBtn = document.getElementById("request-slot-btn");
             if (insertBtn) {
                 insertBtn.disabled = true;
@@ -1880,7 +1897,6 @@ function handlePortalOutageState(data, isSessionPage) {
     } else {
         // Unconditionally remove ALL outage notifications from the DOM in real-time
         _hideIspOutageBanner();
-        _hideIspOutageHomeBanner();
 
         const insertBtn = document.getElementById("request-slot-btn");
         if (insertBtn && insertBtn.getAttribute("data-outage-disabled") === "1") {
