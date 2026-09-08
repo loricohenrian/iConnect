@@ -1789,51 +1789,57 @@ window.openIspOutageModal = openIspOutageModal;
 window.closeIspOutageModal = closeIspOutageModal;
 
 function _showIspOutageBanner(customText) {
+    // Remove any stray banners that were accidentally placed outside main/above header
+    const strays = document.querySelectorAll("body > #isp-outage-banner, body > #isp-outage-banner-home");
+    strays.forEach(s => s.remove());
+
     let el = document.getElementById("isp-outage-banner");
     if (!el) {
         el = document.createElement("div");
         el.id = "isp-outage-banner";
-        el.className = "alert alert-danger animate-fadeIn";
+        el.className = "alert alert-danger animate-fadeIn mb-md";
         el.style.cssText =
-            "background: #fef2f2; color: #991b1b; border: 1.5px solid #f87171; padding: 10px 14px; border-radius: 10px; font-size: 12px; font-weight: 600; margin-bottom: 12px; text-align: center; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.15);";
-        const card = document.querySelector(".portal-card") || document.querySelector(".container") || document.body;
-        if (card.firstChild) {
-            card.insertBefore(el, card.firstChild);
-        } else {
-            card.appendChild(el);
+            "display: flex; align-items: center; gap: 12px; border-left: 4px solid #ef4444; background: #fee2e2; color: #b91c1c; padding: 12px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 14px;";
+        const main = document.querySelector("main.portal-container") || document.querySelector(".portal-container");
+        if (main) {
+            main.insertBefore(el, main.firstChild);
         }
     }
     const msg = customText || "⚠️ Internet connection is temporarily interrupted. Your timer is FROZEN to protect your time!";
-    el.innerHTML = `<i class="bi bi-wifi-off"></i> ${escapeHtml(msg)}`;
-    el.style.display = "block";
+    el.innerHTML = `<i class="bi bi-wifi-off" style="font-size: 22px; line-height: 1; flex-shrink: 0;"></i><div><strong style="font-size: 13.5px;">Internet Interrupted</strong><br><span class="text-xs" style="color: #991b1b;">${escapeHtml(msg)}</span></div>`;
+    el.style.display = "flex";
 }
 
 function _hideIspOutageBanner() {
-    const el = document.getElementById("isp-outage-banner");
-    if (el) el.remove();
+    const banners = document.querySelectorAll("#isp-outage-banner, body > #isp-outage-banner");
+    banners.forEach(b => b.remove());
 }
 
 function _showIspOutageHomeBanner(customText) {
+    // Remove any stray banners that were accidentally placed outside main/above header
+    const strays = document.querySelectorAll("body > #isp-outage-banner, body > #isp-outage-banner-home");
+    strays.forEach(s => s.remove());
+
     let el = document.getElementById("isp-outage-banner-home");
     if (!el) {
         el = document.createElement("div");
         el.id = "isp-outage-banner-home";
         el.className = "alert alert-danger animate-fadeIn mb-md";
         el.style.cssText =
-            "display: flex; align-items: center; gap: 12px; border-left: 4px solid #ef4444; background: #fee2e2; color: #b91c1c; padding: 12px 16px; border-radius: 8px; font-size: 13px;";
-        const target = document.getElementById("start-session-panel") || document.querySelector(".portal-container");
-        if (target) {
-            target.parentNode.insertBefore(el, target);
+            "display: flex; align-items: center; gap: 12px; border-left: 4px solid #ef4444; background: #fee2e2; color: #b91c1c; padding: 12px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 14px;";
+        const main = document.querySelector("main.portal-container") || document.querySelector(".portal-container");
+        if (main) {
+            main.insertBefore(el, main.firstChild);
         }
     }
     const msg = customText || "Internet Service is Currently Offline. Coin insertion is temporarily paused to protect your coins.";
-    el.innerHTML = `<i class="bi bi-wifi-off" style="font-size: 24px; line-height: 1; flex-shrink: 0;"></i><div><strong style="font-size: 14px;">Internet Service is Offline</strong><br><span class="text-xs" style="color: #991b1b;">${escapeHtml(msg)}</span></div>`;
+    el.innerHTML = `<i class="bi bi-wifi-off" style="font-size: 22px; line-height: 1; flex-shrink: 0;"></i><div><strong style="font-size: 13.5px;">Internet Service is Offline</strong><br><span class="text-xs" style="color: #991b1b;">${escapeHtml(msg)}</span></div>`;
     el.style.display = "flex";
 }
 
 function _hideIspOutageHomeBanner() {
-    const el = document.getElementById("isp-outage-banner-home");
-    if (el) el.remove();
+    const banners = document.querySelectorAll("#isp-outage-banner-home, body > #isp-outage-banner-home");
+    banners.forEach(b => b.remove());
 }
 
 function handlePortalOutageState(data, isSessionPage) {
@@ -1867,6 +1873,17 @@ function handlePortalOutageState(data, isSessionPage) {
             }
         }
     } else {
+        // Unconditionally remove ALL outage notifications from the DOM in real-time
+        _hideIspOutageBanner();
+        _hideIspOutageHomeBanner();
+
+        const insertBtn = document.getElementById("request-slot-btn");
+        if (insertBtn && insertBtn.getAttribute("data-outage-disabled") === "1") {
+            insertBtn.disabled = false;
+            insertBtn.removeAttribute("data-outage-disabled");
+            insertBtn.innerHTML = '<i class="bi bi-coin"></i> Insert Coins 🪙';
+        }
+
         if (wasActive) {
             // Outage confirmed ended — clear all outage flags
             _setOutageActive(false);
@@ -1875,22 +1892,10 @@ function handlePortalOutageState(data, isSessionPage) {
             if (modal) modal.style.display = "none";
             showRestoredToast();
             playRestoredSound();
-
-            if (isSessionPage) {
-                _hideIspOutageBanner();
-            } else {
-                _hideIspOutageHomeBanner();
-                const insertBtn = document.getElementById("request-slot-btn");
-                if (insertBtn && insertBtn.getAttribute("data-outage-disabled") === "1") {
-                    insertBtn.disabled = false;
-                    insertBtn.removeAttribute("data-outage-disabled");
-                    insertBtn.innerHTML = '<i class="bi bi-coin"></i> Insert Coins 🪙';
-                }
-            }
         }
-        // If wasActive was already false, do nothing — no false "Restored" toast
     }
 }
+
 
 
 function pollSessionStatus(macAddress, intervalMs = 3000) {
