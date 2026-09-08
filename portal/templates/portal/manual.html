@@ -179,6 +179,7 @@
 </div>
 
 <!-- Frequently Asked Questions (FAQ) & Tips -->
+<div id="faq-section" style="scroll-margin-top: 24px;"></div>
 <h3 class="mt-xl mb-xs" style="display: flex; align-items: center; gap: 8px;">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--color-primary); flex-shrink: 0;"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
     <span>Frequently Asked Questions (FAQ) & Tips</span>
@@ -480,6 +481,26 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     }
 });
+
+// Auto-scroll to FAQ section when navigating via FAQ link
+(function() {
+    function checkScrollToFaq() {
+        if (window.location.hash === '#faq-section' || window.location.hash === '#faqs' || window.location.search.includes('scroll=faq')) {
+            const faqEl = document.getElementById('faq-section');
+            if (faqEl) {
+                setTimeout(() => {
+                    faqEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 150);
+            }
+        }
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', checkScrollToFaq);
+    } else {
+        checkScrollToFaq();
+    }
+    window.addEventListener('hashchange', checkScrollToFaq);
+})();
 </script>
 
 {% endblock %}
