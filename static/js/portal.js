@@ -941,7 +941,17 @@ function syncCoinCountdown(coinRequest) {
     }
 }
 
-window.syncCoinCountdown = syncCoinCountdown;
+function scrollToCoinActions() {
+    setTimeout(() => {
+        const cancelTarget = document.querySelector(".coin-cancel-wrap") ||
+                             document.getElementById("btn-cancel-coin-request") ||
+                             document.getElementById("coin-actions-container") ||
+                             document.getElementById("coin-deposit-active-card");
+        if (cancelTarget) {
+            cancelTarget.scrollIntoView({ behavior: "smooth", block: "end" });
+        }
+    }, 200);
+}
 
 function initProductionStartFlow(macAddress) {
     const selectedPlanInput = document.getElementById("selected-plan");
@@ -1137,11 +1147,13 @@ function initProductionStartFlow(macAddress) {
 
             if (data.coin_request) {
                 applyCoinRequestState(data.coin_request);
+                scrollToCoinActions();
                 if (!data.coin_request.ready_to_start) {
                     startPolling();
                 }
             } else {
                 setStartFlowMessage(data.message || "Coin request created.", "info");
+                scrollToCoinActions();
             }
         } catch (error) {
             setStartFlowMessage("Connection error while requesting coin slot.", "danger");
@@ -1470,11 +1482,13 @@ function initExtendSessionFlow(macAddress) {
 
             if (data.coin_request) {
                 applyCoinRequestState(data.coin_request);
+                scrollToCoinActions();
                 if (!data.coin_request.ready_to_start) {
                     startPolling();
                 }
             } else {
                 setExtendMessage(data.message || "Coin request created.", "info");
+                scrollToCoinActions();
             }
         } catch (error) {
             setExtendMessage("Connection error.", "danger");
