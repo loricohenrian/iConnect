@@ -78,4 +78,31 @@ class ReportAccessTests(TestCase):
             custom_resp = self.client.get(f"/reports/generate/?type=custom&period=custom&format={format_type}&start_date=2026-08-01&end_date=2026-08-31")
             self.assertEqual(custom_resp.status_code, 200)
 
+    def test_generate_report_csv_sanitizes_formulas_and_inverts_dates(self):
+        self.client.login(username=self.user.username, password=self.password)
+        from sessions_app.models import Session, Plan
+
+        malicious_plan = Plan.objects.create(
+            name="=SUM(1+1)",
+            price=15,
+            duration_minutes=120,
+        )
+        Session.objects.create(
+            mac_address="@HACKER_MAC",
+            ip_address="10.0.0.99",
+            plan=malicious_plan,
+            amount_paid=15,
+            duration_minutes_purchased=120,
+            status="active",
+        )
+
+        # Inverted date range (start > end)
+        resp = self.client.get("/reports/generate/?type=custom&period=custom&format=csv&start_date=2030-01-01&end_date=2020-01-01")
+        self.assertEqual(resp.status_code, 200)
+        content = resp.content.decode("utf-8")
+        self.assertIn("Jan 01, 2020", content)
+        self.assertIn("Jan 01, 2030", content)
+        self.assertIn("'=SUM(1+1)", content)
+        self.assertIn("'@HACKER_MAC", content)
+
 

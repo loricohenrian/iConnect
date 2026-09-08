@@ -1328,8 +1328,8 @@ def export_revenue_csv(request):
 def reports(request):
     """Reports page with financial summary and analytics."""
     today = timezone.localdate()
-    week_ago = today - timedelta(days=7)
-    month_ago = today - timedelta(days=30)
+    week_ago = today - timedelta(days=6)
+    month_ago = today - timedelta(days=29)
 
     # === Period Revenue (CoinEvent-based) ===
     revenue_today = CoinEvent.objects.filter(
@@ -1369,10 +1369,12 @@ def reports(request):
         first_dates.append(first_coin.timestamp)
 
     if first_dates:
-        earliest_date = min(first_dates)
-        days_operating = max((timezone.now() - earliest_date).days + 1, 1)
+        day_1 = timezone.localtime(min(first_dates)).date()
     else:
-        days_operating = 1
+        day_1 = today
+
+    day_1 = min(day_1, today)
+    days_operating = max((today - day_1).days + 1, 1)
 
     total_expenses = OperatingExpense.calculate_total_expenses(days_operating)
     operating_expenses = OperatingExpense.objects.all().order_by('-date_added')
@@ -1400,7 +1402,10 @@ def reports(request):
     # === Financial Summary ===
     total_investment = ProjectCost.total_cost()
     net_profit = round(revenue_all_time - total_expenses, 2)
-    roi_pct = round((net_profit / total_investment * 100), 1) if total_investment > 0 else 0
+    if total_investment > 0:
+        roi_pct = round((net_profit / total_investment * 100), 1)
+    else:
+        roi_pct = 100.0 if net_profit > 0 else 0.0
 
     # === Top Plans (Excluding ₱0 prizes) with % of Total ===
     month_plan_qs = Session.objects.filter(

@@ -76,12 +76,22 @@ def get_styles():
     return styles
 
 
+def _sanitize_csv_cell(val):
+    """Prevent CSV formula injection for spreadsheet software (Excel, LibreOffice)."""
+    if val is None:
+        return ''
+    s = str(val)
+    if s and s[0] in ('=', '+', '-', '@', '\t', '\r'):
+        return f"'{s}"
+    return s
+
+
 from django.utils.dateparse import parse_date
 
 
 def resolve_period(report_type='daily', period='today', start_date='', end_date=''):
     """Resolve date window and label for report generation."""
-    today = timezone.now().date()
+    today = timezone.localdate()
     s_date = today
     e_date = today
 
@@ -100,6 +110,9 @@ def resolve_period(report_type='daily', period='today', start_date='', end_date=
         else:
             e_date = today
 
+        if s_date > e_date:
+            s_date, e_date = e_date, s_date
+
         period_label = f'{s_date.strftime("%b %d, %Y")} — {e_date.strftime("%b %d, %Y")}'
         return s_date, e_date, period_label
 
@@ -108,11 +121,11 @@ def resolve_period(report_type='daily', period='today', start_date='', end_date=
         e_date = today
         period_label = today.strftime('%B %d, %Y')
     elif period == 'week' or report_type == 'weekly':
-        s_date = today - timedelta(days=7)
+        s_date = today - timedelta(days=6)
         e_date = today
         period_label = f'{s_date.strftime("%b %d")} — {today.strftime("%b %d, %Y")}'
     else:
-        s_date = today - timedelta(days=30)
+        s_date = today - timedelta(days=29)
         e_date = today
         period_label = f'{s_date.strftime("%b %d")} — {today.strftime("%b %d, %Y")}'
 
@@ -279,7 +292,7 @@ def generate_csv_report(report_type='daily', period='today', start_date='', end_
     writer.writerow(['Plan Name', 'Price', 'Sessions', 'Revenue'])
     for row in data['plan_stats']:
         writer.writerow([
-            row['plan__name'] or 'Custom',
+            _sanitize_csv_cell(row['plan__name'] or 'Custom'),
             row['plan__price'] if row['plan__price'] is not None else '—',
             row['count'],
             row['revenue'] or 0,
@@ -294,11 +307,11 @@ def generate_csv_report(report_type='daily', period='today', start_date='', end_
     for session in sessions:
         writer.writerow([
             session.id,
-            session.mac_address,
-            session.plan.name if session.plan else 'Custom',
+            _sanitize_csv_cell(session.mac_address),
+            _sanitize_csv_cell(session.plan.name if session.plan else 'Custom'),
             session.amount_paid,
             session.duration_minutes_purchased,
-            session.status,
+            _sanitize_csv_cell(session.get_status_display() if hasattr(session, 'get_status_display') else session.status),
             timezone.localtime(session.time_in).strftime('%m/%d/%Y %H:%M') if session.time_in else '',
             timezone.localtime(session.time_out).strftime('%m/%d/%Y %H:%M') if session.time_out else '',
             round(session.bandwidth_used_mb, 2) if session.bandwidth_used_mb is not None else 0,
