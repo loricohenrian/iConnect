@@ -503,7 +503,11 @@ def spin_wheel_view(request):
     spins_today = device_profile.spins_today if device_profile.last_spin_date == today else 0
     remaining_spins = max(0, settings.daily_spin_limit - spins_today)
     
-    if remaining_spins <= 0:
+    from sessions_app.models import SuspiciousDevice
+    if SuspiciousDevice.objects.filter(mac_address=mac_address, is_blocked=True).exists():
+        can_spin = False
+        error_message = "Your device has been blocked by the administrator."
+    elif remaining_spins <= 0:
         can_spin = False
         error_message = "You have reached the daily spin limit."
     
