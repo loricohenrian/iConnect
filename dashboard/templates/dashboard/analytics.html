@@ -23,7 +23,7 @@
             </select>
         </div>
 
-        <div id="customDateContainer" class="d-flex align-items-center gap-sm flex-wrap" style="display: {% if period == 'custom' %}flex{% else %}none{% endif %} !important;">
+        <div id="customDateContainer" class="d-flex align-items-center gap-sm flex-wrap" style="display: {% if period == 'custom' %}flex{% else %}none{% endif %};">
             <input type="date" name="start_date" value="{{ start_date }}" class="form-input" style="padding: 5px 10px; font-size: 13px;" title="Start Date">
             <span class="text-muted text-xs">to</span>
             <input type="date" name="end_date" value="{{ end_date }}" class="form-input" style="padding: 5px 10px; font-size: 13px;" title="End Date">
@@ -125,10 +125,10 @@
 <div class="card animate-fadeIn mb-md" style="animation-delay: 520ms; padding: 18px 24px;">
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-md">
         <div>
-            <div class="text-small text-muted" style="font-weight: 500;">Weekly Revenue Growth Benchmark</div>
+            <div class="text-small text-muted" style="font-weight: 500;">{{ growth_title|default:"Revenue Growth Benchmark" }}</div>
             <div class="font-semibold" style="font-size: 22px; color: {% if revenue_growth > 0 %}var(--color-success, #10b981){% elif revenue_growth < 0 %}var(--color-danger, #ef4444){% else %}var(--color-gray, #64748b){% endif %}; margin-top: 2px;">
                 {% if revenue_growth > 0 %}+{% endif %}{{ revenue_growth }}%
-                <span class="text-xs text-muted" style="font-weight: 400; margin-left: 6px;">(Compared to previous 7 days)</span>
+                <span class="text-xs text-muted" style="font-weight: 400; margin-left: 6px;">({{ growth_label|default:"Compared to previous period" }})</span>
             </div>
         </div>
         <span class="badge {% if revenue_growth > 0 %}badge-active{% elif revenue_growth < 0 %}badge-expired{% else %}badge-paused{% endif %}" style="font-size: 13px; padding: 6px 14px;">
@@ -143,8 +143,15 @@
         <div class="chart-header">
             <h3 class="chart-title">Plan Popularity Distribution</h3>
         </div>
-        <div class="chart-wrapper" style="height: 300px;">
+        <div class="chart-wrapper" style="height: 300px; display: flex; align-items: center; justify-content: center;">
+            {% if plan_stats %}
             <canvas id="plan-popularity-chart"></canvas>
+            {% else %}
+            <div class="empty-state text-center p-md">
+                <svg width="36" height="36" viewBox="0 0 16 16" fill="var(--color-gray, #94a3b8)" style="margin-bottom: 8px;"><path fill-rule="evenodd" d="M0 0h1v15h15v1H0zm10 3.5a.5.5 0 0 1 .5-.5h4a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-1 0V4.707l-4.146 4.147a.5.5 0 0 1-.708 0L7 6.707l-2.646 2.647a.5.5 0 0 1-.708-.708l3-3a.5.5 0 0 1 .708 0L9.5 7.793 13.293 4H10.5a.5.5 0 0 1-.5-.5"/></svg>
+                <p class="text-xs text-muted">No plan purchases in this period</p>
+            </div>
+            {% endif %}
         </div>
     </div>
 
@@ -173,7 +180,7 @@
                             </span>
                         </td>
                         <td>{{ plan.count }}</td>
-                        <td class="font-semibold" style="color: var(--color-success, #10b981);">₱{{ plan.total_revenue }}</td>
+                        <td class="font-semibold" style="color: var(--color-success, #10b981);">₱{{ plan.total_revenue|floatformat:0 }}</td>
                         <td>{{ plan.avg_duration|floatformat:0 }} min</td>
                     </tr>
                     {% endfor %}
@@ -218,7 +225,7 @@ function toggleCustomDates() {
 document.addEventListener('DOMContentLoaded', async () => {
     // Plan popularity doughnut chart
     {% if plan_stats %}
-    const planLabels = [{% for p in plan_stats %}'{{ p.plan__name }}',{% endfor %}];
+    const planLabels = [{% for p in plan_stats %}'{{ p.plan__name|escapejs }}',{% endfor %}];
     const planValues = [{% for p in plan_stats %}{{ p.count }},{% endfor %}];
     if (typeof initPlanChart === 'function') {
         initPlanChart('plan-popularity-chart', { labels: planLabels, values: planValues });
@@ -228,7 +235,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Session trend line chart
     try {
         if (typeof fetchRevenueData === 'function' && typeof initSessionsChart === 'function') {
-            const data = await fetchRevenueData('{{ period|default:"monthly" }}');
+            const data = await fetchRevenueData('{{ period|default:"month" }}', '{{ start_date }}', '{{ end_date }}');
             if (data && data.revenue_data && data.revenue_data.length > 0) {
                 const labels = data.revenue_data.map(d => {
                     const date = new Date(d.day);

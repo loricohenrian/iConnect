@@ -592,9 +592,12 @@ function updateStatValue(id, value) {
 // ============================================
 // Revenue Data Fetch
 // ============================================
-async function fetchRevenueData(period = 'weekly') {
+async function fetchRevenueData(period = 'weekly', startDate = '', endDate = '') {
     try {
-        const response = await fetch(`/api/dashboard/revenue/?period=${period}`);
+        let url = `/api/dashboard/revenue/?period=${encodeURIComponent(period)}`;
+        if (startDate) url += `&start_date=${encodeURIComponent(startDate)}`;
+        if (endDate) url += `&end_date=${encodeURIComponent(endDate)}`;
+        const response = await fetch(url);
         return await response.json();
     } catch (err) {
         console.error('Failed to fetch revenue data:', err);

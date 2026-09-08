@@ -5,7 +5,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 from unittest.mock import patch
 
-from sessions_app.models import Plan, Session, SuspiciousDevice, CoinEvent
+from sessions_app.models import Plan, Session, SuspiciousDevice, CoinEvent, SessionGroup
 from dashboard.models import RevenueGoal, DailyRevenueSummary
 from django.core.cache import cache
 
@@ -1808,6 +1808,234 @@ class HeatmapHardeningTests(TestCase):
         cached = cache.get("dashboard_heatmap_data_week")
         self.assertIsNotNone(cached)
         self.assertEqual(cached["total_sessions"], 2)
+
+
+class AnalyticsHardeningTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        User = get_user_model()
+        self.admin_user = User.objects.create_user(
+            username="analytics_admin",
+            password="admin123password",
+            is_staff=True,
+            is_superuser=True,
+        )
+        self.regular_user = User.objects.create_user(
+            username="analytics_guest",
+            password="guest123password",
+            is_staff=False,
+            is_superuser=False,
+        )
+        self.now = timezone.now()
+        self.today = timezone.localdate()
+        self.plan = Plan.objects.create(
+            name="1 Hour Regular",
+            price=10.00,
+            duration_minutes=60,
+            is_active=True
+        )
+
+    def test_analytics_auth_and_access(self):
+        # Anonymous redirect
+        resp = self.client.get("/iconnect-ops/analytics/")
+        self.assertEqual(resp.status_code, 302)
+
+        # Staff user gets 200
+        self.client.login(username=self.admin_user.username, password="admin123password")
+        resp = self.client.get("/iconnect-ops/analytics/")
+        self.assertEqual(resp.status_code, 200)
+
+    def test_analytics_retention_rate_with_kiosk_history(self):
+        self.client.login(username=self.admin_user.username, password="admin123password")
+        
+        # MAC A: 1 past session (5 days ago), and 1 session today -> Returning device!
+        past_time = self.now - timedelta(days=5)
+        Session.objects.create(
+            mac_address="AA:00:00:00:00:01",
+            plan=self.plan,
+            amount_paid=10,
+            duration_minutes_purchased=60,
+            status="expired",
+            time_in=past_time
+        )
+        Session.objects.create(
+            mac_address="AA:00:00:00:00:01",
+            plan=self.plan,
+            amount_paid=10,
+            duration_minutes_purchased=60,
+            status="active",
+            time_in=self.now
+        )
+
+        # MAC B: only 1 session today -> First-time device
+        Session.objects.create(
+            mac_address="BB:00:00:00:00:02",
+            plan=self.plan,
+            amount_paid=10,
+            duration_minutes_purchased=60,
+            status="active",
+            time_in=self.now
+        )
+
+        # MAC C: 2 sessions today -> Returning device (multi-session)
+        Session.objects.create(
+            mac_address="CC:00:00:00:00:03",
+            plan=self.plan,
+            amount_paid=10,
+            duration_minutes_purchased=60,
+            status="expired",
+            time_in=self.now - timedelta(hours=2)
+        )
+        Session.objects.create(
+            mac_address="CC:00:00:00:00:03",
+            plan=self.plan,
+            amount_paid=10,
+            duration_minutes_purchased=60,
+            status="active",
+            time_in=self.now
+        )
+
+        resp = self.client.get("/iconnect-ops/analytics/?period=today")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.context["unique_devices"], 3)
+        self.assertEqual(resp.context["returning_devices"], 2)
+        self.assertEqual(resp.context["first_time_devices"], 1)
+        self.assertEqual(resp.context["retention_rate"], 66.7)
+
+    def test_analytics_custom_date_range_ordering_and_filtering(self):
+        self.client.login(username=self.admin_user.username, password="admin123password")
+
+        # Inverted start and end dates
+        start_str = (self.today + timedelta(days=2)).isoformat()
+        end_str = (self.today - timedelta(days=2)).isoformat()
+        resp = self.client.get(f"/iconnect-ops/analytics/?period=custom&custom_start={start_str}&custom_end={end_str}")
+        self.assertEqual(resp.status_code, 200)
+        # Should have swapped start_date and end_date without errors
+        self.assertLessEqual(resp.context["start_date"], resp.context["end_date"])
+
+    def test_revenue_data_api_custom_range_and_paused_sessions(self):
+        self.client.login(username=self.admin_user.username, password="admin123password")
+
+        day1 = self.today - timedelta(days=5)
+        day2 = self.today - timedelta(days=2)
+        out_day = self.today + timedelta(days=2)
+
+        # Session within custom range with status='paused'
+        Session.objects.create(
+            mac_address="11:22:33:44:55:66",
+            plan=self.plan,
+            amount_paid=20,
+            duration_minutes_purchased=60,
+            status="paused",
+            time_in=self.now.replace(year=day1.year, month=day1.month, day=day1.day, hour=10, minute=0, second=0)
+        )
+
+        # Session outside custom range
+        Session.objects.create(
+            mac_address="11:22:33:44:55:77",
+            plan=self.plan,
+            amount_paid=50,
+            duration_minutes_purchased=60,
+            status="active",
+            time_in=self.now.replace(year=out_day.year, month=out_day.month, day=out_day.day, hour=10, minute=0, second=0)
+        )
+
+        # Call revenue API with custom dates
+        resp = self.client.get(f"/api/dashboard/revenue/?period=custom&custom_start={day1.isoformat()}&custom_end={day2.isoformat()}")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertIn("revenue_data", data)
+        self.assertEqual(data["period_revenue_total"], 20.0)
+
+        # Test inverted dates in API
+        resp_inv = self.client.get(f"/api/dashboard/revenue/?period=custom&custom_start={day2.isoformat()}&custom_end={day1.isoformat()}")
+        self.assertEqual(resp_inv.status_code, 200)
+        data_inv = resp_inv.json()
+        self.assertEqual(data_inv["period_revenue_total"], 20.0)
+
+    def test_analytics_group_pass_included_in_plan_stats(self):
+        self.client.login(username=self.admin_user.username, password="admin123password")
+
+        vip_plan = Plan.objects.create(
+            name="VIP Group Pass Plan",
+            price=50,
+            duration_minutes=120,
+            is_active=True
+        )
+        group = SessionGroup.objects.create(
+            group_code="GRP999",
+            plan=vip_plan,
+            max_devices=5,
+            total_price=50,
+            duration_minutes=120
+        )
+        # Group session with amount_paid=0 but session_group assigned
+        Session.objects.create(
+            mac_address="99:88:77:66:55:44",
+            plan=vip_plan,
+            session_group=group,
+            amount_paid=0,
+            duration_minutes_purchased=120,
+            status="active",
+            time_in=self.now
+        )
+        # Prize session with amount_paid=0 and name starting with "Prize:"
+        prize_plan = Plan.objects.create(
+            name="Prize: 15 Mins",
+            price=0,
+            duration_minutes=15,
+            is_active=True
+        )
+        Session.objects.create(
+            mac_address="88:77:66:55:44:33",
+            plan=prize_plan,
+            amount_paid=0,
+            duration_minutes_purchased=15,
+            status="active",
+            time_in=self.now
+        )
+
+        resp = self.client.get("/iconnect-ops/analytics/?period=today")
+        self.assertEqual(resp.status_code, 200)
+        plan_stats = resp.context["plan_stats"]
+        plan_names = [p["plan__name"] for p in plan_stats]
+        self.assertIn("VIP Group Pass Plan", plan_names)
+        self.assertNotIn("Prize: 15 Mins", plan_names)
+
+    def test_analytics_dynamic_revenue_growth_periods(self):
+        self.client.login(username=self.admin_user.username, password="admin123password")
+
+        for p in ["today", "week", "month", "year", "all"]:
+            resp = self.client.get(f"/iconnect-ops/analytics/?period={p}")
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn("growth_label", resp.context)
+            self.assertIn("growth_title", resp.context)
+            self.assertIn("revenue_growth", resp.context)
+
+    def test_analytics_template_rendering_escaped_plan_names(self):
+        self.client.login(username=self.admin_user.username, password="admin123password")
+
+        quote_plan = Plan.objects.create(
+            name="Student's Special Pass \"Pro\"",
+            price=25,
+            duration_minutes=60,
+            is_active=True
+        )
+        Session.objects.create(
+            mac_address="22:33:44:55:66:77",
+            plan=quote_plan,
+            amount_paid=25,
+            duration_minutes_purchased=60,
+            status="active",
+            time_in=self.now
+        )
+
+        resp = self.client.get("/iconnect-ops/analytics/?period=today")
+        self.assertEqual(resp.status_code, 200)
+        content = resp.content.decode("utf-8")
+        self.assertIn("Student&#x27;s Special Pass", content)
+        self.assertIn("planLabels", content)
+
 
 
 

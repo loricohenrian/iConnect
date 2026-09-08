@@ -504,27 +504,46 @@ def revenue_data_api(request):
         return Response({'detail': 'Authentication required.'}, status=status.HTTP_401_UNAUTHORIZED)
 
     period = request.query_params.get('period', 'weekly')
-    today = timezone.localdate()
+    custom_start = request.query_params.get('start_date') or request.query_params.get('custom_start')
+    custom_end = request.query_params.get('end_date') or request.query_params.get('custom_end')
 
-    custom_start = request.query_params.get('start_date')
-    custom_end = request.query_params.get('end_date')
+    start_date = None
+    end_date = None
 
-    if custom_start:
+    if custom_start or custom_end or period == 'custom':
         from django.utils.dateparse import parse_date
-        start_date = parse_date(custom_start)
+        if custom_start:
+            start_date = parse_date(custom_start)
+        if custom_end:
+            end_date = parse_date(custom_end)
+        if start_date and end_date and start_date > end_date:
+            start_date, end_date = end_date, start_date
     elif period in ('daily', 'today'):
         start_date = today
+        end_date = today
     elif period in ('weekly', 'week'):
         start_date = today - timedelta(days=7)
+        end_date = today
     elif period in ('monthly', 'month'):
         start_date = today - timedelta(days=30)
+        end_date = today
+    elif period in ('yearly', 'year'):
+        start_date = today.replace(month=1, day=1)
+        end_date = today
+    elif period in ('all', 'all_time'):
+        start_date = None
+        end_date = None
     else:
-        start_date = today - timedelta(days=365)
+        start_date = today - timedelta(days=30)
+        end_date = today
 
-    revenue_data = Session.objects.filter(
-        time_in__date__gte=start_date,
-        status__in=['active', 'expired']
-    ).annotate(
+    qs = Session.objects.filter(status__in=['active', 'expired', 'paused'])
+    if start_date:
+        qs = qs.filter(time_in__date__gte=start_date)
+    if end_date:
+        qs = qs.filter(time_in__date__lte=end_date)
+
+    revenue_data = qs.annotate(
         day=TruncDate('time_in')
     ).values('day').annotate(
         revenue=Sum('amount_paid'),
@@ -538,20 +557,14 @@ def revenue_data_api(request):
     ).first()
     goal_amount = goal.target_amount if goal else 0
 
-    period_revenue_total = Session.objects.filter(
-        time_in__date__gte=start_date,
-        status__in=['active', 'expired']
-    ).aggregate(total=Sum('amount_paid'))['total'] or 0
+    period_revenue_total = qs.aggregate(total=Sum('amount_paid'))['total'] or 0
 
     threshold_pct = float(getattr(settings, 'PISONET_LOW_REVENUE_ALERT_THRESHOLD_PCT', 70))
     threshold_amount = round(goal_amount * (threshold_pct / 100), 2) if goal_amount else 0
     low_revenue_triggered = goal_amount > 0 and period_revenue_total < threshold_amount
 
     # Plan breakdown
-    plan_stats = Session.objects.filter(
-        time_in__date__gte=start_date,
-        status__in=['active', 'expired']
-    ).values('plan__name', 'plan__price').annotate(
+    plan_stats = qs.values('plan__name', 'plan__price').annotate(
         count=Count('id'),
         total=Sum('amount_paid')
     ).order_by('-total')
@@ -1529,6 +1542,8 @@ def analytics_view(request):
             start_date = parse_date(custom_start)
         if custom_end:
             end_date = parse_date(custom_end)
+        if start_date and end_date and start_date > end_date:
+            start_date, end_date = end_date, start_date
     elif period == 'today':
         start_date = today
         end_date = today
@@ -1555,8 +1570,13 @@ def analytics_view(request):
     if end_date:
         sessions_qs = sessions_qs.filter(time_in__date__lte=end_date)
 
-    # 1. Plan Popularity & Performance (Exclude ₱0 spin prizes and unassigned plans)
-    commercial_sessions = sessions_qs.filter(plan__isnull=False, amount_paid__gt=0).exclude(plan__name__startswith="Prize:")
+    # 1. Plan Popularity & Performance (Exclude ₱0 spin prizes and unassigned plans, include group passes)
+    commercial_sessions = sessions_qs.filter(
+        plan__isnull=False
+    ).filter(
+        Q(amount_paid__gt=0) | Q(session_group__isnull=False)
+    ).exclude(plan__name__startswith="Prize:")
+
     plan_stats = commercial_sessions.values('plan__name').annotate(
         count=Count('id'),
         total_revenue=Sum('amount_paid'),
@@ -1571,15 +1591,31 @@ def analytics_view(request):
 
     # Total sessions and unique devices in period
     total_sessions_count = sessions_qs.count()
-    unique_devices = sessions_qs.values('mac_address').distinct().count()
+    period_macs = set(sessions_qs.values_list('mac_address', flat=True).distinct())
+    unique_devices = len(period_macs)
 
-    # Retention: devices with >1 session in period
-    from django.db.models import Count as CountAgg
-    returning_devices = sessions_qs.values('mac_address').annotate(
-        sessions_count=CountAgg('id')
-    ).filter(sessions_count__gt=1).count()
-    first_time_devices = max(0, unique_devices - returning_devices)
-    retention_rate = round((returning_devices / unique_devices) * 100, 1) if unique_devices > 0 else 0
+    # Retention: devices in period that are returning (either >1 session in period OR has past sessions in kiosk history)
+    if unique_devices > 0:
+        multi_session_macs = set(sessions_qs.values('mac_address').annotate(
+            sc=Count('id')
+        ).filter(sc__gt=1).values_list('mac_address', flat=True))
+
+        if start_date:
+            prior_macs = set(Session.objects.filter(
+                mac_address__in=period_macs,
+                time_in__date__lt=start_date
+            ).values_list('mac_address', flat=True).distinct())
+            returning_macs = multi_session_macs | prior_macs
+        else:
+            returning_macs = multi_session_macs
+
+        returning_devices = len(returning_macs)
+        first_time_devices = max(0, unique_devices - returning_devices)
+        retention_rate = round((returning_devices / unique_devices) * 100, 1)
+    else:
+        returning_devices = 0
+        first_time_devices = 0
+        retention_rate = 0.0
 
     # Avg revenue per session
     avg_rev_per_session = sessions_qs.aggregate(avg=Avg('amount_paid'))['avg'] or 0
@@ -1606,27 +1642,54 @@ def analytics_view(request):
     # Diagnostic: Peak Day of Week
     day_names = ['', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
     peak_day_data = sessions_qs.annotate(
-        weekday=ExtractWeekDay('time_in')
+        weekday=ExtractWeekDay('time_in', tzinfo=tz_info)
     ).values('weekday').annotate(
         count=Count('id')
     ).order_by('-count').first()
-    peak_day = day_names[peak_day_data['weekday']] if peak_day_data else 'N/A'
-
-    # Revenue Growth benchmark (this week vs last week)
-    week_ago = today - timedelta(days=7)
-    this_week_rev = Session.objects.filter(
-        time_in__date__gte=week_ago,
-        status__in=['active', 'expired', 'paused']
-    ).aggregate(total=Sum('amount_paid'))['total'] or 0
-    last_week_rev = Session.objects.filter(
-        time_in__date__gte=week_ago - timedelta(days=7),
-        time_in__date__lt=week_ago,
-        status__in=['active', 'expired', 'paused']
-    ).aggregate(total=Sum('amount_paid'))['total'] or 0
-    if last_week_rev > 0:
-        revenue_growth = round(((this_week_rev - last_week_rev) / last_week_rev) * 100, 1)
+    if peak_day_data and peak_day_data.get('weekday') and 1 <= peak_day_data['weekday'] <= 7 and peak_day_data.get('count', 0) > 0:
+        peak_day = day_names[peak_day_data['weekday']]
     else:
-        revenue_growth = 100 if this_week_rev > 0 else 0
+        peak_day = 'N/A'
+
+    # Dynamic Revenue Growth benchmark
+    if period == 'today':
+        curr_rev = Session.objects.filter(time_in__date=today, status__in=['active', 'expired', 'paused']).aggregate(t=Sum('amount_paid'))['t'] or 0
+        prev_rev = Session.objects.filter(time_in__date=today - timedelta(days=1), status__in=['active', 'expired', 'paused']).aggregate(t=Sum('amount_paid'))['t'] or 0
+        growth_label = "Compared to yesterday"
+        growth_title = "Daily Revenue Growth Benchmark"
+    elif period in ('week', 'weekly'):
+        curr_start = today - timedelta(days=today.weekday())
+        prev_start = curr_start - timedelta(days=7)
+        curr_rev = Session.objects.filter(time_in__date__gte=curr_start, status__in=['active', 'expired', 'paused']).aggregate(t=Sum('amount_paid'))['t'] or 0
+        prev_rev = Session.objects.filter(time_in__date__gte=prev_start, time_in__date__lt=curr_start, status__in=['active', 'expired', 'paused']).aggregate(t=Sum('amount_paid'))['t'] or 0
+        growth_label = "Compared to previous week"
+        growth_title = "Weekly Revenue Growth Benchmark"
+    elif period in ('year', 'yearly'):
+        curr_year = today.year
+        curr_rev = Session.objects.filter(time_in__year=curr_year, status__in=['active', 'expired', 'paused']).aggregate(t=Sum('amount_paid'))['t'] or 0
+        prev_rev = Session.objects.filter(time_in__year=curr_year - 1, status__in=['active', 'expired', 'paused']).aggregate(t=Sum('amount_paid'))['t'] or 0
+        growth_label = "Compared to previous year"
+        growth_title = "Annual Revenue Growth Benchmark"
+    elif period in ('all', 'all_time'):
+        curr_rev = Session.objects.filter(status__in=['active', 'expired', 'paused']).aggregate(t=Sum('amount_paid'))['t'] or 0
+        prev_rev = 0
+        growth_label = "Cumulative all-time revenue"
+        growth_title = "All-Time Performance"
+    else: # month or custom
+        days_span = 30
+        if start_date and end_date:
+            days_span = max(1, (end_date - start_date).days + 1)
+        curr_start = start_date or (today - timedelta(days=days_span))
+        prev_start = curr_start - timedelta(days=days_span)
+        curr_rev = Session.objects.filter(time_in__date__gte=curr_start, time_in__date__lte=(end_date or today), status__in=['active', 'expired', 'paused']).aggregate(t=Sum('amount_paid'))['t'] or 0
+        prev_rev = Session.objects.filter(time_in__date__gte=prev_start, time_in__date__lt=curr_start, status__in=['active', 'expired', 'paused']).aggregate(t=Sum('amount_paid'))['t'] or 0
+        growth_label = f"Compared to previous {days_span} days"
+        growth_title = f"{'30-Day' if days_span == 30 else 'Period'} Revenue Growth Benchmark"
+
+    if prev_rev > 0:
+        revenue_growth = round(((curr_rev - prev_rev) / prev_rev) * 100, 1)
+    else:
+        revenue_growth = 100 if curr_rev > 0 else 0
 
     context = {
         'period': period,
@@ -1639,6 +1702,8 @@ def analytics_view(request):
         'peak_day': peak_day,
         'avg_rev_per_session': round(avg_rev_per_session, 1),
         'revenue_growth': revenue_growth,
+        'growth_label': growth_label,
+        'growth_title': growth_title,
         'total_sessions': total_sessions_count,
         'unique_devices': unique_devices,
         'returning_devices': returning_devices,
