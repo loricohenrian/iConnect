@@ -6,6 +6,7 @@ from rest_framework.test import APIClient
 from unittest.mock import patch
 
 from sessions_app.models import Plan, Session, SuspiciousDevice, CoinEvent
+from dashboard.models import RevenueGoal, DailyRevenueSummary
 
 
 class DashboardSecurityTests(TestCase):
@@ -1542,6 +1543,166 @@ class DashboardOverviewHardeningTests(TestCase):
         self.assertEqual(sessions_in_context[0].id, s_new.id)
         self.assertEqual(sessions_in_context[1].id, s_mid.id)
         self.assertEqual(sessions_in_context[2].id, s_old.id)
+
+
+class RevenueHardeningTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        User = get_user_model()
+        self.admin_user = User.objects.create_user(
+            username="revenue_admin",
+            password="admin123password",
+            is_staff=True,
+            is_superuser=True,
+        )
+        self.client.login(username=self.admin_user.username, password="admin123password")
+        self.now = timezone.now()
+        self.today = timezone.localdate()
+        self.plan = Plan.objects.create(
+            name="1 Hour Regular",
+            price=10.00,
+            duration_minutes=60,
+            is_active=True
+        )
+
+    @patch("sessions_app.iptables.block_device")
+    def test_reset_sales_disconnects_active_sessions_and_clears_summaries(self, mock_block_device):
+        # Create active and expired sessions
+        s_active = Session.objects.create(
+            mac_address="AA:BB:CC:DD:EE:01",
+            ip_address="10.0.0.50",
+            plan=self.plan,
+            amount_paid=10,
+            duration_minutes_purchased=60,
+            status="active",
+            time_in=self.now
+        )
+        s_expired = Session.objects.create(
+            mac_address="AA:BB:CC:DD:EE:02",
+            ip_address="10.0.0.51",
+            plan=self.plan,
+            amount_paid=10,
+            duration_minutes_purchased=60,
+            status="expired",
+            time_in=self.now - timedelta(hours=2)
+        )
+        CoinEvent.objects.create(amount=10, denomination=10, timestamp=self.now)
+        DailyRevenueSummary.objects.create(
+            date=self.today,
+            total_revenue=20,
+            total_sessions=2,
+            avg_session_minutes=60,
+            peak_hour=14
+        )
+
+        resp = self.client.post("/iconnect-ops/revenue/", {
+            "action": "reset_sales",
+            "start_date": self.today.strftime("%Y-%m-%d"),
+            "end_date": self.today.strftime("%Y-%m-%d"),
+        })
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn("reset=success", resp.url)
+
+        # iptables rule must have been removed for the active session
+        mock_block_device.assert_called_with("AA:BB:CC:DD:EE:01")
+
+        # Database rows should be cleared
+        self.assertEqual(Session.objects.count(), 0)
+        self.assertEqual(CoinEvent.objects.count(), 0)
+        self.assertEqual(DailyRevenueSummary.objects.filter(date=self.today).count(), 0)
+
+    def test_update_goal_parsing_and_validation(self):
+        # Valid update with commas and decimals
+        resp = self.client.post("/iconnect-ops/revenue/", {
+            "action": "update_goal",
+            "daily_target": "1,250.00",
+            "weekly_target": "7,500",
+        }, follow=True)
+        self.assertEqual(resp.status_code, 200)
+        
+        daily_g = RevenueGoal.objects.get(period="daily")
+        weekly_g = RevenueGoal.objects.get(period="weekly")
+        self.assertEqual(daily_g.target_amount, 1250)
+        self.assertEqual(weekly_g.target_amount, 7500)
+
+        # Invalid target must be rejected with error
+        bad_resp = self.client.post("/iconnect-ops/revenue/", {
+            "action": "update_goal",
+            "daily_target": "not_a_number",
+            "weekly_target": "7,500",
+        }, follow=True)
+        self.assertContains(bad_resp, "Invalid daily target amount")
+
+    def test_revenue_period_aliases(self):
+        # Weekly alias test
+        resp_week = self.client.get("/iconnect-ops/revenue/?period=weekly")
+        self.assertEqual(resp_week.status_code, 200)
+        self.assertEqual(resp_week.context["period"], "week")
+
+        # Monthly alias test
+        resp_month = self.client.get("/iconnect-ops/revenue/?period=monthly")
+        self.assertEqual(resp_month.status_code, 200)
+        self.assertEqual(resp_month.context["period"], "month")
+
+        # Custom date fallback
+        custom_date = (self.today - timedelta(days=2)).strftime("%Y-%m-%d")
+        resp_custom = self.client.get(f"/iconnect-ops/revenue/?start_date={custom_date}&end_date={custom_date}")
+        self.assertEqual(resp_custom.status_code, 200)
+        self.assertEqual(resp_custom.context["period"], "custom")
+
+    def test_revenue_live_api_targets_and_search(self):
+        RevenueGoal.objects.create(period="daily", target_amount=100)
+        RevenueGoal.objects.create(period="weekly", target_amount=700)
+        CoinEvent.objects.create(amount=50, denomination=50, timestamp=self.now)
+
+        Session.objects.create(
+            mac_address="AA:BB:CC:99:88:77",
+            ip_address="10.0.0.99",
+            device_name="SpecialPhone",
+            plan=self.plan,
+            amount_paid=10,
+            duration_minutes_purchased=60,
+            status="active",
+            time_in=self.now
+        )
+        Session.objects.create(
+            mac_address="11:22:33:44:55:66",
+            ip_address="10.0.0.100",
+            device_name="OtherLaptop",
+            plan=self.plan,
+            amount_paid=10,
+            duration_minutes_purchased=60,
+            status="active",
+            time_in=self.now
+        )
+
+        # Call live API
+        resp = self.client.get("/api/dashboard/revenue/live/?period=weekly&search=SpecialPhone")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+
+        # Goal progress verified
+        self.assertEqual(data["daily_target_amt"], 100)
+        self.assertEqual(data["today_sales_for_goal"], 50)
+        self.assertEqual(data["daily_progress"], 50)
+
+        # Search filter verified
+        self.assertEqual(len(data["sessions"]), 1)
+        self.assertEqual(data["sessions"][0]["device_name"], "SpecialPhone")
+
+    def test_export_sessions_csv_period_sync(self):
+        Session.objects.create(
+            mac_address="AA:BB:CC:22:22:22",
+            plan=self.plan,
+            amount_paid=10,
+            duration_minutes_purchased=60,
+            status="active",
+            time_in=self.now
+        )
+        resp = self.client.get("/iconnect-ops/sessions/export/?period=weekly")
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("AA:BB:CC:22:22:22", resp.content.decode("utf-8"))
+
 
 
 

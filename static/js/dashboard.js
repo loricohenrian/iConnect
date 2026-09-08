@@ -847,18 +847,60 @@ async function refreshRevenueLive() {
             }
         }
 
+        // Update Revenue Targets if returned
+        if (data.today_sales_for_goal !== undefined && data.daily_target_amt !== undefined) {
+            const goalTodayText = document.getElementById('goal-today-text');
+            const goalTodayPct = document.getElementById('goal-today-pct');
+            const goalTodayBar = document.getElementById('goal-today-bar');
+
+            if (goalTodayText) {
+                goalTodayText.textContent = `Today's Target: ₱${Number(data.today_sales_for_goal).toLocaleString()} / ₱${Number(data.daily_target_amt).toLocaleString()}`;
+            }
+            if (goalTodayPct) {
+                goalTodayPct.textContent = `${data.daily_progress}%`;
+                goalTodayPct.style.color = data.daily_progress >= 100 ? '#059669' : '#2563eb';
+            }
+            if (goalTodayBar) {
+                goalTodayBar.style.width = `${Math.min(100, data.daily_progress)}%`;
+                goalTodayBar.style.background = data.daily_progress >= 100 ? '#059669' : '#2563eb';
+            }
+        }
+
+        if (data.week_sales_for_goal !== undefined && data.weekly_target_amt !== undefined) {
+            const goalWeekText = document.getElementById('goal-week-text');
+            const goalWeekPct = document.getElementById('goal-week-pct');
+            const goalWeekBar = document.getElementById('goal-week-bar');
+
+            if (goalWeekText) {
+                goalWeekText.textContent = `This Week's Target: ₱${Number(data.week_sales_for_goal).toLocaleString()} / ₱${Number(data.weekly_target_amt).toLocaleString()}`;
+            }
+            if (goalWeekPct) {
+                goalWeekPct.textContent = `${data.weekly_progress}%`;
+                goalWeekPct.style.color = data.weekly_progress >= 100 ? '#059669' : '#7c3aed';
+            }
+            if (goalWeekBar) {
+                goalWeekBar.style.width = `${Math.min(100, data.weekly_progress)}%`;
+                goalWeekBar.style.background = data.weekly_progress >= 100 ? '#059669' : '#7c3aed';
+            }
+        }
+
         // Update Filtered Sessions Table
         const tbody = document.getElementById('revenue-sessions-tbody');
         const container = document.getElementById('revenue-table-container');
         const pagWrapper = document.getElementById('revenue-pagination-wrapper');
         const pagInfo = document.getElementById('revenue-pagination-info');
+        const emptyState = document.getElementById('revenue-empty-state');
 
         if (tbody && Array.isArray(data.sessions)) {
             if (data.sessions.length === 0) {
+                if (container) container.style.display = 'none';
+                if (pagWrapper) pagWrapper.style.display = 'none';
+                if (emptyState) emptyState.style.display = 'block';
                 tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted" style="padding: 24px;">No sessions found for this date range.</td></tr>';
             } else {
                 if (container) container.style.display = '';
                 if (pagWrapper) pagWrapper.style.display = 'flex';
+                if (emptyState) emptyState.style.display = 'none';
                 if (pagInfo) {
                     pagInfo.textContent = `Showing ${data.start_index} to ${data.end_index} of ${data.total_count} sessions`;
                 }

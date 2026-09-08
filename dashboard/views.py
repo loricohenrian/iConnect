@@ -547,15 +547,17 @@ def revenue_live_api(request):
     if not _is_dashboard_admin(request.user):
         return Response({'detail': 'Authentication required.'}, status=status.HTTP_401_UNAUTHORIZED)
 
-    period = request.GET.get('period', 'today')
+    period = request.GET.get('period', 'today').lower()
     custom_start = request.GET.get('start_date')
     custom_end = request.GET.get('end_date')
+    search = sanitize_text(request.GET.get('search', ''), max_length=60)
 
     today = timezone.localdate()
     start_date = None
     end_date = None
 
-    if period == 'custom':
+    if period == 'custom' or (custom_start or custom_end):
+        period = 'custom'
         if custom_start:
             start_date = parse_date(custom_start)
         if custom_end:
@@ -563,13 +565,16 @@ def revenue_live_api(request):
     elif period == 'today':
         start_date = today
         end_date = today
-    elif period == 'week':
+    elif period in ('week', 'weekly'):
+        period = 'week'
         start_date = today - timedelta(days=today.weekday())
         end_date = today
-    elif period == 'month':
+    elif period in ('month', 'monthly'):
+        period = 'month'
         start_date = today.replace(day=1)
         end_date = today
-    elif period == 'year':
+    elif period in ('year', 'yearly'):
+        period = 'year'
         start_date = today.replace(month=1, day=1)
         end_date = today
     elif period == 'all':
@@ -600,12 +605,29 @@ def revenue_live_api(request):
         revenue=Sum('amount')
     ).order_by('-revenue')
 
-    plan_labels = [p['plan__name'] for p in plan_stats]
+    plan_labels = [p['plan__name'] or 'Custom' for p in plan_stats]
     plan_data = [float(p['revenue'] or 0) for p in plan_stats]
 
     status_filter = request.GET.get('status', '')
     if status_filter:
         sessions_qs = sessions_qs.filter(status=status_filter)
+    if search:
+        sessions_qs = sessions_qs.filter(
+            Q(mac_address__icontains=search) |
+            Q(device_name__icontains=search) |
+            Q(ip_address__icontains=search)
+        )
+
+    # Real-time revenue goals calculation
+    daily_goal = RevenueGoal.objects.filter(period='daily').first()
+    weekly_goal = RevenueGoal.objects.filter(period='weekly').first()
+    today_sales_for_goal = CoinEvent.objects.filter(timestamp__date=today).aggregate(total=Sum('amount'))['total'] or 0
+    week_start_for_goal = today - timedelta(days=today.weekday())
+    week_sales_for_goal = CoinEvent.objects.filter(timestamp__date__gte=week_start_for_goal).aggregate(total=Sum('amount'))['total'] or 0
+    daily_target_amt = daily_goal.target_amount if daily_goal else 0
+    weekly_target_amt = weekly_goal.target_amount if weekly_goal else 0
+    daily_progress = min(100, round((today_sales_for_goal / daily_target_amt) * 100)) if daily_target_amt > 0 else 0
+    weekly_progress = min(100, round((week_sales_for_goal / weekly_target_amt) * 100)) if weekly_target_amt > 0 else 0
 
     page = request.GET.get('page', 1)
     paginator = Paginator(sessions_qs, 20)
@@ -614,7 +636,7 @@ def revenue_live_api(request):
     except PageNotAnInteger:
         sessions_page = paginator.page(1)
     except EmptyPage:
-        sessions_page = paginator.page(paginator.num_pages)
+        sessions_page = paginator.page(paginator.num_pages if paginator.num_pages > 0 else 1)
 
     sessions_data = []
     for s in sessions_page:
@@ -639,11 +661,17 @@ def revenue_live_api(request):
         'plan_labels': plan_labels,
         'plan_data': plan_data,
         'sessions': sessions_data,
-        'start_index': sessions_page.start_index() if total_sessions > 0 else 0,
-        'end_index': sessions_page.end_index() if total_sessions > 0 else 0,
+        'start_index': sessions_page.start_index() if sessions_page.paginator.count > 0 else 0,
+        'end_index': sessions_page.end_index() if sessions_page.paginator.count > 0 else 0,
         'total_count': paginator.count,
         'page': sessions_page.number,
         'num_pages': paginator.num_pages,
+        'daily_target_amt': daily_target_amt,
+        'weekly_target_amt': weekly_target_amt,
+        'today_sales_for_goal': float(today_sales_for_goal),
+        'week_sales_for_goal': float(week_sales_for_goal),
+        'daily_progress': daily_progress,
+        'weekly_progress': weekly_progress,
     })
 
 
@@ -816,48 +844,96 @@ def revenue(request):
             sess_qs = Session.objects.all()
             coin_qs = CoinEvent.objects.all()
             purch_qs = PurchaseTransaction.objects.all()
+            summary_qs = DailyRevenueSummary.objects.all()
             
-            if start_date_str:
-                s_date = parse_date(start_date_str)
-                if s_date:
-                    sess_qs = sess_qs.filter(time_in__date__gte=s_date)
-                    coin_qs = coin_qs.filter(timestamp__date__gte=s_date)
-                    purch_qs = purch_qs.filter(timestamp__date__gte=s_date)
-            if end_date_str:
-                e_date = parse_date(end_date_str)
-                if e_date:
-                    sess_qs = sess_qs.filter(time_in__date__lte=e_date)
-                    coin_qs = coin_qs.filter(timestamp__date__lte=e_date)
-                    purch_qs = purch_qs.filter(timestamp__date__lte=e_date)
+            s_date = parse_date(start_date_str) if start_date_str else None
+            e_date = parse_date(end_date_str) if end_date_str else None
+
+            if s_date:
+                sess_qs = sess_qs.filter(time_in__date__gte=s_date)
+                coin_qs = coin_qs.filter(timestamp__date__gte=s_date)
+                purch_qs = purch_qs.filter(timestamp__date__gte=s_date)
+                summary_qs = summary_qs.filter(date__gte=s_date)
+            if e_date:
+                sess_qs = sess_qs.filter(time_in__date__lte=e_date)
+                coin_qs = coin_qs.filter(timestamp__date__lte=e_date)
+                purch_qs = purch_qs.filter(timestamp__date__lte=e_date)
+                summary_qs = summary_qs.filter(date__lte=e_date)
                     
+            # Disconnect active sessions from kernel iptables before deleting to prevent free internet leaks
+            try:
+                from sessions_app import iptables
+                for active_sess in sess_qs.filter(status='active'):
+                    try:
+                        if active_sess.mac_address:
+                            iptables.block_device(active_sess.mac_address)
+                    except Exception as err:
+                        logger.warning(f"Error removing iptables rule for session {active_sess.id} on reset: {err}")
+            except Exception:
+                pass
+
             deleted_sessions = sess_qs.count()
+            deleted_coins = coin_qs.count()
+            deleted_purchases = purch_qs.count()
+            deleted_summaries = summary_qs.count()
+
             sess_qs.delete()
             coin_qs.delete()
             purch_qs.delete()
-            # Redirect to avoid form resubmission
+            summary_qs.delete()
+
+            audit_logger.warning(
+                "event=reset_sales user=%s deleted_sessions=%d deleted_coins=%d deleted_purchases=%d deleted_summaries=%d start_date=%s end_date=%s ip=%s",
+                request.user.username, deleted_sessions, deleted_coins, deleted_purchases, deleted_summaries,
+                start_date_str or 'all', end_date_str or 'now', _client_ip(request)
+            )
+
+            messages.success(request, f"Successfully reset sales data: deleted {deleted_sessions} session(s) and {deleted_coins} coin record(s).")
             return redirect(f"{request.path}?reset=success&deleted={deleted_sessions}")
         elif action == 'update_goal':
-            daily_target = request.POST.get('daily_target', '').strip()
-            weekly_target = request.POST.get('weekly_target', '').strip()
-            if daily_target != '':
+            daily_raw = request.POST.get('daily_target', '').strip().replace(',', '')
+            weekly_raw = request.POST.get('weekly_target', '').strip().replace(',', '')
+            saved_any = False
+
+            if daily_raw != '':
                 try:
-                    d_amt = max(0, int(daily_target))
-                    RevenueGoal.objects.update_or_create(period='daily', defaults={'target_amount': d_amt})
+                    d_val = float(daily_raw)
+                    if 0 <= d_val <= 10000000:
+                        RevenueGoal.objects.update_or_create(period='daily', defaults={'target_amount': int(round(d_val))})
+                        saved_any = True
+                    else:
+                        messages.error(request, "Daily target must be between ₱0 and ₱10,000,000.")
+                        return redirect(request.get_full_path())
                 except (ValueError, TypeError):
-                    pass
-            if weekly_target != '':
+                    messages.error(request, "Invalid daily target amount. Please enter a valid number.")
+                    return redirect(request.get_full_path())
+
+            if weekly_raw != '':
                 try:
-                    w_amt = max(0, int(weekly_target))
-                    RevenueGoal.objects.update_or_create(period='weekly', defaults={'target_amount': w_amt})
+                    w_val = float(weekly_raw)
+                    if 0 <= w_val <= 10000000:
+                        RevenueGoal.objects.update_or_create(period='weekly', defaults={'target_amount': int(round(w_val))})
+                        saved_any = True
+                    else:
+                        messages.error(request, "Weekly target must be between ₱0 and ₱10,000,000.")
+                        return redirect(request.get_full_path())
                 except (ValueError, TypeError):
-                    pass
-            messages.success(request, "Revenue goals updated successfully.")
+                    messages.error(request, "Invalid weekly target amount. Please enter a valid number.")
+                    return redirect(request.get_full_path())
+
+            if saved_any:
+                audit_logger.info(
+                    "event=update_revenue_goal user=%s daily=%s weekly=%s ip=%s",
+                    request.user.username, daily_raw, weekly_raw, _client_ip(request)
+                )
+                messages.success(request, "Revenue goals updated successfully.")
             return redirect(request.get_full_path())
 
     # Process GET parameters for date filtering
-    period = request.GET.get('period', 'today')
+    period = request.GET.get('period', 'today').lower()
     custom_start = request.GET.get('start_date')
     custom_end = request.GET.get('end_date')
+    search = sanitize_text(request.GET.get('search', ''), max_length=60)
     
     today = timezone.localdate()
     now = timezone.now()
@@ -865,7 +941,8 @@ def revenue(request):
     start_date = None
     end_date = None
     
-    if period == 'custom':
+    if period == 'custom' or (custom_start or custom_end):
+        period = 'custom'
         if custom_start:
             start_date = parse_date(custom_start)
         if custom_end:
@@ -873,13 +950,16 @@ def revenue(request):
     elif period == 'today':
         start_date = today
         end_date = today
-    elif period == 'week':
+    elif period in ('week', 'weekly'):
+        period = 'week'
         start_date = today - timedelta(days=today.weekday())
         end_date = today
-    elif period == 'month':
+    elif period in ('month', 'monthly'):
+        period = 'month'
         start_date = today.replace(day=1)
         end_date = today
-    elif period == 'year':
+    elif period in ('year', 'yearly'):
+        period = 'year'
         start_date = today.replace(month=1, day=1)
         end_date = today
     elif period == 'all':
@@ -915,14 +995,20 @@ def revenue(request):
         revenue=Sum('amount')
     ).order_by('-revenue')
     
-    plan_labels = [p['plan__name'] for p in plan_stats]
-    plan_data = [p['revenue'] for p in plan_stats]
+    plan_labels = [p['plan__name'] or 'Custom' for p in plan_stats]
+    plan_data = [float(p['revenue'] or 0) for p in plan_stats]
 
     # 3. Sessions List & Pagination
-    # Support status filtering
+    # Support status & search filtering
     status_filter = request.GET.get('status', '')
     if status_filter:
         sessions_qs = sessions_qs.filter(status=status_filter)
+    if search:
+        sessions_qs = sessions_qs.filter(
+            Q(mac_address__icontains=search) |
+            Q(device_name__icontains=search) |
+            Q(ip_address__icontains=search)
+        )
         
     page = request.GET.get('page', 1)
     paginator = Paginator(sessions_qs, 20) # 20 items per page
@@ -931,7 +1017,7 @@ def revenue(request):
     except PageNotAnInteger:
         sessions_page = paginator.page(1)
     except EmptyPage:
-        sessions_page = paginator.page(paginator.num_pages)
+        sessions_page = paginator.page(paginator.num_pages if paginator.num_pages > 0 else 1)
 
     # Revenue Goals tracking
     daily_goal = RevenueGoal.objects.filter(period='daily').first()
@@ -956,6 +1042,7 @@ def revenue(request):
         'plan_data': json.dumps(plan_data),
         'sessions': sessions_page,
         'status_filter': status_filter,
+        'search': search,
         'daily_target_amt': daily_target_amt,
         'weekly_target_amt': weekly_target_amt,
         'today_sales_for_goal': today_sales_for_goal,
@@ -1065,7 +1152,7 @@ def export_sessions_csv(request):
     """Export session logs as CSV file."""
     status_filter = request.GET.get('status', '')
     search = sanitize_text(request.GET.get('search', ''), max_length=60)
-    period = request.GET.get('period', 'today')
+    period = request.GET.get('period', 'today').lower()
     custom_start = request.GET.get('start_date')
     custom_end = request.GET.get('end_date')
 
@@ -1074,7 +1161,7 @@ def export_sessions_csv(request):
     now = timezone.now()
     today = timezone.localdate()
     
-    if period == 'custom':
+    if period == 'custom' or (custom_start or custom_end):
         if custom_start:
             s_date = parse_date(custom_start)
             if s_date:
@@ -1090,12 +1177,15 @@ def export_sessions_csv(request):
             Q(status='paused', paused_at__date=today) |
             Q(status='expired', time_out__date=today)
         )
-    elif period == 'week':
-        sessions = sessions.filter(Q(status='active') | Q(time_in__gte=now - timedelta(days=7)))
-    elif period == 'month':
-        sessions = sessions.filter(Q(status='active') | Q(time_in__gte=now - timedelta(days=30)))
-    elif period == 'year':
-        sessions = sessions.filter(Q(status='active') | Q(time_in__gte=now - timedelta(days=365)))
+    elif period in ('week', 'weekly'):
+        week_start = today - timedelta(days=today.weekday())
+        sessions = sessions.filter(Q(status='active') | Q(time_in__date__gte=week_start))
+    elif period in ('month', 'monthly'):
+        month_start = today.replace(day=1)
+        sessions = sessions.filter(Q(status='active') | Q(time_in__date__gte=month_start))
+    elif period in ('year', 'yearly'):
+        year_start = today.replace(month=1, day=1)
+        sessions = sessions.filter(Q(status='active') | Q(time_in__date__gte=year_start))
 
     if status_filter:
         sessions = sessions.filter(status=status_filter)
@@ -1167,7 +1257,7 @@ def export_revenue_csv(request):
             summary.total_revenue,
             summary.total_sessions,
             summary.avg_session_minutes,
-            peak_str,
+            _sanitize_csv_cell(peak_str),
         ])
 
     audit_logger.info(

@@ -5,7 +5,7 @@
 
 {% block topbar_actions %}
 <div class="d-flex align-items-center gap-sm">
-    <a href="{% url 'dashboard:export_sessions_csv' %}?period={{ period }}&start_date={{ start_date }}&end_date={{ end_date }}&status={{ status_filter }}" class="btn btn-secondary btn-sm">
+    <a href="{% url 'dashboard:export_sessions_csv' %}?period={{ period }}&start_date={{ start_date }}&end_date={{ end_date }}&status={{ status_filter }}&search={{ search|urlencode }}" class="btn btn-secondary btn-sm">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
         Export CSV
     </a>
@@ -75,21 +75,21 @@
         <!-- Daily Goal -->
         <div>
             <div class="d-flex justify-content-between text-xs mb-xs">
-                <span class="text-muted font-semibold">Today's Target: ₱{{ today_sales_for_goal }} / ₱{{ daily_target_amt|default:"0" }}</span>
-                <span class="font-semibold" style="color: {% if daily_progress >= 100 %}#059669{% else %}#2563eb{% endif %};">{{ daily_progress }}%</span>
+                <span class="text-muted font-semibold" id="goal-today-text">Today's Target: ₱{{ today_sales_for_goal }} / ₱{{ daily_target_amt|default:"0" }}</span>
+                <span class="font-semibold" id="goal-today-pct" style="color: {% if daily_progress >= 100 %}#059669{% else %}#2563eb{% endif %};">{{ daily_progress }}%</span>
             </div>
             <div style="width: 100%; height: 8px; background: rgba(0,0,0,0.06); border-radius: 4px; overflow: hidden;">
-                <div style="width: {{ daily_progress }}%; height: 100%; background: {% if daily_progress >= 100 %}#059669{% else %}#2563eb{% endif %}; border-radius: 4px; transition: width 0.3s ease;"></div>
+                <div id="goal-today-bar" style="width: {{ daily_progress }}%; height: 100%; background: {% if daily_progress >= 100 %}#059669{% else %}#2563eb{% endif %}; border-radius: 4px; transition: width 0.3s ease;"></div>
             </div>
         </div>
         <!-- Weekly Goal -->
         <div>
             <div class="d-flex justify-content-between text-xs mb-xs">
-                <span class="text-muted font-semibold">This Week's Target: ₱{{ week_sales_for_goal }} / ₱{{ weekly_target_amt|default:"0" }}</span>
-                <span class="font-semibold" style="color: {% if weekly_progress >= 100 %}#059669{% else %}#7c3aed{% endif %};">{{ weekly_progress }}%</span>
+                <span class="text-muted font-semibold" id="goal-week-text">This Week's Target: ₱{{ week_sales_for_goal }} / ₱{{ weekly_target_amt|default:"0" }}</span>
+                <span class="font-semibold" id="goal-week-pct" style="color: {% if weekly_progress >= 100 %}#059669{% else %}#7c3aed{% endif %};">{{ weekly_progress }}%</span>
             </div>
             <div style="width: 100%; height: 8px; background: rgba(0,0,0,0.06); border-radius: 4px; overflow: hidden;">
-                <div style="width: {{ weekly_progress }}%; height: 100%; background: {% if weekly_progress >= 100 %}#059669{% else %}#7c3aed{% endif %}; border-radius: 4px; transition: width 0.3s ease;"></div>
+                <div id="goal-week-bar" style="width: {{ weekly_progress }}%; height: 100%; background: {% if weekly_progress >= 100 %}#059669{% else %}#7c3aed{% endif %}; border-radius: 4px; transition: width 0.3s ease;"></div>
             </div>
         </div>
     </div>
@@ -122,27 +122,24 @@
             <!-- Quick Ranges -->
             <div class="d-flex flex-wrap gap-xs mb-md">
                 <button type="submit" name="period" value="today" class="btn btn-sm {% if period == 'today' %}btn-primary{% else %}btn-secondary{% endif %}">Today</button>
-                <button type="submit" name="period" value="week" class="btn btn-sm {% if period == 'week' %}btn-primary{% else %}btn-secondary{% endif %}">Week</button>
-                <button type="submit" name="period" value="month" class="btn btn-sm {% if period == 'month' %}btn-primary{% else %}btn-secondary{% endif %}">Month</button>
-                <button type="submit" name="period" value="year" class="btn btn-sm {% if period == 'year' %}btn-primary{% else %}btn-secondary{% endif %}">Year</button>
+                <button type="submit" name="period" value="week" class="btn btn-sm {% if period == 'week' or period == 'weekly' %}btn-primary{% else %}btn-secondary{% endif %}">Week</button>
+                <button type="submit" name="period" value="month" class="btn btn-sm {% if period == 'month' or period == 'monthly' %}btn-primary{% else %}btn-secondary{% endif %}">Month</button>
+                <button type="submit" name="period" value="year" class="btn btn-sm {% if period == 'year' or period == 'yearly' %}btn-primary{% else %}btn-secondary{% endif %}">Year</button>
                 <button type="submit" name="period" value="all" class="btn btn-sm {% if period == 'all' %}btn-primary{% else %}btn-secondary{% endif %}">All Time</button>
             </div>
-            
-            <!-- Custom Range -->
-            <input type="hidden" name="period" value="custom" id="custom-period-input" {% if period != 'custom' %}disabled{% endif %}>
             
             <div class="grid-2 mb-sm">
                 <div class="form-group">
                     <label class="form-label">From Date</label>
-                    <input type="date" name="start_date" class="form-input" value="{{ start_date }}" onchange="enableCustomPeriod()">
+                    <input type="date" name="start_date" class="form-input" value="{{ start_date }}">
                 </div>
                 <div class="form-group">
                     <label class="form-label">To Date</label>
-                    <input type="date" name="end_date" class="form-input" value="{{ end_date }}" onchange="enableCustomPeriod()">
+                    <input type="date" name="end_date" class="form-input" value="{{ end_date }}">
                 </div>
             </div>
             
-            <button type="submit" class="btn btn-primary btn-sm w-100 mt-xs">
+            <button type="submit" name="period" value="custom" class="btn btn-primary btn-sm w-100 mt-xs">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
                 Apply Custom Range
             </button>
@@ -152,19 +149,22 @@
 
 <!-- Row 3: Filtered Sessions List -->
 <div class="chart-card mt-md animate-fadeIn">
-    <div class="chart-header">
+    <div class="chart-header flex-wrap gap-sm">
         <h3 class="chart-title">Filtered Sessions</h3>
-        <form method="GET" action="" class="d-flex gap-sm align-items-center">
+        <form method="GET" action="" class="d-flex gap-sm align-items-center flex-wrap">
             <input type="hidden" name="period" value="{{ period }}">
             <input type="hidden" name="start_date" value="{{ start_date }}">
             <input type="hidden" name="end_date" value="{{ end_date }}">
             
-            <select name="status" class="form-input" style="width: 130px; padding: 4px 8px; height: 30px; font-size: 12px;" onchange="this.form.submit()">
+            <input type="text" name="search" class="form-input" placeholder="Search MAC, device, IP..." value="{{ search }}" style="width: 180px; padding: 4px 8px; height: 30px; font-size: 12px;">
+            
+            <select name="status" class="form-input" style="width: 120px; padding: 4px 8px; height: 30px; font-size: 12px;" onchange="this.form.submit()">
                 <option value="">All Statuses</option>
                 <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
                 <option value="expired" {% if status_filter == 'expired' %}selected{% endif %}>Expired</option>
                 <option value="paused" {% if status_filter == 'paused' %}selected{% endif %}>Paused</option>
             </select>
+            <button type="submit" class="btn btn-secondary btn-sm" style="padding: 4px 10px; height: 30px; font-size: 12px;">Filter</button>
         </form>
     </div>
 
@@ -224,15 +224,15 @@
         </div>
         <div class="d-flex gap-xs" id="revenue-pagination-controls">
             {% if sessions.has_previous %}
-                <a href="?page=1&period={{ period }}&start_date={{ start_date }}&end_date={{ end_date }}&status={{ status_filter }}" class="btn btn-sm btn-secondary">&laquo;</a>
-                <a href="?page={{ sessions.previous_page_number }}&period={{ period }}&start_date={{ start_date }}&end_date={{ end_date }}&status={{ status_filter }}" class="btn btn-sm btn-secondary">Prev</a>
+                <a href="?page=1&period={{ period }}&start_date={{ start_date }}&end_date={{ end_date }}&status={{ status_filter }}&search={{ search|urlencode }}" class="btn btn-sm btn-secondary">&laquo;</a>
+                <a href="?page={{ sessions.previous_page_number }}&period={{ period }}&start_date={{ start_date }}&end_date={{ end_date }}&status={{ status_filter }}&search={{ search|urlencode }}" class="btn btn-sm btn-secondary">Prev</a>
             {% endif %}
             
             <span class="btn btn-sm btn-primary" style="pointer-events: none;">{{ sessions.number }}</span>
             
             {% if sessions.has_next %}
-                <a href="?page={{ sessions.next_page_number }}&period={{ period }}&start_date={{ start_date }}&end_date={{ end_date }}&status={{ status_filter }}" class="btn btn-sm btn-secondary">Next</a>
-                <a href="?page={{ sessions.paginator.num_pages }}&period={{ period }}&start_date={{ start_date }}&end_date={{ end_date }}&status={{ status_filter }}" class="btn btn-sm btn-secondary">&raquo;</a>
+                <a href="?page={{ sessions.next_page_number }}&period={{ period }}&start_date={{ start_date }}&end_date={{ end_date }}&status={{ status_filter }}&search={{ search|urlencode }}" class="btn btn-sm btn-secondary">Next</a>
+                <a href="?page={{ sessions.paginator.num_pages }}&period={{ period }}&start_date={{ start_date }}&end_date={{ end_date }}&status={{ status_filter }}&search={{ search|urlencode }}" class="btn btn-sm btn-secondary">&raquo;</a>
             {% endif %}
         </div>
     </div>
