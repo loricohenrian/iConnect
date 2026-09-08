@@ -41,50 +41,44 @@ def _safe_cache_delete(key):
         pass
 
 
-def probe_upstream_internet(timeout=1.5):
+def probe_upstream_internet(timeout=2.0):
     """
-    Robust upstream internet probe.
-    1. HTTP 204 generate_204 endpoints (Google & Cloudflare) - standard mechanism used by
-       Android, iOS, ChromeOS. A disconnected router/modem cannot spoof HTTP 204.
-    2. Direct HTTP to public IP (1.1.1.1 / 8.8.8.8) in case DNS is sluggish.
-    3. Socket probe to 8.8.8.8 / 1.1.1.1 (active in test suite to support unit test socket mocks).
-    4. Fallback ping.
-    Returns True if online, False if offline.
+    Genuine internet connectivity probe using TLS (HTTPS).
+    Plain HTTP (port 80), ping (ICMP), and DNS (port 53) are vulnerable to local router/modem
+    interception when WAN fiber is down. HTTPS to 1.1.1.1 and www.google.com CANNOT be spoofed
+    by a disconnected local router without triggering an SSL certificate verification failure.
     """
     import sys
     import urllib.request
+    import ssl
 
-    # 1. HTTP 204 check (Google & Cloudflare)
-    endpoints = (
-        "http://connectivitycheck.gstatic.com/generate_204",
-        "http://cp.cloudflare.com/generate_204",
-    )
-    for url in endpoints:
-        try:
-            req = urllib.request.Request(
-                url,
-                headers={"User-Agent": "iConnect-ConnectivityCheck/1.0"}
-            )
-            with urllib.request.urlopen(req, timeout=timeout) as resp:
-                if resp.status == 204:
-                    return True
-        except Exception:
-            continue
+    # 1. Direct HTTPS to 1.1.1.1 (no DNS needed, checks real routing + TLS handshake)
+    try:
+        req = urllib.request.Request(
+            "https://1.1.1.1",
+            headers={"User-Agent": "iConnect-Probe/1.0"}
+        )
+        ctx = ssl.create_default_context()
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            if resp.status == 200:
+                return True
+    except Exception:
+        pass
 
-    # 2. Direct HTTP to public IP (bypasses DNS)
-    for ip in ("1.1.1.1", "8.8.8.8"):
-        try:
-            req = urllib.request.Request(
-                f"http://{ip}",
-                headers={"User-Agent": "iConnect-ConnectivityCheck/1.0"}
-            )
-            with urllib.request.urlopen(req, timeout=timeout) as resp:
-                if resp.status in (200, 301, 302):
-                    return True
-        except Exception:
-            continue
+    # 2. HTTPS to Google (checks DNS resolution + real internet HTTPS)
+    try:
+        req = urllib.request.Request(
+            "https://www.google.com/generate_204",
+            headers={"User-Agent": "iConnect-Probe/1.0"}
+        )
+        ctx = ssl.create_default_context()
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            if resp.status in (200, 204):
+                return True
+    except Exception:
+        pass
 
-    # 3. Unit test mocking fallback (when running tests that mock socket.socket)
+    # 3. Unit test mocking fallback (only used in test suite when socket.socket is patched)
     if 'test' in sys.argv:
         for host in ("8.8.8.8", "1.1.1.1"):
             try:
@@ -96,17 +90,7 @@ def probe_upstream_internet(timeout=1.5):
             except Exception:
                 continue
 
-    # 4. Fallback ping probe
-    try:
-        ping_cmd = (
-            ["ping", "-n", "1", "-w", "1000", "8.8.8.8"]
-            if platform.system() == "Windows"
-            else ["ping", "-c", "1", "-W", "1", "8.8.8.8"]
-        )
-        res = subprocess.run(ping_cmd, capture_output=True, timeout=1.5)
-        return res.returncode == 0
-    except Exception:
-        return False
+    return False
 
 
 def check_isp_internet_status(force_probe=False):
@@ -218,17 +202,17 @@ def check_isp_internet_status(force_probe=False):
         had_outage = existing_outage or len(paused_ids) > 0
 
         if had_outage:
-            # Require 2 consecutive successful checks before clearing an active outage (anti-flapping)
+            # Require 3 consecutive successful checks before clearing an active outage (anti-flapping)
             success_count = (_safe_cache_get(CACHE_KEY_SUCCESS_COUNT) or 0) + 1
             _safe_cache_set(CACHE_KEY_SUCCESS_COUNT, success_count, timeout=300)
 
-            if success_count < 2 and not force_probe:
+            if success_count < 3 and not force_probe:
                 # Still stabilizing — keep outage active
-                logger.info("ISP probe succeeded once, awaiting 2nd confirmation (success_count=%d)", success_count)
+                logger.info("ISP probe succeeded %d/3 times, awaiting further confirmation", success_count)
                 result["isp_outage"] = True
                 result["is_online"] = False
                 result["message"] = OUTAGE_ANNOUNCEMENT_TEXT
-                _safe_cache_set(CACHE_KEY_STATUS, result, timeout=8)
+                _safe_cache_set(CACHE_KEY_STATUS, result, timeout=10)
                 return result
 
             # Confirmed restored!

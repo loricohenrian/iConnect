@@ -407,7 +407,7 @@ class DashboardSecurityTests(TestCase):
         self.assertIn("11:22:33:44:55:66", macs)
 
 
-class AnnouncementManagementTests(TestCase):
+class IspOutageManagementTests(TestCase):
     def setUp(self):
         self.client = APIClient()
         User = get_user_model()

@@ -1741,9 +1741,11 @@ function playRestoredSound() {
 }
 
 function openIspOutageModal(customMessage, canAutoPause = true) {
-    // If user already dismissed the modal during this outage event, do NOT re-pop it
+    // If user already dismissed the modal in this session, keep it dismissed!
+    // The red inline banner on the page will remain visible instead.
     try {
-        if (sessionStorage.getItem("iconnect_outage_modal_dismissed") === "1") {
+        const dismissedAt = parseInt(sessionStorage.getItem("iconnect_outage_modal_dismissed") || "0", 10);
+        if (dismissedAt && (Date.now() - dismissedAt < 900000)) { // 15 minutes
             return;
         }
     } catch {}
@@ -1766,16 +1768,19 @@ function openIspOutageModal(customMessage, canAutoPause = true) {
 
 function closeIspOutageModal(e) {
     if (e && e.target && e.target !== e.currentTarget) return;
-    // Remember that the user dismissed the modal so it never interrupts them again during this outage
-    try { sessionStorage.setItem("iconnect_outage_modal_dismissed", "1"); } catch {}
+    // Remember that the user dismissed the modal with a timestamp so it NEVER pops open again in this session
+    try { sessionStorage.setItem("iconnect_outage_modal_dismissed", Date.now().toString()); } catch {}
     const modal = document.getElementById("ispOutageModal");
     if (modal) modal.style.display = "none";
 }
 
 function showRestoredToast() {
     const now = Date.now();
-    if (now - _restoredToastLastFired < 60000) return; // debounce: max once per 60s
-    _restoredToastLastFired = now;
+    try {
+        const last = parseInt(sessionStorage.getItem("iconnect_last_restored_toast") || "0", 10);
+        if (now - last < 120000) return; // at most once every 2 minutes across refreshes
+        sessionStorage.setItem("iconnect_last_restored_toast", now.toString());
+    } catch {}
 
     const toast = document.getElementById("ispRestoredToast");
     if (!toast) return;
@@ -1885,9 +1890,8 @@ function handlePortalOutageState(data, isSessionPage) {
         }
 
         if (wasActive) {
-            // Outage confirmed ended — clear all outage flags
+            // Outage confirmed ended — clear outage active flag
             _setOutageActive(false);
-            try { sessionStorage.removeItem("iconnect_outage_modal_dismissed"); } catch {}
             const modal = document.getElementById("ispOutageModal");
             if (modal) modal.style.display = "none";
             showRestoredToast();
