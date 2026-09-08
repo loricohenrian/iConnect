@@ -2255,10 +2255,18 @@ def bandwidth_usage(request):
         return auth_error
 
     from .bandwidth import get_all_device_bandwidth_mb, get_live_throughput_mbps
+    from django.utils import timezone
+    from django.db.models import Sum
 
     # Get real bandwidth from iptables
     device_bandwidth = get_all_device_bandwidth_mb()
     throughput = get_live_throughput_mbps()
+
+    # Today's total data usage from session records (baseline-corrected)
+    today = timezone.localdate()
+    bandwidth_today = Session.objects.filter(
+        time_in__date=today
+    ).aggregate(total=Sum('bandwidth_used_mb'))['total'] or 0.0
 
     # Match MACs with active sessions for device names
     active_sessions = {
@@ -2282,6 +2290,7 @@ def bandwidth_usage(request):
     return Response({
         "users": users,
         "total_bandwidth_mb": round(total_bandwidth, 2),
+        "bandwidth_today_mb": round(bandwidth_today, 1),
         "live_speed_mbps": throughput['total_mbps'],
     })
 
