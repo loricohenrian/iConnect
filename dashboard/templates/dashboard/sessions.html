@@ -28,7 +28,11 @@
                 <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5zm5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5z"/></svg>
                 Pause All
             </button>
-            <a href="{% url 'dashboard:export_sessions_csv' %}?status={{ status_filter }}&search={{ search }}&period={{ period }}" class="btn btn-sm btn-secondary" id="export-csv-btn" style="font-size: 13px; padding: 6px 14px;">
+            <button type="button" class="btn btn-sm" id="resume-all-btn" onclick="openResumeAllModal()" style="background: rgba(16, 185, 129, 0.12); color: #059669; border: 1px solid rgba(16, 185, 129, 0.35); font-weight: 600; font-size: 13px; padding: 6px 14px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; border-radius: 6px;" title="Resume all currently paused sessions">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z"/></svg>
+                Resume All
+            </button>
+            <a href="{% url 'dashboard:export_sessions_csv' %}?status={{ status_filter }}&search={{ search|urlencode }}&period={{ period }}" class="btn btn-sm btn-secondary" id="export-csv-btn" style="font-size: 13px; padding: 6px 14px;">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                 Export CSV
             </a>
@@ -36,9 +40,9 @@
     </form>
 </div>
 
-<!-- Stats Grid (New) -->
+<!-- Stats Grid (Clickable Filters) -->
 <div class="stats-grid mb-md" style="grid-template-columns: repeat(4, 1fr);">
-    <div class="stat-card animate-fadeIn">
+    <a href="?status=&period={{ period }}&search={{ search|urlencode }}" class="stat-card stat-card-clickable animate-fadeIn {% if not status_filter %}active-filter{% endif %}" title="Filter by All Status">
         <div class="stat-info">
             <div class="stat-label">Total Users</div>
             <div class="stat-value" id="sessions-total-users">{{ total_users|default:"0" }}</div>
@@ -46,8 +50,8 @@
         <div class="static-icon" style="color: var(--color-dark); display: flex; align-items: center; justify-content: center;">
             <svg width="24" height="24" viewBox="0 0 16 16" fill="currentColor"><path d="M7 14s-1 0-1-1 1-4 5-4 5 3 5 4-1 1-1 1zm4-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6m-5.784 6A2.24 2.24 0 0 1 5 13c0-1.355.68-2.75 1.936-3.72A6.3 6.3 0 0 0 5 9c-4 0-5 3-5 4s1 1 1 1zM4.5 8a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5"/></svg>
         </div>
-    </div>
-    <div class="stat-card animate-fadeIn" style="animation-delay: 100ms">
+    </a>
+    <a href="?status=active&period={{ period }}&search={{ search|urlencode }}" class="stat-card stat-card-clickable animate-fadeIn {% if status_filter == 'active' %}active-filter{% endif %}" style="animation-delay: 100ms" title="Filter by Connected / Active">
         <div class="stat-info">
             <div class="stat-label">Connected</div>
             <div class="stat-value" id="sessions-connected-users" style="color: var(--color-success);">{{ connected_users|default:"0" }}</div>
@@ -55,8 +59,8 @@
         <div class="static-icon" style="color: var(--color-success); display: flex; align-items: center; justify-content: center;">
             <svg width="24" height="24" viewBox="0 0 16 16" fill="currentColor"><path fill-rule="evenodd" d="M0 4.882a.5.5 0 0 1 .68-.15c4.08 2.378 10.56 2.378 14.64 0a.5.5 0 0 1 .5.866c-4.38 2.553-11.26 2.553-15.64 0A.5.5 0 0 1 0 4.882m2.5 3a.5.5 0 0 1 .68-.15c2.72 1.585 7.04 1.585 9.76 0a.5.5 0 1 1 .5.866c-3.02 1.76-7.74 1.76-10.76 0a.5.5 0 0 1-.18-.716m2.5 3a.5.5 0 0 1 .68-.15c1.36.793 3.52.793 4.88 0a.5.5 0 1 1 .5.866c-1.66.968-4.22.968-5.88 0a.5.5 0 0 1-.18-.716M8 12a1 1 0 1 0 0 2 1 1 0 0 0 0-2"/></svg>
         </div>
-    </div>
-    <div class="stat-card animate-fadeIn" style="animation-delay: 200ms">
+    </a>
+    <a href="?status=paused&period={{ period }}&search={{ search|urlencode }}" class="stat-card stat-card-clickable animate-fadeIn {% if status_filter == 'paused' %}active-filter{% endif %}" style="animation-delay: 200ms" title="Filter by Paused">
         <div class="stat-info">
             <div class="stat-label">Paused</div>
             <div class="stat-value" id="sessions-paused-users" style="color: var(--color-warning);">{{ paused_users|default:"0" }}</div>
@@ -64,8 +68,8 @@
         <div class="static-icon" style="color: var(--color-warning); display: flex; align-items: center; justify-content: center;">
             <svg width="24" height="24" viewBox="0 0 16 16" fill="currentColor"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/><path d="M5 6.25a1.25 1.25 0 1 1 2.5 0v3.5a1.25 1.25 0 1 1-2.5 0zm3.5 0a1.25 1.25 0 1 1 2.5 0v3.5a1.25 1.25 0 1 1-2.5 0z"/></svg>
         </div>
-    </div>
-    <div class="stat-card animate-fadeIn" style="animation-delay: 300ms">
+    </a>
+    <a href="?status=expired&period={{ period }}&search={{ search|urlencode }}" class="stat-card stat-card-clickable animate-fadeIn {% if status_filter == 'expired' %}active-filter{% endif %}" style="animation-delay: 300ms" title="Filter by Expired">
         <div class="stat-info">
             <div class="stat-label">Expired</div>
             <div class="stat-value" id="sessions-expired-users" style="color: var(--color-danger);">{{ disconnected_users|default:"0" }}</div>
@@ -73,7 +77,7 @@
         <div class="static-icon" style="color: var(--color-danger); display: flex; align-items: center; justify-content: center;">
             <svg width="24" height="24" viewBox="0 0 16 16" fill="currentColor"><path d="M8.515 1.019A7 7 0 0 0 8 1V0a8 8 0 0 1 .589.022zm2.004.45a7 7 0 0 0-.985-.299l.219-.976q.576.129 1.123.338zm2.49 1.515a7 7 0 0 0-.792-.688l.583-.811q.467.336.88.746l-.67.753zM16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0m-8-5a.5.5 0 0 0-.5.5v5.25a.5.5 0 0 0 .25.433l3.5 2a.5.5 0 0 0 .5-.866L8.5 8.35V3.5A.5.5 0 0 0 8 3"/></svg>
         </div>
-    </div>
+    </a>
 </div>
 
 <!-- Users Table -->
@@ -106,7 +110,7 @@
                         <div class="font-semibold d-flex align-items-center gap-xs">
                             <span>{{ session.device_name|default:"Unknown" }}</span>
                             {% if session.mac_address in suspicious_macs %}
-                            <span class="badge" style="background: #fee2e2; color: #dc2626; font-size: 10px; padding: 1px 5px; border-radius: 4px; font-weight: 700;" title="Flagged for Suspicious Activity">⚠️ Alert</span>
+                            <a href="{% url 'dashboard:security' %}?status=all&q={{ session.mac_address|urlencode }}" class="badge" style="background: #fee2e2; color: #dc2626; font-size: 10px; padding: 1px 5px; border-radius: 4px; font-weight: 700; text-decoration: none;" title="Flagged for Suspicious Activity — View in Security">⚠️ Alert</a>
                             {% endif %}
                         </div>
                         {% if session.session_group %}
@@ -207,15 +211,15 @@
         </div>
         <div class="d-flex gap-xs">
             {% if sessions.has_previous %}
-                <a href="?page=1&status={{ status_filter }}&search={{ search }}&period={{ period }}" class="btn btn-sm btn-secondary">&laquo;</a>
-                <a href="?page={{ sessions.previous_page_number }}&status={{ status_filter }}&search={{ search }}&period={{ period }}" class="btn btn-sm btn-secondary">Prev</a>
+                <a href="?page=1&status={{ status_filter }}&search={{ search|urlencode }}&period={{ period }}" class="btn btn-sm btn-secondary">&laquo;</a>
+                <a href="?page={{ sessions.previous_page_number }}&status={{ status_filter }}&search={{ search|urlencode }}&period={{ period }}" class="btn btn-sm btn-secondary">Prev</a>
             {% endif %}
             
             <span class="btn btn-sm btn-primary" style="pointer-events: none;">{{ sessions.number }}</span>
             
             {% if sessions.has_next %}
-                <a href="?page={{ sessions.next_page_number }}&status={{ status_filter }}&search={{ search }}&period={{ period }}" class="btn btn-sm btn-secondary">Next</a>
-                <a href="?page={{ sessions.paginator.num_pages }}&status={{ status_filter }}&search={{ search }}&period={{ period }}" class="btn btn-sm btn-secondary">&raquo;</a>
+                <a href="?page={{ sessions.next_page_number }}&status={{ status_filter }}&search={{ search|urlencode }}&period={{ period }}" class="btn btn-sm btn-secondary">Next</a>
+                <a href="?page={{ sessions.paginator.num_pages }}&status={{ status_filter }}&search={{ search|urlencode }}&period={{ period }}" class="btn btn-sm btn-secondary">&raquo;</a>
             {% endif %}
         </div>
     </div>
@@ -315,6 +319,20 @@
 </div>
 
 <style>
+.stat-card-clickable {
+    cursor: pointer;
+    text-decoration: none;
+    color: inherit;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.stat-card-clickable:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+.stat-card-clickable.active-filter {
+    border: 2px solid var(--color-primary, #6366f1) !important;
+    background: rgba(99, 102, 241, 0.04);
+}
 .action-btn {
     width: 28px;
     height: 28px;
@@ -607,6 +625,35 @@
         modal.style.display = 'flex';
     }
 
+    function openResumeAllModal() {
+        currentSessionId = 'all';
+        currentAction = 'resume_all';
+
+        const modal = document.getElementById('sessionActionModal');
+        const title = document.getElementById('modalTitle');
+        const subtitle = document.getElementById('modalSubtitle');
+        const iconBox = document.getElementById('modalIconContainer');
+        const bodyText = document.getElementById('modalBodyText');
+        const inputContainer = document.getElementById('modalInputContainer');
+        const addTimeContainer = document.getElementById('modalAddTimeContainer');
+        const confirmBtn = document.getElementById('modalConfirmBtn');
+
+        inputContainer.style.display = 'none';
+        if (addTimeContainer) addTimeContainer.style.display = 'none';
+        iconBox.innerHTML = modalIcons.resume;
+        iconBox.style.background = 'rgba(16,185,129,0.12)';
+        iconBox.style.color = '#10b981';
+        title.innerText = 'Resume All Paused Sessions';
+        subtitle.innerText = 'Global Administrator Action';
+        bodyText.innerHTML = `Are you sure you want to <strong>resume all paused sessions</strong>? Active internet access will be restored for all non-blocked users with remaining time.`;
+        confirmBtn.className = 'btn btn-success';
+        confirmBtn.style.background = '#10b981';
+        confirmBtn.style.color = '#fff';
+        confirmBtn.innerText = 'Resume All Paused';
+
+        modal.style.display = 'flex';
+    }
+
     function closeActionModal() {
         document.getElementById('sessionActionModal').style.display = 'none';
         currentSessionId = null;
@@ -644,6 +691,33 @@
                 alert('An error occurred.');
                 confirmBtn.disabled = false;
                 confirmBtn.innerText = 'Pause All Active';
+            });
+            return;
+        }
+
+        if (currentAction === 'resume_all') {
+            fetch("{% url 'dashboard:resume_all_sessions' %}", {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert(data.error || 'Failed to resume sessions');
+                    confirmBtn.disabled = false;
+                    confirmBtn.innerText = 'Resume All Paused';
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert('An error occurred.');
+                confirmBtn.disabled = false;
+                confirmBtn.innerText = 'Resume All Paused';
             });
             return;
         }
@@ -720,6 +794,7 @@
 
     window.openActionModal = openActionModal;
     window.openPauseAllModal = openPauseAllModal;
+    window.openResumeAllModal = openResumeAllModal;
     window.closeActionModal = closeActionModal;
     window.submitActionModal = submitActionModal;
     window.selectPlanPreset = selectPlanPreset;

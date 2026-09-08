@@ -862,7 +862,7 @@ async function refreshSessionsLive() {
                 const timeRemainingText = s.status === 'expired' ? '00:00:00' : escapeHtml(s.time_remaining_display || '00:00:00');
 
                 const alertBadge = s.is_suspicious 
-                    ? '<span class="badge" style="background: #fee2e2; color: #dc2626; font-size: 10px; padding: 1px 5px; border-radius: 4px; font-weight: 700;" title="Flagged for Suspicious Activity">⚠️ Alert</span>' 
+                    ? `<a href="/iconnect-ops/security/?status=all&q=${encodeURIComponent(s.mac_address)}" class="badge" style="background: #fee2e2; color: #dc2626; font-size: 10px; padding: 1px 5px; border-radius: 4px; font-weight: 700; text-decoration: none;" title="Flagged for Suspicious Activity — View in Security">⚠️ Alert</a>` 
                     : '';
 
                 const groupHtml = s.group_code 

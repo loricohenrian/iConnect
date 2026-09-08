@@ -1237,6 +1237,172 @@ class SettingsSystemHardeningTests(TestCase):
             self.assertTrue(resp.content.startswith(b'SQLite format 3\x00'))
 
 
+class UsersSessionsHardeningTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        User = get_user_model()
+        self.admin = User.objects.create_superuser("sess_admin", "admin@sess.com", "pass1234")
+        self.client.login(username="sess_admin", password="pass1234")
+        from django.utils import timezone
+        self.now = timezone.now()
+        self.plan = Plan.objects.create(name="1 Hour Standard", price=10, duration_minutes=60, speed_limit=2.0)
+
+    def test_resume_blacklisted_device_rejected(self):
+        # Paused session for a device that was later blacklisted
+        session = Session.objects.create(
+            mac_address="DE:AD:BE:EF:00:01",
+            ip_address="10.0.0.50",
+            plan=self.plan,
+            amount_paid=10,
+            duration_minutes_purchased=60,
+            status="paused",
+            time_in=self.now,
+            paused_at=self.now
+        )
+        SuspiciousDevice.objects.create(
+            mac_address="DE:AD:BE:EF:00:01",
+            status=SuspiciousDevice.STATUS_BLOCKED,
+            is_blocked=True
+        )
+
+        resp = self.client.post(f"/iconnect-ops/sessions/{session.id}/resume/")
+        self.assertEqual(resp.status_code, 403)
+        self.assertFalse(resp.json()["success"])
+        self.assertIn("blocked", resp.json()["error"].lower())
+
+        session.refresh_from_db()
+        self.assertEqual(session.status, "paused")
+
+    def test_resume_expired_paused_session_rejected(self):
+        from datetime import timedelta
+        # Session started 2 hours ago with 60 mins duration; remaining time is 0
+        session = Session.objects.create(
+            mac_address="AA:BB:CC:00:00:02",
+            ip_address="10.0.0.51",
+            plan=self.plan,
+            amount_paid=10,
+            duration_minutes_purchased=60,
+            status="paused",
+            time_in=self.now - timedelta(minutes=120),
+            paused_at=self.now - timedelta(minutes=10)
+        )
+
+        resp = self.client.post(f"/iconnect-ops/sessions/{session.id}/resume/")
+        self.assertEqual(resp.status_code, 400)
+        self.assertFalse(resp.json()["success"])
+        self.assertIn("expired", resp.json()["error"].lower())
+
+        session.refresh_from_db()
+        self.assertEqual(session.status, "expired")
+
+    def test_add_time_blacklisted_device_rejected(self):
+        session = Session.objects.create(
+            mac_address="DE:AD:BE:EF:00:03",
+            ip_address="10.0.0.52",
+            plan=self.plan,
+            amount_paid=10,
+            duration_minutes_purchased=60,
+            status="active",
+            time_in=self.now
+        )
+        SuspiciousDevice.objects.create(
+            mac_address="DE:AD:BE:EF:00:03",
+            status=SuspiciousDevice.STATUS_BLOCKED,
+            is_blocked=True
+        )
+
+        resp = self.client.post(
+            f"/iconnect-ops/sessions/{session.id}/add_time/",
+            {"minutes": 30},
+            format="json"
+        )
+        self.assertEqual(resp.status_code, 403)
+        self.assertFalse(resp.json()["success"])
+        self.assertIn("blocked", resp.json()["error"].lower())
+
+    def test_admin_resume_all_sessions_skips_blocked(self):
+        # 1 valid paused session
+        s1 = Session.objects.create(
+            mac_address="AA:BB:CC:00:00:10",
+            ip_address="10.0.0.60",
+            plan=self.plan,
+            amount_paid=10,
+            duration_minutes_purchased=60,
+            status="paused",
+            time_in=self.now,
+            paused_at=self.now
+        )
+        # 1 blocked paused session
+        s2 = Session.objects.create(
+            mac_address="DE:AD:BE:EF:00:20",
+            ip_address="10.0.0.61",
+            plan=self.plan,
+            amount_paid=10,
+            duration_minutes_purchased=60,
+            status="paused",
+            time_in=self.now,
+            paused_at=self.now
+        )
+        SuspiciousDevice.objects.create(
+            mac_address="DE:AD:BE:EF:00:20",
+            status=SuspiciousDevice.STATUS_BLOCKED,
+            is_blocked=True
+        )
+
+        resp = self.client.post("/iconnect-ops/sessions/resume-all/")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertTrue(data["success"])
+        self.assertEqual(data["resumed_count"], 1)
+        self.assertEqual(data["skipped_blocked_count"], 1)
+
+        s1.refresh_from_db()
+        s2.refresh_from_db()
+        self.assertEqual(s1.status, "active")
+        self.assertEqual(s2.status, "paused")
+
+    def test_export_sessions_csv_sanitizes_formulas(self):
+        Session.objects.create(
+            mac_address="AA:BB:CC:00:00:30",
+            ip_address="+10.0.0.70",
+            device_name="=cmd|' /C calc'!A0",
+            plan=self.plan,
+            amount_paid=10,
+            duration_minutes_purchased=60,
+            status="active",
+            time_in=self.now
+        )
+
+        resp = self.client.get("/iconnect-ops/sessions/export/")
+        self.assertEqual(resp.status_code, 200)
+        content = resp.content.decode("utf-8")
+
+        # Must sanitize cells starting with '=' and '+'
+        self.assertIn("'=cmd|' /C calc'!A0", content)
+        self.assertIn("'+10.0.0.70", content)
+
+    def test_sessions_live_api_pagination(self):
+        # Create 30 active sessions
+        for i in range(30):
+            Session.objects.create(
+                mac_address=f"AA:BB:CC:00:01:{i:02x}",
+                ip_address=f"10.0.1.{i+1}",
+                device_name=f"Device {i}",
+                plan=self.plan,
+                amount_paid=10,
+                duration_minutes_purchased=60,
+                status="active",
+                time_in=self.now
+            )
+
+        resp = self.client.get("/api/dashboard/sessions/live/?page=2")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data["total_pages"], 2)
+        self.assertEqual(data["current_page"], 2)
+        self.assertEqual(len(data["sessions"]), 5)
+
+
 
 
 

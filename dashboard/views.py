@@ -596,8 +596,12 @@ def sessions_live_api(request):
     if not _is_dashboard_admin(request.user):
         return Response({'detail': 'Authentication required.'}, status=status.HTTP_401_UNAUTHORIZED)
 
-    from sessions_app.tasks import cleanup_expired_and_stale_sessions
-    cleanup_expired_and_stale_sessions()
+    # Throttle cleanup check to at most once per 20 seconds to prevent DB lock churn on 3s polling
+    from django.core.cache import cache
+    if not cache.get('cleanup_sessions_throttle'):
+        from sessions_app.tasks import cleanup_expired_and_stale_sessions
+        cleanup_expired_and_stale_sessions()
+        cache.set('cleanup_sessions_throttle', True, 20)
 
     status_filter = request.GET.get('status', '')
     search = sanitize_text(request.GET.get('search', ''), max_length=60)
@@ -615,11 +619,11 @@ def sessions_live_api(request):
             Q(status='expired', time_out__date=today)
         )
     elif period == 'week':
-        sessions = sessions.filter(time_in__gte=now - timedelta(days=7))
+        sessions = sessions.filter(Q(status='active') | Q(time_in__gte=now - timedelta(days=7)))
     elif period == 'month':
-        sessions = sessions.filter(time_in__gte=now - timedelta(days=30))
+        sessions = sessions.filter(Q(status='active') | Q(time_in__gte=now - timedelta(days=30)))
     elif period == 'year':
-        sessions = sessions.filter(time_in__gte=now - timedelta(days=365))
+        sessions = sessions.filter(Q(status='active') | Q(time_in__gte=now - timedelta(days=365)))
 
     total_users = sessions.count()
     connected_users = sessions.filter(status='active').count()
@@ -637,9 +641,18 @@ def sessions_live_api(request):
 
     suspicious_macs = set(SuspiciousDevice.objects.filter(status='new').values_list('mac_address', flat=True))
 
+    page = request.GET.get('page', 1)
+    paginator = Paginator(sessions, 25)
+    try:
+        sessions_page = paginator.page(page)
+    except PageNotAnInteger:
+        sessions_page = paginator.page(1)
+    except EmptyPage:
+        sessions_page = paginator.page(paginator.num_pages if paginator.num_pages > 0 else 1)
+
     session_list = []
     from sessions_app.views import _get_dhcp_hostname
-    for s in sessions[:100]:
+    for s in sessions_page:
         dev_name = s.device_name or 'Unknown'
         if dev_name in ('Unknown', 'Android Phone', 'Android', 'User Device', 'K'):
             dhcp_name = _get_dhcp_hostname(s.mac_address)
@@ -664,7 +677,7 @@ def sessions_live_api(request):
             'group_code': s.session_group.group_code if s.session_group else None,
             'time_remaining_seconds': max(0, int(s.time_remaining_seconds)),
             'time_remaining_display': s.time_remaining_display,
-            'bandwidth_used_mb': round(s.bandwidth_used_mb, 1),
+            'bandwidth_used_mb': round(s.bandwidth_used_mb or 0, 1),
             'status': s.status,
             'status_display': s.get_status_display(),
             'is_suspicious': s.mac_address in suspicious_macs,
@@ -675,6 +688,8 @@ def sessions_live_api(request):
         'connected_users': connected_users,
         'paused_users': paused_users,
         'disconnected_users': disconnected_users,
+        'current_page': sessions_page.number if hasattr(sessions_page, 'number') else 1,
+        'total_pages': paginator.num_pages,
         'sessions': session_list,
     })
 
@@ -938,11 +953,11 @@ def sessions_view(request):
             Q(status='expired', time_out__date=today)
         )
     elif period == 'week':
-        sessions = sessions.filter(time_in__gte=now - timedelta(days=7))
+        sessions = sessions.filter(Q(status='active') | Q(time_in__gte=now - timedelta(days=7)))
     elif period == 'month':
-        sessions = sessions.filter(time_in__gte=now - timedelta(days=30))
+        sessions = sessions.filter(Q(status='active') | Q(time_in__gte=now - timedelta(days=30)))
     elif period == 'year':
-        sessions = sessions.filter(time_in__gte=now - timedelta(days=365))
+        sessions = sessions.filter(Q(status='active') | Q(time_in__gte=now - timedelta(days=365)))
     # 'all' = no filter
 
     # Calculate metrics before applying status and search filters
@@ -998,6 +1013,16 @@ def sessions_view(request):
     return render(request, 'dashboard/sessions.html', context)
 
 
+def _sanitize_csv_cell(val):
+    """Prevent CSV formula injection for spreadsheet software (Excel, LibreOffice)."""
+    if val is None:
+        return ''
+    s = str(val)
+    if s and s[0] in ('=', '+', '-', '@', '\t', '\r'):
+        return f"'{s}"
+    return s
+
+
 @user_passes_test(_is_dashboard_admin, login_url='dashboard:login')
 def export_sessions_csv(request):
     """Export session logs as CSV file."""
@@ -1022,13 +1047,18 @@ def export_sessions_csv(request):
             if e_date:
                 sessions = sessions.filter(time_in__date__lte=e_date)
     elif period == 'today' or not period:
-        sessions = sessions.filter(time_in__date=today)
+        sessions = sessions.filter(
+            Q(status='active') |
+            Q(time_in__date=today) |
+            Q(status='paused', paused_at__date=today) |
+            Q(status='expired', time_out__date=today)
+        )
     elif period == 'week':
-        sessions = sessions.filter(time_in__gte=now - timedelta(days=7))
+        sessions = sessions.filter(Q(status='active') | Q(time_in__gte=now - timedelta(days=7)))
     elif period == 'month':
-        sessions = sessions.filter(time_in__gte=now - timedelta(days=30))
+        sessions = sessions.filter(Q(status='active') | Q(time_in__gte=now - timedelta(days=30)))
     elif period == 'year':
-        sessions = sessions.filter(time_in__gte=now - timedelta(days=365))
+        sessions = sessions.filter(Q(status='active') | Q(time_in__gte=now - timedelta(days=365)))
 
     if status_filter:
         sessions = sessions.filter(status=status_filter)
@@ -1056,16 +1086,16 @@ def export_sessions_csv(request):
         time_out_str = timezone.localtime(session.time_out).strftime('%Y-%m-%d %H:%M:%S') if session.time_out else ''
         writer.writerow([
             session.id,
-            session.mac_address,
-            session.ip_address or 'N/A',
-            session.device_name or 'Unknown',
-            session.plan.name if session.plan else 'Custom',
+            _sanitize_csv_cell(session.mac_address),
+            _sanitize_csv_cell(session.ip_address or 'N/A'),
+            _sanitize_csv_cell(session.device_name or 'Unknown'),
+            _sanitize_csv_cell(session.plan.name if session.plan else 'Custom'),
             session.amount_paid,
             session.duration_minutes_purchased,
-            session.get_status_display(),
+            _sanitize_csv_cell(session.get_status_display()),
             time_in_str,
             time_out_str,
-            round(session.bandwidth_used_mb, 2),
+            round(session.bandwidth_used_mb or 0, 2),
         ])
 
     audit_logger.info(
@@ -2312,12 +2342,85 @@ def admin_pause_all_sessions(request):
 
 @user_passes_test(_is_dashboard_admin, login_url='dashboard:login')
 @require_POST
+def admin_resume_all_sessions(request):
+    """Admin endpoint to resume all paused sessions at once, skipping blacklisted devices."""
+    from django.http import JsonResponse
+    from django.utils import timezone
+    from sessions_app.models import Session, SuspiciousDevice
+
+    paused_sessions = Session.objects.filter(status='paused')
+    count = paused_sessions.count()
+    if count == 0:
+        return JsonResponse({'success': False, 'error': 'No paused sessions to resume.'})
+
+    blocked_macs = set(
+        mac.lower() for mac in SuspiciousDevice.objects.filter(is_blocked=True).values_list('mac_address', flat=True)
+    )
+
+    now = timezone.now()
+    resumed_count = 0
+    skipped_blocked_count = 0
+    expired_count = 0
+
+    for session in paused_sessions:
+        if session.mac_address.lower() in blocked_macs:
+            skipped_blocked_count += 1
+            continue
+
+        if session.time_remaining_seconds <= 0:
+            session.status = 'expired'
+            session.time_out = now
+            session.paused_at = None
+            session.save(update_fields=['status', 'time_out', 'paused_at'])
+            expired_count += 1
+            continue
+
+        if session.paused_at:
+            paused_seconds = (now - session.paused_at).total_seconds()
+            session.total_paused_seconds += paused_seconds
+
+        session.status = "active"
+        session.paused_at = None
+        session.save(update_fields=["status", "total_paused_seconds", "paused_at"])
+
+        try:
+            from sessions_app.iptables import allow_device
+            dl_kbps = int(session.plan.speed_limit * 1024) if session.plan and session.plan.speed_limit else None
+            ul_kbps = int(session.plan.speed_limit_upload * 1024) if session.plan and session.plan.speed_limit_upload else dl_kbps
+            allow_device(session.mac_address, rate_kbps=dl_kbps, upload_kbps=ul_kbps)
+        except Exception as e:
+            logging.error(f"Failed to allow device {session.mac_address} on bulk resume: {e}")
+
+        resumed_count += 1
+
+    audit_logger.info(
+        "event=resume_all_sessions user=%s resumed=%d skipped_blocked=%d expired=%d ip=%s",
+        request.user.username, resumed_count, skipped_blocked_count, expired_count, _client_ip(request)
+    )
+
+    msg = f'Successfully resumed {resumed_count} session(s).'
+    if skipped_blocked_count > 0:
+        msg += f' ({skipped_blocked_count} blocked device(s) skipped)'
+    if expired_count > 0:
+        msg += f' ({expired_count} expired session(s) finalized)'
+
+    return JsonResponse({
+        'success': True,
+        'resumed_count': resumed_count,
+        'skipped_blocked_count': skipped_blocked_count,
+        'expired_count': expired_count,
+        'message': msg
+    })
+
+
+@user_passes_test(_is_dashboard_admin, login_url='dashboard:login')
+@require_POST
 def admin_session_action(request, session_id, action):
     """Admin endpoint to pause, resume, edit, or delete a session from the dashboard."""
     import json
     from django.http import JsonResponse
     from django.utils import timezone
-    from sessions_app.models import Session
+    from sessions_app.models import Session, SuspiciousDevice
     
     try:
         session = Session.objects.get(id=session_id)
@@ -2342,10 +2445,33 @@ def admin_session_action(request, session_id, action):
             block_device(session.mac_address)
         except Exception as e:
             logging.error(f"Failed to block device on pause: {e}")
+
+        audit_logger.info(
+            "event=admin_pause_session user=%s mac=%s session_id=%s ip=%s",
+            request.user.username, session.mac_address, session.id, _client_ip(request)
+        )
             
     elif action == 'resume':
         if session.status != 'paused':
             return JsonResponse({'success': False, 'error': 'Session is not paused'})
+
+        # Blocked device check: prevent blacklisted devices from being resumed
+        if SuspiciousDevice.objects.filter(mac_address__iexact=session.mac_address, is_blocked=True).exists():
+            return JsonResponse({
+                'success': False,
+                'error': 'This device is blocked in Security. Unblock it in the Security page before resuming.'
+            }, status=403)
+
+        # Expired remaining time check: prevent resuming an expired paused session
+        if session.time_remaining_seconds <= 0:
+            session.status = 'expired'
+            session.time_out = timezone.now()
+            session.paused_at = None
+            session.save(update_fields=['status', 'time_out', 'paused_at'])
+            return JsonResponse({
+                'success': False,
+                'error': 'Session time has expired and cannot be resumed.'
+            }, status=400)
             
         if session.paused_at:
             paused_seconds = (timezone.now() - session.paused_at).total_seconds()
@@ -2363,6 +2489,11 @@ def admin_session_action(request, session_id, action):
             allow_device(session.mac_address, rate_kbps=dl_kbps, upload_kbps=ul_kbps)
         except Exception as e:
             logging.error(f"Failed to allow device on resume: {e}")
+
+        audit_logger.info(
+            "event=admin_resume_session user=%s mac=%s session_id=%s ip=%s",
+            request.user.username, session.mac_address, session.id, _client_ip(request)
+        )
             
     elif action in ('delete', 'end', 'disconnect'):
         if session.status in ('active', 'paused'):
@@ -2373,7 +2504,13 @@ def admin_session_action(request, session_id, action):
                 logging.error(f"Failed to block device on disconnect: {e}")
         session.status = 'expired'
         session.time_out = timezone.now()
-        session.save(update_fields=['status', 'time_out'])
+        session.paused_at = None
+        session.save(update_fields=['status', 'time_out', 'paused_at'])
+
+        audit_logger.info(
+            "event=admin_disconnect_session user=%s mac=%s session_id=%s ip=%s",
+            request.user.username, session.mac_address, session.id, _client_ip(request)
+        )
 
     elif action == 'block':
         from sessions_app.models import SuspiciousDevice
@@ -2387,7 +2524,8 @@ def admin_session_action(request, session_id, action):
         if session.status in ('active', 'paused'):
             session.status = 'expired'
             session.time_out = timezone.now()
-            session.save(update_fields=['status', 'time_out'])
+            session.paused_at = None
+            session.save(update_fields=['status', 'time_out', 'paused_at'])
 
         # Add or update Blacklist / SuspiciousDevice entry
         susp, created = SuspiciousDevice.objects.get_or_create(
@@ -2410,6 +2548,13 @@ def admin_session_action(request, session_id, action):
             susp.save()
 
     elif action == 'add_time':
+        # Blocked device check: prevent blacklisted devices from receiving time
+        if SuspiciousDevice.objects.filter(mac_address__iexact=session.mac_address, is_blocked=True).exists():
+            return JsonResponse({
+                'success': False,
+                'error': 'This device is blocked in Security. Unblock it in the Security page before extending time.'
+            }, status=403)
+
         try:
             data = json.loads(request.body) if request.body else {}
             minutes = parse_bounded_int(data.get('minutes'), 1, 10080, "Additional minutes")
@@ -2497,6 +2642,10 @@ def admin_session_action(request, session_id, action):
                 return JsonResponse({'success': False, 'error': 'Device name cannot be empty (max 60 characters)'}, status=400)
             session.device_name = new_name
             session.save(update_fields=['device_name'])
+            audit_logger.info(
+                "event=admin_edit_session user=%s mac=%s session_id=%s new_name=%s ip=%s",
+                request.user.username, session.mac_address, session.id, new_name, _client_ip(request)
+            )
         except Exception as e:
             return JsonResponse({'success': False, 'error': str(e)}, status=400)
             
