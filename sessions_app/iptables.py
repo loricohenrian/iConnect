@@ -158,22 +158,27 @@ def allow_device(mac_address, rate_kbps=None, upload_kbps=None):
 
 
 def _flush_conntrack(mac_address):
-    """Flush connection tracking entries for a device to kill established connections."""
+    """
+    Flush connection tracking entries for a device to kill established/redirected connections.
+    Also clears stale NAT connection tracking to Google connectivity check subnets.
+    """
     mac = mac_address.upper()
-    # Get device IP from ARP table, then flush conntrack by IP
-    try:
-        with open('/proc/net/arp', 'r') as f:
-            for line in f:
-                parts = line.split()
-                if len(parts) >= 4 and parts[3].upper() == mac:
-                    ip = parts[0]
-                    _run_command(['conntrack', '-D', '-s', ip], ignore_errors=True)
-                    _run_command(['conntrack', '-D', '-d', ip], ignore_errors=True)
-                    logger.info('Flushed conntrack for device: %s (%s)', mac, ip)
-                    return True
-    except (OSError, IOError):
-        pass
-    return False
+    ip = _get_device_ip(mac)
+    flushed = False
+
+    if ip:
+        _run_command(['conntrack', '-D', '-s', ip], ignore_errors=True)
+        _run_command(['conntrack', '-D', '-d', ip], ignore_errors=True)
+        _run_command(['conntrack', '-D', '-p', 'tcp', '-s', ip, '--dport', '80'], ignore_errors=True)
+        _run_command(['conntrack', '-D', '-p', 'tcp', '-d', ip, '--sport', '80'], ignore_errors=True)
+        logger.info('Flushed conntrack for device: %s (%s)', mac, ip)
+        flushed = True
+
+    # Flush Google connectivity check subnets so stale captive-portal redirects don't persist
+    for google_subnet in ['172.217.0.0/16', '142.250.0.0/15', '216.58.0.0/19', '142.251.0.0/16']:
+        _run_command(['conntrack', '-D', '-d', google_subnet], ignore_errors=True)
+
+    return flushed
 
 
 def block_device(mac_address):
@@ -336,7 +341,7 @@ def apply_pre_auth_dns_policy():
 
 
 def _get_device_ip(mac_address):
-    """Resolve MAC address to IP from ARP table."""
+    """Resolve MAC address to IP from ARP table, ip neigh, or database session."""
     mac = mac_address.upper()
     try:
         with open('/proc/net/arp', 'r') as f:
@@ -346,6 +351,27 @@ def _get_device_ip(mac_address):
                     return parts[0]
     except (OSError, IOError):
         pass
+
+    try:
+        res = subprocess.run(['ip', 'neigh', 'show'], capture_output=True, text=True, timeout=3)
+        if res.returncode == 0:
+            for line in res.stdout.splitlines():
+                parts = line.split()
+                if len(parts) >= 5 and 'lladdr' in parts:
+                    idx = parts.index('lladdr')
+                    if idx + 1 < len(parts) and parts[idx + 1].upper() == mac:
+                        return parts[0]
+    except Exception:
+        pass
+
+    try:
+        from .models import Session
+        sess = Session.objects.filter(mac_address=mac).exclude(ip_address='').order_by('-id').first()
+        if sess and sess.ip_address:
+            return sess.ip_address
+    except Exception:
+        pass
+
     return None
 
 

@@ -925,6 +925,7 @@ def captive_portal_probe(request):
     Handle OS network connectivity detection probes (Android/Chrome, Apple, Windows, Firefox).
     If the device has an active session, return the exact OS success response (e.g. HTTP 204 or Success).
     If the device is not authenticated, redirect to the captive portal to prompt login/coin insertion.
+    Always adds 'Connection: close' to prevent clients from reusing stale keep-alive sockets.
     """
     mac = _get_mac_address(request)
     client_ip = _client_ip(request)
@@ -939,22 +940,30 @@ def captive_portal_probe(request):
 
     if is_active:
         if 'generate_204' in path or 'gen_204' in path:
-            return HttpResponse(status=204)
+            response = HttpResponse(status=204)
         elif 'hotspot-detect' in path:
-            return HttpResponse(
+            response = HttpResponse(
                 '<HTML><HEAD><TITLE>Success</TITLE></HEAD><BODY>Success</BODY></HTML>',
                 content_type='text/html'
             )
         elif 'connecttest' in path:
-            return HttpResponse('Microsoft Connect Test', content_type='text/plain')
+            response = HttpResponse('Microsoft Connect Test', content_type='text/plain')
         elif 'ncsi' in path:
-            return HttpResponse('Microsoft NCSI', content_type='text/plain')
+            response = HttpResponse('Microsoft NCSI', content_type='text/plain')
         elif 'success' in path:
-            return HttpResponse('success\n', content_type='text/plain')
-        return HttpResponse(status=204)
+            response = HttpResponse('success\n', content_type='text/plain')
+        else:
+            response = HttpResponse(status=204)
+    else:
+        # Not active — redirect to captive portal
+        response = redirect('/')
 
-    # Not active — redirect to captive portal
-    return redirect('/')
+    # Prevent connection keep-alive and caching on all probe endpoints
+    response['Connection'] = 'close'
+    response['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    response['Pragma'] = 'no-cache'
+    response['Expires'] = '0'
+    return response
 
 
 
