@@ -176,6 +176,58 @@ def announcements_api(request):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+def _calculate_dashboard_roi_and_revenue():
+    """Shared calculation of operating days, expenses, and ROI between overview and APIs."""
+    today = timezone.localdate()
+    start_of_week = today - timedelta(days=today.weekday())
+    start_of_month = today.replace(day=1)
+
+    has_coins = CoinEvent.objects.exists()
+    if has_coins:
+        rev_today = CoinEvent.objects.filter(timestamp__date=today).aggregate(total=Sum('amount'))['total'] or 0
+        rev_week = CoinEvent.objects.filter(timestamp__date__gte=start_of_week).aggregate(total=Sum('amount'))['total'] or 0
+        rev_month = CoinEvent.objects.filter(timestamp__date__gte=start_of_month).aggregate(total=Sum('amount'))['total'] or 0
+        total_rev = CoinEvent.objects.aggregate(total=Sum('amount'))['total'] or 0
+    else:
+        rev_today = Session.objects.filter(time_in__date=today).aggregate(total=Sum('amount_paid'))['total'] or 0
+        rev_week = Session.objects.filter(time_in__date__gte=start_of_week).aggregate(total=Sum('amount_paid'))['total'] or 0
+        rev_month = Session.objects.filter(time_in__date__gte=start_of_month).aggregate(total=Sum('amount_paid'))['total'] or 0
+        total_rev = Session.objects.aggregate(total=Sum('amount_paid'))['total'] or 0
+
+    total_cost = ProjectCost.total_cost()
+    first_session = Session.objects.order_by('time_in').first()
+    first_coin = CoinEvent.objects.order_by('timestamp').first()
+    first_cost = ProjectCost.objects.order_by('date_added').first()
+
+    first_dates = []
+    if first_cost and first_cost.date_added:
+        first_dates.append(timezone.localtime(first_cost.date_added).date())
+    if first_session and first_session.time_in:
+        first_dates.append(timezone.localtime(first_session.time_in).date())
+    if first_coin and first_coin.timestamp:
+        first_dates.append(timezone.localtime(first_coin.timestamp).date())
+
+    day_1 = min(min(first_dates), today) if first_dates else today
+    days_operating = max((today - day_1).days + 1, 1)
+
+    from dashboard.models import OperatingExpense
+    total_expenses = OperatingExpense.calculate_total_expenses(days_operating)
+    net_profit = total_rev - total_expenses
+    roi_percentage = (net_profit / total_cost * 100) if total_cost > 0 else 0
+
+    return {
+        'revenue_today': rev_today,
+        'revenue_this_week': rev_week,
+        'revenue_this_month': rev_month,
+        'total_revenue': total_rev,
+        'total_cost': total_cost,
+        'days_operating': days_operating,
+        'roi_percentage': round(roi_percentage, 1),
+        'start_of_week': start_of_week,
+        'start_of_month': start_of_month,
+    }
+
+
 @api_view(['GET'])
 def dashboard_stats_api(request):
     """
@@ -184,16 +236,17 @@ def dashboard_stats_api(request):
     if not _is_dashboard_admin(request.user):
         return Response({'detail': 'Authentication required.'}, status=status.HTTP_401_UNAUTHORIZED)
 
-    from sessions_app.tasks import cleanup_expired_and_stale_sessions
-    cleanup_expired_and_stale_sessions()
+    # Throttle cleanup check to at most once per 20 seconds to prevent DB churn on 3s polling
+    from django.core.cache import cache
+    if not cache.get('cleanup_sessions_throttle'):
+        from sessions_app.tasks import cleanup_expired_and_stale_sessions
+        cleanup_expired_and_stale_sessions()
+        cache.set('cleanup_sessions_throttle', True, 20)
+
+    stats_calc = _calculate_dashboard_roi_and_revenue()
 
     today = timezone.localdate()
     week_ago = today - timedelta(days=7)
-
-    # Revenue today (all physical coins inserted today)
-    revenue_today = CoinEvent.objects.filter(
-        timestamp__date=today
-    ).aggregate(total=Sum('amount'))['total'] or 0
 
     # Connected users
     connected_count = Session.objects.filter(status='active').count()
@@ -203,19 +256,6 @@ def dashboard_stats_api(request):
     bandwidth_today = Session.objects.filter(
         time_in__date=today
     ).aggregate(total=Sum('bandwidth_used_mb'))['total'] or 0
-
-    # ROI
-    total_cost = ProjectCost.total_cost()
-    total_revenue = CoinEvent.objects.aggregate(total=Sum('amount'))['total'] or 0
-
-    first_session = Session.objects.order_by('time_in').first()
-    days_operating = max((timezone.now() - first_session.time_in).days, 1) if first_session else 0
-    
-    from dashboard.models import OperatingExpense
-    total_expenses = OperatingExpense.calculate_total_expenses(days_operating)
-    
-    net_profit = total_revenue - total_expenses
-    roi_percentage = (net_profit / total_cost * 100) if total_cost > 0 else 0
 
     # Revenue last 7 days
     daily_revenue = Session.objects.filter(
@@ -262,14 +302,16 @@ def dashboard_stats_api(request):
     daily_savings = (system_watts / 1000) * hours_today * elec_rate
 
     return Response({
-        'revenue_today': revenue_today,
+        'revenue_today': stats_calc['revenue_today'],
+        'revenue_this_week': stats_calc['revenue_this_week'],
+        'revenue_this_month': stats_calc['revenue_this_month'],
         'connected_users': connected_count,
         'whitelisted_devices': whitelisted_count,
         'total_connected': connected_count + whitelisted_count,
-        'bandwidth_today_mb': round(bandwidth_today, 1),
-        'roi_percentage': round(roi_percentage, 1),
-        'total_cost': total_cost,
-        'total_revenue': total_revenue,
+        'bandwidth_today_mb': round(bandwidth_today or 0, 1),
+        'roi_percentage': stats_calc['roi_percentage'],
+        'total_cost': stats_calc['total_cost'],
+        'total_revenue': stats_calc['total_revenue'],
         'sessions_today': sessions_today,
         'daily_revenue': list(daily_revenue),
         'solar_savings_today': round(daily_savings, 2),
@@ -280,12 +322,15 @@ def dashboard_stats_api(request):
 @api_view(['GET'])
 def system_stats_api(request):
     """System hardware stats (CPU temp, load, RAM, disk)."""
+    if not _is_dashboard_admin(request.user):
+        return Response({'detail': 'Authentication required.'}, status=status.HTTP_401_UNAUTHORIZED)
+
     import shutil
     import os
-    import subprocess
 
     stats = {
         'cpu_temp': 'N/A',
+        'cpu_temp_val': None,
         'cpu_load': 'N/A',
         'cpu_load_raw': 0,
         'cpu_count': 1,
@@ -297,13 +342,24 @@ def system_stats_api(request):
         'disk_total': 'N/A',
         'disk_remaining': 'N/A',
         'disk_percent': 0,
+        'internet_online': None,
     }
 
     # CPU Temperature
     try:
-        with open('/sys/class/thermal/thermal_zone0/temp', 'r') as f:
-            temp_raw = int(f.read().strip())
-            stats['cpu_temp'] = f"{temp_raw / 1000:.1f}°C"
+        thermal_paths = [
+            '/sys/class/thermal/thermal_zone0/temp',
+            '/sys/class/thermal/thermal_zone1/temp',
+            '/sys/devices/virtual/thermal/thermal_zone0/temp',
+        ]
+        for t_path in thermal_paths:
+            if os.path.exists(t_path):
+                with open(t_path, 'r') as f:
+                    temp_raw = int(f.read().strip())
+                    temp_c = temp_raw / 1000.0
+                    stats['cpu_temp'] = f"{temp_c:.1f}°C"
+                    stats['cpu_temp_val'] = round(temp_c, 1)
+                    break
     except Exception:
         pass
 
@@ -350,7 +406,8 @@ def system_stats_api(request):
 
     # Disk
     try:
-        usage = shutil.disk_usage('/')
+        root_path = os.path.splitdrive(settings.BASE_DIR)[0] if os.name == 'nt' else '/'
+        usage = shutil.disk_usage(root_path or '/')
         total_gb = usage.total / (1024 ** 3)
         used_gb = usage.used / (1024 ** 3)
         free_gb = usage.free / (1024 ** 3)
@@ -361,17 +418,19 @@ def system_stats_api(request):
     except Exception:
         pass
 
-    # Internet Status Check
-    try:
-        subprocess.run(
-            ['ping', '-c', '1', '-W', '1', '8.8.8.8'],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            check=True
-        )
-        stats['internet_online'] = True
-    except Exception:
-        stats['internet_online'] = False
+    # Internet Status Check (cached for 15s to prevent worker starvation)
+    from django.core.cache import cache
+    cached_internet = cache.get('dashboard_system_internet_online')
+    if cached_internet is not None:
+        stats['internet_online'] = cached_internet
+    else:
+        try:
+            from sessions_app.internet_monitor import probe_upstream_internet
+            is_online = probe_upstream_internet(timeout=0.8)
+            stats['internet_online'] = is_online
+            cache.set('dashboard_system_internet_online', is_online, 15)
+        except Exception:
+            stats['internet_online'] = False
 
     return Response(stats)
 
@@ -702,39 +761,16 @@ def sessions_live_api(request):
 def overview(request):
     """Admin dashboard overview page."""
     today = timezone.localdate()
-
-    # Revenue = all coins inserted (coins are physically in the box)
-    revenue_today = CoinEvent.objects.filter(
-        timestamp__date=today
-    ).aggregate(total=Sum('amount'))['total'] or 0
-
-    start_of_week = today - timedelta(days=today.weekday())
-    revenue_this_week = CoinEvent.objects.filter(
-        timestamp__date__gte=start_of_week
-    ).aggregate(total=Sum('amount'))['total'] or 0
-
-    start_of_month = today.replace(day=1)
-    revenue_this_month = CoinEvent.objects.filter(
-        timestamp__date__gte=start_of_month
-    ).aggregate(total=Sum('amount'))['total'] or 0
+    stats_calc = _calculate_dashboard_roi_and_revenue()
 
     connected = Session.objects.filter(status='active').count()
     whitelisted = WhitelistedDevice.objects.count()
     sessions_today = Session.objects.filter(time_in__date=today).count()
+    bandwidth_today = Session.objects.filter(
+        time_in__date=today
+    ).aggregate(total=Sum('bandwidth_used_mb'))['total'] or 0
 
-    total_cost = ProjectCost.total_cost()
-    total_revenue = CoinEvent.objects.aggregate(total=Sum('amount'))['total'] or 0
-    
-    first_session = Session.objects.order_by('time_in').first()
-    days_operating = max((timezone.now() - first_session.time_in).days, 1) if first_session else 0
-    
-    from dashboard.models import OperatingExpense
-    total_expenses = OperatingExpense.calculate_total_expenses(days_operating)
-    
-    net_profit = total_revenue - total_expenses
-    roi_pct = (net_profit / total_cost * 100) if total_cost > 0 else 0
-
-    recent_sessions = Session.objects.select_related('plan').all()[:5]
+    recent_sessions = Session.objects.select_related('plan').order_by('-time_in')[:10]
     announcements = Announcement.objects.filter(is_active=True)
 
     # Solar savings
@@ -743,18 +779,19 @@ def overview(request):
     monthly_savings = (system_watts / 1000) * 24 * 30 * elec_rate
 
     context = {
-        'revenue_today': revenue_today,
-        'revenue_this_week': revenue_this_week,
-        'revenue_this_month': revenue_this_month,
-        'start_of_week_date': start_of_week.strftime('%b %d'),
+        'revenue_today': stats_calc['revenue_today'],
+        'revenue_this_week': stats_calc['revenue_this_week'],
+        'revenue_this_month': stats_calc['revenue_this_month'],
+        'start_of_week_date': stats_calc['start_of_week'].strftime('%b %d'),
         'current_month_name': today.strftime('%B %Y'),
         'connected_users': connected,
         'whitelisted_count': whitelisted,
         'total_connected': connected + whitelisted,
         'sessions_today': sessions_today,
-        'roi_percentage': round(roi_pct, 1),
-        'total_cost': total_cost,
-        'total_revenue': total_revenue,
+        'bandwidth_today_mb': round(bandwidth_today or 0, 1),
+        'roi_percentage': stats_calc['roi_percentage'],
+        'total_cost': stats_calc['total_cost'],
+        'total_revenue': stats_calc['total_revenue'],
         'recent_sessions': recent_sessions,
         'announcements': announcements,
         'monthly_solar_savings': round(monthly_savings, 2),

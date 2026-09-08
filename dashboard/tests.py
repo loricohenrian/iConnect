@@ -1,5 +1,7 @@
+from datetime import timedelta
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
+from django.utils import timezone
 from rest_framework.test import APIClient
 from unittest.mock import patch
 
@@ -1401,6 +1403,146 @@ class UsersSessionsHardeningTests(TestCase):
         self.assertEqual(data["total_pages"], 2)
         self.assertEqual(data["current_page"], 2)
         self.assertEqual(len(data["sessions"]), 5)
+
+
+class DashboardOverviewHardeningTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        User = get_user_model()
+        self.admin_user = User.objects.create_user(
+            username="overview_admin",
+            password="admin123password",
+            is_staff=True,
+            is_superuser=True,
+        )
+        self.now = timezone.now()
+        self.plan = Plan.objects.create(
+            name="1 Hour Regular",
+            price=10.00,
+            duration_minutes=60,
+            is_active=True
+        )
+
+    def test_system_stats_api_requires_admin_auth(self):
+        # Unauthenticated request must be blocked
+        resp = self.client.get("/api/dashboard/system/")
+        self.assertIn(resp.status_code, (401, 403))
+
+        # Authenticated non-staff user must be blocked
+        User = get_user_model()
+        User.objects.create_user(username="regular_student", password="password123")
+        self.client.login(username="regular_student", password="password123")
+        student_resp = self.client.get("/api/dashboard/system/")
+        self.assertIn(student_resp.status_code, (401, 403))
+
+        # Authenticated admin request must succeed
+        self.client.login(username=self.admin_user.username, password="admin123password")
+        auth_resp = self.client.get("/api/dashboard/system/")
+        self.assertEqual(auth_resp.status_code, 200)
+        data = auth_resp.json()
+        self.assertIn("cpu_load", data)
+        self.assertIn("ram_percent", data)
+        self.assertIn("disk_percent", data)
+        self.assertIn("internet_online", data)
+
+    @patch("sessions_app.internet_monitor.probe_upstream_internet")
+    def test_system_stats_api_caches_internet_probe(self, mock_probe):
+        from django.core.cache import cache
+        cache.delete("dashboard_system_internet_online")
+        mock_probe.return_value = True
+
+        self.client.login(username=self.admin_user.username, password="admin123password")
+        
+        # First call triggers probe
+        resp1 = self.client.get("/api/dashboard/system/")
+        self.assertEqual(resp1.status_code, 200)
+        self.assertTrue(resp1.json()["internet_online"])
+        self.assertEqual(mock_probe.call_count, 1)
+
+        # Second call uses cache within 15 seconds
+        resp2 = self.client.get("/api/dashboard/system/")
+        self.assertEqual(resp2.status_code, 200)
+        self.assertTrue(resp2.json()["internet_online"])
+        self.assertEqual(mock_probe.call_count, 1)
+
+    @patch("sessions_app.tasks.cleanup_expired_and_stale_sessions")
+    def test_dashboard_stats_api_throttles_cleanup(self, mock_cleanup):
+        from django.core.cache import cache
+        cache.delete("cleanup_sessions_throttle")
+
+        self.client.login(username=self.admin_user.username, password="admin123password")
+
+        # First request should call cleanup and set cache
+        resp1 = self.client.get("/api/dashboard/stats/")
+        self.assertEqual(resp1.status_code, 200)
+        self.assertEqual(mock_cleanup.call_count, 1)
+        self.assertTrue(cache.get("cleanup_sessions_throttle"))
+
+        # Subsequent immediate request within 20s should NOT trigger cleanup again
+        resp2 = self.client.get("/api/dashboard/stats/")
+        self.assertEqual(resp2.status_code, 200)
+        self.assertEqual(mock_cleanup.call_count, 1)
+
+    def test_dashboard_stats_api_returns_weekly_and_monthly_revenue(self):
+        # Create sessions for today, earlier this week, and earlier this month
+        Session.objects.create(
+            mac_address="AA:BB:CC:11:11:11",
+            plan=self.plan,
+            amount_paid=15.00,
+            duration_minutes_purchased=90,
+            status="active",
+            time_in=self.now
+        )
+
+        self.client.login(username=self.admin_user.username, password="admin123password")
+        resp = self.client.get("/api/dashboard/stats/")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+
+        self.assertIn("revenue_this_week", data)
+        self.assertIn("revenue_this_month", data)
+        self.assertEqual(data["revenue_today"], 15.00)
+        self.assertGreaterEqual(data["revenue_this_week"], 15.00)
+        self.assertGreaterEqual(data["revenue_this_month"], 15.00)
+
+    def test_overview_recent_sessions_ordering(self):
+        # Create three sessions with staggered time_in
+        s_old = Session.objects.create(
+            mac_address="AA:BB:CC:11:00:01",
+            plan=self.plan,
+            amount_paid=10,
+            duration_minutes_purchased=60,
+            status="expired",
+            time_in=self.now - timedelta(hours=3)
+        )
+        s_mid = Session.objects.create(
+            mac_address="AA:BB:CC:11:00:02",
+            plan=self.plan,
+            amount_paid=10,
+            duration_minutes_purchased=60,
+            status="expired",
+            time_in=self.now - timedelta(hours=1)
+        )
+        s_new = Session.objects.create(
+            mac_address="AA:BB:CC:11:00:03",
+            plan=self.plan,
+            amount_paid=10,
+            duration_minutes_purchased=60,
+            status="active",
+            time_in=self.now
+        )
+
+        self.client.login(username=self.admin_user.username, password="admin123password")
+        resp = self.client.get("/iconnect-ops/")
+        self.assertEqual(resp.status_code, 200)
+
+        sessions_in_context = list(resp.context["recent_sessions"])
+        self.assertGreaterEqual(len(sessions_in_context), 3)
+        # Most recent session must be first
+        self.assertEqual(sessions_in_context[0].id, s_new.id)
+        self.assertEqual(sessions_in_context[1].id, s_mid.id)
+        self.assertEqual(sessions_in_context[2].id, s_old.id)
+
 
 
 

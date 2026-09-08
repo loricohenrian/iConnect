@@ -400,8 +400,32 @@ function escapeHtml(str) {
 // Recent Sessions Dynamic Table Renderer
 // ============================================
 function renderRecentSessions(sessions) {
-    const table = document.getElementById('recent-sessions-table');
-    if (!table || !Array.isArray(sessions)) return;
+    let table = document.getElementById('recent-sessions-table');
+    const container = document.getElementById('recent-sessions-container');
+
+    if (!Array.isArray(sessions)) return;
+
+    if (!table && container && sessions.length > 0) {
+        container.innerHTML = `
+        <div class="table-container">
+            <table id="recent-sessions-table">
+                <thead>
+                    <tr>
+                        <th>Hostname / Device</th>
+                        <th>Plan</th>
+                        <th>Amount</th>
+                        <th>Time In</th>
+                        <th>Remaining</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>`;
+        table = document.getElementById('recent-sessions-table');
+    }
+
+    if (!table) return;
 
     const tbody = table.querySelector('tbody');
     if (!tbody) return;
@@ -452,17 +476,55 @@ function renderRecentSessions(sessions) {
 async function refreshDashboardStats() {
     try {
         const response = await fetch('/api/dashboard/stats/');
+        if (!response.ok) return;
         const data = await response.json();
 
-        // Update stat cards
-        updateStatValue('revenue-today', '₱' + Number(data.revenue_today).toLocaleString());
-        updateStatValue('connected-users', data.total_connected);
-        updateStatValue('bandwidth-today', data.bandwidth_today_mb + ' MB');
-        updateStatValue('roi-progress', data.roi_percentage + '%');
-        updateStatValue('sessions-today', data.sessions_today);
+        // Update stat cards (preserve currency symbol styling if present)
+        if (document.getElementById('revenue-today-val')) {
+            updateStatValue('revenue-today-val', Number(data.revenue_today || 0).toLocaleString());
+        } else {
+            updateStatValue('revenue-today', '₱' + Number(data.revenue_today || 0).toLocaleString());
+        }
 
-        // Update ROI progress bar
-        updateROIProgress(data.roi_percentage);
+        if (data.revenue_this_week !== undefined) {
+            updateStatValue('revenue-this-week-val', Number(data.revenue_this_week || 0).toLocaleString());
+        }
+        if (data.revenue_this_month !== undefined) {
+            updateStatValue('revenue-this-month-val', Number(data.revenue_this_month || 0).toLocaleString());
+        }
+
+        updateStatValue('connected-users', data.total_connected || 0);
+        updateStatValue('bandwidth-today', (data.bandwidth_today_mb || 0) + ' MB');
+        updateStatValue('sessions-today', data.sessions_today || 0);
+
+        // Update live network panel in overview
+        updateStatValue('live-active-users', data.total_connected || 0);
+        if (data.bandwidth_today_mb !== undefined) {
+            updateStatValue('live-total-bandwidth', (data.bandwidth_today_mb || 0) + ' MB');
+        }
+        const liveMeta = document.getElementById('live-network-meta');
+        if (liveMeta) {
+            liveMeta.textContent = `Updated ${new Date().toLocaleTimeString()}`;
+        }
+
+        // Update ROI progress value and color
+        const roiProgressEl = document.getElementById('roi-progress');
+        if (roiProgressEl && data.roi_percentage !== undefined) {
+            const roiVal = parseFloat(data.roi_percentage) || 0;
+            roiProgressEl.textContent = (roiVal > 0 ? '+' : '') + roiVal.toFixed(1) + '%';
+            if (roiVal > 0) {
+                roiProgressEl.style.color = 'var(--color-success)';
+            } else if (roiVal < 0) {
+                roiProgressEl.style.color = 'var(--color-danger)';
+            } else {
+                roiProgressEl.style.color = 'var(--color-dark)';
+            }
+        }
+
+        // Update ROI progress bar fill if present
+        if (data.roi_percentage !== undefined) {
+            updateROIProgress(parseFloat(data.roi_percentage) || 0);
+        }
 
         // Update recent sessions table in real time
         if (data.recent_sessions) {
@@ -557,8 +619,14 @@ function initOverviewLiveMonitoring() {
         return;
     }
 
-    refreshLiveNetworkPanels();
-    setInterval(refreshLiveNetworkPanels, 10000);
+    // Only run dedicated polling if main dashboard stats poll is not already active
+    const hasOverviewMainPoll = document.getElementById('revenue-today') || 
+                                document.getElementById('revenue-today-val') || 
+                                document.querySelector('.dashboard-hero-layout');
+    if (!hasOverviewMainPoll) {
+        refreshLiveNetworkPanels();
+        setInterval(refreshLiveNetworkPanels, 10000);
+    }
 }
 
 // ============================================
@@ -652,6 +720,7 @@ function getCSRFToken() {
 async function refreshSystemStats() {
     try {
         const response = await fetch('/api/dashboard/system/');
+        if (!response.ok) return;
         const data = await response.json();
 
         // --- Disk ---
@@ -694,7 +763,20 @@ async function refreshSystemStats() {
         }
         
         // --- CPU Temp ---
-        setText('sys-cpu-temp', data.cpu_temp || '—');
+        const tempEl = document.getElementById('sys-cpu-temp');
+        if (tempEl) {
+            tempEl.textContent = data.cpu_temp || '—';
+            const tempVal = Number(data.cpu_temp_val);
+            if (!isNaN(tempVal) && data.cpu_temp_val !== null) {
+                if (tempVal >= 80) {
+                    tempEl.style.color = '#EF4444'; // Critical (>80°C)
+                } else if (tempVal >= 70) {
+                    tempEl.style.color = '#F59E0B'; // Warning (>70°C)
+                } else {
+                    tempEl.style.color = 'var(--color-dark)'; // Normal
+                }
+            }
+        }
 
     } catch (err) {
         console.error('Failed to refresh system stats:', err);
@@ -968,7 +1050,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initSessionsLiveMonitoring();
 
     // Auto-refresh stats on Overview / Dashboard every 3s
-    if (document.getElementById('revenue-today') || document.querySelector('.dashboard-hero-layout') || document.querySelector('.sys-strip-container') || document.querySelector('.stats-grid')) {
+    if (document.getElementById('revenue-today') || document.getElementById('revenue-today-val') || document.querySelector('.dashboard-hero-layout') || document.querySelector('.sys-strip-container') || document.querySelector('.stats-grid')) {
         refreshDashboardStats();
         setInterval(refreshDashboardStats, 3000);
 
