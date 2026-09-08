@@ -443,18 +443,56 @@ def heatmap_data_api(request):
     if not _is_dashboard_admin(request.user):
         return Response({'detail': 'Authentication required.'}, status=status.HTTP_401_UNAUTHORIZED)
 
-    week_ago = timezone.localdate() - timedelta(days=6)
+    from django.db.models.functions import Coalesce
 
-    sessions = Session.objects.filter(
-        time_in__date__gte=week_ago
-    ).annotate(
+    period = (request.query_params.get('period') or 'week').lower()
+    if period in ('week', 'weekly'):
+        period = 'week'
+    elif period in ('month', 'monthly'):
+        period = 'month'
+    elif period in ('all', 'all_time'):
+        period = 'all'
+    else:
+        period = 'week'
+
+    cache_key = f'dashboard_heatmap_data_{period}'
+    cached_payload = cache.get(cache_key)
+    if cached_payload is not None:
+        return Response(cached_payload)
+
+    today = timezone.localdate()
+    if period == 'week':
+        start_date = today - timedelta(days=6)
+        qs = Session.objects.filter(time_in__date__gte=start_date)
+    elif period == 'month':
+        start_date = today - timedelta(days=29)
+        qs = Session.objects.filter(time_in__date__gte=start_date)
+    else:
+        qs = Session.objects.all()
+
+    sessions = qs.annotate(
         weekday=ExtractWeekDay('time_in'),
         hour=ExtractHour('time_in')
     ).values('weekday', 'hour').annotate(
-        count=Count('id')
+        count=Count('id'),
+        revenue=Coalesce(Sum('amount_paid'), 0)
     ).order_by('weekday', 'hour')
 
-    return Response({'heatmap': list(sessions)})
+    heatmap_list = list(sessions)
+    for item in heatmap_list:
+        item['revenue'] = float(item.get('revenue') or 0)
+
+    total_sessions = sum(item['count'] for item in heatmap_list)
+    total_revenue = sum(item['revenue'] for item in heatmap_list)
+
+    payload = {
+        'heatmap': heatmap_list,
+        'period': period,
+        'total_sessions': total_sessions,
+        'total_revenue': total_revenue,
+    }
+    cache.set(cache_key, payload, 20)
+    return Response(payload)
 
 
 @api_view(['GET'])
@@ -1420,8 +1458,55 @@ def reports(request):
 @user_passes_test(_is_dashboard_admin, login_url='dashboard:login')
 def heatmap(request):
     """Peak hours heatmap page."""
+    import json
+    from django.db.models.functions import Coalesce
+
+    period = (request.GET.get('period') or 'week').lower()
+    if period in ('week', 'weekly'):
+        period = 'week'
+        period_label = 'Last 7 Days'
+    elif period in ('month', 'monthly'):
+        period = 'month'
+        period_label = 'Last 30 Days'
+    elif period in ('all', 'all_time'):
+        period = 'all'
+        period_label = 'All Time'
+    else:
+        period = 'week'
+        period_label = 'Last 7 Days'
+
+    today = timezone.localdate()
+    if period == 'week':
+        start_date = today - timedelta(days=6)
+        qs = Session.objects.filter(time_in__date__gte=start_date)
+    elif period == 'month':
+        start_date = today - timedelta(days=29)
+        qs = Session.objects.filter(time_in__date__gte=start_date)
+    else:
+        qs = Session.objects.all()
+
+    sessions = qs.annotate(
+        weekday=ExtractWeekDay('time_in'),
+        hour=ExtractHour('time_in')
+    ).values('weekday', 'hour').annotate(
+        count=Count('id'),
+        revenue=Coalesce(Sum('amount_paid'), 0)
+    ).order_by('weekday', 'hour')
+
+    heatmap_list = list(sessions)
+    for item in heatmap_list:
+        item['revenue'] = float(item.get('revenue') or 0)
+
+    total_sessions = sum(item['count'] for item in heatmap_list)
+    total_revenue = sum(item['revenue'] for item in heatmap_list)
+
     context = {
         'active_page': 'heatmap',
+        'period': period,
+        'period_label': period_label,
+        'initial_heatmap_json': json.dumps(heatmap_list),
+        'total_sessions': total_sessions,
+        'total_revenue': total_revenue,
     }
     return render(request, 'dashboard/heatmap.html', context)
 

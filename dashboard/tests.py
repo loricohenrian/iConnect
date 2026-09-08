@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 from sessions_app.models import Plan, Session, SuspiciousDevice, CoinEvent
 from dashboard.models import RevenueGoal, DailyRevenueSummary
+from django.core.cache import cache
 
 
 class DashboardSecurityTests(TestCase):
@@ -1702,6 +1703,111 @@ class RevenueHardeningTests(TestCase):
         resp = self.client.get("/iconnect-ops/sessions/export/?period=weekly")
         self.assertEqual(resp.status_code, 200)
         self.assertIn("AA:BB:CC:22:22:22", resp.content.decode("utf-8"))
+
+
+class HeatmapHardeningTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        User = get_user_model()
+        self.admin_user = User.objects.create_user(
+            username="heatmap_admin",
+            password="admin123password",
+            is_staff=True,
+            is_superuser=True,
+        )
+        self.regular_user = User.objects.create_user(
+            username="regular_guest",
+            password="guest123password",
+            is_staff=False,
+            is_superuser=False,
+        )
+        self.now = timezone.now()
+        self.today = timezone.localdate()
+        self.plan = Plan.objects.create(
+            name="1 Hour Regular",
+            price=10.00,
+            duration_minutes=60,
+            is_active=True
+        )
+
+    def test_heatmap_view_auth_and_periods(self):
+        # Anonymous redirect
+        anon_resp = self.client.get("/iconnect-ops/heatmap/")
+        self.assertEqual(anon_resp.status_code, 302)
+
+        # Login admin
+        self.client.login(username=self.admin_user.username, password="admin123password")
+
+        # Week (default)
+        resp_week = self.client.get("/iconnect-ops/heatmap/?period=weekly")
+        self.assertEqual(resp_week.status_code, 200)
+        self.assertEqual(resp_week.context["period"], "week")
+        self.assertIn("initial_heatmap_json", resp_week.context)
+
+        # Month
+        resp_month = self.client.get("/iconnect-ops/heatmap/?period=monthly")
+        self.assertEqual(resp_month.status_code, 200)
+        self.assertEqual(resp_month.context["period"], "month")
+
+        # All Time
+        resp_all = self.client.get("/iconnect-ops/heatmap/?period=all")
+        self.assertEqual(resp_all.status_code, 200)
+        self.assertEqual(resp_all.context["period"], "all")
+
+    def test_heatmap_data_api_auth(self):
+        # Anonymous 401
+        anon_resp = self.client.get("/api/dashboard/heatmap/")
+        self.assertIn(anon_resp.status_code, (401, 403))
+
+        # Regular user 401/403
+        self.client.login(username=self.regular_user.username, password="guest123password")
+        reg_resp = self.client.get("/api/dashboard/heatmap/")
+        self.assertIn(reg_resp.status_code, (401, 403))
+
+    def test_heatmap_data_api_aggregation_revenue_and_caching(self):
+        cache.clear()
+        self.client.login(username=self.admin_user.username, password="admin123password")
+
+        # Create 2 sessions today: morning and afternoon
+        # Morning session at 9:00 AM local time
+        morning_time = timezone.now().replace(hour=9, minute=0, second=0)
+        afternoon_time = timezone.now().replace(hour=14, minute=0, second=0)
+
+        Session.objects.create(
+            mac_address="AA:BB:CC:DD:EE:01",
+            plan=self.plan,
+            amount_paid=15,
+            duration_minutes_purchased=60,
+            status="active",
+            time_in=morning_time
+        )
+        Session.objects.create(
+            mac_address="AA:BB:CC:DD:EE:02",
+            plan=self.plan,
+            amount_paid=25,
+            duration_minutes_purchased=60,
+            status="active",
+            time_in=afternoon_time
+        )
+
+        resp = self.client.get("/api/dashboard/heatmap/?period=week")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+
+        self.assertEqual(data["period"], "week")
+        self.assertEqual(data["total_sessions"], 2)
+        self.assertEqual(data["total_revenue"], 40.0)
+        self.assertGreaterEqual(len(data["heatmap"]), 1)
+
+        # First item has both count and revenue
+        item = data["heatmap"][0]
+        self.assertIn("count", item)
+        self.assertIn("revenue", item)
+
+        # Caching verified
+        cached = cache.get("dashboard_heatmap_data_week")
+        self.assertIsNotNone(cached)
+        self.assertEqual(cached["total_sessions"], 2)
 
 
 

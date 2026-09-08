@@ -333,35 +333,82 @@ function initPlanChart(canvasId, data) {
 }
 
 // ============================================
+// ============================================
 // Peak Hours Heatmap
 // ============================================
-function initHeatmap(containerId, data) {
+function initHeatmap(containerId, data, onSelectCell) {
     const container = document.getElementById(containerId);
     if (!container) return;
 
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const maxVal = Math.max(...data.map(d => d.count), 1);
+    const dataMap = {};
+    let maxVal = 1;
+
+    if (Array.isArray(data)) {
+        for (const item of data) {
+            dataMap[`${item.weekday}_${item.hour}`] = item;
+            if (item.count > maxVal) {
+                maxVal = item.count;
+            }
+        }
+    }
+
+    function getHourHeaderLabel(h) {
+        if (h === 0) return '12a';
+        if (h === 12) return '12p';
+        return h < 12 ? `${h}a` : `${h - 12}p`;
+    }
+
+    function formatHourRange(h) {
+        const start12 = h % 12 || 12;
+        const startAmpm = h >= 12 ? 'PM' : 'AM';
+        const endH = (h + 1) % 24;
+        const end12 = endH % 12 || 12;
+        const endAmpm = endH >= 12 ? 'PM' : 'AM';
+        return `${start12}:00 ${startAmpm} – ${end12}:00 ${endAmpm}`;
+    }
 
     let html = '';
 
     // Hour labels row
     html += '<div class="heatmap-label"></div>';
     for (let h = 0; h < 24; h++) {
-        html += `<div class="heatmap-hour-label">${h}</div>`;
+        html += `<div class="heatmap-hour-label" title="${formatHourRange(h)}">${getHourHeaderLabel(h)}</div>`;
     }
 
     // Data rows
     for (let d = 1; d <= 7; d++) {
         html += `<div class="heatmap-label">${days[d - 1]}</div>`;
         for (let h = 0; h < 24; h++) {
-            const entry = data.find(item => item.weekday === d && item.hour === h);
+            const entry = dataMap[`${d}_${h}`];
             const count = entry ? entry.count : 0;
+            const revenue = entry ? (Number(entry.revenue) || 0) : 0;
             const level = getHeatLevel(count, maxVal);
-            html += `<div class="heatmap-cell heat-${level}" title="${days[d-1]} ${h}:00 — ${count} sessions">${count || ''}</div>`;
+            const timeRange = formatHourRange(h);
+            const titleText = `${days[d - 1]} ${timeRange} — ${count} sessions (₱${revenue.toLocaleString()})`;
+            html += `<div class="heatmap-cell heat-${level}" data-day="${days[d - 1]}" data-hour="${h}" data-timerange="${timeRange}" data-count="${count}" data-revenue="${revenue}" title="${titleText}">${count || ''}</div>`;
         }
     }
 
     container.innerHTML = html;
+
+    // Attach event delegation for touch & click
+    container.onclick = (e) => {
+        const cell = e.target.closest('.heatmap-cell');
+        if (!cell) return;
+        container.querySelectorAll('.heatmap-cell.is-selected').forEach(c => c.classList.remove('is-selected'));
+        cell.classList.add('is-selected');
+
+        if (typeof onSelectCell === 'function') {
+            onSelectCell({
+                day: cell.getAttribute('data-day'),
+                hour: parseInt(cell.getAttribute('data-hour'), 10),
+                timeRange: cell.getAttribute('data-timerange'),
+                count: parseInt(cell.getAttribute('data-count'), 10),
+                revenue: parseFloat(cell.getAttribute('data-revenue')),
+            });
+        }
+    };
 }
 
 function getHeatLevel(value, max) {
@@ -558,14 +605,21 @@ async function fetchRevenueData(period = 'weekly') {
 // ============================================
 // Heatmap Data Fetch
 // ============================================
-async function fetchHeatmapData() {
+async function fetchHeatmapData(period = 'week') {
     try {
-        const response = await fetch('/api/dashboard/heatmap/');
+        const response = await fetch(`/api/dashboard/heatmap/?period=${encodeURIComponent(period)}`);
+        if (response.status === 401 || response.status === 403) {
+            console.warn('Session expired while fetching heatmap data.');
+            return { error: 'unauthorized', heatmap: [] };
+        }
+        if (!response.ok) {
+            return { error: 'failed', heatmap: [] };
+        }
         const data = await response.json();
-        return data.heatmap || [];
+        return data;
     } catch (err) {
         console.error('Failed to fetch heatmap data:', err);
-        return [];
+        return { error: 'network', heatmap: [] };
     }
 }
 

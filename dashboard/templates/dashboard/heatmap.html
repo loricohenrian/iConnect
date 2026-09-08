@@ -3,42 +3,67 @@
 {% block page_title %}Peak Hours{% endblock %}
 {% block topbar_title %}Peak Hours Heatmap{% endblock %}
 
+{% block topbar_actions %}
+<div class="d-flex align-items-center gap-xs">
+    <a href="?period=week" class="btn btn-sm {% if period == 'week' %}btn-primary{% else %}btn-secondary{% endif %}" style="padding: 5px 14px; font-size: 13px; font-weight: 500;">Last 7 Days</a>
+    <a href="?period=month" class="btn btn-sm {% if period == 'month' %}btn-primary{% else %}btn-secondary{% endif %}" style="padding: 5px 14px; font-size: 13px; font-weight: 500;">Last 30 Days</a>
+    <a href="?period=all" class="btn btn-sm {% if period == 'all' %}btn-primary{% else %}btn-secondary{% endif %}" style="padding: 5px 14px; font-size: 13px; font-weight: 500;">All Time</a>
+</div>
+{% endblock %}
+
 {% block dashboard_content %}
 
 <div class="chart-card animate-fadeIn">
-    <div class="chart-header">
+    <div class="chart-header d-flex align-items-center justify-content-between flex-wrap gap-sm">
         <div>
-            <h3 class="chart-title">Usage Heatmap — Last 7 Days</h3>
-            <span class="text-xs text-muted">Traffic intensity by hour and day of week</span>
+            <h3 class="chart-title">Usage Heatmap — {{ period_label }}</h3>
+            <span class="text-xs text-muted">Traffic intensity & revenue by operating hour and day of week</span>
         </div>
-        <span class="badge badge-active">Live Sync</span>
-    </div>
-
-    <div class="heatmap-grid mt-sm" id="heatmap-container">
-        <!-- Populated by JavaScript -->
-        <div class="text-center p-xl" style="grid-column: 1 / -1; padding: 32px 0;">
-            <p class="text-xs text-muted">Loading heatmap data...</p>
+        <div class="d-flex align-items-center gap-sm">
+            <span class="badge badge-active">Live Sync</span>
         </div>
     </div>
 
-    <!-- Legend -->
-    <div class="heatmap-legend">
-        <span>Less</span>
-        <div class="legend-cell heat-0"></div>
-        <div class="legend-cell heat-1"></div>
-        <div class="legend-cell heat-2"></div>
-        <div class="legend-cell heat-3"></div>
-        <div class="legend-cell heat-4"></div>
-        <span>More</span>
+    <!-- Responsive Scroll Wrapper for Mobile/Tablet Protection -->
+    <div class="heatmap-scroll-wrapper mt-sm">
+        <div class="heatmap-grid" id="heatmap-container">
+            <!-- Populated by JavaScript -->
+            <div class="text-center p-xl" style="grid-column: 1 / -1; padding: 32px 0;">
+                <p class="text-xs text-muted">Loading heatmap data...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Interactive Selected Cell Info & Legend Row -->
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-sm mt-md">
+        <div id="heatmap-cell-detail" style="display: none; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 6px 14px; font-size: 13px;">
+            <span class="text-muted">Selected:</span>
+            <strong id="detail-cell-day-time" style="color: var(--color-dark); margin: 0 4px;"></strong>
+            <span style="color: #cbd5e1; margin: 0 4px;">•</span>
+            <span>Traffic: <strong id="detail-cell-sessions" style="color: #2563eb;"></strong></span>
+            <span style="color: #cbd5e1; margin: 0 4px;">•</span>
+            <span>Revenue: <strong id="detail-cell-revenue" style="color: #059669;"></strong></span>
+        </div>
+
+        <div class="heatmap-legend ms-auto" style="margin-top: 0; margin-left: auto;">
+            <span>Less</span>
+            <div class="legend-cell heat-0" title="0 sessions"></div>
+            <div class="legend-cell heat-1" title="Low traffic"></div>
+            <div class="legend-cell heat-2" title="Moderate traffic"></div>
+            <div class="legend-cell heat-3" title="High traffic"></div>
+            <div class="legend-cell heat-4" title="Peak rush"></div>
+            <span>More</span>
+        </div>
     </div>
 </div>
 
-<!-- Peak Hours Summary -->
+<!-- Daytime Peak Hours Summary (Operating Hours: Morning & Afternoon Shifts) -->
 <div class="grid-3 mt-md">
+    <!-- Morning Shift -->
     <div class="chart-card animate-fadeIn">
         <div class="d-flex align-items-center justify-content-between mb-sm">
             <h3 class="chart-title">Morning Peak</h3>
-            <div style="color: #d97706;">
+            <div style="color: #d97706; background: #fef3c7; width: 34px; height: 34px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v6"></path><path d="M4.93 10.93l4.24 4.24"></path><path d="M2 18h20"></path><path d="M20 10l-4 4"></path><path d="m4.93 4.93 4.24 4.24"></path><path d="m14.83 9.17 4.24-4.24"></path><path d="M14.83 14.83l4.24 4.24"></path></svg>
             </div>
         </div>
@@ -47,10 +72,11 @@
         </div>
     </div>
 
+    <!-- Afternoon Shift -->
     <div class="chart-card animate-fadeIn">
         <div class="d-flex align-items-center justify-content-between mb-sm">
             <h3 class="chart-title">Afternoon Peak</h3>
-            <div style="color: #ea580c;">
+            <div style="color: #ea580c; background: #ffedd5; width: 34px; height: 34px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 18a5 5 0 0 0-10 0"></path><line x1="12" y1="2" x2="12" y2="9"></line><line x1="4.22" y1="10.22" x2="5.64" y2="11.64"></line><line x1="1" y1="18" x2="3" y2="18"></line><line x1="21" y1="18" x2="23" y2="18"></line><line x1="18.36" y1="11.64" x2="19.78" y2="10.22"></line><line x1="23" y1="22" x2="1" y2="22"></line><polyline points="8 6 12 2 16 6"></polyline></svg>
             </div>
         </div>
@@ -59,10 +85,11 @@
         </div>
     </div>
 
+    <!-- Overall Peak & Busiest Day -->
     <div class="chart-card animate-fadeIn">
         <div class="d-flex align-items-center justify-content-between mb-sm">
-            <h3 class="chart-title">Busiest Hour</h3>
-            <div style="color: var(--color-danger);">
+            <h3 class="chart-title">Busiest Hour & Peak Day</h3>
+            <div style="color: var(--color-danger); background: #fee2e2; width: 34px; height: 34px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
             </div>
         </div>
@@ -76,25 +103,61 @@
 
 {% block dashboard_js %}
 <script>
-async function loadHeatmap() {
-    const data = await fetchHeatmapData();
-    initHeatmap('heatmap-container', data);
+const currentHeatmapPeriod = "{{ period|default:'week' }}";
 
+function handleCellSelection(info) {
+    const detailPanel = document.getElementById('heatmap-cell-detail');
+    const dayTimeElem = document.getElementById('detail-cell-day-time');
+    const sessionsElem = document.getElementById('detail-cell-sessions');
+    const revElem = document.getElementById('detail-cell-revenue');
+
+    if (detailPanel && dayTimeElem && sessionsElem && revElem) {
+        detailPanel.style.display = 'block';
+        dayTimeElem.textContent = `${info.day} @ ${info.timeRange}`;
+        sessionsElem.textContent = `${info.count} sessions`;
+        revElem.textContent = `₱${info.revenue.toLocaleString()}`;
+    }
+}
+
+function updateHeatmapSummaryCards(data) {
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const morningPeak = document.getElementById('morning-peak');
     const afternoonPeak = document.getElementById('afternoon-peak');
     const overallPeak = document.getElementById('overall-peak');
 
+    if (!Array.isArray(data)) return;
+
+    // Morning shift: 6:00 AM - 12:00 PM (hours 6 to 11)
     const morningData = data.filter(d => d.hour >= 6 && d.hour < 12);
+    // Afternoon shift: 12:00 PM - 6:00 PM (hours 12 to 17)
     const afternoonData = data.filter(d => d.hour >= 12 && d.hour < 18);
 
-    const morningTotal = morningData.reduce((sum, d) => sum + d.count, 0);
-    const afternoonTotal = afternoonData.reduce((sum, d) => sum + d.count, 0);
+    const morningTotal = morningData.reduce((sum, d) => sum + (d.count || 0), 0);
+    const morningRev = morningData.reduce((sum, d) => sum + (Number(d.revenue) || 0), 0);
 
-    const morningBest = [...morningData].sort((a, b) => b.count - a.count)[0];
-    const afternoonBest = [...afternoonData].sort((a, b) => b.count - a.count)[0];
-    const overallBest = [...data].filter(d => d.count > 0).sort((a, b) => b.count - a.count)[0];
-    const totalWeeklySessions = data.reduce((sum, d) => sum + d.count, 0);
+    const afternoonTotal = afternoonData.reduce((sum, d) => sum + (d.count || 0), 0);
+    const afternoonRev = afternoonData.reduce((sum, d) => sum + (Number(d.revenue) || 0), 0);
+
+    const morningBest = [...morningData].sort((a, b) => (b.count || 0) - (a.count || 0))[0];
+    const afternoonBest = [...afternoonData].sort((a, b) => (b.count || 0) - (a.count || 0))[0];
+    const overallBest = [...data].filter(d => (d.count || 0) > 0).sort((a, b) => (b.count || 0) - (a.count || 0))[0];
+    const totalSessions = data.reduce((sum, d) => sum + (d.count || 0), 0);
+    const totalRevenue = data.reduce((sum, d) => sum + (Number(d.revenue) || 0), 0);
+
+    // Compute busiest day of the week
+    const dayTotals = {};
+    for (const d of data) {
+        dayTotals[d.weekday] = (dayTotals[d.weekday] || 0) + (d.count || 0);
+    }
+    let topDayIndex = null;
+    let topDayCount = 0;
+    for (const [wDay, count] of Object.entries(dayTotals)) {
+        if (count > topDayCount) {
+            topDayCount = count;
+            topDayIndex = parseInt(wDay, 10);
+        }
+    }
+    const topDayName = topDayIndex ? days[topDayIndex - 1] : 'None';
 
     function formatHour(h) {
         const h12 = h % 12 || 12;
@@ -102,38 +165,66 @@ async function loadHeatmap() {
         return `${h12}:00 ${ampm}`;
     }
 
-    morningPeak.innerHTML = `
-        <p class="stat-value">${morningTotal} sessions</p>
-        <p class="text-small text-muted mt-xs">6:00 AM — 12:00 PM</p>
-        ${morningBest && morningBest.count > 0 ? `<p class="text-small text-muted">Busiest: ${days[morningBest.weekday - 1]} @ ${formatHour(morningBest.hour)} (${morningBest.count} sessions)</p>` : '<p class="text-small text-muted">No morning traffic yet</p>'}
-    `;
-
-    afternoonPeak.innerHTML = `
-        <p class="stat-value">${afternoonTotal} sessions</p>
-        <p class="text-small text-muted mt-xs">12:00 PM — 6:00 PM</p>
-        ${afternoonBest && afternoonBest.count > 0 ? `<p class="text-small text-muted">Busiest: ${days[afternoonBest.weekday - 1]} @ ${formatHour(afternoonBest.hour)} (${afternoonBest.count} sessions)</p>` : '<p class="text-small text-muted">No afternoon traffic yet</p>'}
-    `;
-
-    if (overallBest && overallBest.count > 0) {
-        const dayName = days[overallBest.weekday - 1] || 'Day';
-        overallPeak.innerHTML = `
-            <p class="stat-value">${overallBest.count} sessions</p>
-            <p class="text-small text-muted mt-xs">Peak: <strong>${dayName} @ ${formatHour(overallBest.hour)}</strong></p>
-            <p class="text-small text-muted">Weekly Total: ${totalWeeklySessions} sessions</p>
+    if (morningPeak) {
+        morningPeak.innerHTML = `
+            <p class="stat-value" style="font-size: 22px;">${morningTotal} <span style="font-size: 14px; font-weight: 500; color: var(--color-gray);">sessions</span> • <span style="color: #059669;">₱${morningRev.toLocaleString()}</span></p>
+            <p class="text-small text-muted mt-xs">6:00 AM — 12:00 PM (Morning Shift)</p>
+            ${morningBest && morningBest.count > 0 ? `<p class="text-small text-muted">Busiest: <strong>${days[morningBest.weekday - 1]} @ ${formatHour(morningBest.hour)}</strong> (${morningBest.count} sessions • ₱${Number(morningBest.revenue || 0).toLocaleString()})</p>` : '<p class="text-small text-muted">No morning traffic yet</p>'}
         `;
-    } else {
-        overallPeak.innerHTML = `
-            <p class="stat-value">0 sessions</p>
-            <p class="text-small text-muted mt-xs">Peak: None yet</p>
-            <p class="text-small text-muted">Awaiting traffic</p>
+    }
+
+    if (afternoonPeak) {
+        afternoonPeak.innerHTML = `
+            <p class="stat-value" style="font-size: 22px;">${afternoonTotal} <span style="font-size: 14px; font-weight: 500; color: var(--color-gray);">sessions</span> • <span style="color: #059669;">₱${afternoonRev.toLocaleString()}</span></p>
+            <p class="text-small text-muted mt-xs">12:00 PM — 6:00 PM (Afternoon Shift)</p>
+            ${afternoonBest && afternoonBest.count > 0 ? `<p class="text-small text-muted">Busiest: <strong>${days[afternoonBest.weekday - 1]} @ ${formatHour(afternoonBest.hour)}</strong> (${afternoonBest.count} sessions • ₱${Number(afternoonBest.revenue || 0).toLocaleString()})</p>` : '<p class="text-small text-muted">No afternoon traffic yet</p>'}
         `;
+    }
+
+    if (overallPeak) {
+        if (overallBest && overallBest.count > 0) {
+            const dayName = days[overallBest.weekday - 1] || 'Day';
+            overallPeak.innerHTML = `
+                <p class="stat-value" style="font-size: 22px;">${overallBest.count} <span style="font-size: 14px; font-weight: 500; color: var(--color-gray);">sessions</span> • <span style="color: #059669;">₱${Number(overallBest.revenue || 0).toLocaleString()}</span></p>
+                <p class="text-small text-muted mt-xs">Peak Hour: <strong>${dayName} @ ${formatHour(overallBest.hour)}</strong></p>
+                <p class="text-small text-muted">Total: <strong>${totalSessions} sessions</strong> (₱${totalRevenue.toLocaleString()}) • Top Day: <strong>${topDayName}</strong></p>
+            `;
+        } else {
+            overallPeak.innerHTML = `
+                <p class="stat-value" style="font-size: 22px;">0 <span style="font-size: 14px; font-weight: 500; color: var(--color-gray);">sessions</span></p>
+                <p class="text-small text-muted mt-xs">Peak Hour: None yet</p>
+                <p class="text-small text-muted">Awaiting traffic data</p>
+            `;
+        }
     }
 }
 
+async function loadHeatmapLive() {
+    if (document.hidden) return;
+
+    const data = await fetchHeatmapData(currentHeatmapPeriod);
+    if (data && data.error === 'unauthorized') {
+        window.location.href = "{% url 'dashboard:login' %}";
+        return;
+    }
+    const heatmapList = (data && data.heatmap) ? data.heatmap : [];
+    initHeatmap('heatmap-container', heatmapList, handleCellSelection);
+    updateHeatmapSummaryCards(heatmapList);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
-    loadHeatmap();
-    // Auto-refresh every 30 seconds for real-time updates
-    setInterval(loadHeatmap, 30000);
+    // 1. Instant First Paint using pre-rendered server context (zero loading flicker)
+    try {
+        const initialData = {{ initial_heatmap_json|safe }};
+        initHeatmap('heatmap-container', initialData, handleCellSelection);
+        updateHeatmapSummaryCards(initialData);
+    } catch (e) {
+        console.warn('Could not parse initial heatmap JSON, falling back to fetch', e);
+        loadHeatmapLive();
+    }
+
+    // 2. Poll every 30 seconds for live updates
+    setInterval(loadHeatmapLive, 30000);
 });
 </script>
 {% endblock %}
