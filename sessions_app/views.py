@@ -1711,8 +1711,8 @@ def session_extend_paid(request):
             if is_group_pass:
                 multiplier = 1
                 amount_paid = expected_amount
-                duration_minutes = plan.duration_minutes if plan else (effective_plan.duration_minutes if effective_plan else 0)
-                effective_plan = plan or effective_plan
+                effective_plan = plan
+                duration_minutes = plan.duration_minutes if plan else 0
             elif plan:
                 multiplier = total_coins // expected_amount if expected_amount > 0 else 1
                 amount_paid = expected_amount * multiplier

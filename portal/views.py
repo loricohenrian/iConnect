@@ -169,7 +169,7 @@ def index(request):
                 rate = active_session.plan.speed_limit if active_session.plan else None
                 iptables.allow_device(mac_address, rate_kbps=rate)
 
-    if active_session and active_session.status == "active" and active_session.time_remaining_seconds <= 1:
+    if active_session and active_session.time_remaining_seconds <= 1:
         active_session.expire_session()
         iptables.block_device(active_session.mac_address)
         active_session = None
@@ -272,8 +272,8 @@ def session_page(request):
     if not active_session:
         return redirect(f"/?expired=1&mac={mac_address}")
 
-    # Expire active sessions that ran out of time
-    if active_session.status == "active" and active_session.time_remaining_seconds <= 1:
+    # Expire sessions that ran out of time or exceeded pause limit
+    if active_session.time_remaining_seconds <= 1:
         active_session.expire_session()
         iptables.block_device(active_session.mac_address)
         return redirect(f"/?expired=1&mac={mac_address}")
