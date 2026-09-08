@@ -39,6 +39,9 @@ def device_scope_active():
     return DEVICE_SCOPE_ENABLED and bool(DEVICE_MAC)
 
 
+_http_session = requests.Session()
+
+
 def poll_coinslot_status():
     """Background loop that checks if an active request has unlocked the coin slot."""
     global is_slot_active, active_mac, active_request_id, _stop_thread
@@ -50,8 +53,9 @@ def poll_coinslot_status():
             time.sleep(1.0)
             continue
 
+        poll_interval = 1.0  # Default idle polling rate
         try:
-            resp = requests.get(STATUS_ENDPOINT, timeout=2)
+            resp = _http_session.get(STATUS_ENDPOINT, timeout=2)
             if resp.status_code == 200:
                 data = resp.json()
                 enabled = bool(data.get("enabled"))
@@ -62,6 +66,10 @@ def poll_coinslot_status():
                 is_slot_active = enabled
                 active_mac = mac
                 active_request_id = req_id
+
+                # When slot is actively unlocked by a customer, poll faster (500ms) for responsive countdown
+                if is_slot_active:
+                    poll_interval = 0.5
 
                 if is_slot_active != last_logged_state:
                     last_logged_state = is_slot_active
@@ -87,7 +95,7 @@ def poll_coinslot_status():
         except Exception as exc:
             logger.debug("Could not poll coinslot status: %s", exc)
 
-        time.sleep(0.5)
+        time.sleep(poll_interval)
 
 
 def send_coin_event(amount, denomination):
@@ -100,7 +108,7 @@ def send_coin_event(amount, denomination):
         payload["mac_address"] = DEVICE_MAC
 
     try:
-        response = requests.post(
+        response = _http_session.post(
             API_ENDPOINT,
             json=payload,
             headers={"X-DEVICE-API-KEY": DEVICE_API_KEY},

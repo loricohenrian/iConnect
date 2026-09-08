@@ -7,8 +7,8 @@ bind = [
     "0.0.0.0:8000",
 ]
 
-# Orange Pi is resource-constrained; keep worker count modest.
-workers = max(2, min(4, multiprocessing.cpu_count()))
+# Orange Pi is resource-constrained; 2 workers with 2 threads is optimal.
+workers = 2
 threads = 2
 timeout = 60
 graceful_timeout = 30
