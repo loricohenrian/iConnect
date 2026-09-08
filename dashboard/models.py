@@ -161,6 +161,14 @@ class SystemSettings(models.Model):
         default=24,
         help_text="Global fallback max pause duration in hours (0 = unlimited)"
     )
+    min_extend_amount_for_pause = models.PositiveIntegerField(
+        default=5,
+        help_text="Minimum extension payment (in Pesos) required to earn additional pause chances (prevents ₱1 pause exploits)"
+    )
+    max_session_pause_cap = models.PositiveIntegerField(
+        default=5,
+        help_text="Maximum total pause chances a single session can hold at any time (0 = no cap)"
+    )
 
     enable_internet_check = models.BooleanField(
         default=True,

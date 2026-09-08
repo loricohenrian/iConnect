@@ -205,6 +205,19 @@
                         </div>
                     </div>
 
+                    <div class="settings-grid-2 mb-lg">
+                        <div class="form-group mb-0">
+                            <label class="form-label" for="min_extend_amount_for_pause">Min Extension for Pauses (₱)</label>
+                            <input type="number" min="0" max="1000" class="form-input" id="min_extend_amount_for_pause" name="min_extend_amount_for_pause" value="{{ settings.min_extend_amount_for_pause }}" required>
+                            <small class="form-hint">Minimum payment required to earn extra pauses (prevents ₱1 pause exploit).</small>
+                        </div>
+                        <div class="form-group mb-0">
+                            <label class="form-label" for="max_session_pause_cap">Max Pause Cap per Session</label>
+                            <input type="number" min="0" max="100" class="form-input" id="max_session_pause_cap" name="max_session_pause_cap" value="{{ settings.max_session_pause_cap }}" required>
+                            <small class="form-hint">Maximum pause chances a single session can accumulate (0 = no cap).</small>
+                        </div>
+                    </div>
+
                     <div class="settings-divider"></div>
 
                     <!-- Auto-Pause & Resume -->

@@ -1500,13 +1500,20 @@ def session_extend(request):
             update_fields.append("plan")
 
         if voucher_session.plan:
-            v_limit = voucher_session.plan.pause_limit
-            if v_limit == 0:
-                active_session.pause_limit = 0
-                update_fields.append("pause_limit")
-            elif v_limit > 0:
-                active_session.add_pauses(v_limit)
-                update_fields.append("pause_limit")
+            from dashboard.models import SystemSettings
+            sys_settings = SystemSettings.get_settings()
+            min_extend = getattr(sys_settings, 'min_extend_amount_for_pause', 5)
+            pause_cap = getattr(sys_settings, 'max_session_pause_cap', 5)
+            voucher_val = voucher_session.plan.price or voucher_session.amount_paid or 0
+
+            if voucher_val >= min_extend:
+                v_limit = voucher_session.plan.pause_limit
+                if v_limit == 0:
+                    active_session.pause_limit = 0
+                    update_fields.append("pause_limit")
+                elif v_limit > 0:
+                    active_session.add_pauses(v_limit, cap=pause_cap)
+                    update_fields.append("pause_limit")
 
         active_session.save(update_fields=update_fields)
 
@@ -1789,15 +1796,19 @@ def session_extend_paid(request):
             if is_group_pass and session_group:
                 update_fields.append("session_group")
 
-            # Additive Pause Replenishment:
-            # Grants earned pauses of the new plan upon extension
-            if effective_plan:
+            # Option 4 Pause Replenishment Shield:
+            # Only grants extra pauses if extension payment meets minimum threshold (e.g. ₱5),
+            # protecting against ₱1 pause exploit while enforcing max session pause cap.
+            min_extend = getattr(settings_obj, 'min_extend_amount_for_pause', 5)
+            pause_cap = getattr(settings_obj, 'max_session_pause_cap', 5)
+
+            if effective_plan and amount_paid >= min_extend:
                 if effective_plan.pause_limit == 0:
                     active_session.pause_limit = 0
                     update_fields.append("pause_limit")
                 else:
                     earned_pauses = effective_plan.pause_limit * multiplier
-                    active_session.add_pauses(earned_pauses)
+                    active_session.add_pauses(earned_pauses, cap=pause_cap)
                     update_fields.append("pause_limit")
                 
             active_session.save(update_fields=update_fields)

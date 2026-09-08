@@ -296,16 +296,34 @@ class Session(models.Model):
             return "Unlimited"
         return max(0, limit - self.pause_count)
 
-    def add_pauses(self, count):
+    def add_pauses(self, count, cap=None):
         """
         Add pause chances to this session upon extension.
         If count is 0 (unlimited plan), sets session to unlimited (0).
         Otherwise adds count to existing effective limit.
+        If cap is provided (or configured in SystemSettings) and > 0,
+        ensures (effective_limit - pause_count) <= cap.
         """
         if count == 0:
             self.pause_limit = 0
-        elif self.effective_pause_limit != 0:
-            self.pause_limit = self.effective_pause_limit + count
+            return
+
+        if self.effective_pause_limit != 0:
+            current_left = self.pauses_left
+            if current_left == "Unlimited":
+                return
+            if cap is None:
+                try:
+                    from dashboard.models import SystemSettings
+                    settings_obj = SystemSettings.get_settings()
+                    cap = getattr(settings_obj, "max_session_pause_cap", 5)
+                except Exception:
+                    cap = 5
+
+            new_left = current_left + count
+            if cap and cap > 0 and new_left > cap:
+                new_left = cap
+            self.pause_limit = self.pause_count + new_left
 
     def extend_session(self, additional_minutes, additional_pauses=None):
         """Extend the session by adding more time and optional pause chances."""

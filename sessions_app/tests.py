@@ -1545,3 +1545,85 @@ class BandwidthTrackingTests(TestCase):
         self.assertEqual(status_res.status_code, 200)
         self.assertEqual(status_res.data["pauses_left"], 4)
 
+    def test_one_peso_extend_does_not_grant_extra_pauses(self):
+        """Test that extending with ₱1 (below minimum threshold) adds time but grants 0 extra pauses."""
+        from dashboard.models import SystemSettings
+        sys_settings = SystemSettings.get_settings()
+        sys_settings.min_extend_amount_for_pause = 5
+        sys_settings.save()
+
+        mac = "AA:BB:CC:DD:EE:02"
+        plan5 = Plan.objects.create(name="P5", price=5, duration_minutes=30, pause_limit=2)
+        plan1 = Plan.objects.create(name="P1", price=1, duration_minutes=15, pause_limit=1)
+
+        session = Session.objects.create(
+            mac_address=mac,
+            plan=plan5,
+            time_in=timezone.now(),
+            duration_minutes_purchased=30,
+            amount_paid=5,
+            status="active",
+        )
+        self.assertEqual(session.pauses_left, 2)
+
+        # User inserts ₱1 coin to extend
+        CoinEvent.objects.create(
+            mac_address=mac,
+            amount=1,
+            denomination=1,
+        )
+
+        response = self.client.post(
+            reverse("sessions_app:session-extend-paid"),
+            {"mac_address": mac, "plan_id": plan1.id},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+
+        session.refresh_from_db()
+        # Time purchased increased by 15 mins (30 + 15 = 45)
+        self.assertEqual(session.duration_minutes_purchased, 45)
+        # But pauses_left is STILL 2 (no cheap ₱1 pause exploit allowed!)
+        self.assertEqual(session.pauses_left, 2)
+        self.assertEqual(response.data["pauses_left"], 2)
+
+    def test_pause_cap_enforced_on_extend(self):
+        """Test that pauses cannot exceed max_session_pause_cap."""
+        from dashboard.models import SystemSettings
+        sys_settings = SystemSettings.get_settings()
+        sys_settings.min_extend_amount_for_pause = 5
+        sys_settings.max_session_pause_cap = 5
+        sys_settings.save()
+
+        mac = "AA:BB:CC:DD:EE:03"
+        plan_big = Plan.objects.create(name="Big Plan", price=5, duration_minutes=60, pause_limit=4)
+
+        session = Session.objects.create(
+            mac_address=mac,
+            plan=plan_big,
+            time_in=timezone.now(),
+            duration_minutes_purchased=60,
+            amount_paid=5,
+            status="active",
+        )
+        self.assertEqual(session.pauses_left, 4)
+
+        # Extend with another 4-pause plan: 4 + 4 = 8, but capped at 5!
+        CoinEvent.objects.create(
+            mac_address=mac,
+            amount=5,
+            denomination=5,
+        )
+
+        response = self.client.post(
+            reverse("sessions_app:session-extend-paid"),
+            {"mac_address": mac, "plan_id": plan_big.id},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+
+        session.refresh_from_db()
+        self.assertEqual(session.pauses_left, 5)  # Capped at 5!
+        self.assertEqual(response.data["pauses_left"], 5)
+
+
