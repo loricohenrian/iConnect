@@ -95,7 +95,7 @@ def dashboard_login(request):
 
     if request.method == 'POST':
         username = request.POST.get('username', '').strip()
-        password = request.POST.get('password', '').strip()
+        password = request.POST.get('password', '')
 
         ip = _client_ip(request)
         lock_key = f'dashboard-login:{ip}:{username.lower()}'
@@ -121,7 +121,7 @@ def dashboard_login(request):
             except Exception as e:
                 logger.warning('email_login_lookup_error: %s', e)
 
-        if user and user.is_staff:
+        if user and user.is_staff and user.is_active:
             try:
                 cache.delete(lock_key)
             except Exception as exc:
