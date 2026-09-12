@@ -576,6 +576,7 @@ main.portal-container {
     border-radius: 20px;
     border: 1px solid var(--color-border);
     margin-top: 16px;
+    margin-bottom: 20px;
     box-shadow: 0 2px 8px rgba(45, 31, 31, 0.04);
     position: relative;
     overflow: hidden;
@@ -1550,7 +1551,7 @@ body.modal-open {
     border-radius: 14px;
     padding: 12px 14px;
     text-align: center;
-    margin-bottom: 14px;
+    margin-bottom: 18px;
     box-shadow: 0 2px 8px rgba(16, 185, 129, 0.08);
     transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
 }
@@ -1874,6 +1875,19 @@ body.modal-open {
     display: flex;
     flex-direction: column;
     gap: 14px;
+}
+
+.extend-session-context {
+    text-align: center;
+    margin-bottom: 2px;
+}
+
+.extend-session-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--color-dark, #111827);
+    margin: 0 0 4px 0;
+    letter-spacing: -0.2px;
 }
 
 .option-c-instruction {
