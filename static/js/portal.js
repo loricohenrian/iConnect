@@ -2614,51 +2614,6 @@ function initRealtimeNetworkValidation(macAddress) {
                 window.location.href = "http://connectivitycheck.gstatic.com/generate_204";
             } catch (e) {}
         }, 1200);
-        return;
-    }
-
-    // For regular Chrome / external browser:
-    // Wire up the 1-tap "Validate Now" helper banner
-    const banner = document.getElementById("network-validation-banner");
-    const validateBtn = document.getElementById("btn-validate-network");
-    const storageKey = "iconnect_validated_" + (macAddress || "");
-    const isValidated = sessionStorage.getItem(storageKey);
-
-    if (banner && !isValidated) {
-        banner.style.display = "flex";
-
-        // Auto-fade banner after 18 seconds if user hasn't clicked it
-        setTimeout(() => {
-            if (banner && !banner.dataset.clicked) {
-                banner.style.transition = "opacity 0.6s ease, max-height 0.6s ease";
-                banner.style.opacity = "0";
-                setTimeout(() => { banner.style.display = "none"; }, 600);
-            }
-        }, 18000);
-    }
-
-    if (validateBtn) {
-        validateBtn.addEventListener("click", () => {
-            if (banner) banner.dataset.clicked = "1";
-            validateBtn.innerHTML = '<span>✓ Validating...</span>';
-            validateBtn.classList.add("validating");
-            try {
-                sessionStorage.setItem(storageKey, "1");
-            } catch (e) {}
-
-            setTimeout(() => {
-                validateBtn.innerHTML = '<span>✓ Internet Verified</span>';
-                validateBtn.classList.remove("validating");
-                validateBtn.classList.add("validated");
-                setTimeout(() => {
-                    if (banner) {
-                        banner.style.transition = "opacity 0.5s ease, max-height 0.5s ease";
-                        banner.style.opacity = "0";
-                        setTimeout(() => { banner.style.display = "none"; }, 500);
-                    }
-                }, 2000);
-            }, 900);
-        });
     }
 }
 

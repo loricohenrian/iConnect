@@ -18,16 +18,6 @@
         <span>{% if session.status == 'paused' %}Paused{% else %}Connected{% endif %}</span>
     </div>
 
-    <!-- Real-time Network Validation Banner (for devices needing manual trigger) -->
-    <div id="network-validation-banner" class="network-validation-banner" style="display: none;">
-        <div class="network-validation-left">
-            <span class="network-validation-dot"></span>
-            <span id="network-validation-text">Device shows "No Internet"?</span>
-        </div>
-        <a href="http://connectivitycheck.gstatic.com/generate_204" id="btn-validate-network" class="btn-validate-network" target="_self">
-            Validate Now
-        </a>
-    </div>
 
     <div class="timer-label">TIME REMAINING</div>
     <div class="timer-display {% if session.status == 'paused' %}timer-amber{% else %}timer-green{% endif %}" id="session-timer"
