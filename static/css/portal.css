@@ -2118,19 +2118,21 @@ body.modal-open {
     text-decoration: underline;
     cursor: pointer;
     padding: 4px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
     line-height: 1.35;
     transition: color 0.15s ease;
-    flex: 1;
+    flex: 1 !important;
+    width: 100%;
 }
 
 .link-option-c-group u {
-    display: inline-block;
-    text-align: center;
-    width: 100%;
+    display: block !important;
+    text-align: center !important;
+    width: 100% !important;
+    margin: 0 auto !important;
 }
 
 .link-option-c-group:hover {
