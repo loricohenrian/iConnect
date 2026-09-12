@@ -6,8 +6,8 @@
 <div class="animate-fadeIn text-center">
     <h2 class="mb-sm"><i class="bi bi-disc" style="color:var(--color-primary);"></i> Spin to Win</h2>
     <p class="text-muted text-small mb-lg">
-        Spins left today: <strong>{{ remaining_spins }}</strong><br>
-        Your points: <strong>{{ device_profile.points }}</strong><br>
+        Spins left today: <strong id="display-spins-left">{{ remaining_spins }}</strong><br>
+        Your points: <strong id="display-user-points">{{ device_profile.points }}</strong><br>
         Cost per spin: <strong>{{ system_settings.spin_cost_points }} pts</strong>
     </p>
 
@@ -48,7 +48,7 @@
                 font-weight="bold"
                 font-family="sans-serif"
                 style="text-shadow: 1px 1px 2px rgba(0,0,0,0.5);"
-                transform="rotate({{ prize.mid_deg }}, 140, 140) translate(80, 0)"
+                transform="rotate({{ prize.label_deg }}, 140, 140) translate(80, 0)"
             >{{ prize.name }}</text>
             {% endfor %}
         </svg>
@@ -134,8 +134,14 @@
                                 resultText.innerHTML = `😅 You won ${data.prize.name}. Better luck next time!`;
                             }
                             
+                            if (data.updated) {
+                                const spinsLeftEl = document.getElementById("display-spins-left");
+                                const userPtsEl = document.getElementById("display-user-points");
+                                if (spinsLeftEl) spinsLeftEl.textContent = data.updated.remaining_spins;
+                                if (userPtsEl) userPtsEl.textContent = data.updated.points;
+                            }
+
                             spinBtn.style.display = "none";
-                            
                         }, 4000); 
                     } else {
                         alert("Error: " + data.message);

@@ -597,6 +597,7 @@ def spin_wheel_view(request):
                 'start_deg': round(current_deg, 2),
                 'end_deg': round(end_deg, 2),
                 'mid_deg': round(mid_deg, 2),
+                'label_deg': round(mid_deg - 90, 2),
                 'minutes': prize.minutes_reward,
                 'color': colors[index % len(colors)]
             })

@@ -7,6 +7,39 @@
 <h2 class="mt-lg mb-sm text-center">Usage History</h2>
 <p class="text-small text-muted mb-md text-center">Your recent WiFi sessions</p>
 
+{% if passcode_required and not history_verified %}
+<div class="card p-lg text-center animate-fadeIn" style="max-width: 360px; margin: 0 auto;">
+    <div style="width: 48px; height: 48px; margin: 0 auto 12px auto; background: var(--color-primary-light); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--color-primary);">
+        <i class="bi bi-lock-fill" style="font-size: 24px;"></i>
+    </div>
+    <h3 style="font-size: 16px; margin-bottom: 6px;">History Protected</h3>
+    <p class="text-small text-muted mb-md">Enter passcode to view usage history</p>
+    {% if passcode_error %}
+    <div class="alert alert-danger mb-md">{{ passcode_error }}</div>
+    {% endif %}
+    <form method="POST" action="">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="verify_history_passcode">
+        <div style="margin-bottom: 14px;">
+            <input type="password" name="passcode" class="voucher-input text-center" placeholder="Enter passcode" required autofocus style="width: 100%; padding: 10px 14px; font-size: 14px; border-radius: 8px; border: 1px solid var(--color-border);">
+        </div>
+        <button type="submit" class="btn btn-primary w-100" style="padding: 10px 24px; font-weight: 600; border-radius: 8px;">Unlock History</button>
+    </form>
+</div>
+{% else %}
+
+{% if passcode_required and history_verified %}
+<div class="text-end mb-sm">
+    <form method="POST" action="" style="display: inline;">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="lock_history">
+        <button type="submit" class="btn btn-secondary btn-sm" style="font-size: 12px; padding: 4px 10px;">
+            <i class="bi bi-lock"></i> Lock History
+        </button>
+    </form>
+</div>
+{% endif %}
+
 {% if sessions %}
 <div class="history-list">
     {% for session in sessions %}
@@ -50,7 +83,7 @@
 {% if page_obj.has_other_pages %}
 <div class="pagination-container">
     {% if page_obj.has_previous %}
-        <a href="?page={{ page_obj.previous_page_number }}" class="pagination-btn">Previous</a>
+        <a href="?page={{ page_obj.previous_page_number }}{% if mac_address %}&mac={{ mac_address|urlencode }}{% endif %}" class="pagination-btn">Previous</a>
     {% else %}
         <button class="pagination-btn" disabled>Previous</button>
     {% endif %}
@@ -58,7 +91,7 @@
     <span style="font-weight: 600; font-size: 13px; color: var(--color-gray);">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
     
     {% if page_obj.has_next %}
-        <a href="?page={{ page_obj.next_page_number }}" class="pagination-btn">Next</a>
+        <a href="?page={{ page_obj.next_page_number }}{% if mac_address %}&mac={{ mac_address|urlencode }}{% endif %}" class="pagination-btn">Next</a>
     {% else %}
         <button class="pagination-btn" disabled>Next</button>
     {% endif %}
@@ -71,6 +104,8 @@
     <p>No sessions yet</p>
     <small>Your session history will appear here once you start using iConnect</small>
 </div>
+{% endif %}
+
 {% endif %}
 
 {% endblock %}
