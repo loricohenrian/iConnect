@@ -874,7 +874,7 @@ function triggerCoinTimerPulse(display) {
         display.style.color = "#10B981";
         display.style.transform = "scale(1.1)";
         setTimeout(() => {
-            display.style.color = "var(--text-primary)";
+            updateCountdownDisplay(display);
             display.style.transform = "scale(1)";
         }, 600);
     }
@@ -886,11 +886,42 @@ function updateCountdownDisplay(display) {
     const m = Math.floor(remaining / 60).toString().padStart(2, "0");
     const s = (remaining % 60).toString().padStart(2, "0");
     display.innerText = `${m}:${s}`;
-    if (remaining <= 10) {
-        display.style.color = "#EF4444";
+
+    const container = display.closest(".coin-countdown-box") || document.getElementById("coin-countdown-container");
+    if (container) {
+        container.classList.remove("is-warning", "is-danger");
+        if (remaining < 30) {
+            container.classList.add("is-danger");
+        } else if (remaining < 60) {
+            container.classList.add("is-warning");
+        }
+    }
+
+    if (remaining < 30) {
+        display.style.color = "#DC2626";
+    } else if (remaining < 60) {
+        display.style.color = "#B45309";
     } else {
         display.style.color = "";
     }
+}
+
+function clearCoinCountdown() {
+    if (activeCoinCountdownInterval) {
+        clearInterval(activeCoinCountdownInterval);
+        activeCoinCountdownInterval = null;
+    }
+    const container = document.getElementById("coin-countdown-container");
+    if (container) {
+        container.style.display = "none";
+        container.classList.remove("is-warning", "is-danger");
+    }
+    const display = document.getElementById("coin-countdown-display");
+    if (display) {
+        display.style.color = "";
+    }
+    activeCoinCountdownEndTime = 0;
+    lastCreditedCoinAmount = null;
 }
 
 function syncCoinCountdown(coinRequest) {
@@ -900,12 +931,7 @@ function syncCoinCountdown(coinRequest) {
     if (!container || !display) return;
 
     if (!coinRequest || !["active", "pending"].includes(coinRequest.status)) {
-        if (activeCoinCountdownInterval) {
-            clearInterval(activeCoinCountdownInterval);
-            activeCoinCountdownInterval = null;
-        }
-        container.style.display = "none";
-        lastCreditedCoinAmount = null;
+        clearCoinCountdown();
         return;
     }
 
@@ -939,17 +965,8 @@ function syncCoinCountdown(coinRequest) {
 
         if (!activeCoinCountdownInterval) {
             activeCoinCountdownInterval = setInterval(() => {
+                updateCountdownDisplay(display);
                 const remaining = Math.max(0, Math.floor((activeCoinCountdownEndTime - Date.now()) / 1000));
-                const m = Math.floor(remaining / 60).toString().padStart(2, "0");
-                const s = (remaining % 60).toString().padStart(2, "0");
-                display.innerText = `${m}:${s}`;
-
-                if (remaining <= 10) {
-                    display.style.color = "#EF4444";
-                } else {
-                    display.style.color = "";
-                }
-
                 if (remaining <= 0) {
                     clearInterval(activeCoinCountdownInterval);
                     activeCoinCountdownInterval = null;
@@ -959,6 +976,8 @@ function syncCoinCountdown(coinRequest) {
     } else {
         // Pending
         container.style.display = "none";
+        container.classList.remove("is-warning", "is-danger");
+        display.style.color = "";
     }
 }
 
@@ -1601,8 +1620,7 @@ function initExtendSessionFlow(macAddress) {
                 clearPolling();
                 state.requestId = null;
                 state.readyToStart = false;
-                const countdownContainer = document.getElementById("coin-countdown-container");
-                if (countdownContainer) countdownContainer.style.display = "none";
+                clearCoinCountdown();
                 const actionsContainer = document.getElementById("coin-actions-container");
                 if (actionsContainer) actionsContainer.style.display = "none";
                 if (data.session_group) {

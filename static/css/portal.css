@@ -1552,6 +1552,7 @@ body.modal-open {
     text-align: center;
     margin-bottom: 14px;
     box-shadow: 0 2px 8px rgba(16, 185, 129, 0.08);
+    transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 .coin-countdown-header {
@@ -1569,6 +1570,7 @@ body.modal-open {
     background: #10B981;
     box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
     animation: pulse-dot 1.5s infinite;
+    transition: background-color 0.3s ease;
 }
 
 .coin-countdown-label {
@@ -1577,6 +1579,7 @@ body.modal-open {
     text-transform: uppercase;
     letter-spacing: 0.5px;
     color: #047857;
+    transition: color 0.3s ease;
 }
 
 .coin-countdown-time {
@@ -1586,7 +1589,41 @@ body.modal-open {
     color: #065F46;
     letter-spacing: 1.5px;
     line-height: 1.15;
-    transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: color 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Warning State (< 60s / less than 1 minute) */
+.coin-countdown-box.is-warning {
+    background: #FFFBEB;
+    border-color: #FDE68A;
+    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.10);
+}
+.coin-countdown-box.is-warning .coin-pulse-indicator {
+    background: #F59E0B;
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7);
+}
+.coin-countdown-box.is-warning .coin-countdown-label {
+    color: #92400E;
+}
+.coin-countdown-box.is-warning .coin-countdown-time {
+    color: #B45309;
+}
+
+/* Danger State (< 30s / less than 30 seconds) */
+.coin-countdown-box.is-danger {
+    background: #FEF2F2;
+    border-color: #FECACA;
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.12);
+}
+.coin-countdown-box.is-danger .coin-pulse-indicator {
+    background: #EF4444;
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+}
+.coin-countdown-box.is-danger .coin-countdown-label {
+    color: #991B1B;
+}
+.coin-countdown-box.is-danger .coin-countdown-time {
+    color: #DC2626;
 }
 
 /* Minimalist Metrics Grid (Coins Inserted & Internet Time) */

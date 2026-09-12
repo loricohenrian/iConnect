@@ -417,6 +417,16 @@
                         const m = Math.floor(remaining / 60).toString().padStart(2, '0');
                         const s = (remaining % 60).toString().padStart(2, '0');
                         countdownDisplay.innerText = `${m}:${s}`;
+                        countdownContainer.classList.remove('is-warning', 'is-danger');
+                        if (remaining < 30) {
+                            countdownContainer.classList.add('is-danger');
+                            countdownDisplay.style.color = '#DC2626';
+                        } else if (remaining < 60) {
+                            countdownContainer.classList.add('is-warning');
+                            countdownDisplay.style.color = '#B45309';
+                        } else {
+                            countdownDisplay.style.color = '';
+                        }
                         if (remaining <= 0) {
                             clearInterval(fallbackInterval);
                             fallbackInterval = null;
@@ -428,6 +438,8 @@
                     clearInterval(fallbackInterval);
                     fallbackInterval = null;
                 }
+                countdownContainer.classList.remove('is-warning', 'is-danger');
+                countdownDisplay.style.color = '';
             }
         });
         observer.observe(flowMessage, { childList: true, characterData: true, subtree: true });
