@@ -26,13 +26,13 @@
             </div>
             <div class="header-right">
                 <div class="slots-indicator-inline" id="slots-indicator">
-                    <div class="slots-badge {% if slots_available > 5 %}available{% elif slots_available > 0 %}low{% else %}full{% endif %}" id="slots-badge" title="Active Network Users">
+                    <div class="slots-badge {% if slots_available is not None and slots_available <= 0 %}full{% elif slots_available is not None and slots_available <= 5 %}low{% else %}available{% endif %}" id="slots-badge" title="Active Network Users">
                         <span class="slots-dot" id="slots-dot"></span>
                         <span id="slots-text">
-                            {% if slots_available > 0 %}
-                                Active Users: {{ slots_active|default:0 }}/{{ slots_max|default:20 }}
+                            {% if slots_available is not None and slots_available <= 0 %}
+                                Network Full ({{ slots_max|default:20 }} / {{ slots_max|default:20 }})
                             {% else %}
-                                Network Full
+                                Active Users: {{ slots_active|default:0 }} / {{ slots_max|default:20 }}
                             {% endif %}
                         </span>
                     </div>

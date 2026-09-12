@@ -12,6 +12,10 @@ html, body {
     overscroll-behavior: auto;
 }
 
+html {
+    scrollbar-gutter: stable;
+}
+
 .portal-wrapper {
     min-height: 100vh;
     background: var(--color-light);
@@ -53,6 +57,7 @@ main.portal-container {
     display: flex;
     align-items: center;
     box-sizing: border-box;
+    flex-shrink: 0;
 }
 
 .portal-header-inner {
@@ -63,11 +68,13 @@ main.portal-container {
     margin: 0 auto;
     width: 100%;
     height: 100%;
+    box-sizing: border-box;
 }
 
 .header-brand {
     display: flex;
     align-items: center;
+    flex-shrink: 0;
 }
 
 .portal-header .portal-logo {
@@ -79,21 +86,25 @@ main.portal-container {
     border-radius: 50%;
     border: 1.5px solid rgba(255, 255, 255, 0.35);
     transition: transform 0.2s ease;
+    flex-shrink: 0;
 }
 
 .header-right {
     display: flex;
     align-items: center;
+    flex-shrink: 0;
 }
 
 .slots-indicator-inline {
     display: flex;
     align-items: center;
+    flex-shrink: 0;
 }
 
 .slots-indicator-inline .slots-badge {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 6px;
     padding: 4px 10px;
     border-radius: 100px;
@@ -104,7 +115,11 @@ main.portal-container {
     color: #ffffff;
     border: 1px solid rgba(255, 255, 255, 0.28);
     backdrop-filter: blur(4px);
-    transition: var(--transition-fast);
+    white-space: nowrap;
+    flex-shrink: 0;
+    min-width: 132px;
+    box-sizing: border-box;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
 .slots-indicator-inline .slots-badge.available .slots-dot { background: #34D399; }
@@ -1250,6 +1265,7 @@ body.modal-open {
     z-index: 1000;
     transform: none;
     box-sizing: border-box;
+    flex-shrink: 0;
 }
 
 .portal-nav a {
