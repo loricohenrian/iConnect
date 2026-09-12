@@ -386,17 +386,16 @@
         </div>
     </div>
 
-    <!-- Dashed Tip Card Accordion -->
-    <details class="option-c-dashed-tip">
-        <summary class="option-c-tip-summary">
-            <span>Tip card</span>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="option-c-chevron"><polyline points="6 9 12 15 18 9"></polyline></svg>
-        </summary>
-        <div class="option-c-tip-body">
-            <p><strong>iPhone & Android:</strong> For permanent timer tracking, set Wi-Fi to <strong>"Device MAC"</strong> before inserting coins.</p>
-            <a href="{% url 'portal:manual' %}#faq-section">Need help or lost your timer? Read FAQs &rarr;</a>
+    <!-- Static Always-Visible Tip Card -->
+    <div class="option-c-tip-card">
+        <div class="option-c-tip-star">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" style="color: var(--color-primary); flex-shrink: 0;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
         </div>
-    </details>
+        <div class="option-c-tip-content">
+            <p><strong>iPhone &amp; Android Tip:</strong> For the most reliable experience, set your Wi-Fi to "Device MAC" BEFORE inserting coins so your device identity is permanent.</p>
+            <a href="{% url 'portal:manual' %}#faq-section">Need help or lost your timer? Read FAQs &amp; Tips &rarr;</a>
+        </div>
+    </div>
 </div>
 
 <script>
