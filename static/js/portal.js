@@ -889,7 +889,7 @@ function updateCountdownDisplay(display) {
     if (remaining <= 10) {
         display.style.color = "#EF4444";
     } else {
-        display.style.color = "var(--text-primary)";
+        display.style.color = "";
     }
 }
 
@@ -947,7 +947,7 @@ function syncCoinCountdown(coinRequest) {
                 if (remaining <= 10) {
                     display.style.color = "#EF4444";
                 } else {
-                    display.style.color = "var(--text-primary)";
+                    display.style.color = "";
                 }
 
                 if (remaining <= 0) {
@@ -1055,6 +1055,9 @@ function initProductionStartFlow(macAddress) {
         const btnCancel = document.getElementById("btn-cancel-coin-request");
         const linkCancel = document.getElementById("link-cancel-coin-request");
         const isTerminal = ["expired", "cancelled"].includes(coinRequest?.status);
+
+        // Keep Insert Coins button disabled while coin request is active; enable only if terminal/cancelled
+        requestBtn.disabled = Boolean(coinRequest && !isTerminal);
 
         const activeCard = document.getElementById("coin-deposit-active-card");
         if (activeCard) {
@@ -1200,7 +1203,11 @@ function initProductionStartFlow(macAddress) {
         } catch (error) {
             setStartFlowMessage("Connection error while requesting coin slot.", "danger");
         } finally {
-            requestBtn.disabled = false;
+            if (!state.requestId) {
+                requestBtn.disabled = false;
+            } else {
+                requestBtn.disabled = true;
+            }
         }
     });
 
@@ -1378,6 +1385,9 @@ function initExtendSessionFlow(macAddress) {
         const linkCancel = document.getElementById("link-cancel-coin-request");
         const isTerminal = ["expired", "cancelled"].includes(coinRequest?.status);
 
+        // Keep Insert Coins button disabled while coin request is active; enable only if terminal/cancelled
+        extendRequestBtn.disabled = Boolean(coinRequest && !isTerminal);
+
         const activeCard = document.getElementById("coin-deposit-active-card");
         if (activeCard) {
             if (coinRequest && (!isTerminal || state.readyToStart)) {
@@ -1542,7 +1552,11 @@ function initExtendSessionFlow(macAddress) {
         } catch (error) {
             setExtendMessage("Connection error.", "danger");
         } finally {
-            extendRequestBtn.disabled = false;
+            if (!state.requestId) {
+                extendRequestBtn.disabled = false;
+            } else {
+                extendRequestBtn.disabled = true;
+            }
         }
     });
 

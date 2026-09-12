@@ -1545,12 +1545,13 @@ body.modal-open {
 
 /* Countdown Timer Box */
 .coin-countdown-box {
-    background: #FFFBEB;
-    border: 1px solid #FDE68A;
+    background: #F0FDF4;
+    border: 1px solid #BBF7D0;
     border-radius: 14px;
     padding: 12px 14px;
     text-align: center;
     margin-bottom: 14px;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.08);
 }
 
 .coin-countdown-header {
@@ -1565,8 +1566,8 @@ body.modal-open {
     width: 7px;
     height: 7px;
     border-radius: 50%;
-    background: #F59E0B;
-    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7);
+    background: #10B981;
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
     animation: pulse-dot 1.5s infinite;
 }
 
@@ -1575,14 +1576,14 @@ body.modal-open {
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    color: #92400E;
+    color: #047857;
 }
 
 .coin-countdown-time {
     font-size: 2rem;
     font-weight: 800;
     font-family: 'SF Mono', Monaco, Consolas, 'Courier New', Courier, monospace;
-    color: #78350F;
+    color: #065F46;
     letter-spacing: 1.5px;
     line-height: 1.15;
     transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -1962,7 +1963,9 @@ body.modal-open {
     font-size: 13px;
     font-weight: 700;
     color: var(--color-primary);
-    padding: 7px 16px;
+    padding: 8px 22px;
+    min-width: 130px;
+    flex-shrink: 0;
     line-height: 1.25;
     text-align: center;
     cursor: pointer;
@@ -1982,7 +1985,7 @@ body.modal-open {
 .link-option-c-group {
     background: transparent;
     border: none;
-    font-size: 13px;
+    font-size: 12.5px;
     font-weight: 600;
     color: #2563eb;
     text-decoration: underline;
@@ -1990,7 +1993,9 @@ body.modal-open {
     padding: 4px;
     display: inline-flex;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-end;
+    text-align: right;
+    line-height: 1.35;
     transition: color 0.15s ease;
 }
 
