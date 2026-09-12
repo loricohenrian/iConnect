@@ -345,11 +345,13 @@
 
     <!-- Option C Pill Buttons Stack -->
     <div class="option-c-btn-stack">
-        <button type="button" class="btn-option-c-pill" id="request-slot-btn">
-            Insert Coins
+        <button type="button" class="btn btn-pill-primary w-100" id="request-slot-btn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="mini-coin-svg"><circle cx="12" cy="12" r="9"></circle><path d="M14.5 9h-5a2 2 0 0 0 0 4h3a2 2 0 0 1 0 4h-5"></path><line x1="12" y1="7" x2="12" y2="9"></line><line x1="12" y1="17" x2="12" y2="19"></line></svg>
+            <span>Insert Coins</span>
         </button>
-        <button type="button" class="btn-option-c-pill" id="btn-view-rates" onclick="openRatesModal()" aria-label="View WiFi Rates & Speeds">
-            View Rates
+        <button type="button" class="btn btn-pill-secondary w-100" id="btn-view-rates" onclick="openRatesModal()" aria-label="View WiFi Rates & Speeds">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; flex-shrink: 0;"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
+            <span>View Rates</span>
         </button>
     </div>
 
@@ -387,7 +389,6 @@
     </div>
 
     <!-- Dashed Group Box -->
-    {% if enable_family_pass %}
     <div class="option-c-dashed-group">
         <div class="option-c-group-title">Share wifi with family or friends</div>
         <div class="option-c-group-row">
@@ -399,16 +400,6 @@
             </button>
         </div>
     </div>
-    {% else %}
-    <div class="option-c-dashed-group">
-        <div class="option-c-group-title">Share wifi with family or friends</div>
-        <div class="option-c-group-row" style="justify-content: center;">
-            <button type="button" class="link-option-c-group" id="btn-show-join-group" onclick="openJoinGroupModal()">
-                <u>Have a group code?</u>
-            </button>
-        </div>
-    </div>
-    {% endif %}
 
     <!-- Dashed Tip Card Accordion -->
     <details class="option-c-dashed-tip">
