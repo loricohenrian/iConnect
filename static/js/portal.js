@@ -1186,8 +1186,14 @@ function initProductionStartFlow(macAddress) {
         if (activeCard) {
             if (coinRequest && (!isTerminal || state.readyToStart)) {
                 activeCard.style.display = "block";
+                if (typeof window.openCoinModal === "function") {
+                    window.openCoinModal();
+                }
             } else if (!coinRequest || isTerminal) {
                 activeCard.style.display = "none";
+                if (typeof window.closeCoinModal === "function") {
+                    window.closeCoinModal();
+                }
             }
         }
 
@@ -1554,8 +1560,14 @@ function initExtendSessionFlow(macAddress) {
         if (activeCard) {
             if (coinRequest && (!isTerminal || state.readyToStart)) {
                 activeCard.style.display = "block";
+                if (typeof window.openCoinModal === "function") {
+                    window.openCoinModal();
+                }
             } else if (!coinRequest || isTerminal) {
                 activeCard.style.display = "none";
+                if (typeof window.closeCoinModal === "function") {
+                    window.closeCoinModal();
+                }
             }
         }
 

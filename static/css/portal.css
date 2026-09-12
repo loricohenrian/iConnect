@@ -1625,15 +1625,47 @@ body.modal-open {
 }
 
 /* ============================================
-   Unified Coin Deposit Flow Card & Terminal UI
+   Unified Coin Deposit Flow Card & Terminal UI (Modal)
    ============================================ */
+.coin-deposit-modal-card {
+    max-width: 410px;
+    width: 100%;
+    padding: 20px 20px 24px 20px;
+    border-radius: 24px;
+    background: var(--color-white);
+    border: 1px solid var(--color-border);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.22), 0 8px 16px rgba(0, 0, 0, 0.08);
+}
+
+.coin-modal-header {
+    border-bottom: 1px solid var(--color-border);
+    padding-bottom: 12px;
+    margin-bottom: 16px;
+}
+
+.coin-modal-icon-pulse {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--color-primary-light);
+    color: var(--color-primary);
+    animation: coinIconPulse 2s infinite ease-in-out;
+}
+
+@keyframes coinIconPulse {
+    0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+    50% { transform: scale(1.08); box-shadow: 0 0 0 7px rgba(16, 185, 129, 0); }
+}
+
 .coin-deposit-card {
-    background: #FFFFFF;
-    border: 1px solid #E7DDD4;
-    border-radius: 16px;
-    padding: 18px 16px;
-    margin-top: 16px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.03);
+    background: transparent;
+    border: none;
+    padding: 0;
+    margin-top: 0;
+    box-shadow: none;
     position: relative;
 }
 

@@ -460,8 +460,93 @@ document.addEventListener('DOMContentLoaded', () => {
         <button type="button" class="btn btn-primary w-100" onclick="closeIspOutageModal()" style="background: #dc2626; border-color: #dc2626; padding: 10px 16px; font-weight: 600; font-size: 14px; border-radius: 8px;">
             Understood
         </button>
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- Global Coin Deposit Modal (Popup for Drop Coins)    -->
+<!-- ═══════════════════════════════════════════════════ -->
+<div id="coinDepositModal" class="modal-overlay" style="display: none; z-index: 9980;" onclick="closeCoinModal(event)">
+    <div class="modal-card animate-fadeIn coin-deposit-modal-card" onclick="event.stopPropagation()">
+        <!-- Modal Header -->
+        <div class="modal-header coin-modal-header">
+            <h3 style="display: flex; align-items: center; gap: 8px; margin: 0;">
+                <span class="coin-modal-icon-pulse">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="mini-coin-svg">
+                        <circle cx="12" cy="12" r="9.5"></circle>
+                        <path d="M14.5 9.5a2.5 2.5 0 0 0-5 0c0 2.5 5 2.5 5 5a2.5 2.5 0 0 1-5 0"></path>
+                        <line x1="12" y1="6.5" x2="12" y2="17.5"></line>
+                    </svg>
+                </span>
+                <span>Drop Coins Now</span>
+            </h3>
+            <button type="button" class="modal-close-btn" onclick="closeCoinModal()" title="Close" aria-label="Close">
+                <span style="font-size: 18px; font-weight: 700; line-height: 1;">&times;</span>
+            </button>
+        </div>
+
+        <div id="coin-deposit-active-card" class="coin-deposit-card" style="display: block; margin-top: 0; border: none; padding: 0; box-shadow: none;">
+            <!-- Countdown Timer Box -->
+            <div id="coin-countdown-container" class="coin-countdown-box" style="display:none;">
+                <div class="coin-countdown-header">
+                    <span class="coin-pulse-indicator"></span>
+                    <span class="coin-countdown-label">Time Remaining to Drop Coins</span>
+                </div>
+                <div id="coin-countdown-display" class="coin-countdown-time">02:00</div>
+            </div>
+
+            <!-- Dynamic Metrics (Coins Inserted & Internet Time) & Status -->
+            <div id="start-flow-meta" class="coin-flow-meta-container"></div>
+            <div id="extend-flow-meta" class="coin-flow-meta-container"></div>
+
+            <!-- Helpful Guidance Message / Step Notice -->
+            <div id="start-flow-message" class="coin-flow-message alert alert-info" style="display:none;"></div>
+            <div id="extend-flow-message" class="coin-flow-message alert alert-info" style="display:none;"></div>
+
+            <!-- Actions: Connect / Extend Button & Centered Cancel -->
+            <div id="coin-actions-container" class="coin-actions-box" style="display:none;">
+                <button type="button" class="btn btn-connect-now w-100 animate-fadeIn" id="start-session-btn" disabled style="display: none; border-radius: 9999px;">
+                    <i class="bi bi-wifi"></i> <span>Connect Now</span>
+                </button>
+                <button type="button" class="btn btn-connect-now w-100 animate-fadeIn" id="extend-now-btn" disabled style="display: none; border-radius: 9999px;">
+                    <i class="bi bi-plus-circle"></i> <span>Extend Now</span>
+                </button>
+
+                <div class="coin-cancel-wrap" style="margin-top: 14px;">
+                    <button type="button" class="btn btn-cancel-coin" id="btn-cancel-coin-request" onclick="openCancelCoinModal(this); return false;">
+                        <i class="bi bi-x-circle"></i> Cancel Request
+                    </button>
+                    <a href="javascript:void(0)" id="link-cancel-coin-request" class="link-cancel-coin" onclick="openCancelCoinModal(this); return false;" style="display: none;">
+                        Cancel Request
+                    </a>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
+
+<script>
+window.openCoinModal = function() {
+    var modal = document.getElementById("coinDepositModal");
+    if (modal) {
+        if (typeof closeGroupPlanModal === "function") closeGroupPlanModal();
+        if (typeof closeRatesModal === "function") closeRatesModal();
+        if (typeof closeJoinGroupModal === "function") closeJoinGroupModal();
+        modal.style.display = "flex";
+        document.body.classList.add("modal-open");
+        document.documentElement.classList.add("modal-open");
+    }
+};
+
+window.closeCoinModal = function(e) {
+    if (e && e.target && e.target !== e.currentTarget && !e.target.classList.contains("modal-overlay")) {
+        return;
+    }
+    var modal = document.getElementById("coinDepositModal");
+    if (modal) {
+        modal.style.display = "none";
+        document.body.classList.remove("modal-open");
+        document.documentElement.classList.remove("modal-open");
+    }
+};
+</script>
 
 <!-- Cancel Coin Request Confirmation Modal -->
 <div id="cancelCoinModal" class="modal-overlay" style="display: none; z-index: 9999;" onclick="closeCancelCoinModal(event)">
