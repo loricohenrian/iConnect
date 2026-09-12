@@ -29,26 +29,75 @@ html, body {
 }
 
 /* ============================================
-   Portal Header — Maroon with Logo
+   Portal Header — Option C: Minimal Center Top Bar
    ============================================ */
 .portal-header {
     background: var(--color-primary);
-    padding: 16px 20px;
-    text-align: center;
+    padding: 10px 16px;
     width: 100%;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.portal-header-inner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 440px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+.header-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
 .portal-header .portal-logo {
-    width: 58px;
-    height: 58px;
+    width: 36px;
+    height: 36px;
     object-fit: cover;
     display: block;
-    margin: 0 auto;
+    margin: 0;
     border-radius: 50%;
-    border: 2px solid rgba(255, 255, 255, 0.25);
+    border: 1.5px solid rgba(255, 255, 255, 0.3);
     transition: transform 0.2s ease;
 }
+
+.portal-brand-name {
+    font-size: 16px;
+    font-weight: 700;
+    color: #ffffff;
+    letter-spacing: 0.3px;
+}
+
+.slots-indicator-inline {
+    display: flex;
+    align-items: center;
+}
+
+.slots-indicator-inline .slots-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 100px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    background: rgba(255, 255, 255, 0.16);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    backdrop-filter: blur(4px);
+    transition: var(--transition-fast);
+}
+
+.slots-indicator-inline .slots-badge.available .slots-dot { background: #34D399; }
+.slots-indicator-inline .slots-badge.low .slots-dot { background: #FBBF24; }
+.slots-indicator-inline .slots-badge.full .slots-dot { background: #F87171; }
 
 /* ============================================
    Connection Slots Indicator Badge
@@ -244,6 +293,204 @@ html, body {
 
 .btn-link-group:active {
     color: #1e40af;
+}
+
+/* ============================================
+   Option C: Minimal Center Components
+   ============================================ */
+.option-c-card {
+    background: var(--color-white);
+    border: 1px solid var(--color-border);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+}
+
+.btn-pill-primary {
+    background: var(--color-primary);
+    color: var(--color-white);
+    border: none;
+    font-size: 1.15rem;
+    font-weight: 700;
+    border-radius: 50px;
+    padding: 14px 20px;
+    box-shadow: 0 4px 14px rgba(123, 45, 59, 0.28);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-pill-primary:hover:not(:disabled) {
+    background: var(--color-primary-dark);
+    transform: translateY(-1.5px);
+    box-shadow: 0 6px 18px rgba(123, 45, 59, 0.35);
+}
+
+.btn-pill-primary:active:not(:disabled) {
+    transform: translateY(1px) scale(0.98);
+}
+
+.btn-pill-primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+.btn-pill-secondary {
+    background: var(--color-white);
+    color: var(--color-primary);
+    border: 1.5px solid var(--color-primary);
+    font-size: 0.95rem;
+    font-weight: 600;
+    border-radius: 50px;
+    padding: 11px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-pill-secondary:hover {
+    background: var(--color-primary-light);
+    border-color: var(--color-primary);
+    transform: translateY(-1px);
+}
+
+.btn-pill-secondary:active {
+    transform: scale(0.98);
+}
+
+/* Option C: Compact Group Plan Card (Side-by-side) */
+.group-plan-compact-card {
+    background: rgba(0, 0, 0, 0.015);
+    border: 1px dashed var(--color-border);
+    border-radius: 16px;
+    padding: 12px 14px;
+}
+
+.group-compact-header {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-dark);
+    text-align: center;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.group-compact-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.btn-group-pill-buy {
+    background: var(--color-white);
+    color: var(--color-primary);
+    border: 1.5px solid var(--color-primary);
+    font-weight: 600;
+    font-size: 13px;
+    border-radius: 50px;
+    padding: 9px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-group-pill-buy:hover {
+    background: var(--color-primary-light);
+}
+
+.btn-group-pill-buy:active {
+    transform: scale(0.97);
+}
+
+.btn-group-pill-join {
+    background: var(--color-white);
+    color: #2563eb;
+    border: 1.5px solid #93c5fd;
+    font-weight: 600;
+    font-size: 13px;
+    border-radius: 50px;
+    padding: 9px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-group-pill-join:hover {
+    background: #eff6ff;
+    border-color: #3b82f6;
+}
+
+.btn-group-pill-join:active {
+    transform: scale(0.97);
+}
+
+/* Option C: Collapsible Accordion Tip Card */
+.tip-accordion {
+    background: rgba(37, 99, 235, 0.04);
+    border: 1px solid rgba(37, 99, 235, 0.16);
+    border-radius: 14px;
+    overflow: hidden;
+    transition: all 0.2s ease;
+}
+
+.tip-accordion[open] {
+    background: rgba(37, 99, 235, 0.07);
+    border-color: rgba(37, 99, 235, 0.28);
+}
+
+.tip-accordion-summary {
+    list-style: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 11px 15px;
+    cursor: pointer;
+    user-select: none;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-primary);
+    transition: background 0.15s ease;
+}
+
+.tip-accordion-summary::-webkit-details-marker {
+    display: none;
+}
+
+.tip-accordion-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.tip-accordion-chevron {
+    font-size: 12px;
+    color: var(--color-text-secondary);
+    transition: transform 0.2s ease;
+}
+
+.tip-accordion[open] .tip-accordion-chevron {
+    transform: rotate(180deg);
+}
+
+.tip-accordion-body {
+    padding: 0 15px 12px 15px;
+    font-size: 12px;
+    color: var(--color-dark);
+    line-height: 1.45;
 }
 
 /* Standardized Base Buttons */
