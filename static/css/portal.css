@@ -43,9 +43,10 @@ main.portal-container {
 .portal-header {
     background: var(--color-primary);
     padding: 0 16px;
-    height: 48px;
+    height: 54px;
     width: 100%;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.10);
     position: sticky;
     top: 0;
     z-index: 100;
@@ -70,8 +71,8 @@ main.portal-container {
 }
 
 .portal-header .portal-logo {
-    width: 32px;
-    height: 32px;
+    width: 34px;
+    height: 34px;
     object-fit: cover;
     display: block;
     margin: 0;
