@@ -13,8 +13,10 @@ logger = logging.getLogger("coin_detector")
 
 DJANGO_URL = os.getenv("DJANGO_URL", "http://127.0.0.1")
 GPIO_PIN = int(os.getenv("GPIO_PIN", "3"))
-COIN_RELAY_PIN = int(os.getenv("COIN_RELAY_PIN", os.getenv("RELAY_PIN", "0")))
+COIN_RELAY_PIN = int(os.getenv("COIN_RELAY_PIN", os.getenv("RELAY_PIN", "8")))
 RELAY_ACTIVE_HIGH = os.getenv("RELAY_ACTIVE_HIGH", "True").lower() in ("true", "1", "yes")
+GPIO_CHIP = os.getenv("GPIO_CHIP", "/dev/gpiochip1")
+
 DEVICE_MAC = os.getenv("DEVICE_MAC", "").upper().strip()
 DEVICE_SCOPE_ENABLED = os.getenv("DEVICE_SCOPE_ENABLED", "False").lower() in ("true", "1", "yes")
 DEVICE_API_KEY = os.getenv("DEVICE_API_KEY", "iconnect-local-device-key-change-me")
@@ -28,23 +30,30 @@ PULSE_TIMEOUT = 0.5
 API_ENDPOINT = f"{DJANGO_URL}/api/coin-inserted/"
 STATUS_ENDPOINT = f"{DJANGO_URL}/api/coinslot/status/"
 
-# Global coinslot gating state
+# Map header pin numbers to Zero 3 / H618 chip lines if needed
+PIN_TO_LINE = {
+    3: 229,  # Header Pin 3 -> Line 229
+    8: 226,  # Header Pin 8 -> Line 226
+    5: 228,  # Header Pin 5 -> Line 228 (Bill)
+}
+COIN_LINE = PIN_TO_LINE.get(GPIO_PIN, GPIO_PIN)
+RELAY_LINE = PIN_TO_LINE.get(COIN_RELAY_PIN, COIN_RELAY_PIN)
+
 is_slot_active = False
 active_mac = None
 active_request_id = None
 _stop_thread = False
+_http_session = requests.Session()
+_gpiod_req = None
 
 
 def device_scope_active():
     return DEVICE_SCOPE_ENABLED and bool(DEVICE_MAC)
 
 
-_http_session = requests.Session()
-
-
 def poll_coinslot_status():
     """Background loop that checks if an active request has unlocked the coin slot."""
-    global is_slot_active, active_mac, active_request_id, _stop_thread
+    global is_slot_active, active_mac, active_request_id, _stop_thread, _gpiod_req
     last_logged_state = None
 
     while not _stop_thread:
@@ -53,7 +62,7 @@ def poll_coinslot_status():
             time.sleep(1.0)
             continue
 
-        poll_interval = 1.0  # Default idle polling rate
+        poll_interval = 1.0
         try:
             resp = _http_session.get(STATUS_ENDPOINT, timeout=2)
             if resp.status_code == 200:
@@ -67,7 +76,6 @@ def poll_coinslot_status():
                 active_mac = mac
                 active_request_id = req_id
 
-                # When slot is actively unlocked by a customer, poll faster (500ms) for responsive countdown
                 if is_slot_active:
                     poll_interval = 0.5
 
@@ -81,16 +89,14 @@ def poll_coinslot_status():
                     else:
                         logger.info("🔒 Coinslot LOCKED (No active request)")
 
-                # If a physical relay pin is configured, toggle the hardware pin
-                if COIN_RELAY_PIN > 0:
+                # Update relay output via gpiod if active
+                if _gpiod_req and RELAY_LINE > 0:
                     try:
-                        import OPi.GPIO as GPIO
-                        if RELAY_ACTIVE_HIGH:
-                            GPIO.output(COIN_RELAY_PIN, GPIO.HIGH if is_slot_active else GPIO.LOW)
-                        else:
-                            GPIO.output(COIN_RELAY_PIN, GPIO.LOW if is_slot_active else GPIO.HIGH)
+                        from gpiod.line import Value
+                        target_val = Value.ACTIVE if (is_slot_active if RELAY_ACTIVE_HIGH else not is_slot_active) else Value.INACTIVE
+                        _gpiod_req.set_value(RELAY_LINE, target_val)
                     except Exception as err:
-                        logger.debug("Error setting relay GPIO: %s", err)
+                        logger.debug("Error setting relay gpiod: %s", err)
 
         except Exception as exc:
             logger.debug("Could not poll coinslot status: %s", exc)
@@ -132,77 +138,74 @@ def send_coin_event(amount, denomination):
         return None
 
 
-def run_gpio():
-    """Hardware mode for Orange Pi / ALLAN H3."""
-    global _stop_thread
+def run():
+    global _stop_thread, _gpiod_req
     try:
-        import OPi.GPIO as GPIO
+        import gpiod
+        from gpiod.line import Direction, Value, Edge, Bias
     except ImportError:
-        logger.critical(
-            "OPi.GPIO library not installed. "
-            "Install with: pip install OPi.GPIO. "
-            "This script must run on the Orange Pi hardware."
-        )
+        logger.critical("gpiod library not installed. Run: pip install gpiod")
         sys.exit(1)
 
     logger.info("=" * 50)
-    logger.info("iConnect Coin Detector — PRODUCTION MODE")
+    logger.info("iConnect Coin Detector (GPIOD Mode — Orange Pi Zero 3)")
     logger.info("=" * 50)
-    logger.info("GPIO Pulse Pin: %s", GPIO_PIN)
-    if COIN_RELAY_PIN > 0:
-        logger.info("Hardware Relay/Inhibit Pin: %s", COIN_RELAY_PIN)
-    else:
-        logger.info("Hardware Relay Pin: Disabled (Software Gating Active)")
+    logger.info("Chip: %s | Coin Line: %d | Relay Line: %d", GPIO_CHIP, COIN_LINE, RELAY_LINE)
     logger.info("API endpoint: %s", API_ENDPOINT)
-    logger.info("Status endpoint: %s", STATUS_ENDPOINT)
 
-    GPIO.setmode(GPIO.BOARD)
-    GPIO.setup(GPIO_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-
-    if COIN_RELAY_PIN > 0:
-        initial_relay = GPIO.LOW if RELAY_ACTIVE_HIGH else GPIO.HIGH
-        GPIO.setup(COIN_RELAY_PIN, GPIO.OUT, initial=initial_relay)
+    config = {
+        COIN_LINE: gpiod.LineSettings(
+            direction=Direction.INPUT,
+            edge_detection=Edge.BOTH,
+            bias=Bias.PULL_UP
+        )
+    }
+    if RELAY_LINE > 0:
+        initial_val = Value.ACTIVE if (not RELAY_ACTIVE_HIGH) else Value.INACTIVE
+        config[RELAY_LINE] = gpiod.LineSettings(
+            direction=Direction.OUTPUT,
+            output_value=initial_val
+        )
 
     # Start background polling thread for coinslot enable/disable state
     status_thread = threading.Thread(target=poll_coinslot_status, daemon=True)
     status_thread.start()
 
-    logger.info("Listening for coin pulses...")
+    logger.info("Listening for coin pulses on line %d...", COIN_LINE)
 
     pulse_count = 0
     last_pulse_time = 0
 
-    try:
-        while True:
-            if GPIO.input(GPIO_PIN) == GPIO.LOW:
-                pulse_count += 1
-                last_pulse_time = time.time()
-                logger.debug("Pulse #%d", pulse_count)
-
-                while GPIO.input(GPIO_PIN) == GPIO.LOW:
-                    time.sleep(0.01)
-
-            if pulse_count > 0 and (time.time() - last_pulse_time) > PULSE_TIMEOUT:
-                if pulse_count in (1, 5, 10, 20):
+    with gpiod.request_lines(GPIO_CHIP, consumer="iconnect-coindetector", config=config) as req:
+        _gpiod_req = req
+        try:
+            while True:
+                # Check if pulse train completed
+                now = time.time()
+                if pulse_count > 0 and (now - last_pulse_time) > PULSE_TIMEOUT:
                     amount = pulse_count
                     if not is_slot_active and not device_scope_active():
-                        logger.info("₱%d unassigned coin detected (recorded in revenue, no active session)", amount)
+                        logger.info("₱%d unassigned coin detected (%d pulses)", amount, pulse_count)
                     else:
                         logger.info("₱%d coin detected for active session (%d pulses)", amount, pulse_count)
                     send_coin_event(amount, amount)
-                else:
-                    logger.warning("Invalid pulse count: %d. Ignoring.", pulse_count)
+                    pulse_count = 0
 
-                pulse_count = 0
-
-            time.sleep(0.01)
-    except KeyboardInterrupt:
-        logger.info("Shutting down coin detector...")
-    finally:
-        _stop_thread = True
-        GPIO.cleanup()
+                # Wait for edge events with short timeout so we can check PULSE_TIMEOUT
+                if req.wait_edge_events(timeout=0.05):
+                    events = req.read_edge_events()
+                    for ev in events:
+                        if ev.line_offset == COIN_LINE:
+                            if ev.event_type == ev.Type.FALLING_EDGE:
+                                pulse_count += 1
+                                last_pulse_time = time.time()
+                                logger.info("Pulse detected! Total count: %d", pulse_count)
+        except KeyboardInterrupt:
+            logger.info("Shutting down...")
+        finally:
+            _stop_thread = True
 
 
 if __name__ == "__main__":
-    run_gpio()
+    run()
 
