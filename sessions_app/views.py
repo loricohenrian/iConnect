@@ -824,9 +824,20 @@ def coinslot_status(request):
 @permission_classes([AllowAny])
 def session_start_request(request):
     """Create/retrieve a queued coin-insert request for starting a session."""
-    serializer = SessionStartSerializer(data=request.data)
+    request_data = request.data.copy() if hasattr(request.data, "copy") else dict(request.data)
+    if not request_data.get("mac_address"):
+        server_mac = _get_mac_address(request)
+        if server_mac:
+            request_data["mac_address"] = server_mac
+
+    serializer = SessionStartSerializer(data=request_data)
     if not serializer.is_valid():
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        first_err = "Invalid request data."
+        for field, err_list in serializer.errors.items():
+            if isinstance(err_list, list) and len(err_list) > 0:
+                first_err = f"{field}: {err_list[0]}"
+                break
+        return Response({"error": first_err, "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
     mac_address = serializer.validated_data["mac_address"]
     plan_id = serializer.validated_data.get("plan_id")
@@ -954,7 +965,7 @@ def session_start_request_status(request):
 @permission_classes([AllowAny])
 def session_start_cancel(request):
     """Cancel a pending start-session coin request."""
-    mac_address = request.data.get("mac_address", "").upper().strip()
+    mac_address = request.data.get("mac_address", "").upper().strip() or _get_mac_address(request)
     if not mac_address:
         return Response({"error": "MAC address required"}, status=status.HTTP_400_BAD_REQUEST)
         
@@ -981,9 +992,23 @@ def session_start(request):
     Creates new session after payment.
     POST /api/session/start/
     """
-    serializer = SessionStartSerializer(data=request.data)
+    request_data = request.data.copy() if hasattr(request.data, "copy") else dict(request.data)
+    if not request_data.get("mac_address"):
+        server_mac = _get_mac_address(request)
+        if server_mac:
+            request_data["mac_address"] = server_mac
+
+    serializer = SessionStartSerializer(data=request_data)
     if not serializer.is_valid():
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        first_err = "Invalid request data."
+        for field, err_list in serializer.errors.items():
+            if isinstance(err_list, list) and len(err_list) > 0:
+                first_err = f"{field}: {err_list[0]}"
+                break
+            elif isinstance(err_list, str):
+                first_err = err_list
+                break
+        return Response({"error": first_err, "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
     mac_address = serializer.validated_data["mac_address"]
     plan_id = serializer.validated_data.get("plan_id")

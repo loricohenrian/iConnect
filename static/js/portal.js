@@ -1220,17 +1220,19 @@ function initProductionStartFlow(macAddress) {
 
         requestBtn.disabled = true;
         startBtn.disabled = true;
+        startBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> <span>Connecting...</span>';
 
         try {
+            const currentMac = macAddress || getMacAddress();
             const payload = {
-                mac_address: macAddress,
+                mac_address: currentMac,
             };
             if (planId) {
                 payload.plan_id = planId;
             }
             if (state.isGroupPass) {
                 payload.is_group_pass = true;
-                payload.group_pass_devices = state.groupDevices;
+                payload.group_pass_devices = state.groupDevices || 2;
             }
 
             const response = await fetch("/api/session/start/", {
@@ -1243,8 +1245,10 @@ function initProductionStartFlow(macAddress) {
             });
             const data = await parseJsonSafe(response);
 
-            if (response.ok) {
-                window.location.href = buildPortalUrl("/session/", macAddress);
+            if (response.ok || response.status === 409) {
+                // 200/201 Success OR 409 Conflict (session already active) -> navigate to session page!
+                const targetMac = data?.session?.mac_address || currentMac;
+                window.location.href = buildPortalUrl("/session/", targetMac);
                 return;
             }
 
@@ -1260,9 +1264,12 @@ function initProductionStartFlow(macAddress) {
             setStartFlowMessage("Connection error while starting session.", "danger");
         } finally {
             requestBtn.disabled = false;
+            startBtn.innerHTML = '<i class="bi bi-wifi"></i> <span>Connect Now</span>';
             if (!state.readyToStart) {
                 startBtn.disabled = true;
                 startBtn.dataset.readyToStart = "0";
+            } else {
+                startBtn.disabled = false;
             }
         }
     });
@@ -2171,9 +2178,8 @@ function getMacAddress() {
 }
 
 function buildPortalUrl(path, macAddress, extraParams = {}) {
-    const isLocalHost = window.location.hostname === "10.10.10.1" || window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
-    const origin = isLocalHost ? window.location.origin : "http://10.10.10.1";
-    const url = new URL(path, origin);
+    // Resolve against current window.location.origin to avoid cross-domain blocking in Android CaptivePortalLogin webview
+    const url = new URL(path, window.location.origin);
 
     if (macAddress) {
         url.searchParams.set("mac", macAddress);
@@ -2635,13 +2641,10 @@ if (btnGroupRequestSlot) {
 }
 
 const handleCancelCoinRequest = async (trigger) => {
-    const confirmCancel = confirm("Are you sure you want to cancel the coin slot request?");
-    if (!confirmCancel) return;
-    
     if (trigger) {
         if (trigger.tagName === "BUTTON") {
             trigger.disabled = true;
-            trigger.innerText = "Canceling...";
+            trigger.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Canceling...';
         } else {
             trigger.style.pointerEvents = "none";
             trigger.textContent = "Canceling...";
@@ -2649,18 +2652,34 @@ const handleCancelCoinRequest = async (trigger) => {
     }
     
     try {
+        const currentMac = getMacAddress();
         await fetch("/api/session/start/cancel/", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
                 "X-CSRFToken": getCSRFToken()
             },
-            body: JSON.stringify({ mac_address: getMacAddress() })
+            body: JSON.stringify({ mac_address: currentMac })
         });
     } catch (e) {
-        console.error(e);
+        console.error("Error cancelling coin request:", e);
     }
     
+    if (typeof clearCoinCountdown === "function") clearCoinCountdown();
+    const activeCard = document.getElementById("coin-deposit-active-card");
+    if (activeCard) activeCard.style.display = "none";
+    const flowMessage = document.getElementById("start-flow-message") || document.getElementById("extend-flow-message");
+    if (flowMessage) flowMessage.style.display = "none";
+    const flowMeta = document.getElementById("start-flow-meta") || document.getElementById("extend-flow-meta");
+    if (flowMeta) flowMeta.innerHTML = "";
+    const startBtn = document.getElementById("start-session-btn") || document.getElementById("extend-now-btn");
+    if (startBtn) {
+        startBtn.style.display = "none";
+        startBtn.disabled = true;
+    }
+    const requestBtn = document.getElementById("request-slot-btn") || document.getElementById("extend-request-btn");
+    if (requestBtn) requestBtn.disabled = false;
+
     window.location.reload();
 };
 

@@ -145,6 +145,16 @@ def _get_most_popular_plan_id():
 def index(request):
     """Plan selection page."""
     mac_address = _get_mac_address(request)
+
+    # Redirect to 10.10.10.1 if accessed via intercepted external host (e.g. connectivitycheck.gstatic.com)
+    host = request.get_host().split(':')[0]
+    portal_ip = getattr(settings, 'PISONET_PORTAL_IP', '10.10.10.1')
+    if host not in (portal_ip, '127.0.0.1', 'localhost', 'testserver'):
+        redirect_url = f'http://{portal_ip}/'
+        if mac_address:
+            redirect_url += f'?mac={mac_address}'
+        return redirect(redirect_url)
+
     mac_required = request.GET.get("mac_required") == "1"
     plans = Plan.objects.filter(is_active=True).order_by("price", "id")
     announcements = Announcement.objects.filter(is_active=True).exclude(message__contains="interrupted by our ISP").exclude(message__contains="automatically resume")
@@ -240,6 +250,15 @@ def index(request):
 def session_page(request):
     """Session timer page."""
     mac_address = _get_mac_address(request)
+
+    host = request.get_host().split(':')[0]
+    portal_ip = getattr(settings, 'PISONET_PORTAL_IP', '10.10.10.1')
+    if host not in (portal_ip, '127.0.0.1', 'localhost', 'testserver'):
+        redirect_url = f'http://{portal_ip}/session/'
+        if mac_address:
+            redirect_url += f'?mac={mac_address}'
+        return redirect(redirect_url)
+
     if not mac_address:
         return redirect("/?mac_required=1")
 
@@ -967,8 +986,12 @@ def captive_portal_probe(request):
         else:
             response = HttpResponse(status=204)
     else:
-        # Not active — redirect to captive portal
-        response = redirect('/')
+        # Not active — redirect to captive portal at 10.10.10.1 explicitly
+        portal_ip = getattr(settings, 'PISONET_PORTAL_IP', '10.10.10.1')
+        redirect_url = f'http://{portal_ip}/'
+        if mac:
+            redirect_url += f'?mac={mac}'
+        response = redirect(redirect_url)
 
     # Prevent connection keep-alive and caching on all probe endpoints
     response['Connection'] = 'close'
