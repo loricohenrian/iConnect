@@ -51,6 +51,15 @@ def _ensure_mangle_forward_rule(rule_spec):
     return _run_command(add_cmd)
 
 
+def _ensure_mangle_postrouting_rule(rule_spec):
+    """Ensure a rule exists in the mangle POSTROUTING chain; insert at top if missing."""
+    check_cmd = ['iptables', '-t', 'mangle', '-C', 'POSTROUTING'] + rule_spec
+    if _run_command(check_cmd, ignore_errors=True):
+        return True
+    add_cmd = ['iptables', '-t', 'mangle', '-I', 'POSTROUTING', '1'] + rule_spec
+    return _run_command(add_cmd)
+
+
 def _ensure_quic_rejected_top():
     """
     Ensure the QUIC rejection rule exists in the FORWARD chain baseline
@@ -153,6 +162,7 @@ def allow_device(mac_address, rate_kbps=None, upload_kbps=None):
         _flush_conntrack(mac_address)
         apply_bandwidth_limit(mac, rate_kbps=rate_kbps, upload_kbps=upload_kbps)
         _ensure_mangle_forward_rule(['-p', 'tcp', '--tcp-flags', 'SYN,RST', 'SYN', '-j', 'TCPMSS', '--clamp-mss-to-pmtu'])
+        _ensure_mangle_postrouting_rule(['-p', 'tcp', '--tcp-flags', 'SYN,RST', 'SYN', '-j', 'TCPMSS', '--clamp-mss-to-pmtu'])
         _ensure_forward_rule(['-m', 'conntrack', '--ctstate', 'RELATED,ESTABLISHED', '-j', 'ACCEPT'])
     return success
 
@@ -242,8 +252,9 @@ def setup_default_policy():
     # 1. Stateful connection tracking: Allow return traffic for established connections
     _ensure_forward_rule(['-m', 'conntrack', '--ctstate', 'RELATED,ESTABLISHED', '-j', 'ACCEPT'])
 
-    # 2. TCP MSS clamping: Prevent MTU black holes (YouTube, large SSL certs, Google One)
+    # 2. TCP MSS clamping: Prevent MTU black holes (YouTube, large SSL certs, Google One, Google Drive)
     _ensure_mangle_forward_rule(['-p', 'tcp', '--tcp-flags', 'SYN,RST', 'SYN', '-j', 'TCPMSS', '--clamp-mss-to-pmtu'])
+    _ensure_mangle_postrouting_rule(['-p', 'tcp', '--tcp-flags', 'SYN,RST', 'SYN', '-j', 'TCPMSS', '--clamp-mss-to-pmtu'])
 
     # 3. QUIC (UDP 443) rejection: Reject with ICMP port-unreachable so YouTube & Google apps instantly fall back to TCP
     _ensure_quic_rejected_top()
@@ -677,16 +688,21 @@ def apply_network_settings():
         _run_command(['modprobe', 'ip6t_HL'], ignore_errors=True)
 
         # Clean old rules (loop until all duplicates are removed)
-        for _ in range(5):
+        for _ in range(10):
             _run_command(['iptables', '-t', 'mangle', '-D', 'POSTROUTING', '-d', subnet, '-j', 'TTL', '--ttl-set', '1'], ignore_errors=True)
+            _run_command(['iptables', '-t', 'mangle', '-D', 'POSTROUTING', '-j', 'TTL', '--ttl-set', '1'], ignore_errors=True)
             _run_command(['iptables', '-t', 'mangle', '-D', 'FORWARD', '-d', subnet, '-j', 'TTL', '--ttl-set', '1'], ignore_errors=True)
+            _run_command(['iptables', '-t', 'mangle', '-D', 'FORWARD', '-j', 'TTL', '--ttl-set', '1'], ignore_errors=True)
             _run_command(['iptables', '-t', 'mangle', '-D', 'POSTROUTING', '-o', lan, '-j', 'TTL', '--ttl-set', '1'], ignore_errors=True)
             _run_command(['iptables', '-t', 'mangle', '-D', 'FORWARD', '-o', lan, '-j', 'TTL', '--ttl-set', '1'], ignore_errors=True)
             _run_command(['iptables', '-t', 'mangle', '-D', 'POSTROUTING', '-d', subnet, '-j', 'TTL', '--ttl-set', '64'], ignore_errors=True)
             _run_command(['iptables', '-t', 'mangle', '-D', 'FORWARD', '-d', subnet, '-j', 'TTL', '--ttl-set', '64'], ignore_errors=True)
             _run_command(['iptables', '-t', 'mangle', '-D', 'PREROUTING', '-s', subnet, '-m', 'ttl', '--ttl-eq', '63', '-j', 'DROP'], ignore_errors=True)
+            _run_command(['iptables', '-t', 'mangle', '-D', 'PREROUTING', '-m', 'ttl', '--ttl-eq', '63', '-j', 'DROP'], ignore_errors=True)
             _run_command(['iptables', '-t', 'mangle', '-D', 'PREROUTING', '-s', subnet, '-m', 'ttl', '--ttl-eq', '127', '-j', 'DROP'], ignore_errors=True)
+            _run_command(['iptables', '-t', 'mangle', '-D', 'PREROUTING', '-m', 'ttl', '--ttl-eq', '127', '-j', 'DROP'], ignore_errors=True)
             _run_command(['iptables', '-t', 'mangle', '-D', 'PREROUTING', '-s', subnet, '-m', 'ttl', '--ttl-eq', '254', '-j', 'DROP'], ignore_errors=True)
+            _run_command(['iptables', '-t', 'mangle', '-D', 'PREROUTING', '-m', 'ttl', '--ttl-eq', '254', '-j', 'DROP'], ignore_errors=True)
             _run_command(['ip6tables', '-t', 'mangle', '-D', 'POSTROUTING', '-j', 'HL', '--hl-set', '1'], ignore_errors=True)
 
         if settings_obj.enable_anti_tethering:
