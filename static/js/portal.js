@@ -2171,7 +2171,9 @@ function getMacAddress() {
 }
 
 function buildPortalUrl(path, macAddress, extraParams = {}) {
-    const url = new URL(path, window.location.origin);
+    const isLocalHost = window.location.hostname === "10.10.10.1" || window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+    const origin = isLocalHost ? window.location.origin : "http://10.10.10.1";
+    const url = new URL(path, origin);
 
     if (macAddress) {
         url.searchParams.set("mac", macAddress);
@@ -2184,7 +2186,7 @@ function buildPortalUrl(path, macAddress, extraParams = {}) {
         url.searchParams.set(key, value);
     });
 
-    return `${url.pathname}${url.search}`;
+    return url.toString();
 }
 
 function initJoinGroupFlow(macAddress) {
