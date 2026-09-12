@@ -591,7 +591,7 @@ main.portal-container {
     border-radius: 20px;
     border: 1px solid var(--color-border);
     margin-top: 4px;
-    margin-bottom: 20px;
+    margin-bottom: 0;
     box-shadow: 0 2px 8px rgba(45, 31, 31, 0.04);
     position: relative;
     overflow: hidden;
@@ -1178,6 +1178,7 @@ body.modal-open {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 10px;
+    margin-bottom: 14px;
 }
 
 .coin-item {
@@ -2140,7 +2141,7 @@ body.modal-open {
 .session-divider {
     border: none;
     border-top: 1px solid var(--color-border);
-    margin: 0 auto 16px auto;
+    margin: 22px auto 22px auto;
     width: 100%;
     max-width: 390px;
 }
@@ -2148,7 +2149,7 @@ body.modal-open {
 .manual-divider {
     border: none;
     border-top: 1px solid var(--color-border);
-    margin: 26px 0 20px 0;
+    margin: 34px 0 28px 0;
     width: 100%;
 }
 
