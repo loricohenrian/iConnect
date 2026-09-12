@@ -2117,16 +2117,39 @@ body.modal-open {
     text-decoration: underline;
     cursor: pointer;
     padding: 4px;
-    display: inline-flex;
+    display: flex;
     align-items: center;
-    justify-content: flex-end;
-    text-align: right;
+    justify-content: center;
+    text-align: center;
     line-height: 1.35;
     transition: color 0.15s ease;
+    flex: 1;
+}
+
+.link-option-c-group u {
+    display: inline-block;
+    text-align: center;
+    width: 100%;
 }
 
 .link-option-c-group:hover {
     color: #1d4ed8;
+}
+
+/* Horizontal line separators */
+.session-divider {
+    border: none;
+    border-top: 1px solid var(--color-border);
+    margin: 0 auto 16px auto;
+    width: 100%;
+    max-width: 390px;
+}
+
+.manual-divider {
+    border: none;
+    border-top: 1px solid var(--color-border);
+    margin: 26px 0 20px 0;
+    width: 100%;
 }
 
 .option-c-dashed-tip {
