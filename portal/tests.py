@@ -92,12 +92,13 @@ class RatesModalTests(TestCase):
 
         # View WiFi Rates button should have SVG and no clipboard emoji
         self.assertContains(response, 'id="btn-view-rates"')
-        self.assertContains(response, 'View WiFi Rates & Speeds')
+        self.assertContains(response, 'View Wifi Rates')
         self.assertNotContains(response, 'View WiFi Rates & Speeds 📋')
 
         # Group plan modal should use Insert Coins
         self.assertContains(response, 'id="btn-group-request-slot"')
-        self.assertContains(response, 'Insert Coins 🪙')
+        self.assertContains(response, 'Insert Coins')
+        self.assertNotContains(response, 'Insert Coins 🪙')
         self.assertNotContains(response, 'Request Coin Slot')
 
         # STUDYING WITH CLASSMATES text should be removed
@@ -122,11 +123,12 @@ class RatesModalTests(TestCase):
 
         # View rates button inside extend section
         self.assertContains(response, 'id="btn-view-rates"')
-        self.assertContains(response, 'View WiFi Rates & Speeds')
+        self.assertContains(response, 'View Wifi Rates')
 
         # Group modal in session page uses Insert Coins
         self.assertContains(response, 'id="btn-group-request-slot"')
-        self.assertContains(response, 'Insert Coins 🪙')
+        self.assertContains(response, 'Insert Coins')
+        self.assertNotContains(response, 'Insert Coins 🪙')
 
         # Progressive extend buttons and cancel controls
         self.assertContains(response, 'id="extend-request-btn"')

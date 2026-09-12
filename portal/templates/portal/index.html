@@ -171,7 +171,7 @@
                 </h4>
                 <ol style="padding-left:18px; margin:0; font-size:12px; color:var(--color-dark); line-height:1.6;">
                     <li><strong>Choose Plan & Devices:</strong> Select your desired plan and choose how many people will share it (minimum 2).</li>
-                    <li><strong>Insert Total Coins:</strong> Tap <em>Insert Coins 🪙</em> and drop the required total amount into the vendo machine.</li>
+                    <li><strong>Insert Total Coins:</strong> Tap <em>Insert Coins</em> and drop the required total amount into the vendo machine.</li>
                     <li><strong>Connect First:</strong> Tap <em>Connect Now</em> to activate your own internet session first.</li>
                     <li><strong>Get Your Group Code:</strong> Once connected, your unique 5-character group code (e.g. <code>A1B2C</code>) will appear right on your session screen.</li>
                     <li><strong>Share With Friends:</strong> Have each friend connect to the Wi-Fi, tap <em>"Have a group code? Enter it here"</em>, enter your code, and tap <em>Join</em>! Each person gets their own full session.</li>
@@ -205,8 +205,9 @@
         </div>
         
         <div class="d-flex" style="gap: 8px; flex-direction: column;">
-            <button type="button" class="btn btn-primary w-100" id="btn-group-request-slot">
-                <i class="bi bi-coin"></i> Insert Coins 🪙
+            <button type="button" class="btn btn-primary w-100" id="btn-group-request-slot" style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="mini-coin-svg"><circle cx="12" cy="12" r="9.5"></circle><path d="M14.5 9.5a2.5 2.5 0 0 0-5 0c0 2.5 5 2.5 5 5a2.5 2.5 0 0 1-5 0"></path><line x1="12" y1="6.5" x2="12" y2="17.5"></line></svg>
+                <span>Insert Coins</span>
             </button>
             <button type="button" class="btn btn-secondary w-100" id="btn-cancel-group-plan" onclick="closeGroupPlanModal()">Cancel</button>
         </div>
@@ -330,12 +331,12 @@
     <!-- Option C Pill Buttons Stack -->
     <div class="option-c-btn-stack">
         <button type="button" class="btn btn-pill-primary w-100" id="request-slot-btn">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="mini-coin-svg"><circle cx="12" cy="12" r="9"></circle><path d="M14.5 9h-5a2 2 0 0 0 0 4h3a2 2 0 0 1 0 4h-5"></path><line x1="12" y1="7" x2="12" y2="9"></line><line x1="12" y1="17" x2="12" y2="19"></line></svg>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="mini-coin-svg"><circle cx="12" cy="12" r="9.5"></circle><path d="M14.5 9.5a2.5 2.5 0 0 0-5 0c0 2.5 5 2.5 5 5a2.5 2.5 0 0 1-5 0"></path><line x1="12" y1="6.5" x2="12" y2="17.5"></line></svg>
             <span>Insert Coins</span>
         </button>
         <button type="button" class="btn btn-pill-secondary w-100" id="btn-view-rates" onclick="openRatesModal()" aria-label="View WiFi Rates & Speeds">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; flex-shrink: 0;"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
-            <span>View Rates</span>
+            <span>View Wifi Rates</span>
         </button>
     </div>
 

@@ -19,10 +19,7 @@ function isCoinCooldownActive() {
 }
 
 function getCoinButtonDefaultHtml(btnId) {
-    if (btnId === "btn-group-request-slot") {
-        return '<i class="bi bi-coin"></i> Insert Coins 🪙';
-    }
-    return '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="mini-coin-svg"><circle cx="12" cy="12" r="9"></circle><path d="M14.5 9h-5a2 2 0 0 0 0 4h3a2 2 0 0 1 0 4h-5"></path><line x1="12" y1="7" x2="12" y2="9"></line><line x1="12" y1="17" x2="12" y2="19"></line></svg> <span>Insert Coins</span>';
+    return '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="mini-coin-svg"><circle cx="12" cy="12" r="9.5"></circle><path d="M14.5 9.5a2.5 2.5 0 0 0-5 0c0 2.5 5 2.5 5 5a2.5 2.5 0 0 1-5 0"></path><line x1="12" y1="6.5" x2="12" y2="17.5"></line></svg> <span>Insert Coins</span>';
 }
 
 
@@ -809,11 +806,14 @@ function formatCoinRequestMeta(coinRequest) {
     let timeDisplay = "--";
     let breakdownHtml = "";
     if (coinRequest.is_group_pass) {
-        timeDisplay = `₱${credited} / ₱${expected}`;
-        if (expected > 0) {
-            const pct = Math.min(100, Math.round((credited / expected) * 100));
-            breakdownHtml = `<div class="coin-metric-sub">${pct}% funded</div>`;
+        if (coinRequest.plan_duration_display) {
+            timeDisplay = escapeHtml(coinRequest.plan_duration_display);
+        } else if (coinRequest.combo_duration_display) {
+            timeDisplay = escapeHtml(coinRequest.combo_duration_display);
+        } else {
+            timeDisplay = `₱${credited} / ₱${expected}`;
         }
+        breakdownHtml = "";
     } else if (coinRequest.combo_duration_display) {
         timeDisplay = escapeHtml(coinRequest.combo_duration_display);
         if (coinRequest.combo_breakdown_text) {
@@ -823,7 +823,7 @@ function formatCoinRequestMeta(coinRequest) {
         timeDisplay = "Calculating...";
     }
 
-    const miniCoinSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="mini-coin-svg"><circle cx="12" cy="12" r="9"></circle><path d="M14.5 9h-5a2 2 0 0 0 0 4h3a2 2 0 0 1 0 4h-5"></path><line x1="12" y1="7" x2="12" y2="9"></line><line x1="12" y1="17" x2="12" y2="19"></line></svg>`;
+    const miniCoinSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="mini-coin-svg"><circle cx="12" cy="12" r="9.5"></circle><path d="M14.5 9.5a2.5 2.5 0 0 0-5 0c0 2.5 5 2.5 5 5a2.5 2.5 0 0 1-5 0"></path><line x1="12" y1="6.5" x2="12" y2="17.5"></line></svg>`;
     const miniClockSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="mini-clock-svg"><circle cx="12" cy="12" r="9"></circle><polyline points="12 7 12 12 15 15"></polyline></svg>`;
 
     return `
@@ -2039,7 +2039,7 @@ function handlePortalOutageState(data, isSessionPage) {
         if (insertBtn && insertBtn.getAttribute("data-outage-disabled") === "1") {
             insertBtn.disabled = false;
             insertBtn.removeAttribute("data-outage-disabled");
-            insertBtn.innerHTML = '<i class="bi bi-coin"></i> Insert Coins 🪙';
+            insertBtn.innerHTML = getCoinButtonDefaultHtml("request-slot-btn");
         }
 
         if (wasActive) {
@@ -2756,7 +2756,7 @@ if (btnGroupRequestSlot) {
                     flowMessage.innerHTML = `<strong>Insert coins now!</strong><br>Please insert exactly ₱${data.coin_request.expected_amount}.`;
                 }
                 btnGroupRequestSlot.disabled = false;
-                btnGroupRequestSlot.innerHTML = `<i class="bi bi-coin"></i> Insert Coins 🪙`;
+                btnGroupRequestSlot.innerHTML = getCoinButtonDefaultHtml("btn-group-request-slot");
 
                 if (window.applyCoinRequestState && window.startPolling) {
                     window.applyCoinRequestState(data.coin_request);
@@ -2786,7 +2786,7 @@ if (btnGroupRequestSlot) {
                     btnGroupRequestSlot.disabled = true;
                 } else {
                     btnGroupRequestSlot.disabled = false;
-                    btnGroupRequestSlot.innerHTML = `<i class="bi bi-coin"></i> Insert Coins 🪙`;
+                    btnGroupRequestSlot.innerHTML = getCoinButtonDefaultHtml("btn-group-request-slot");
                 }
             }
         } catch (error) {
@@ -2796,7 +2796,7 @@ if (btnGroupRequestSlot) {
                 btnGroupRequestSlot.disabled = true;
             } else {
                 btnGroupRequestSlot.disabled = false;
-                btnGroupRequestSlot.innerHTML = `<i class="bi bi-coin"></i> Insert Coins 🪙`;
+                btnGroupRequestSlot.innerHTML = getCoinButtonDefaultHtml("btn-group-request-slot");
             }
         }
     });

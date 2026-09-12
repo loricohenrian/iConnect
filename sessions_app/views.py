@@ -541,6 +541,7 @@ def _coin_request_payload(coin_request):
         "is_group_pass": coin_request.is_group_pass,
         "group_pass_devices": coin_request.group_pass_devices,
         "plan_id": coin_request.plan_id,
+        "plan_duration_display": coin_request.plan.duration_display if (coin_request.plan_id and coin_request.plan) else "",
         "combo_duration_minutes": combo["total_minutes"] if combo else 0,
         "combo_duration_display": combo["duration_display"] if combo else "",
         "combo_duration_long_display": combo["duration_long_display"] if combo else "",
