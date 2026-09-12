@@ -1405,6 +1405,9 @@ function initProductionStartFlow(macAddress) {
 
             if (response.ok || response.status === 409) {
                 // 200/201 Success OR 409 Conflict (session already active) -> navigate to session page!
+                if (typeof window.closeCoinModal === "function") {
+                    window.closeCoinModal();
+                }
                 const targetMac = data?.session?.mac_address || currentMac;
                 const addedDuration = data?.duration_added_display || data?.session?.duration_display || (data?.session?.duration_minutes_purchased ? `${data.session.duration_minutes_purchased} mins` : "");
                 if (addedDuration) {
@@ -1806,6 +1809,10 @@ function initExtendSessionFlow(macAddress) {
                 state.requestId = null;
                 state.readyToStart = false;
                 clearCoinCountdown();
+                applyCoinRequestState(null);
+                if (typeof window.closeCoinModal === "function") {
+                    window.closeCoinModal();
+                }
                 const actionsContainer = document.getElementById("coin-actions-container");
                 if (actionsContainer) actionsContainer.style.display = "none";
                 const activeCard = document.getElementById("coin-deposit-active-card");
