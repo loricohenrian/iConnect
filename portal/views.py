@@ -483,11 +483,17 @@ def live_data(request):
 
     mac_address = _get_mac_address(request)
     group_pass_payload = None
+    has_active_session = False
+    session_status_val = None
     if mac_address:
         user_session = Session.objects.filter(
             mac_address__iexact=mac_address,
             status__in=["active", "paused"]
         ).order_by("-id").first()
+        if user_session and user_session.time_remaining_seconds > 1:
+            has_active_session = True
+            session_status_val = user_session.status
+
         if user_session and user_session.session_group_id:
             from sessions_app.models import SessionGroup
             grp = SessionGroup.objects.filter(id=user_session.session_group_id).first()
@@ -512,6 +518,8 @@ def live_data(request):
             "enable_outage_auto_pause": isp_info.get("enable_outage_auto_pause", True),
             "outage_message": isp_info.get("message", ""),
             "group_pass": group_pass_payload,
+            "has_active_session": has_active_session,
+            "session_status": session_status_val,
             "slots": {
                 "active": active_count,
                 "max": max_slots,

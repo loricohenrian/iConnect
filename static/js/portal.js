@@ -272,6 +272,9 @@ function _showTimerBanner(message, type) {
     } else if (type === 'danger') {
         bgColor = '#FEF2F2';
         textColor = '#991B1B';
+    } else if (type === 'success') {
+        bgColor = '#ECFDF5';
+        textColor = '#065F46';
     } else {
         bgColor = '#7B2D3B';
         textColor = '#FFFFFF';
@@ -681,6 +684,13 @@ async function syncPortalLiveData() {
         // Real-time ISP outage check on portal (dynamically detect session page)
         const isSession = Boolean(document.getElementById("session-timer"));
         handlePortalOutageState(data, isSession);
+
+        // Real-time redirect to session page if user session is active/paused but currently on home page
+        if (data.has_active_session && !isSession) {
+            const mac = getMacAddress();
+            window.location.href = buildPortalUrl("/session/", mac);
+            return;
+        }
     } catch (error) {
         console.error("Live data sync error:", error);
     } finally {
@@ -2256,7 +2266,7 @@ function handlePortalOutageState(data, isSessionPage) {
 
 
 
-function pollSessionStatus(macAddress, intervalMs = 2500) {
+function pollSessionStatus(macAddress, intervalMs = 2000) {
     let inFlight = false;
 
     const checkSessionStatus = async () => {
@@ -2291,6 +2301,17 @@ function pollSessionStatus(macAddress, intervalMs = 2500) {
                 }, 2000);
                 return;
             }
+
+            // Toast notification on real-time admin pause/resume
+            if (window._lastSessionStatus && window._lastSessionStatus !== data.status) {
+                if (data.status === "paused" && !Boolean(data.isp_outage)) {
+                    _showTimerBanner("⏸️ Your session has been paused by the administrator.", "warning");
+                } else if (data.status === "active" && window._lastSessionStatus === "paused" && !Boolean(data.isp_outage)) {
+                    _showTimerBanner("▶️ Your session has been resumed! Internet reconnected.", "success");
+                    setTimeout(() => { _hideTimerBanner(); }, 5000);
+                }
+            }
+            window._lastSessionStatus = data.status;
 
             // Real-time synchronization of Outage / Pause / Resume
             handlePortalOutageState(data, true);
