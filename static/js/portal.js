@@ -2011,14 +2011,19 @@ function showTimeAddedToast(durationDisplay) {
 window.showTimeAddedToast = showTimeAddedToast;
 
 function scrollToTimerContainer() {
-    setTimeout(() => {
-        const timerContainer = document.querySelector(".timer-container") || document.getElementById("session-timer") || document.querySelector(".timer-display");
-        if (timerContainer) {
-            timerContainer.scrollIntoView({ behavior: "smooth", block: "start" });
-        } else {
-            window.scrollTo({ top: 0, behavior: "smooth" });
+    const doScroll = () => {
+        window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+        if (document.documentElement) {
+            document.documentElement.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+            document.documentElement.scrollTop = 0;
         }
-    }, 150);
+        if (document.body) {
+            document.body.scrollTop = 0;
+        }
+    };
+    doScroll();
+    setTimeout(doScroll, 80);
+    setTimeout(doScroll, 250);
 }
 
 window.scrollToTimerContainer = scrollToTimerContainer;
@@ -2159,7 +2164,14 @@ function pollSessionStatus(macAddress, intervalMs = 3000) {
         inFlight = true;
         try {
             const response = await fetch(
-                `/api/session/status/?mac_address=${encodeURIComponent(macAddress)}`
+                `/api/session/status/?mac_address=${encodeURIComponent(macAddress)}&t=${Date.now()}`,
+                {
+                    cache: "no-store",
+                    headers: {
+                        "Cache-Control": "no-cache",
+                        "Pragma": "no-cache"
+                    }
+                }
             );
             const data = await response.json();
 
@@ -2255,10 +2267,13 @@ function pollSessionStatus(macAddress, intervalMs = 3000) {
                 pausesLeftEl.innerText = pausesVal;
             }
 
-            if (data.group_max && data.group_redeemed !== undefined) {
+            if (data.group_code && data.group_max !== undefined && data.group_redeemed !== undefined) {
                 const groupStatusEl = document.getElementById("group-plan-status");
                 if (groupStatusEl) {
-                    groupStatusEl.innerText = `${data.group_redeemed} / ${data.group_max} slots redeemed`;
+                    const nextText = `${data.group_redeemed} / ${data.group_max} slots redeemed`;
+                    if (groupStatusEl.innerText.trim() !== nextText) {
+                        groupStatusEl.innerText = nextText;
+                    }
                 }
 
                 if (data.group_code_expires_at) {
@@ -2275,6 +2290,7 @@ function pollSessionStatus(macAddress, intervalMs = 3000) {
         }
     };
 
+    checkSessionStatus();
     setInterval(checkSessionStatus, intervalMs);
 
     // When the user returns to this tab from another tab or app, sync immediately

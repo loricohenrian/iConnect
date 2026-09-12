@@ -2166,9 +2166,9 @@ def session_status(request):
     from sessions_app.internet_monitor import check_isp_internet_status
 
     session = Session.objects.filter(
-        mac_address=mac_address,
+        mac_address__iexact=mac_address,
         status__in=["active", "paused"],
-    ).first()
+    ).order_by("-id").first()
 
     isp_info = check_isp_internet_status(force_probe=False)
     isp_outage = isp_info.get("isp_outage", False)
@@ -2198,6 +2198,12 @@ def session_status(request):
                 pass
             session.refresh_from_db()
 
+        grp = None
+        target_group_id = session.session_group_id
+        if target_group_id:
+            from .models import SessionGroup
+            grp = SessionGroup.objects.filter(id=target_group_id).first()
+
         if session.status == "paused":
             # Check if paused session exceeded plan or global max pause hours
             settings_obj = SystemSettings.get_settings()
@@ -2208,7 +2214,7 @@ def session_status(request):
                 if pause_age_hours >= max_pause_hours:
                     session.expire_session()
                     blocked = iptables.block_device(session.mac_address)
-                    return Response(
+                    resp = Response(
                         {
                             "status": "expired",
                             "message": f"Paused session expired after exceeding {max_pause_hours}h limit",
@@ -2216,6 +2222,10 @@ def session_status(request):
                             "access_revoked": blocked,
                         }
                     )
+                    resp["Cache-Control"] = "no-cache, no-store, must-revalidate"
+                    resp["Pragma"] = "no-cache"
+                    resp["Expires"] = "0"
+                    return resp
 
             paused_response = {
                 "status": "paused",
@@ -2230,16 +2240,18 @@ def session_status(request):
                 "outage_message": outage_message,
                 "announcement": ann_text,
             }
-            if session.session_group_id:
-                grp = SessionGroup.objects.filter(id=session.session_group_id).first()
-                if grp:
-                    paused_response["group_redeemed"] = grp.redeemed_count
-                    paused_response["group_max"] = grp.max_devices
-                    paused_response["group_code"] = grp.group_code
-                    paused_response["group_code_expires_at"] = (
-                        grp.code_expires_at.isoformat() if grp.code_expires_at else None
-                    )
-            return Response(paused_response)
+            if grp:
+                paused_response["group_redeemed"] = grp.redeemed_count
+                paused_response["group_max"] = grp.max_devices
+                paused_response["group_code"] = grp.group_code
+                paused_response["group_code_expires_at"] = (
+                    grp.code_expires_at.isoformat() if grp.code_expires_at else None
+                )
+            resp = Response(paused_response)
+            resp["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            resp["Pragma"] = "no-cache"
+            resp["Expires"] = "0"
+            return resp
 
         with transaction.atomic():
             locked_session = Session.objects.select_for_update().filter(
@@ -2249,7 +2261,7 @@ def session_status(request):
 
             # Another request may have already expired this session.
             if locked_session is None:
-                return Response(
+                resp = Response(
                     {
                         "status": "expired",
                         "time_remaining_seconds": 0,
@@ -2258,6 +2270,10 @@ def session_status(request):
                         "access_revoked": False,
                     }
                 )
+                resp["Cache-Control"] = "no-cache, no-store, must-revalidate"
+                resp["Pragma"] = "no-cache"
+                resp["Expires"] = "0"
+                return resp
 
             _session_ip_matches_request(locked_session, request)
 
@@ -2267,10 +2283,14 @@ def session_status(request):
                     locked_session.device_name = detected
                     locked_session.save(update_fields=["device_name"])
 
+            if locked_session.session_group_id:
+                from .models import SessionGroup
+                grp = SessionGroup.objects.filter(id=locked_session.session_group_id).first()
+
             if locked_session.time_remaining_seconds <= 1:
                 locked_session.expire_session()
                 blocked = iptables.block_device(locked_session.mac_address)
-                return Response(
+                resp = Response(
                     {
                         "status": "expired",
                         "time_remaining_seconds": 0,
@@ -2279,6 +2299,10 @@ def session_status(request):
                         "access_revoked": blocked,
                     }
                 )
+                resp["Cache-Control"] = "no-cache, no-store, must-revalidate"
+                resp["Pragma"] = "no-cache"
+                resp["Expires"] = "0"
+                return resp
 
             refresh_session_bandwidth_usage(locked_session)
             response_data = {
@@ -2293,18 +2317,20 @@ def session_status(request):
                 "outage_message": outage_message,
                 "announcement": ann_text,
             }
-            if locked_session.session_group_id:
-                grp = SessionGroup.objects.filter(id=locked_session.session_group_id).first()
-                if grp:
-                    response_data["group_redeemed"] = grp.redeemed_count
-                    response_data["group_max"] = grp.max_devices
-                    response_data["group_code"] = grp.group_code
-                    response_data["group_code_expires_at"] = (
-                        grp.code_expires_at.isoformat() if grp.code_expires_at else None
-                    )
-            return Response(response_data)
+            if grp:
+                response_data["group_redeemed"] = grp.redeemed_count
+                response_data["group_max"] = grp.max_devices
+                response_data["group_code"] = grp.group_code
+                response_data["group_code_expires_at"] = (
+                    grp.code_expires_at.isoformat() if grp.code_expires_at else None
+                )
+            resp = Response(response_data)
+            resp["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            resp["Pragma"] = "no-cache"
+            resp["Expires"] = "0"
+            return resp
 
-    return Response(
+    resp = Response(
         {
             "status": "no_session",
             "message": "No active session found",
@@ -2316,6 +2342,10 @@ def session_status(request):
             "outage_message": outage_message,
         }
     )
+    resp["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    resp["Pragma"] = "no-cache"
+    resp["Expires"] = "0"
+    return resp
 
 
 @api_view(["GET"])
