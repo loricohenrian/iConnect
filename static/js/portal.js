@@ -2870,21 +2870,23 @@ window.openCancelCoinModal = openCancelCoinModal;
 window.closeCancelCoinModal = closeCancelCoinModal;
 window.confirmCancelCoinRequest = confirmCancelCoinRequest;
 
-const btnCancelCoinRequest = document.getElementById("btn-cancel-coin-request");
-if (btnCancelCoinRequest) {
-    btnCancelCoinRequest.addEventListener("click", (e) => {
-        if (e) e.preventDefault();
-        openCancelCoinModal(btnCancelCoinRequest);
-    });
-}
-
-const linkCancelCoinRequest = document.getElementById("link-cancel-coin-request");
-if (linkCancelCoinRequest) {
-    linkCancelCoinRequest.addEventListener("click", (e) => {
-        if (e) e.preventDefault();
-        openCancelCoinModal(linkCancelCoinRequest);
-    });
-}
+// Use event delegation so cancel modal always fires regardless of DOM timing or script caching
+document.addEventListener("click", (e) => {
+    const btn = e.target.closest("#btn-cancel-coin-request");
+    if (btn) {
+        e.preventDefault();
+        e.stopPropagation();
+        openCancelCoinModal(btn);
+        return;
+    }
+    const link = e.target.closest("#link-cancel-coin-request");
+    if (link) {
+        e.preventDefault();
+        e.stopPropagation();
+        openCancelCoinModal(link);
+        return;
+    }
+}, true); // capture phase ensures we intercept before any other handler
 
 // Global Rates Modal helpers
 window.openRatesModal = function() {
