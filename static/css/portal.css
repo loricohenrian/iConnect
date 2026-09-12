@@ -741,12 +741,46 @@ main.portal-container {
     border-color: var(--color-success);
 }
 
-/* Inline Session Details */
+/* Collapsible Session Details */
+.session-details-collapsible {
+    width: 100%;
+    border-top: 1px dashed var(--color-border);
+    margin-top: 16px;
+    padding-top: 6px;
+}
+
+.details-toggle-btn {
+    background: transparent;
+    border: none;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 4px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-gray);
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.details-toggle-btn:hover {
+    color: var(--color-dark);
+}
+
+.details-toggle-btn .chevron-icon {
+    transition: transform 0.25s ease;
+    color: var(--color-gray);
+}
+
+.details-toggle-btn.open .chevron-icon {
+    transform: rotate(180deg);
+}
+
 .session-details-inline {
     width: 100%;
-    border-top: 1px solid var(--color-border);
-    padding-top: 12px;
-    margin-top: 16px;
+    padding-top: 8px;
+    margin-top: 2px;
 }
 
 .session-details-inline .detail-row {
