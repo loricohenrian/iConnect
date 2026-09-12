@@ -362,10 +362,10 @@
                 <i class="bi bi-wifi"></i> <span>Connect Now</span>
             </button>
             <div class="coin-cancel-wrap">
-                <button type="button" class="btn btn-cancel-coin" id="btn-cancel-coin-request">
+                <button type="button" class="btn btn-cancel-coin" id="btn-cancel-coin-request" onclick="openCancelCoinModal(this); return false;">
                     <i class="bi bi-x-circle"></i> Cancel Request
                 </button>
-                <a href="javascript:void(0)" id="link-cancel-coin-request" class="link-cancel-coin" style="display: none;">
+                <a href="javascript:void(0)" id="link-cancel-coin-request" class="link-cancel-coin" onclick="openCancelCoinModal(this); return false;" style="display: none;">
                     Cancel Request
                 </a>
             </div>

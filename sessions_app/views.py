@@ -883,6 +883,25 @@ def session_start_request(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
+    # Anti-trolling: 15-second cooldown after cancellation or expiry of a coin slot
+    recent_cancel = CoinInsertRequest.objects.filter(
+        mac_address=mac_address,
+        status__in=[CoinInsertRequest.STATUS_CANCELLED, CoinInsertRequest.STATUS_EXPIRED],
+        completed_at__gte=timezone.now() - timezone.timedelta(seconds=15),
+    ).order_by("-completed_at").first()
+
+    if recent_cancel and recent_cancel.completed_at:
+        elapsed = (timezone.now() - recent_cancel.completed_at).total_seconds()
+        remaining = int(15 - elapsed)
+        if remaining > 0:
+            return Response(
+                {
+                    "error": f"Please wait {remaining} second{'s' if remaining != 1 else ''} before requesting another coin slot.",
+                    "cooldown_remaining": remaining,
+                },
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+
     # Note: We allow coin requests even if there's an active session,
     # because the user may want to extend their session with more coins.
 

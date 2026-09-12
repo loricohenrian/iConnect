@@ -1204,6 +1204,9 @@ function initProductionStartFlow(macAddress) {
             const data = await parseJsonSafe(response);
 
             if (!response.ok) {
+                if (response.status === 429 && data.cooldown_remaining) {
+                    setCoinRequestCooldown(data.cooldown_remaining);
+                }
                 setStartFlowMessage(data.error || "Unable to create coin request.", "danger");
                 setStartFlowMeta("");
                 return;
@@ -1553,6 +1556,9 @@ function initExtendSessionFlow(macAddress) {
             const data = await parseJsonSafe(response);
 
             if (!response.ok) {
+                if (response.status === 429 && data.cooldown_remaining) {
+                    setCoinRequestCooldown(data.cooldown_remaining);
+                }
                 setExtendMessage(data.error || "Unable to create coin request.", "danger");
                 setExtendMeta("");
                 return;
@@ -2339,6 +2345,7 @@ function initJoinGroupFlow(macAddress) {
 document.addEventListener("DOMContentLoaded", () => {
     const macAddress = getMacAddress();
 
+    applyCoinCooldownTimer();
     initPlanSelection();
     initProductionStartFlow(macAddress);
     initJoinGroupFlow(macAddress);
@@ -2755,7 +2762,79 @@ if (btnGroupRequestSlot) {
     });
 }
 
+function setCoinRequestCooldown(seconds = 15) {
+    const cooldownUntil = Date.now() + (Math.max(1, seconds) * 1000);
+    try {
+        localStorage.setItem("iconnect_coin_cooldown_until", cooldownUntil.toString());
+    } catch (e) {}
+    applyCoinCooldownTimer();
+}
+
+function applyCoinCooldownTimer() {
+    let stored = null;
+    try {
+        stored = localStorage.getItem("iconnect_coin_cooldown_until");
+    } catch (e) {}
+    if (!stored) return;
+
+    const cooldownUntil = parseInt(stored, 10);
+    if (isNaN(cooldownUntil) || cooldownUntil <= Date.now()) {
+        try { localStorage.removeItem("iconnect_coin_cooldown_until"); } catch (e) {}
+        return;
+    }
+
+    const requestBtns = [
+        document.getElementById("request-slot-btn"),
+        document.getElementById("extend-request-btn"),
+        document.getElementById("btn-group-request-slot")
+    ].filter(Boolean);
+
+    if (requestBtns.length === 0) return;
+
+    requestBtns.forEach(btn => {
+        btn.disabled = true;
+        if (!btn.dataset.origContent) {
+            btn.dataset.origContent = btn.innerHTML;
+        }
+    });
+
+    if (window._coinCooldownTimer) {
+        clearInterval(window._coinCooldownTimer);
+    }
+
+    const updateTick = () => {
+        const remainingMs = cooldownUntil - Date.now();
+        const remainingSec = Math.ceil(remainingMs / 1000);
+
+        if (remainingSec <= 0) {
+            clearInterval(window._coinCooldownTimer);
+            window._coinCooldownTimer = null;
+            try { localStorage.removeItem("iconnect_coin_cooldown_until"); } catch (e) {}
+            requestBtns.forEach(btn => {
+                btn.disabled = false;
+                if (btn.dataset.origContent) {
+                    btn.innerHTML = btn.dataset.origContent;
+                }
+            });
+        } else {
+            requestBtns.forEach(btn => {
+                btn.disabled = true;
+                btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle;"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> <span>Please wait (${remainingSec}s)</span>`;
+            });
+        }
+    };
+
+    updateTick();
+    window._coinCooldownTimer = setInterval(updateTick, 1000);
+}
+
+window.setCoinRequestCooldown = setCoinRequestCooldown;
+window.applyCoinCooldownTimer = applyCoinCooldownTimer;
+
 const handleCancelCoinRequest = async (trigger) => {
+    // 15-second anti-trolling cooldown persisted in localStorage before reload
+    setCoinRequestCooldown(15);
+
     if (trigger) {
         if (trigger.tagName === "BUTTON") {
             trigger.disabled = true;

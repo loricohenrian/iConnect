@@ -1144,7 +1144,20 @@ class SessionApiTests(TestCase):
         req1 = CoinInsertRequest.objects.get(id=req_id1)
         self.assertEqual(req1.status, CoinInsertRequest.STATUS_CANCELLED)
 
-        # 4. User clicks "Insert Coins" again
+        # 4. Immediate re-request during 15s cooldown returns 429
+        cooldown_res = self.client.post(
+            reverse("sessions_app:session-start-request"),
+            {"mac_address": self.mac_one, "plan_id": self.plan.id},
+            format="json",
+        )
+        self.assertEqual(cooldown_res.status_code, 429)
+        self.assertIn("cooldown_remaining", cooldown_res.json())
+
+        # 5. Simulate 15s cooldown passage
+        req1.completed_at = timezone.now() - timezone.timedelta(seconds=16)
+        req1.save(update_fields=["completed_at"])
+
+        # 6. User clicks "Insert Coins" again after cooldown
         res2 = self.client.post(
             reverse("sessions_app:session-start-request"),
             {"mac_address": self.mac_one, "plan_id": self.plan.id},
