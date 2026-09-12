@@ -18,13 +18,29 @@
 </div>
 
 <div class="portal-wrapper" data-mac="{{ mac_address|default:'' }}">
-    <!-- Header (Option C: Minimal Center Top Bar) -->
+    <!-- Header (Option C: Minimal Center Single Top Row) -->
     <header class="portal-header">
         <div class="portal-header-inner">
             <div class="header-brand">
-                <img src="{% static 'img/final_iconnect_logo.png' %}?v={% now 'U' %}" alt="iConnect" class="portal-logo" width="36" height="36" decoding="sync" fetchpriority="high">
+                <img src="{% static 'img/final_iconnect_logo.png' %}?v={% now 'U' %}" alt="iConnect" class="portal-logo" width="34" height="34" decoding="sync" fetchpriority="high">
             </div>
-            {% block header_extra %}{% endblock %}
+            <div class="header-right">
+                <div class="slots-indicator-inline" id="slots-indicator">
+                    <div class="slots-badge {% if slots_available > 5 %}available{% elif slots_available > 0 %}low{% else %}full{% endif %}" id="slots-badge" title="Active Network Users">
+                        <span class="slots-dot" id="slots-dot"></span>
+                        <span id="slots-text">
+                            {% if slots_available > 0 %}
+                                Active Users: {{ slots_active|default:0 }}/{{ slots_max|default:20 }}
+                            {% else %}
+                                Network Full
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+                <div class="header-avatar-circle" title="Profile">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                </div>
+            </div>
         </div>
     </header>
 
@@ -42,23 +58,26 @@
         {% block portal_content %}{% endblock %}
     </main>
 
-    <!-- Bottom Navigation (icons only) -->
-    <nav class="portal-nav">
-        <a href="{% url 'portal:index' %}{% if mac_address %}?mac={{ mac_address|urlencode }}{% endif %}" class="{% if active_page == 'home' %}active{% endif %}" id="nav-home">
-            <i class="bi bi-house"></i>
-        </a>
-        <a href="{% url 'portal:history' %}{% if mac_address %}?mac={{ mac_address|urlencode }}{% endif %}" class="{% if active_page == 'history' %}active{% endif %}" id="nav-history">
-            <i class="bi bi-clock-history"></i>
-        </a>
-        <a href="{% url 'portal:manual' %}{% if mac_address %}?mac={{ mac_address|urlencode }}{% endif %}" class="{% if active_page == 'manual' %}active{% endif %}" id="nav-manual">
-            <i class="bi bi-question-circle"></i>
-        </a>
-    </nav>
-
-    <!-- Footer -->
+    <!-- Footer (directly above bottom nav bar with minimal gap) -->
     <footer class="portal-footer">
         <p>iConnect &copy; 2026</p>
     </footer>
+
+    <!-- Bottom Navigation (flush, minimal, full-width) -->
+    <nav class="portal-nav">
+        <!-- Menu / List icon (left) -->
+        <a href="{% url 'portal:history' %}{% if mac_address %}?mac={{ mac_address|urlencode }}{% endif %}" class="{% if active_page == 'history' %}active{% endif %}" id="nav-history" title="History & Logs" aria-label="Menu / History">
+            <i class="bi bi-list" style="font-size: 24px;"></i>
+        </a>
+        <!-- Home icon (center) -->
+        <a href="{% url 'portal:index' %}{% if mac_address %}?mac={{ mac_address|urlencode }}{% endif %}" class="{% if active_page == 'home' %}active{% endif %}" id="nav-home" title="Home" aria-label="Home">
+            <i class="bi bi-house{% if active_page == 'home' %}-door-fill{% else %}-door{% endif %}"></i>
+        </a>
+        <!-- Settings / Gear icon (right) -->
+        <a href="{% url 'portal:manual' %}{% if mac_address %}?mac={{ mac_address|urlencode }}{% endif %}" class="{% if active_page == 'manual' %}active{% endif %}" id="nav-manual" title="Settings & Help" aria-label="Settings / Manual">
+            <i class="bi bi-gear{% if active_page == 'manual' %}-fill{% endif %}"></i>
+        </a>
+    </nav>
 </div>
 
 <!-- ═══════════════════════════════════════════════════ -->

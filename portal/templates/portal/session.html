@@ -2,22 +2,6 @@
 
 {% block title %}iConnect — Session Active{% endblock %}
 
-{% block header_extra %}
-<div class="slots-indicator-inline" id="slots-indicator">
-    <div class="slots-badge {% if slots_available > 5 %}available{% elif slots_available > 0 %}low{% else %}full{% endif %}" id="slots-badge" title="Active Network Users">
-        <span class="slots-dot" id="slots-dot"></span>
-        <span id="slots-text">
-            {% if slots_available > 0 %}
-                Active Users: {{ slots_active }}/{{ slots_max }}
-            {% else %}
-                Network Full
-            {% endif %}
-        </span>
-        <i class="bi bi-people-fill" style="font-size: 11px; opacity: 0.9;"></i>
-    </div>
-</div>
-{% endblock %}
-
 {% block portal_content %}
 <script>
     // Reset expired alert dismissed state when user has an active session
@@ -187,7 +171,7 @@
 </div>
 
 <!-- Extend Session (Option C: Minimal Center Stack) -->
-<div class="option-c-layout mt-lg" id="extend-session-panel">
+<div class="option-c-layout mt-sm" id="extend-session-panel">
     <p class="option-c-instruction">
         Tap <strong>Insert Coins</strong> below, then drop coins into the vendo machine.
     </p>
