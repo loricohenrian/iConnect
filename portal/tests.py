@@ -101,8 +101,8 @@ class RatesModalTests(TestCase):
         self.assertNotContains(response, 'Insert Coins 🪙')
         self.assertNotContains(response, 'Request Coin Slot')
 
-        # STUDYING WITH CLASSMATES text should be removed
-        self.assertNotContains(response, 'STUDYING WITH CLASSMATES?')
+        # Time Added Toast element should be present in base layout
+        self.assertContains(response, 'id="timeAddedToast"')
 
     def test_session_page_removes_unwanted_notices(self):
         from sessions_app.models import Session
@@ -135,6 +135,7 @@ class RatesModalTests(TestCase):
         self.assertContains(response, 'id="extend-now-btn"')
         self.assertContains(response, 'id="btn-cancel-coin-request"')
         self.assertContains(response, 'id="link-cancel-coin-request"')
+        self.assertContains(response, 'id="timeAddedToast"')
 
     def test_live_data_returns_smart_combos(self):
         response = self.client.get("/api/portal/live-data/")

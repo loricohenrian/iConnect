@@ -1122,6 +1122,8 @@ def session_start(request):
     try:
         with transaction.atomic():
             session_group = None
+            combo = None
+            multiplier = 1
             if is_group_pass:
                 multiplier = 1
                 amount_paid = expected_amount
@@ -1227,12 +1229,25 @@ def session_start(request):
 
     _activate_next_coin_request()
 
+    if combo and combo.get("duration_display"):
+        duration_added_display = combo["duration_display"]
+    elif plan and multiplier == 1:
+        duration_added_display = plan.duration_display
+    elif actual_duration >= 60:
+        hrs = actual_duration // 60
+        rem = actual_duration % 60
+        duration_added_display = f"{hrs} hour{'s' if hrs > 1 else ''} {rem} mins" if rem else f"{hrs} hour{'s' if hrs > 1 else ''}"
+    else:
+        duration_added_display = f"{actual_duration} mins"
+
     return Response(
         {
             "status": "success",
             "message": "Session started",
             "session": SessionSerializer(session).data,
-            "session_group": session.session_group.group_code if session.session_group else None
+            "session_group": session.session_group.group_code if session.session_group else None,
+            "duration_added_minutes": actual_duration,
+            "duration_added_display": duration_added_display,
         },
         status=status.HTTP_201_CREATED,
     )
@@ -1436,6 +1451,8 @@ def session_join_group(request):
             "session": SessionSerializer(session).data,
             "session_group": group.group_code,
             "extended": is_extension,
+            "duration_added_minutes": pass_duration,
+            "duration_added_display": group_plan.duration_display if group_plan else f"{pass_duration} mins",
         },
         status=status.HTTP_200_OK if is_extension else status.HTTP_201_CREATED,
     )
@@ -1761,6 +1778,8 @@ def session_extend_paid(request):
     # Extend the session
     try:
         with transaction.atomic():
+            combo = None
+            multiplier = 1
             if is_group_pass:
                 multiplier = 1
                 amount_paid = expected_amount
@@ -1927,6 +1946,17 @@ def session_extend_paid(request):
 
     msg = f"Group Pass created! Code: {session_group.group_code} (+{effective_plan.duration_display} added)" if session_group else f"Session extended by {duration_minutes} minutes"
 
+    if combo and combo.get("duration_display"):
+        duration_added_display = combo["duration_display"]
+    elif effective_plan and multiplier == 1:
+        duration_added_display = effective_plan.duration_display
+    elif duration_minutes >= 60:
+        hrs = duration_minutes // 60
+        rem = duration_minutes % 60
+        duration_added_display = f"{hrs} hour{'s' if hrs > 1 else ''} {rem} mins" if rem else f"{hrs} hour{'s' if hrs > 1 else ''}"
+    else:
+        duration_added_display = f"{duration_minutes} mins"
+
     return Response(
         {
             "status": "success",
@@ -1934,6 +1964,8 @@ def session_extend_paid(request):
             "session": SessionSerializer(active_session).data,
             "pauses_left": active_session.pauses_left,
             "session_group": session_group.group_code if session_group else None,
+            "duration_added_minutes": duration_minutes,
+            "duration_added_display": duration_added_display,
         }
     )
 

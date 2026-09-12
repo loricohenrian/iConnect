@@ -1313,6 +1313,12 @@ function initProductionStartFlow(macAddress) {
             if (response.ok || response.status === 409) {
                 // 200/201 Success OR 409 Conflict (session already active) -> navigate to session page!
                 const targetMac = data?.session?.mac_address || currentMac;
+                const addedDuration = data?.duration_added_display || data?.session?.duration_display || (data?.session?.duration_minutes_purchased ? `${data.session.duration_minutes_purchased} mins` : "");
+                if (addedDuration) {
+                    try {
+                        sessionStorage.setItem("iconnect_time_added_toast", addedDuration);
+                    } catch (e) {}
+                }
                 window.location.href = buildPortalUrl("/session/", targetMac);
                 return;
             }
@@ -1691,10 +1697,23 @@ function initExtendSessionFlow(macAddress) {
                 clearCoinCountdown();
                 const actionsContainer = document.getElementById("coin-actions-container");
                 if (actionsContainer) actionsContainer.style.display = "none";
+
+                const addedDuration = data?.duration_added_display || (data.session ? `${data.session.duration_minutes_purchased} mins` : "");
+
                 if (data.session_group) {
+                    if (addedDuration) {
+                        try {
+                            sessionStorage.setItem("iconnect_time_added_toast", addedDuration);
+                        } catch (e) {}
+                    }
                     window.location.reload();
                     return;
                 }
+
+                if (addedDuration) {
+                    showTimeAddedToast(addedDuration);
+                }
+
                 setExtendMessage(data.message || "Session extended!", "success");
                 setExtendMeta("");
 
@@ -1931,6 +1950,58 @@ function showRestoredToast() {
     }, 10000);
 }
 
+let _timeAddedToastTimer = null;
+
+function showTimeAddedToast(durationDisplay) {
+    if (!durationDisplay) return;
+    let text = String(durationDisplay).trim();
+    if (!text.startsWith("+")) {
+        text = "+" + text;
+    }
+    if (!text.toLowerCase().includes("added")) {
+        text += " Added!";
+    }
+
+    let toast = document.getElementById("timeAddedToast");
+    if (!toast) {
+        toast = document.createElement("div");
+        toast.id = "timeAddedToast";
+        toast.className = "time-added-toast";
+        toast.innerHTML = `
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="time-added-icon">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+            <span id="timeAddedToastText"></span>
+        `;
+        document.body.appendChild(toast);
+    }
+
+    const textEl = toast.querySelector("#timeAddedToastText") || toast;
+    textEl.textContent = text;
+
+    if (_timeAddedToastTimer) {
+        clearTimeout(_timeAddedToastTimer);
+        _timeAddedToastTimer = null;
+    }
+
+    toast.style.display = "flex";
+    requestAnimationFrame(() => {
+        toast.classList.add("show");
+    });
+
+    _timeAddedToastTimer = setTimeout(() => {
+        toast.classList.remove("show");
+        setTimeout(() => {
+            if (!toast.classList.contains("show")) {
+                toast.style.display = "none";
+            }
+        }, 400);
+        _timeAddedToastTimer = null;
+    }, 3000);
+}
+
+window.showTimeAddedToast = showTimeAddedToast;
 window.openIspOutageModal = openIspOutageModal;
 window.closeIspOutageModal = closeIspOutageModal;
 
@@ -2380,6 +2451,12 @@ function initJoinGroupFlow(macAddress) {
                         localStorage.setItem("iconnect_mac", targetMac);
                     } catch (e) {}
                 }
+                const addedDuration = data?.duration_added_display || data?.session?.duration_display || "";
+                if (addedDuration) {
+                    try {
+                        sessionStorage.setItem("iconnect_time_added_toast", addedDuration);
+                    } catch (e) {}
+                }
                 window.location.href = buildPortalUrl("/session/", targetMac);
             } else {
                 let errMsg = data?.error || data?.detail;
@@ -2423,6 +2500,16 @@ document.addEventListener("DOMContentLoaded", () => {
     initExtendSessionFlow(macAddress);
     applyCoinCooldownTimer();
     initPortalRealtime();
+
+    try {
+        const pendingToast = sessionStorage.getItem("iconnect_time_added_toast");
+        if (pendingToast) {
+            sessionStorage.removeItem("iconnect_time_added_toast");
+            setTimeout(() => {
+                showTimeAddedToast(pendingToast);
+            }, 300);
+        }
+    } catch (e) {}
 
     window.addEventListener("pageshow", () => {
         applyCoinCooldownTimer();
