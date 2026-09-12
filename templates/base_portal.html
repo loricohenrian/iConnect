@@ -526,9 +526,15 @@ document.addEventListener('DOMContentLoaded', () => {
 window.openCoinModal = function() {
     var modal = document.getElementById("coinDepositModal");
     if (modal) {
-        if (typeof closeGroupPlanModal === "function") closeGroupPlanModal();
-        if (typeof closeRatesModal === "function") closeRatesModal();
-        if (typeof closeJoinGroupModal === "function") closeJoinGroupModal();
+        try {
+            var gpModal = document.getElementById("groupPlanModal");
+            if (gpModal) gpModal.style.display = "none";
+            var rModal = document.getElementById("ratesModal");
+            if (rModal) rModal.style.display = "none";
+            var jModal = document.getElementById("joinGroupModal");
+            if (jModal) jModal.style.display = "none";
+        } catch(err) {}
+
         modal.style.display = "flex";
         document.body.classList.add("modal-open");
         document.documentElement.classList.add("modal-open");

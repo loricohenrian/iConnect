@@ -1291,6 +1291,10 @@ function initProductionStartFlow(macAddress) {
             return;
         }
 
+        if (typeof window.openCoinModal === "function") {
+            window.openCoinModal();
+        }
+
         requestBtn.disabled = true;
         startBtn.disabled = true;
         startBtn.dataset.readyToStart = "0";
@@ -1689,6 +1693,10 @@ function initExtendSessionFlow(macAddress) {
     extendRequestBtn.addEventListener("click", async () => {
         if (isCoinCooldownActive()) {
             return;
+        }
+
+        if (typeof window.openCoinModal === "function") {
+            window.openCoinModal();
         }
 
         const planId = Number(extendPlanInput.value) || state.planId || null;
@@ -2941,6 +2949,10 @@ if (btnGroupRequestSlot) {
         if(!planId) {
             alert("Please select a plan.");
             return;
+        }
+
+        if (typeof window.openCoinModal === "function") {
+            window.openCoinModal();
         }
         
         try {
