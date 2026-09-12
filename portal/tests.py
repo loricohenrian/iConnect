@@ -256,6 +256,51 @@ class CaptivePortalRedirectionTests(TestCase):
         self.assertTrue(response.url.startswith("http://10.10.10.1/"))
         self.assertEqual(response.headers.get("Connection"), "close")
 
+    def test_captive_portal_probe_endpoint_succeeds_authenticated(self):
+        """Authenticated /generate_204 probe returns 204 No Content to validate network."""
+        from sessions_app.models import Session, Plan
+        plan = Plan.objects.create(name="₱5 Plan", price=5, duration_minutes=60, is_active=True)
+        Session.objects.create(
+            mac_address="AA:BB:CC:DD:EE:77",
+            plan=plan,
+            duration_minutes_purchased=60,
+            amount_paid=5,
+            status="active",
+        )
+        response = self.client.get("/generate_204", HTTP_X_MAC_ADDRESS="AA:BB:CC:DD:EE:77", HTTP_HOST="connectivitycheck.gstatic.com")
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.headers.get("Connection"), "close")
+
+    def test_captive_portal_api_unauthenticated(self):
+        """Unauthenticated RFC 8908 query returns captive: true and portal URL."""
+        response = self.client.get("/api/captive-portal/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers.get("Content-Type"), "application/captive+json")
+        data = response.json()
+        self.assertTrue(data["captive"])
+        self.assertIn("10.10.10.1", data["user-portal-url"])
+        self.assertEqual(data["seconds-remaining"], 0)
+
+    def test_captive_portal_api_authenticated(self):
+        """Authenticated RFC 8908 query returns captive: false and session URL."""
+        from sessions_app.models import Session, Plan
+        plan = Plan.objects.create(name="₱10 Plan", price=10, duration_minutes=120, is_active=True)
+        Session.objects.create(
+            mac_address="AA:BB:CC:DD:EE:88",
+            plan=plan,
+            duration_minutes_purchased=120,
+            amount_paid=10,
+            status="active",
+        )
+        response = self.client.get("/api/captive-portal/", HTTP_X_MAC_ADDRESS="AA:BB:CC:DD:EE:88")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers.get("Content-Type"), "application/captive+json")
+        data = response.json()
+        self.assertFalse(data["captive"])
+        self.assertIn("/session/", data["user-portal-url"])
+        self.assertGreater(data["seconds-remaining"], 0)
+
+
 
 
 

@@ -1007,5 +1007,42 @@ def captive_portal_probe(request):
     return response
 
 
+def captive_portal_api(request):
+    """
+    RFC 8908 / RFC 7710 Captive Portal API endpoint.
+    Queried natively by Android 11+ and iOS 14+ to automatically detect captive portal state
+    and validate network connectivity in real time without manual user sign-in clicks.
+    """
+    mac = _get_mac_address(request)
+    client_ip = _client_ip(request)
+
+    sess = None
+    if mac:
+        sess = Session.objects.filter(mac_address=mac, status='active').order_by('-id').first()
+    if not sess and client_ip and client_ip not in ("unknown", "127.0.0.1", "::1"):
+        sess = Session.objects.filter(ip_address=client_ip, status='active').order_by('-id').first()
+
+    is_active = False
+    remaining_seconds = 0
+    if sess and sess.time_remaining_seconds > 0:
+        is_active = True
+        remaining_seconds = int(sess.time_remaining_seconds)
+
+    portal_ip = _portal_ip()
+    data = {
+        "captive": not is_active,
+        "user-portal-url": f"http://{portal_ip}/session/" if is_active else f"http://{portal_ip}/",
+        "venue-info-url": f"http://{portal_ip}/",
+        "seconds-remaining": remaining_seconds if is_active else 0,
+        "can-extend-session": is_active,
+    }
+
+    response = JsonResponse(data)
+    response['Content-Type'] = 'application/captive+json'
+    response['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    response['Pragma'] = 'no-cache'
+    return response
+
+
 
 

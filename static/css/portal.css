@@ -662,6 +662,73 @@ main.portal-container {
 .timer-amber { color: var(--color-warning); }
 .timer-red { color: var(--color-danger); }
 
+/* Real-time Network Validation Banner */
+.network-validation-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 12px;
+    background: #EFF6FF;
+    border: 1px solid #BFDBFE;
+    border-radius: 10px;
+    margin: 0 auto 14px;
+    max-width: 320px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: #1E40AF;
+    box-sizing: border-box;
+}
+
+.network-validation-left {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    text-align: left;
+    line-height: 1.2;
+}
+
+.network-validation-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #3B82F6;
+    flex-shrink: 0;
+    animation: statusPulse 1.5s infinite;
+}
+
+.btn-validate-network {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 5px 11px;
+    background: #2563EB;
+    color: #ffffff !important;
+    border-radius: 7px;
+    font-size: 11px;
+    font-weight: 700;
+    text-decoration: none !important;
+    white-space: nowrap;
+    cursor: pointer;
+    border: none;
+    transition: background 0.2s, transform 0.1s;
+}
+
+.btn-validate-network:hover, .btn-validate-network:active {
+    background: #1D4ED8;
+    color: #ffffff !important;
+    transform: scale(0.97);
+}
+
+.btn-validate-network.validating {
+    background: #0D9488;
+}
+
+.btn-validate-network.validated {
+    background: #16A34A;
+}
+
+
 /* Pause / Resume Button */
 .pause-btn {
     display: inline-flex;

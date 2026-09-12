@@ -49,6 +49,12 @@ cat << 'EOF' > /etc/dnsmasq.d/bind-dynamic.conf
 bind-dynamic
 EOF
 
+cat << 'EOF' > /etc/dnsmasq.d/captive-portal.conf
+# iConnect - RFC 8908 Captive Portal API DHCP Option 114
+# Enables Android 11+ and iOS 14+ to automatically validate network in real time
+dhcp-option=114,http://10.10.10.1/api/captive-portal/
+EOF
+
 # Remove any DNS spoofing rules that poison connectivitycheck or captive portal probes
 sed -i '/^address=\//d' /etc/dnsmasq.d/*.conf 2>/dev/null || true
 if [ -f /etc/dnsmasq.conf ]; then
@@ -56,7 +62,7 @@ if [ -f /etc/dnsmasq.conf ]; then
 fi
 
 systemctl restart dnsmasq
-echo "[OK] dnsmasq updated with filter-AAAA, bind-dynamic, and clean DNS resolution."
+echo "[OK] dnsmasq updated with filter-AAAA, bind-dynamic, RFC 8908 option 114, and clean DNS."
 
 echo ""
 echo "=============================================================================="

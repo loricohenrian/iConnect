@@ -2360,29 +2360,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const initialStatus = timerEl.dataset.status || "active";
     window.sessionTimer = new SessionTimer("session-timer", totalSeconds);
 
-    // Probe multiple connectivity check endpoints to force the OS / browser
-    // to re-verify internet access and clear the "No Internet" indicator.
-    // Chrome relies on Google's own endpoints, not local ones.
+    // Real-time network connectivity validation across Android, Chrome, iOS, and Windows
     if (initialStatus === "active") {
-        const probeUrls = [
-            "/generate_204",                                              // local (handled by Django)
-            "http://connectivitycheck.gstatic.com/generate_204",          // Chrome / Android
-            "http://clients3.google.com/generate_204",                    // Chrome fallback
-            "http://www.msftconnecttest.com/connecttest.txt",             // Windows
-        ];
-        probeUrls.forEach(url => {
-            try {
-                fetch(url, { mode: "no-cors", cache: "no-store" }).catch(() => {});
-            } catch (e) {}
-        });
-        // Retry after 3s in case iptables wasn't fully applied yet
-        setTimeout(() => {
-            probeUrls.forEach(url => {
-                try {
-                    fetch(url, { mode: "no-cors", cache: "no-store" }).catch(() => {});
-                } catch (e) {}
-            });
-        }, 3000);
+        initRealtimeNetworkValidation(macAddress);
     }
 
     window.sessionTimer.onExpire = async () => {
@@ -2502,6 +2482,109 @@ function initPauseButton(macAddress) {
         }
     });
 }
+
+
+function initRealtimeNetworkValidation(macAddress) {
+    const probeUrls = [
+        "/generate_204",                                              // local Django
+        "http://connectivitycheck.gstatic.com/generate_204",          // Chrome / Android
+        "http://clients3.google.com/generate_204",                    // Chrome fallback
+        "http://www.google.com/generate_204",                         // Google
+        "http://captive.apple.com/hotspot-detect.html",               // Apple iOS
+        "http://www.msftconnecttest.com/connecttest.txt",             // Windows
+    ];
+
+    const runProbes = () => {
+        // Query RFC 8908 Captive Portal API
+        fetch("/api/captive-portal/", { cache: "no-store" }).catch(() => {});
+
+        // Background probe fetches
+        probeUrls.forEach(url => {
+            try {
+                fetch(url, { mode: "no-cors", cache: "no-store" }).catch(() => {});
+            } catch (e) {}
+        });
+
+        // Hidden iframe probe (triggers browser engine top-level connectivity detection)
+        try {
+            const iframe = document.createElement("iframe");
+            iframe.style.cssText = "position:absolute;width:1px;height:1px;left:-9999px;opacity:0;pointer-events:none;border:none;";
+            iframe.src = "http://connectivitycheck.gstatic.com/generate_204";
+            document.body.appendChild(iframe);
+            setTimeout(() => { try { iframe.remove(); } catch (e) {} }, 5000);
+        } catch (e) {}
+
+        // Hidden image probe
+        try {
+            const img = new Image();
+            img.src = "http://connectivitycheck.gstatic.com/generate_204?t=" + Date.now();
+        } catch (e) {}
+    };
+
+    // Execute immediately and retry after 2.5s
+    runProbes();
+    setTimeout(runProbes, 2500);
+
+    // Detect if running inside Android's system CaptivePortalLogin WebView
+    // (User agent contains 'Version/4.0' or '; wv' or 'CaptivePortalLogin')
+    const isCaptivePortalLogin = /Version\/4\.0 Chrome|; wv\)|CaptivePortalLogin/i.test(navigator.userAgent);
+    if (isCaptivePortalLogin) {
+        // In Android's CaptivePortalLoginActivity, navigating to generate_204 causes
+        // CaptivePortalLoginActivity to receive HTTP 204, call mCaptivePortal.reportAvailable(),
+        // dismiss the popup automatically, and validate the connection system-wide!
+        setTimeout(() => {
+            try {
+                window.location.href = "http://connectivitycheck.gstatic.com/generate_204";
+            } catch (e) {}
+        }, 1200);
+        return;
+    }
+
+    // For regular Chrome / external browser:
+    // Wire up the 1-tap "Validate Now" helper banner
+    const banner = document.getElementById("network-validation-banner");
+    const validateBtn = document.getElementById("btn-validate-network");
+    const storageKey = "iconnect_validated_" + (macAddress || "");
+    const isValidated = sessionStorage.getItem(storageKey);
+
+    if (banner && !isValidated) {
+        banner.style.display = "flex";
+
+        // Auto-fade banner after 18 seconds if user hasn't clicked it
+        setTimeout(() => {
+            if (banner && !banner.dataset.clicked) {
+                banner.style.transition = "opacity 0.6s ease, max-height 0.6s ease";
+                banner.style.opacity = "0";
+                setTimeout(() => { banner.style.display = "none"; }, 600);
+            }
+        }, 18000);
+    }
+
+    if (validateBtn) {
+        validateBtn.addEventListener("click", () => {
+            if (banner) banner.dataset.clicked = "1";
+            validateBtn.innerHTML = '<span>✓ Validating...</span>';
+            validateBtn.classList.add("validating");
+            try {
+                sessionStorage.setItem(storageKey, "1");
+            } catch (e) {}
+
+            setTimeout(() => {
+                validateBtn.innerHTML = '<span>✓ Internet Verified</span>';
+                validateBtn.classList.remove("validating");
+                validateBtn.classList.add("validated");
+                setTimeout(() => {
+                    if (banner) {
+                        banner.style.transition = "opacity 0.5s ease, max-height 0.5s ease";
+                        banner.style.opacity = "0";
+                        setTimeout(() => { banner.style.display = "none"; }, 500);
+                    }
+                }, 2000);
+            }, 900);
+        });
+    }
+}
+
 
 
 // --- Group Plan Logic ---

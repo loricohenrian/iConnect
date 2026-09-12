@@ -31,6 +31,9 @@ cp "$PROJECT_ROOT/deploy/dnsmasq/bind-dynamic.conf" /etc/dnsmasq.d/bind-dynamic.
 if [ -f "$PROJECT_ROOT/deploy/dnsmasq/filter-aaaa.conf" ]; then
     cp "$PROJECT_ROOT/deploy/dnsmasq/filter-aaaa.conf" /etc/dnsmasq.d/filter-aaaa.conf
 fi
+if [ -f "$PROJECT_ROOT/deploy/dnsmasq/captive-portal.conf" ]; then
+    cp "$PROJECT_ROOT/deploy/dnsmasq/captive-portal.conf" /etc/dnsmasq.d/captive-portal.conf
+fi
 
 mkdir -p /etc/systemd/system/dnsmasq.service.d
 cp "$PROJECT_ROOT/deploy/dnsmasq/wait-for-usblan0.conf" /etc/systemd/system/dnsmasq.service.d/wait-for-usblan0.conf

@@ -16,7 +16,8 @@ urlpatterns = [
     path('api/spin-data/', views.api_spin_data, name='api_spin_data'),
     path('api/report-issue/', views.api_report_issue, name='api_report_issue'),
 
-    # Captive portal connectivity check probe endpoints
+    # Captive portal connectivity check probe endpoints (RFC 8908 + OS probes)
+    path('api/captive-portal/', views.captive_portal_api, name='captive_portal_api'),
     path('generate_204', views.captive_portal_probe, name='probe_generate_204'),
     path('gen_204', views.captive_portal_probe, name='probe_gen_204'),
     path('hotspot-detect.html', views.captive_portal_probe, name='probe_apple_hotspot'),
