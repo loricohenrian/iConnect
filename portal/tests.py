@@ -28,6 +28,10 @@ class PortalProductionTests(TestCase):
         self.assertContains(response, 'id="start-flow-message"', html=False)
         self.assertContains(response, 'id="btn-cancel-coin-request"', html=False)
         self.assertContains(response, 'id="link-cancel-coin-request"', html=False)
+        # Cancel confirmation modal elements must be present
+        self.assertContains(response, 'id="cancelCoinModal"', html=False)
+        self.assertContains(response, 'id="btn-abort-cancel-coin"', html=False)
+        self.assertContains(response, 'id="btn-confirm-cancel-coin"', html=False)
 
     def test_report_issue_success(self):
         """Users can submit issue reports via API."""
@@ -235,6 +239,22 @@ class SessionExpirationTests(TestCase):
         self.assertIn("expired=1", response.url)
         self.session.refresh_from_db()
         self.assertEqual(self.session.status, "expired")
+
+    def test_portal_session_page_renders_cancel_coin_modal(self):
+        """Active session page renders cancelCoinModal and its confirmation buttons."""
+        from django.utils import timezone
+        from datetime import timedelta
+        active_sess = self.session
+        active_sess.status = "active"
+        active_sess.time_in = timezone.now() - timedelta(minutes=5)
+        active_sess.save(update_fields=["status", "time_in"])
+
+        response = self.client.get(f"/session/?mac={active_sess.mac_address}")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="cancelCoinModal"')
+        self.assertContains(response, 'id="btn-abort-cancel-coin"')
+        self.assertContains(response, 'id="btn-confirm-cancel-coin"')
+
 
 
 class CaptivePortalRedirectionTests(TestCase):

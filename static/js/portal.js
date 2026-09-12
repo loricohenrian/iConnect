@@ -2798,14 +2798,92 @@ const handleCancelCoinRequest = async (trigger) => {
     window.location.reload();
 };
 
+let pendingCancelTrigger = null;
+
+function openCancelCoinModal(trigger) {
+    pendingCancelTrigger = trigger || null;
+    const modal = document.getElementById("cancelCoinModal");
+    if (!modal) {
+        if (confirm("Are you sure you want to cancel your coin request?")) {
+            handleCancelCoinRequest(trigger);
+        }
+        return;
+    }
+
+    const msgEl = document.getElementById("cancel-coin-modal-message");
+    if (msgEl) {
+        let insertedAmount = 0;
+        const currentReq = window.currentCoinRequest || null;
+        if (currentReq && currentReq.credited_amount) {
+            insertedAmount = Number(currentReq.credited_amount) || 0;
+        } else {
+            const metaEl = document.getElementById("start-flow-meta") || document.getElementById("extend-flow-meta");
+            if (metaEl && metaEl.innerText) {
+                const match = metaEl.innerText.match(/₱\s*(\d+)/);
+                if (match) insertedAmount = Number(match[1]) || 0;
+            }
+        }
+
+        if (insertedAmount > 0) {
+            msgEl.innerHTML = `You have already inserted <strong>₱${insertedAmount}</strong>. Canceling will release this slot. Are you sure you want to cancel?`;
+        } else {
+            msgEl.textContent = "Are you sure you want to cancel? This will release your coin slot.";
+        }
+    }
+
+    const btnConfirm = document.getElementById("btn-confirm-cancel-coin");
+    if (btnConfirm) {
+        btnConfirm.disabled = false;
+        btnConfirm.textContent = "Yes, Cancel";
+    }
+
+    modal.style.display = "flex";
+    document.body.classList.add("modal-open");
+    document.documentElement.classList.add("modal-open");
+}
+
+function closeCancelCoinModal(e) {
+    if (e && e.target && e.target !== e.currentTarget && !e.target.classList.contains("modal-overlay")) {
+        return;
+    }
+    const modal = document.getElementById("cancelCoinModal");
+    if (modal) {
+        modal.style.display = "none";
+        document.body.classList.remove("modal-open");
+        document.documentElement.classList.remove("modal-open");
+    }
+    pendingCancelTrigger = null;
+}
+
+function confirmCancelCoinRequest() {
+    const btnConfirm = document.getElementById("btn-confirm-cancel-coin");
+    if (btnConfirm) {
+        btnConfirm.disabled = true;
+        btnConfirm.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Canceling...';
+    }
+    const triggerToCancel = pendingCancelTrigger;
+    closeCancelCoinModal();
+    handleCancelCoinRequest(triggerToCancel);
+}
+
+window.openCancelCoinModal = openCancelCoinModal;
+window.closeCancelCoinModal = closeCancelCoinModal;
+window.confirmCancelCoinRequest = confirmCancelCoinRequest;
+
 const btnCancelCoinRequest = document.getElementById("btn-cancel-coin-request");
 if (btnCancelCoinRequest) {
-    btnCancelCoinRequest.addEventListener("click", () => handleCancelCoinRequest(btnCancelCoinRequest));
+    btnCancelCoinRequest.addEventListener("click", (e) => {
+        if (e) e.preventDefault();
+        openCancelCoinModal(btnCancelCoinRequest);
+    });
 }
 
 const linkCancelCoinRequest = document.getElementById("link-cancel-coin-request");
 if (linkCancelCoinRequest) {
-    linkCancelCoinRequest.addEventListener("click", () => handleCancelCoinRequest(linkCancelCoinRequest));
+    linkCancelCoinRequest.addEventListener("click", (e) => {
+        if (e) e.preventDefault();
+        openCancelCoinModal(linkCancelCoinRequest);
+    });
 }
 
 // Global Rates Modal helpers
