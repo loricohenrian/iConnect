@@ -1319,6 +1319,9 @@ function initProductionStartFlow(macAddress) {
                         sessionStorage.setItem("iconnect_time_added_toast", addedDuration);
                     } catch (e) {}
                 }
+                try {
+                    sessionStorage.setItem("iconnect_scroll_to_timer", "1");
+                } catch (e) {}
                 window.location.href = buildPortalUrl("/session/", targetMac);
                 return;
             }
@@ -1706,6 +1709,9 @@ function initExtendSessionFlow(macAddress) {
                             sessionStorage.setItem("iconnect_time_added_toast", addedDuration);
                         } catch (e) {}
                     }
+                    try {
+                        sessionStorage.setItem("iconnect_scroll_to_timer", "1");
+                    } catch (e) {}
                     window.location.reload();
                     return;
                 }
@@ -1713,6 +1719,7 @@ function initExtendSessionFlow(macAddress) {
                 if (addedDuration) {
                     showTimeAddedToast(addedDuration);
                 }
+                scrollToTimerContainer();
 
                 setExtendMessage(data.message || "Session extended!", "success");
                 setExtendMeta("");
@@ -2002,6 +2009,19 @@ function showTimeAddedToast(durationDisplay) {
 }
 
 window.showTimeAddedToast = showTimeAddedToast;
+
+function scrollToTimerContainer() {
+    setTimeout(() => {
+        const timerContainer = document.querySelector(".timer-container") || document.getElementById("session-timer") || document.querySelector(".timer-display");
+        if (timerContainer) {
+            timerContainer.scrollIntoView({ behavior: "smooth", block: "start" });
+        } else {
+            window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+    }, 150);
+}
+
+window.scrollToTimerContainer = scrollToTimerContainer;
 window.openIspOutageModal = openIspOutageModal;
 window.closeIspOutageModal = closeIspOutageModal;
 
@@ -2457,6 +2477,9 @@ function initJoinGroupFlow(macAddress) {
                         sessionStorage.setItem("iconnect_time_added_toast", addedDuration);
                     } catch (e) {}
                 }
+                try {
+                    sessionStorage.setItem("iconnect_scroll_to_timer", "1");
+                } catch (e) {}
                 window.location.href = buildPortalUrl("/session/", targetMac);
             } else {
                 let errMsg = data?.error || data?.detail;
@@ -2503,11 +2526,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
     try {
         const pendingToast = sessionStorage.getItem("iconnect_time_added_toast");
+        const shouldScroll = sessionStorage.getItem("iconnect_scroll_to_timer");
         if (pendingToast) {
             sessionStorage.removeItem("iconnect_time_added_toast");
             setTimeout(() => {
                 showTimeAddedToast(pendingToast);
             }, 300);
+        }
+        if (shouldScroll || pendingToast) {
+            sessionStorage.removeItem("iconnect_scroll_to_timer");
+            scrollToTimerContainer();
         }
     } catch (e) {}
 

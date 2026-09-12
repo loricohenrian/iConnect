@@ -2217,21 +2217,29 @@ def session_status(request):
                         }
                     )
 
-            return Response(
-                {
-                    "status": "paused",
-                    "time_remaining_seconds": session.time_remaining_seconds,
-                    "message": "Session is paused",
-                    "session": SessionSerializer(session).data,
-                    "pauses_left": session.pauses_left,
-                    "is_whitelisted": False,
-                    "isp_outage": isp_outage,
-                    "enable_outage_announcement": enable_outage_announcement,
-                    "enable_outage_auto_pause": enable_outage_auto_pause,
-                    "outage_message": outage_message,
-                    "announcement": ann_text,
-                }
-            )
+            paused_response = {
+                "status": "paused",
+                "time_remaining_seconds": session.time_remaining_seconds,
+                "message": "Session is paused",
+                "session": SessionSerializer(session).data,
+                "pauses_left": session.pauses_left,
+                "is_whitelisted": False,
+                "isp_outage": isp_outage,
+                "enable_outage_announcement": enable_outage_announcement,
+                "enable_outage_auto_pause": enable_outage_auto_pause,
+                "outage_message": outage_message,
+                "announcement": ann_text,
+            }
+            if session.session_group_id:
+                grp = SessionGroup.objects.filter(id=session.session_group_id).first()
+                if grp:
+                    paused_response["group_redeemed"] = grp.redeemed_count
+                    paused_response["group_max"] = grp.max_devices
+                    paused_response["group_code"] = grp.group_code
+                    paused_response["group_code_expires_at"] = (
+                        grp.code_expires_at.isoformat() if grp.code_expires_at else None
+                    )
+            return Response(paused_response)
 
         with transaction.atomic():
             locked_session = Session.objects.select_for_update().filter(
@@ -2285,14 +2293,15 @@ def session_status(request):
                 "outage_message": outage_message,
                 "announcement": ann_text,
             }
-            if locked_session.session_group:
-                grp = locked_session.session_group
-                response_data["group_redeemed"] = grp.redeemed_count
-                response_data["group_max"] = grp.max_devices
-                response_data["group_code"] = grp.group_code
-                response_data["group_code_expires_at"] = (
-                    grp.code_expires_at.isoformat() if grp.code_expires_at else None
-                )
+            if locked_session.session_group_id:
+                grp = SessionGroup.objects.filter(id=locked_session.session_group_id).first()
+                if grp:
+                    response_data["group_redeemed"] = grp.redeemed_count
+                    response_data["group_max"] = grp.max_devices
+                    response_data["group_code"] = grp.group_code
+                    response_data["group_code_expires_at"] = (
+                        grp.code_expires_at.isoformat() if grp.code_expires_at else None
+                    )
             return Response(response_data)
 
     return Response(
