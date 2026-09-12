@@ -916,12 +916,28 @@ function coinRequestStatusMessage(coinRequest, context = "start") {
     }
 
     const status = coinRequest.status;
+    const isGroupPlan = Boolean(coinRequest.is_group_pass);
+    const creditedAmt = Number(coinRequest.credited_amount || 0);
+    const expectedAmt = Number(coinRequest.expected_amount || 0);
+
     if (status === "completed") {
         return context === "extend"
             ? "Payment complete! Tap Extend Now below to add your time."
             : "Payment complete! Tap Connect Now below to start your internet.";
     }
     if (status === "active") {
+        if (isGroupPlan) {
+            const actionWord = context === "extend" ? "Extend Now" : "Connect Now";
+            if (expectedAmt > 0 && creditedAmt >= expectedAmt) {
+                return `Full payment received (₱${creditedAmt}/₱${expectedAmt})! Tap ${actionWord} below to activate your Group Pass.`;
+            }
+            if (creditedAmt > 0 && expectedAmt > 0) {
+                const remaining = Math.max(0, expectedAmt - creditedAmt);
+                return `Coins inserted: ₱${creditedAmt} / ₱${expectedAmt}. Insert ₱${remaining} more to enable ${actionWord}.`;
+            }
+            return `Insert ₱${expectedAmt} for your Group Pass. Drop coins (₱1, ₱5, ₱10, ₱20) into the machine.`;
+        }
+
         if (coinRequest.ready_to_start) {
             const actionWord = context === "extend" ? "Extend Now" : "Connect Now";
             if (coinRequest.combo_duration_display) {
@@ -1149,7 +1165,12 @@ function initProductionStartFlow(macAddress) {
         startBtn.dataset.readyToStart = state.readyToStart ? "1" : "0";
 
         const actionsContainer = document.getElementById("coin-actions-container");
-        const hasCoins = Boolean(coinRequest && ((coinRequest.credited_amount && coinRequest.credited_amount > 0) || coinRequest.ready_to_start));
+        const isGroupPlan = Boolean(coinRequest && (coinRequest.is_group_pass || state.isGroupPass));
+        const creditedAmt = Number(coinRequest?.credited_amount || 0);
+        const expectedAmt = Number(coinRequest?.expected_amount || 0);
+        const hasCoins = isGroupPlan
+            ? Boolean(coinRequest && state.readyToStart && (expectedAmt <= 0 || creditedAmt >= expectedAmt))
+            : Boolean(coinRequest && ((creditedAmt > 0) || coinRequest.ready_to_start));
         const btnCancel = document.getElementById("btn-cancel-coin-request");
         const linkCancel = document.getElementById("link-cancel-coin-request");
         const isTerminal = ["expired", "cancelled"].includes(coinRequest?.status);
@@ -1187,7 +1208,7 @@ function initProductionStartFlow(macAddress) {
         }
 
         if (coinRequest?.status === "expired") {
-            if (state.readyToStart) {
+            if (state.readyToStart && (!isGroupPlan || creditedAmt >= expectedAmt)) {
                 setStartFlowMessage("Time expired. Auto-connecting with inserted coins...", "success");
                 clearPolling();
                 startBtn.click();
@@ -1512,7 +1533,12 @@ function initExtendSessionFlow(macAddress) {
         extendNowBtn.disabled = !state.readyToStart;
 
         const actionsContainer = document.getElementById("coin-actions-container");
-        const hasCoins = Boolean(coinRequest && ((coinRequest.credited_amount && coinRequest.credited_amount > 0) || coinRequest.ready_to_start));
+        const isGroupPlan = Boolean(coinRequest && (coinRequest.is_group_pass || state.isGroupPass));
+        const creditedAmt = Number(coinRequest?.credited_amount || 0);
+        const expectedAmt = Number(coinRequest?.expected_amount || 0);
+        const hasCoins = isGroupPlan
+            ? Boolean(coinRequest && state.readyToStart && (expectedAmt <= 0 || creditedAmt >= expectedAmt))
+            : Boolean(coinRequest && ((creditedAmt > 0) || coinRequest.ready_to_start));
         const btnCancel = document.getElementById("btn-cancel-coin-request");
         const linkCancel = document.getElementById("link-cancel-coin-request");
         const isTerminal = ["expired", "cancelled"].includes(coinRequest?.status);
@@ -1550,7 +1576,7 @@ function initExtendSessionFlow(macAddress) {
         }
         
         if (coinRequest?.status === "expired") {
-            if (state.readyToStart) {
+            if (state.readyToStart && (!isGroupPlan || creditedAmt >= expectedAmt)) {
                 setExtendMessage("Time expired. Auto-extending with inserted coins...", "success");
                 clearPolling();
                 extendNowBtn.click();
