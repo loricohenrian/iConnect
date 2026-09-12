@@ -80,37 +80,22 @@ main.portal-container {
     flex-shrink: 0;
 }
 
-/* Pill / Stadium Shape Logo Wrapper (img #1) */
-.portal-logo-pill {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    height: 48px; /* Increased logo container height */
-    padding: 4px 16px;
-    border-radius: 9999px; /* Stadium pill shape */
-    background: rgba(255, 255, 255, 0.18);
-    border: 1.5px solid rgba(255, 255, 255, 0.35);
-    backdrop-filter: blur(4px);
-    box-sizing: border-box;
-    transition: transform 0.2s ease, background-color 0.2s ease;
-}
-
-.portal-logo-pill:hover {
-    background: rgba(255, 255, 255, 0.24);
-    transform: scale(1.02);
-}
-
+/* Circle Logo with Increased 48px Size */
 .portal-header .portal-logo {
-    height: 38px; /* Increased logo image height */
-    width: auto;
-    max-width: 80px;
-    object-fit: contain;
+    width: 48px;  /* Increased size from 40px */
+    height: 48px; /* Increased size from 40px */
+    object-fit: cover;
     display: block;
     margin: 0;
-    border-radius: 0;
-    border: none;
+    border-radius: 50%; /* Restored circle shape */
+    border: 2px solid rgba(255, 255, 255, 0.45);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
     transition: transform 0.2s ease;
     flex-shrink: 0;
+}
+
+.portal-header .portal-logo:hover {
+    transform: scale(1.05);
 }
 
 .header-right {
@@ -131,10 +116,10 @@ main.portal-container {
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-    padding: 4px 5px 4px 12px;
+    padding: 4px 6px 4px 12px;
     border-radius: 9999px; /* Pill shape badge */
     font-size: 11.5px;
-    font-weight: 600;
+    font-weight: 700;
     letter-spacing: 0.2px;
     background: rgba(255, 255, 255, 0.18);
     color: #ffffff;
@@ -151,19 +136,21 @@ main.portal-container {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 22px;
-    height: 22px;
+    width: 24px;
+    height: 24px;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.28);
-    border: 1px solid rgba(255, 255, 255, 0.45);
-    color: #ffffff;
+    background: rgba(0, 0, 0, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    color: #ffffff; /* High contrast white icon inside circle */
     flex-shrink: 0;
     margin-left: 2px;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .slots-avatar-icon {
     display: block;
-    stroke-width: 2.2;
+    width: 14px;
+    height: 14px;
 }
 
 .slots-indicator-inline .slots-badge.available .slots-dot { background: #34D399; }
