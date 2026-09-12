@@ -472,10 +472,10 @@ document.addEventListener('DOMContentLoaded', () => {
             Are you sure you want to cancel? This will release your coin slot.
         </p>
         <div class="d-flex" style="gap: 10px; justify-content: center;">
-            <button type="button" class="btn btn-secondary flex-grow-1" id="btn-abort-cancel-coin" onclick="closeCancelCoinModal()" style="padding: 10px 14px; font-weight: 600; font-size: 13.5px; border-radius: 10px;">
+            <button type="button" class="btn btn-secondary flex-grow-1" id="btn-abort-cancel-coin" onclick="closeCancelCoinModal(); event.stopPropagation();" style="padding: 10px 14px; font-weight: 600; font-size: 13.5px; border-radius: 10px;">
                 No, Keep Waiting
             </button>
-            <button type="button" class="btn btn-danger flex-grow-1" id="btn-confirm-cancel-coin" onclick="confirmCancelCoinRequest()" style="background: #dc2626; border-color: #dc2626; color: #ffffff; padding: 10px 14px; font-weight: 700; font-size: 13.5px; border-radius: 10px;">
+            <button type="button" class="btn btn-danger flex-grow-1" id="btn-confirm-cancel-coin" onclick="confirmCancelCoinRequest(); event.stopPropagation();" style="background: #dc2626; border-color: #dc2626; color: #ffffff; padding: 10px 14px; font-weight: 700; font-size: 13.5px; border-radius: 10px;">
                 Yes, Cancel
             </button>
         </div>
@@ -488,8 +488,10 @@ window.openCancelCoinModal = function(trigger) {
     var modal = document.getElementById("cancelCoinModal");
     if (!modal) {
         if (confirm("Are you sure you want to cancel your coin request?")) {
-            if (typeof handleCancelCoinRequest === "function") {
-                handleCancelCoinRequest(trigger);
+            if (typeof window.handleCancelCoinRequest === "function") {
+                window.handleCancelCoinRequest(trigger);
+            } else {
+                window.location.reload();
             }
         }
         return;
@@ -518,13 +520,24 @@ window.openCancelCoinModal = function(trigger) {
 
     var btnConfirm = document.getElementById("btn-confirm-cancel-coin");
     if (btnConfirm) {
-        btnConfirm.disabled = false;
+        btnConfirm.disabled = true;
+        btnConfirm.style.pointerEvents = "none";
+        btnConfirm.style.opacity = "0.7";
         btnConfirm.textContent = "Yes, Cancel";
+        setTimeout(function() {
+            if (btnConfirm) {
+                btnConfirm.disabled = false;
+                btnConfirm.style.pointerEvents = "auto";
+                btnConfirm.style.opacity = "1";
+            }
+        }, 350);
     }
 
-    modal.style.display = "flex";
-    document.body.classList.add("modal-open");
-    document.documentElement.classList.add("modal-open");
+    setTimeout(function() {
+        modal.style.display = "flex";
+        document.body.classList.add("modal-open");
+        document.documentElement.classList.add("modal-open");
+    }, 40);
 };
 
 window.closeCancelCoinModal = function(e) {
@@ -542,14 +555,17 @@ window.closeCancelCoinModal = function(e) {
 
 window.confirmCancelCoinRequest = function() {
     var btnConfirm = document.getElementById("btn-confirm-cancel-coin");
+    if (btnConfirm && btnConfirm.disabled) {
+        return;
+    }
     if (btnConfirm) {
         btnConfirm.disabled = true;
         btnConfirm.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Canceling...';
     }
     var triggerToCancel = window.pendingCancelTrigger;
     window.closeCancelCoinModal();
-    if (typeof handleCancelCoinRequest === "function") {
-        handleCancelCoinRequest(triggerToCancel);
+    if (typeof window.handleCancelCoinRequest === "function") {
+        window.handleCancelCoinRequest(triggerToCancel);
     } else {
         window.location.reload();
     }

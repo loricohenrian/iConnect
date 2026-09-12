@@ -5,6 +5,27 @@
 
 const MAC_ADDRESS_RE = /^([0-9A-F]{2}:){5}[0-9A-F]{2}$/;
 
+function isCoinCooldownActive() {
+    try {
+        const stored = localStorage.getItem("iconnect_coin_cooldown_until");
+        if (!stored) return 0;
+        const cooldownUntil = parseInt(stored, 10);
+        if (isNaN(cooldownUntil)) return 0;
+        const remaining = Math.ceil((cooldownUntil - Date.now()) / 1000);
+        return remaining > 0 ? remaining : 0;
+    } catch (e) {
+        return 0;
+    }
+}
+
+function getCoinButtonDefaultHtml(btnId) {
+    if (btnId === "btn-group-request-slot") {
+        return '<i class="bi bi-coin"></i> Insert Coins 🪙';
+    }
+    return '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="mini-coin-svg"><circle cx="12" cy="12" r="9"></circle><path d="M14.5 9h-5a2 2 0 0 0 0 4h3a2 2 0 0 1 0 4h-5"></path><line x1="12" y1="7" x2="12" y2="9"></line><line x1="12" y1="17" x2="12" y2="19"></line></svg> <span>Insert Coins</span>';
+}
+
+
 class SessionTimer {
     constructor(elementId, totalSeconds) {
         this.element = document.getElementById(elementId);
@@ -1076,7 +1097,11 @@ function initProductionStartFlow(macAddress) {
         const isTerminal = ["expired", "cancelled"].includes(coinRequest?.status);
 
         // Keep Insert Coins button disabled while coin request is active; enable only if terminal/cancelled
-        requestBtn.disabled = Boolean(coinRequest && !isTerminal);
+        if (isCoinCooldownActive()) {
+            requestBtn.disabled = true;
+        } else {
+            requestBtn.disabled = Boolean(coinRequest && !isTerminal);
+        }
 
         const activeCard = document.getElementById("coin-deposit-active-card");
         if (activeCard) {
@@ -1177,6 +1202,10 @@ function initProductionStartFlow(macAddress) {
             return;
         }
 
+        if (isCoinCooldownActive()) {
+            return;
+        }
+
         requestBtn.disabled = true;
         startBtn.disabled = true;
         startBtn.dataset.readyToStart = "0";
@@ -1225,7 +1254,9 @@ function initProductionStartFlow(macAddress) {
         } catch (error) {
             setStartFlowMessage("Connection error while requesting coin slot.", "danger");
         } finally {
-            if (!state.requestId) {
+            if (isCoinCooldownActive()) {
+                requestBtn.disabled = true;
+            } else if (!state.requestId) {
                 requestBtn.disabled = false;
             } else {
                 requestBtn.disabled = true;
@@ -1292,7 +1323,11 @@ function initProductionStartFlow(macAddress) {
         } catch (error) {
             setStartFlowMessage("Connection error while starting session.", "danger");
         } finally {
-            requestBtn.disabled = false;
+            if (isCoinCooldownActive()) {
+                requestBtn.disabled = true;
+            } else {
+                requestBtn.disabled = false;
+            }
             startBtn.innerHTML = '<i class="bi bi-wifi"></i> <span>Connect Now</span>';
             if (!state.readyToStart) {
                 startBtn.disabled = true;
@@ -1309,7 +1344,11 @@ function initProductionStartFlow(macAddress) {
             return;
         }
 
-        requestBtn.disabled = false;
+        if (isCoinCooldownActive()) {
+            requestBtn.disabled = true;
+        } else {
+            requestBtn.disabled = false;
+        }
 
         if (state.planId && state.planId !== nextPlanId) {
             clearPolling();
@@ -1346,8 +1385,12 @@ function initExtendSessionFlow(macAddress) {
         return;
     }
 
-    // Direct Insert Coins is enabled by default
-    extendRequestBtn.disabled = false;
+    // Direct Insert Coins is enabled by default (unless cooldown active)
+    if (isCoinCooldownActive()) {
+        extendRequestBtn.disabled = true;
+    } else {
+        extendRequestBtn.disabled = false;
+    }
     extendNowBtn.disabled = true;
     extendNowBtn.style.display = "none";
 
@@ -1408,7 +1451,11 @@ function initExtendSessionFlow(macAddress) {
         const isTerminal = ["expired", "cancelled"].includes(coinRequest?.status);
 
         // Keep Insert Coins button disabled while coin request is active; enable only if terminal/cancelled
-        extendRequestBtn.disabled = Boolean(coinRequest && !isTerminal);
+        if (isCoinCooldownActive()) {
+            extendRequestBtn.disabled = true;
+        } else {
+            extendRequestBtn.disabled = Boolean(coinRequest && !isTerminal);
+        }
 
         const activeCard = document.getElementById("coin-deposit-active-card");
         if (activeCard) {
@@ -1504,7 +1551,11 @@ function initExtendSessionFlow(macAddress) {
             extendCards.forEach((c) => c.classList.remove("selected"));
             card.classList.add("selected");
             extendPlanInput.value = card.dataset.planId;
-            extendRequestBtn.disabled = false;
+            if (isCoinCooldownActive()) {
+                extendRequestBtn.disabled = true;
+            } else {
+                extendRequestBtn.disabled = false;
+            }
             setTimeout(() => {
                 extendRequestBtn.scrollIntoView({ behavior: "smooth", block: "center" });
             }, 80);
@@ -1531,6 +1582,10 @@ function initExtendSessionFlow(macAddress) {
 
     // Request coin slot for extend
     extendRequestBtn.addEventListener("click", async () => {
+        if (isCoinCooldownActive()) {
+            return;
+        }
+
         const planId = Number(extendPlanInput.value) || state.planId || null;
         const currentMac = macAddress || getMacAddress();
         if (!currentMac) {
@@ -1577,7 +1632,9 @@ function initExtendSessionFlow(macAddress) {
         } catch (error) {
             setExtendMessage("Connection error.", "danger");
         } finally {
-            if (!state.requestId) {
+            if (isCoinCooldownActive()) {
+                extendRequestBtn.disabled = true;
+            } else if (!state.requestId) {
                 extendRequestBtn.disabled = false;
             } else {
                 extendRequestBtn.disabled = true;
@@ -1674,7 +1731,11 @@ function initExtendSessionFlow(macAddress) {
                 state.readyToStart = false;
                 if (extendCards.length > 0) extendCards.forEach((c) => c.classList.remove("selected"));
                 if (extendPlanInput) extendPlanInput.value = "";
-                extendRequestBtn.disabled = false;
+                if (isCoinCooldownActive()) {
+                    extendRequestBtn.disabled = true;
+                } else {
+                    extendRequestBtn.disabled = false;
+                }
                 extendNowBtn.disabled = true;
                 return;
             }
@@ -1689,7 +1750,11 @@ function initExtendSessionFlow(macAddress) {
         } catch (error) {
             setExtendMessage("Connection error while extending session.", "danger");
         } finally {
-            extendRequestBtn.disabled = false;
+            if (isCoinCooldownActive()) {
+                extendRequestBtn.disabled = true;
+            } else {
+                extendRequestBtn.disabled = false;
+            }
             if (!state.readyToStart) {
                 extendNowBtn.disabled = true;
             }
@@ -2351,7 +2416,12 @@ document.addEventListener("DOMContentLoaded", () => {
     initJoinGroupFlow(macAddress);
     initVoucherInput();
     initExtendSessionFlow(macAddress);
+    applyCoinCooldownTimer();
     initPortalRealtime();
+
+    window.addEventListener("pageshow", () => {
+        applyCoinCooldownTimer();
+    });
 
     const timerEl = document.getElementById("session-timer");
     if (!timerEl) {
@@ -2681,6 +2751,10 @@ if (groupPlanSelect) {
 
 if (btnGroupRequestSlot) {
     btnGroupRequestSlot.addEventListener("click", async () => {
+        if (isCoinCooldownActive()) {
+            return;
+        }
+
         const planId = groupPlanSelect.value;
         if(!planId) {
             alert("Please select a plan.");
@@ -2749,15 +2823,26 @@ if (btnGroupRequestSlot) {
                 }, 80);
                 
             } else {
+                if (response.status === 429 && data.cooldown_remaining) {
+                    setCoinRequestCooldown(data.cooldown_remaining);
+                }
                 alert(data.error || "Failed to request coin slot.");
-                btnGroupRequestSlot.disabled = false;
-                btnGroupRequestSlot.innerHTML = `<i class="bi bi-coin"></i> Insert Coins 🪙`;
+                if (isCoinCooldownActive()) {
+                    btnGroupRequestSlot.disabled = true;
+                } else {
+                    btnGroupRequestSlot.disabled = false;
+                    btnGroupRequestSlot.innerHTML = `<i class="bi bi-coin"></i> Insert Coins 🪙`;
+                }
             }
         } catch (error) {
             console.error("Error requesting slot:", error);
             alert("Network error.");
-            btnGroupRequestSlot.disabled = false;
-            btnGroupRequestSlot.innerHTML = `<i class="bi bi-coin"></i> Insert Coins 🪙`;
+            if (isCoinCooldownActive()) {
+                btnGroupRequestSlot.disabled = true;
+            } else {
+                btnGroupRequestSlot.disabled = false;
+                btnGroupRequestSlot.innerHTML = `<i class="bi bi-coin"></i> Insert Coins 🪙`;
+            }
         }
     });
 }
@@ -2775,13 +2860,6 @@ function applyCoinCooldownTimer() {
     try {
         stored = localStorage.getItem("iconnect_coin_cooldown_until");
     } catch (e) {}
-    if (!stored) return;
-
-    const cooldownUntil = parseInt(stored, 10);
-    if (isNaN(cooldownUntil) || cooldownUntil <= Date.now()) {
-        try { localStorage.removeItem("iconnect_coin_cooldown_until"); } catch (e) {}
-        return;
-    }
 
     const requestBtns = [
         document.getElementById("request-slot-btn"),
@@ -2791,9 +2869,30 @@ function applyCoinCooldownTimer() {
 
     if (requestBtns.length === 0) return;
 
+    if (!stored) {
+        if (window._coinCooldownTimer) {
+            clearInterval(window._coinCooldownTimer);
+            window._coinCooldownTimer = null;
+        }
+        return;
+    }
+
+    const cooldownUntil = parseInt(stored, 10);
+    if (isNaN(cooldownUntil) || cooldownUntil <= Date.now()) {
+        try { localStorage.removeItem("iconnect_coin_cooldown_until"); } catch (e) {}
+        if (window._coinCooldownTimer) {
+            clearInterval(window._coinCooldownTimer);
+            window._coinCooldownTimer = null;
+        }
+        requestBtns.forEach(btn => {
+            btn.disabled = false;
+            btn.innerHTML = btn.dataset.origContent || getCoinButtonDefaultHtml(btn.id);
+        });
+        return;
+    }
+
     requestBtns.forEach(btn => {
-        btn.disabled = true;
-        if (!btn.dataset.origContent) {
+        if (!btn.dataset.origContent && !btn.innerHTML.includes("Please wait")) {
             btn.dataset.origContent = btn.innerHTML;
         }
     });
@@ -2812,9 +2911,7 @@ function applyCoinCooldownTimer() {
             try { localStorage.removeItem("iconnect_coin_cooldown_until"); } catch (e) {}
             requestBtns.forEach(btn => {
                 btn.disabled = false;
-                if (btn.dataset.origContent) {
-                    btn.innerHTML = btn.dataset.origContent;
-                }
+                btn.innerHTML = btn.dataset.origContent || getCoinButtonDefaultHtml(btn.id);
             });
         } else {
             requestBtns.forEach(btn => {
@@ -2877,6 +2974,8 @@ const handleCancelCoinRequest = async (trigger) => {
     window.location.reload();
 };
 
+window.handleCancelCoinRequest = handleCancelCoinRequest;
+
 let pendingCancelTrigger = null;
 
 function openCancelCoinModal(trigger) {
@@ -2912,13 +3011,24 @@ function openCancelCoinModal(trigger) {
 
     const btnConfirm = document.getElementById("btn-confirm-cancel-coin");
     if (btnConfirm) {
-        btnConfirm.disabled = false;
+        btnConfirm.disabled = true;
+        btnConfirm.style.pointerEvents = "none";
+        btnConfirm.style.opacity = "0.7";
         btnConfirm.textContent = "Yes, Cancel";
+        setTimeout(() => {
+            if (btnConfirm) {
+                btnConfirm.disabled = false;
+                btnConfirm.style.pointerEvents = "auto";
+                btnConfirm.style.opacity = "1";
+            }
+        }, 350);
     }
 
-    modal.style.display = "flex";
-    document.body.classList.add("modal-open");
-    document.documentElement.classList.add("modal-open");
+    setTimeout(() => {
+        modal.style.display = "flex";
+        document.body.classList.add("modal-open");
+        document.documentElement.classList.add("modal-open");
+    }, 40);
 }
 
 function closeCancelCoinModal(e) {
@@ -2936,6 +3046,9 @@ function closeCancelCoinModal(e) {
 
 function confirmCancelCoinRequest() {
     const btnConfirm = document.getElementById("btn-confirm-cancel-coin");
+    if (btnConfirm && btnConfirm.disabled) {
+        return;
+    }
     if (btnConfirm) {
         btnConfirm.disabled = true;
         btnConfirm.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Canceling...';
@@ -2947,25 +3060,7 @@ function confirmCancelCoinRequest() {
 
 window.openCancelCoinModal = openCancelCoinModal;
 window.closeCancelCoinModal = closeCancelCoinModal;
-window.confirmCancelCoinRequest = confirmCancelCoinRequest;
-
-// Use event delegation so cancel modal always fires regardless of DOM timing or script caching
-document.addEventListener("click", (e) => {
-    const btn = e.target.closest("#btn-cancel-coin-request");
-    if (btn) {
-        e.preventDefault();
-        e.stopPropagation();
-        openCancelCoinModal(btn);
-        return;
-    }
-    const link = e.target.closest("#link-cancel-coin-request");
-    if (link) {
-        e.preventDefault();
-        e.stopPropagation();
-        openCancelCoinModal(link);
-        return;
-    }
-}, true); // capture phase ensures we intercept before any other handler
+window.confirmCancelCoinRequest = confirmCancelCoinRequest; // capture phase ensures we intercept before any other handler
 
 // Global Rates Modal helpers
 window.openRatesModal = function() {
