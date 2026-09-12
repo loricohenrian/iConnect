@@ -2798,6 +2798,12 @@ def admin_session_action(request, session_id, action):
         session.paused_at = timezone.now()
         session.pause_count += 1
         session.save(update_fields=["status", "paused_at", "pause_count"])
+        try:
+            from django.core.cache import cache
+            cache.set(f"manual_pause_{session.id}", True, timeout=86400 * 7)
+            cache.delete(f"auto_paused_{session.id}")
+        except Exception:
+            pass
         
         # Remove from firewall
         try:
@@ -2840,6 +2846,12 @@ def admin_session_action(request, session_id, action):
         session.status = "active"
         session.paused_at = None
         session.save(update_fields=["status", "total_paused_seconds", "paused_at"])
+        try:
+            from django.core.cache import cache
+            cache.delete(f"manual_pause_{session.id}")
+            cache.delete(f"auto_paused_{session.id}")
+        except Exception:
+            pass
         
         # Allow in firewall
         try:
@@ -2866,6 +2878,12 @@ def admin_session_action(request, session_id, action):
         session.time_out = timezone.now()
         session.paused_at = None
         session.save(update_fields=['status', 'time_out', 'paused_at'])
+        try:
+            from django.core.cache import cache
+            cache.delete(f"manual_pause_{session.id}")
+            cache.delete(f"auto_paused_{session.id}")
+        except Exception:
+            pass
 
         audit_logger.info(
             "event=admin_disconnect_session user=%s mac=%s session_id=%s ip=%s",
@@ -2953,12 +2971,18 @@ def admin_session_action(request, session_id, action):
 
         was_expired = (session.status == 'expired')
         session.extend_session(minutes)
-        if was_expired:
+        if was_expired or session.status == 'paused':
             session.status = 'active'
             session.time_out = None
             session.total_paused_seconds = 0
             session.paused_at = None
         session.save()
+        try:
+            from django.core.cache import cache
+            cache.delete(f"manual_pause_{session.id}")
+            cache.delete(f"auto_paused_{session.id}")
+        except Exception:
+            pass
 
         # Re-allow in firewall / update bandwidth shaping if active
         if session.status == 'active':

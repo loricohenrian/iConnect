@@ -2273,7 +2273,7 @@ function handlePortalOutageState(data, isSessionPage) {
 
 
 
-function pollSessionStatus(macAddress, intervalMs = 2000) {
+function pollSessionStatus(macAddress, intervalMs = 1000) {
     let inFlight = false;
 
     const checkSessionStatus = async () => {
@@ -2369,11 +2369,13 @@ function pollSessionStatus(macAddress, intervalMs = 2000) {
             const connectionStatusEl = document.getElementById("connection-status");
 
             if ((isOutage && pauseEnabled) || data.status === "paused") {
-                if (window.sessionTimer && !window.sessionTimer.isPaused) {
-                    window.sessionTimer.pause();
-                }
-                if (serverRem !== undefined && window.sessionTimer) {
-                    window.sessionTimer.syncRemaining(serverRem, true);
+                if (window.sessionTimer) {
+                    if (serverRem !== undefined) {
+                        window.sessionTimer.pausedRemainingSeconds = serverRem;
+                    }
+                    if (!window.sessionTimer.isPaused) {
+                        window.sessionTimer.pause();
+                    }
                 }
                 if (timerEl) {
                     timerEl.dataset.status = "paused";
@@ -2403,11 +2405,12 @@ function pollSessionStatus(macAddress, intervalMs = 2000) {
             } else if (data.status === "active" && !isOutage) {
                 if (window.sessionTimer) {
                     const wasPaused = window.sessionTimer.isPaused || !window.sessionTimer.interval;
-                    if (serverRem !== undefined) {
-                        window.sessionTimer.syncRemaining(serverRem, wasPaused);
-                    }
                     if (wasPaused) {
+                        window.sessionTimer.isPaused = false;
                         window.sessionTimer.resume();
+                    }
+                    if (serverRem !== undefined) {
+                        window.sessionTimer.syncRemaining(serverRem, true);
                     }
                 }
                 if (timerEl) {
