@@ -685,6 +685,7 @@ def apply_network_settings():
         _run_command(['modprobe', 'xt_HL'], ignore_errors=True)
         _run_command(['modprobe', 'xt_hl'], ignore_errors=True)
         _run_command(['modprobe', 'ipt_TTL'], ignore_errors=True)
+        _run_command(['modprobe', 'xt_ttl'], ignore_errors=True)
         _run_command(['modprobe', 'ip6t_HL'], ignore_errors=True)
 
         # Clean old rules (loop until all duplicates are removed)
@@ -696,6 +697,7 @@ def apply_network_settings():
             _run_command(['iptables', '-t', 'mangle', '-D', 'POSTROUTING', '-o', lan, '-j', 'TTL', '--ttl-set', '1'], ignore_errors=True)
             _run_command(['iptables', '-t', 'mangle', '-D', 'FORWARD', '-o', lan, '-j', 'TTL', '--ttl-set', '1'], ignore_errors=True)
             _run_command(['iptables', '-t', 'mangle', '-D', 'POSTROUTING', '-d', subnet, '-j', 'TTL', '--ttl-set', '64'], ignore_errors=True)
+            _run_command(['iptables', '-t', 'mangle', '-D', 'POSTROUTING', '-o', lan, '-j', 'TTL', '--ttl-set', '64'], ignore_errors=True)
             _run_command(['iptables', '-t', 'mangle', '-D', 'FORWARD', '-d', subnet, '-j', 'TTL', '--ttl-set', '64'], ignore_errors=True)
             _run_command(['iptables', '-t', 'mangle', '-D', 'PREROUTING', '-s', subnet, '-m', 'ttl', '--ttl-eq', '63', '-j', 'DROP'], ignore_errors=True)
             _run_command(['iptables', '-t', 'mangle', '-D', 'PREROUTING', '-m', 'ttl', '--ttl-eq', '63', '-j', 'DROP'], ignore_errors=True)
@@ -704,14 +706,21 @@ def apply_network_settings():
             _run_command(['iptables', '-t', 'mangle', '-D', 'PREROUTING', '-s', subnet, '-m', 'ttl', '--ttl-eq', '254', '-j', 'DROP'], ignore_errors=True)
             _run_command(['iptables', '-t', 'mangle', '-D', 'PREROUTING', '-m', 'ttl', '--ttl-eq', '254', '-j', 'DROP'], ignore_errors=True)
             _run_command(['ip6tables', '-t', 'mangle', '-D', 'POSTROUTING', '-j', 'HL', '--hl-set', '1'], ignore_errors=True)
+            _run_command(['ip6tables', '-t', 'mangle', '-D', 'POSTROUTING', '-o', lan, '-j', 'HL', '--hl-set', '1'], ignore_errors=True)
 
         if settings_obj.enable_anti_tethering:
-            # Downstream: Clamp TTL=64 to prevent multi-hop client hotspot sharing without breaking internal tun/Google One VPN
-            _run_command(['iptables', '-t', 'mangle', '-A', 'POSTROUTING', '-d', subnet, '-j', 'TTL', '--ttl-set', '64'])
+            # 1. Downstream: Force TTL=1 on packets going to LAN client devices so client phone cannot forward them to tethered devices
             if lan:
-                _run_command(['iptables', '-t', 'mangle', '-A', 'POSTROUTING', '-o', lan, '-j', 'TTL', '--ttl-set', '64'], ignore_errors=True)
+                _run_command(['iptables', '-t', 'mangle', '-A', 'POSTROUTING', '-o', lan, '-j', 'TTL', '--ttl-set', '1'], ignore_errors=True)
+                _run_command(['ip6tables', '-t', 'mangle', '-A', 'POSTROUTING', '-o', lan, '-j', 'HL', '--hl-set', '1'], ignore_errors=True)
+            _run_command(['iptables', '-t', 'mangle', '-A', 'POSTROUTING', '-d', subnet, '-j', 'TTL', '--ttl-set', '1'], ignore_errors=True)
 
-            logger.info("Anti-Tethering enabled on %s (%s)", lan, subnet)
+            # 2. Upstream: Drop packets originating from tethered devices behind hotspot (which arrive at router with decremented TTLs: 63, 127, 254)
+            _run_command(['iptables', '-t', 'mangle', '-A', 'PREROUTING', '-s', subnet, '-m', 'ttl', '--ttl-eq', '63', '-j', 'DROP'], ignore_errors=True)
+            _run_command(['iptables', '-t', 'mangle', '-A', 'PREROUTING', '-s', subnet, '-m', 'ttl', '--ttl-eq', '127', '-j', 'DROP'], ignore_errors=True)
+            _run_command(['iptables', '-t', 'mangle', '-A', 'PREROUTING', '-s', subnet, '-m', 'ttl', '--ttl-eq', '254', '-j', 'DROP'], ignore_errors=True)
+
+            logger.info("Anti-Tethering (TTL=1 + Hop Drop) enabled on %s (%s)", lan or 'LAN', subnet)
         else:
             logger.info("Anti-Tethering disabled")
             
