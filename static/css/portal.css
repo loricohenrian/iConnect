@@ -755,7 +755,8 @@ main.portal-container {
     width: 100%;
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: center;
+    gap: 6px;
     padding: 6px 4px;
     font-size: 12px;
     font-weight: 600;
