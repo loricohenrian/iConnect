@@ -2598,29 +2598,7 @@ def settings_view(request):
                     request.POST.get('points_per_peso'), 0, 1_000, "Points Per Peso", default=settings_obj.points_per_peso
                 )
             
-            # Family Pass
-            if 'enable_family_pass' in request.POST or 'family_pass_base_rate' in request.POST:
-                settings_obj.enable_family_pass = request.POST.get('enable_family_pass') == 'on'
-                if request.POST.get('family_pass_base_rate'):
-                    settings_obj.family_pass_base_rate = parse_bounded_int(
-                        request.POST.get('family_pass_base_rate'), 1, 10_000, "Family Pass Base Rate", default=settings_obj.family_pass_base_rate
-                    )
-                if request.POST.get('family_pass_device_rate'):
-                    settings_obj.family_pass_device_rate = parse_bounded_int(
-                        request.POST.get('family_pass_device_rate'), 1, 10_000, "Family Pass Extra Device Rate", default=settings_obj.family_pass_device_rate
-                    )
-                if request.POST.get('family_pass_max_devices'):
-                    settings_obj.family_pass_max_devices = parse_bounded_int(
-                        request.POST.get('family_pass_max_devices'), 2, 50, "Family Pass Max Devices", default=settings_obj.family_pass_max_devices
-                    )
-                if request.POST.get('family_pass_speed_limit'):
-                    settings_obj.family_pass_speed_limit = parse_bounded_float(
-                        request.POST.get('family_pass_speed_limit'), 0.1, 1000.0, "Family Pass Speed Limit", default=settings_obj.family_pass_speed_limit
-                    )
-                if request.POST.get('family_pass_speed_limit_upload'):
-                    settings_obj.family_pass_speed_limit_upload = parse_bounded_float(
-                        request.POST.get('family_pass_speed_limit_upload'), 0.1, 1000.0, "Family Pass Upload Limit", default=settings_obj.family_pass_speed_limit_upload
-                    )
+            # Group Plan Configuration
             if 'group_code_expiry_hours' in request.POST:
                 settings_obj.group_code_expiry_hours = parse_bounded_int(
                     request.POST.get('group_code_expiry_hours'), 0, 720, "Group Code Expiry Hours", default=settings_obj.group_code_expiry_hours

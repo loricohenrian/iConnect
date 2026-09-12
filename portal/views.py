@@ -243,10 +243,6 @@ def index(request):
         "slots_max": max_slots,
         "slots_available": available_slots,
         "insert_coin_countdown_seconds": settings_obj.insert_coin_countdown_seconds,
-        "enable_family_pass": settings_obj.enable_family_pass,
-        "family_pass_base_rate": settings_obj.family_pass_base_rate,
-        "family_pass_device_rate": settings_obj.family_pass_device_rate,
-        "family_pass_max_devices": settings_obj.family_pass_max_devices,
         "is_internet_offline": is_internet_offline,
     }
     return render(request, "portal/index.html", context)
@@ -355,7 +351,6 @@ def session_page(request):
         "slots_active": active_count,
         "slots_max": max_slots,
         "slots_available": available_slots,
-        "enable_family_pass": SystemSettings.get_settings().enable_family_pass,
         "insert_coin_countdown_seconds": SystemSettings.get_settings().insert_coin_countdown_seconds,
         "group_code_remaining_display": group_code_remaining_display,
         "group_code_remaining_seconds": group_code_remaining_seconds,

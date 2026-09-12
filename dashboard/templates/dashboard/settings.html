@@ -40,7 +40,7 @@
                 <span class="tab-icon-wrap">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
                 </span>
-                <span class="tab-label">Family Pass</span>
+                <span class="tab-label">Group Plan</span>
             </button>
 
             <button type="button" class="settings-tab-btn" data-tab="integrations" role="tab" aria-selected="false" id="tab-btn-integrations">
@@ -343,7 +343,7 @@
             </div>
         </section>
 
-        <!-- ================= 4. FAMILY PASS PANEL ================= -->
+        <!-- ================= 4. GROUP PLAN PANEL ================= -->
         <section class="settings-panel" id="panel-family" data-tab="family" role="tabpanel" aria-labelledby="tab-btn-family">
             <div class="settings-card">
                 <div class="settings-card-header">
@@ -352,62 +352,29 @@
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
                         </div>
                         <div>
-                            <h3 class="settings-card-title">Family & Group Pass</h3>
-                            <p class="settings-card-subtitle">Allow users to share an active session code across multiple family devices with custom bandwidth limits.</p>
+                            <h3 class="settings-card-title">Group Plan Configuration</h3>
+                            <p class="settings-card-subtitle">Group Plans are enabled by default on the Captive Portal. Pricing, speed limits, and durations are automatically calculated from active Wi-Fi Rates.</p>
                         </div>
                     </div>
                 </div>
 
                 <div class="settings-card-body">
-                    <div class="setting-toggle-row">
+                    <div class="setting-toggle-row compact mb-md" style="background: rgba(37, 99, 235, 0.04); border: 1px solid rgba(37, 99, 235, 0.16); border-radius: 12px; padding: 14px 16px;">
                         <div class="setting-toggle-info">
-                            <label for="enable_family_pass" class="setting-toggle-title">Enable Family Pass Sharing</label>
-                            <span class="setting-toggle-desc">Enables generation of a 5-character group code so other devices can join the host's active time pool.</span>
+                            <label class="setting-toggle-title" style="color: #1e40af; font-size: 13.5px; font-weight: 700;">
+                                <i class="bi bi-info-circle-fill" style="margin-right: 4px;"></i> Dynamic Rates Inheritance Active
+                            </label>
+                            <span class="setting-toggle-desc" style="color: #3b82f6; font-size: 12.5px;">
+                                Users on the Captive Portal can purchase Group Plans for multiple devices directly from your active <strong>Wi-Fi Rates</strong>. Each member receives their own session duration and speed limits.
+                            </span>
                         </div>
-                        <label class="custom-switch">
-                            <input type="checkbox" id="enable_family_pass" name="enable_family_pass" {% if settings.enable_family_pass %}checked{% endif %} data-toggle-target="#familyPassParams">
-                            <span class="switch-slider"></span>
-                        </label>
                     </div>
 
-                    <div class="dependent-tree-group" id="familyPassParams">
-                        <div class="settings-grid-2 mb-md">
-                            <div class="form-group mb-0">
-                                <label class="form-label" for="family_pass_base_rate">Base Rate (₱/hr for 1 device)</label>
-                                <input type="number" min="1" class="form-input" id="family_pass_base_rate" name="family_pass_base_rate" value="{{ settings.family_pass_base_rate }}" required>
-                                <small class="form-hint">Hourly rate for the first primary device.</small>
-                            </div>
-                            <div class="form-group mb-0">
-                                <label class="form-label" for="family_pass_device_rate">Extra Device Rate (₱/hr each)</label>
-                                <input type="number" min="1" class="form-input" id="family_pass_device_rate" name="family_pass_device_rate" value="{{ settings.family_pass_device_rate }}" required>
-                                <small class="form-hint">Added cost per additional device attached.</small>
-                            </div>
-                        </div>
-
-                        <div class="settings-grid-3 mb-md">
-                            <div class="form-group mb-0">
-                                <label class="form-label" for="family_pass_max_devices">Max Allowed Devices</label>
-                                <input type="number" min="2" max="20" class="form-input" id="family_pass_max_devices" name="family_pass_max_devices" value="{{ settings.family_pass_max_devices }}" required>
-                                <small class="form-hint">Ceiling on concurrent linked devices.</small>
-                            </div>
-                            <div class="form-group mb-0">
-                                <label class="form-label" for="family_pass_speed_limit">Download Limit (Mbps)</label>
-                                <input type="number" min="0.5" step="0.5" class="form-input" id="family_pass_speed_limit" name="family_pass_speed_limit" value="{{ settings.family_pass_speed_limit }}" required>
-                                <small class="form-hint">Maximum download speed per group device.</small>
-                            </div>
-                            <div class="form-group mb-0">
-                                <label class="form-label" for="family_pass_speed_limit_upload">Upload Limit (Mbps)</label>
-                                <input type="number" min="0.5" step="0.5" class="form-input" id="family_pass_speed_limit_upload" name="family_pass_speed_limit_upload" value="{{ settings.family_pass_speed_limit_upload }}" required>
-                                <small class="form-hint">Maximum upload speed per group device.</small>
-                            </div>
-                        </div>
-
-                        <div class="settings-grid-2">
-                            <div class="form-group mb-0">
-                                <label class="form-label" for="group_code_expiry_hours">Group Code Expiry (Hours)</label>
-                                <input type="number" min="0" max="168" class="form-input" id="group_code_expiry_hours" name="group_code_expiry_hours" value="{{ settings.group_code_expiry_hours }}">
-                                <small class="form-hint">Hours before a share code expires (Set to 0 for unlimited).</small>
-                            </div>
+                    <div class="settings-grid-2">
+                        <div class="form-group mb-0">
+                            <label class="form-label" for="group_code_expiry_hours">Group Share Code Expiry (Hours)</label>
+                            <input type="number" min="0" max="168" class="form-input" id="group_code_expiry_hours" name="group_code_expiry_hours" value="{{ settings.group_code_expiry_hours }}">
+                            <small class="form-hint">Hours before a generated group share code expires (Set to 0 for no expiration).</small>
                         </div>
                     </div>
                 </div>

@@ -1648,7 +1648,7 @@ class RevenueHardeningTests(TestCase):
             amount_paid=10,
             duration_minutes_purchased=60,
             status="expired",
-            time_in=self.now - timedelta(hours=2)
+            time_in=self.now - timedelta(minutes=10)
         )
         CoinEvent.objects.create(amount=10, denomination=10, timestamp=self.now)
         DailyRevenueSummary.objects.create(
