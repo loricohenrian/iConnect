@@ -6,7 +6,7 @@ import logging
 import re
 
 from django.conf import settings
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.core.paginator import Paginator
 from django.utils import timezone
@@ -24,6 +24,12 @@ audit_logger = logging.getLogger('audit')
 SESSION_MAC_KEY = "portal_mac_address"
 HISTORY_PASSCODE_VERIFIED_KEY = "portal_history_passcode_verified_for"
 MAC_ADDRESS_RE = re.compile(r"^([0-9A-F]{2}:){5}[0-9A-F]{2}$")
+
+
+def _portal_ip():
+    """Get the canonical IP address of the captive portal router (defaults to 10.10.10.1)."""
+    val = getattr(settings, "PISONET_PORTAL_IP", "")
+    return str(val).strip() or "10.10.10.1"
 
 
 def _normalize_mac(value):
@@ -146,9 +152,9 @@ def index(request):
     """Plan selection page."""
     mac_address = _get_mac_address(request)
 
-    # Redirect to 10.10.10.1 if accessed via intercepted external host (e.g. connectivitycheck.gstatic.com)
+    # Redirect to portal IP if accessed via intercepted external host (e.g. connectivitycheck.gstatic.com)
+    portal_ip = _portal_ip()
     host = request.get_host().split(':')[0]
-    portal_ip = getattr(settings, 'PISONET_PORTAL_IP', '10.10.10.1')
     if host not in (portal_ip, '127.0.0.1', 'localhost', 'testserver'):
         redirect_url = f'http://{portal_ip}/'
         if mac_address:
@@ -251,8 +257,8 @@ def session_page(request):
     """Session timer page."""
     mac_address = _get_mac_address(request)
 
+    portal_ip = _portal_ip()
     host = request.get_host().split(':')[0]
-    portal_ip = getattr(settings, 'PISONET_PORTAL_IP', '10.10.10.1')
     if host not in (portal_ip, '127.0.0.1', 'localhost', 'testserver'):
         redirect_url = f'http://{portal_ip}/session/'
         if mac_address:
@@ -986,8 +992,8 @@ def captive_portal_probe(request):
         else:
             response = HttpResponse(status=204)
     else:
-        # Not active — redirect to captive portal at 10.10.10.1 explicitly
-        portal_ip = getattr(settings, 'PISONET_PORTAL_IP', '10.10.10.1')
+        # Not active — redirect to captive portal at portal IP explicitly
+        portal_ip = _portal_ip()
         redirect_url = f'http://{portal_ip}/'
         if mac:
             redirect_url += f'?mac={mac}'

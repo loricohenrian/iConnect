@@ -237,6 +237,26 @@ class SessionExpirationTests(TestCase):
         self.assertEqual(self.session.status, "expired")
 
 
+class CaptivePortalRedirectionTests(TestCase):
+    def test_probe_domain_redirects_to_portal_ip(self):
+        """Requests with external host (e.g. connectivitycheck.gstatic.com) redirect to http://10.10.10.1/"""
+        response = self.client.get("/", HTTP_HOST="connectivitycheck.gstatic.com")
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.url.startswith("http://10.10.10.1/"))
+
+    def test_portal_ip_renders_index_without_redirect_loop(self):
+        """Requests directly to 10.10.10.1 render index (HTTP 200) without redirecting to http:///"""
+        response = self.client.get("/", HTTP_HOST="10.10.10.1")
+        self.assertEqual(response.status_code, 200)
+
+    def test_captive_portal_probe_endpoint_redirects_unauthenticated(self):
+        """Unauthenticated /generate_204 probe redirects to http://10.10.10.1/"""
+        response = self.client.get("/generate_204", HTTP_HOST="connectivitycheck.gstatic.com")
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.url.startswith("http://10.10.10.1/"))
+        self.assertEqual(response.headers.get("Connection"), "close")
+
+
 
 
 

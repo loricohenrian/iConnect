@@ -27,7 +27,10 @@ if SECRET_KEY == DEFAULT_DEV_SECRET_KEY:
     with open(secret_path, 'r') as f:
         SECRET_KEY = f.read().strip()
 DEBUG = os.getenv('DEBUG', 'False').lower().strip() in ('true', '1', 'yes')
-ALLOWED_HOSTS = [host.strip() for host in os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1,0.0.0.0').split(',') if host.strip()]
+_allowed_hosts_env = os.getenv('ALLOWED_HOSTS', '*').strip()
+ALLOWED_HOSTS = [host.strip() for host in _allowed_hosts_env.split(',') if host.strip()]
+if '*' not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append('*')
 
 # Authentication redirects
 LOGIN_URL = '/iconnect-ops/login/'
@@ -300,7 +303,7 @@ PISONET_ISP_MONTHLY_COST = float(os.getenv('ISP_MONTHLY_COST', '1600.0'))  # Mon
 PISONET_ESTIMATED_UTILIZATION_RATIO = float(os.getenv('ESTIMATED_UTILIZATION_RATIO', '0.35'))
 PISONET_DNS_ONLY_PREAUTH = os.getenv('DNS_ONLY_PREAUTH', 'False').lower() in ('true', '1', 'yes')
 PISONET_DNS_RESOLVER = os.getenv('DNS_RESOLVER', '').strip()
-PISONET_PORTAL_IP = os.getenv('PORTAL_IP', '').strip()
+PISONET_PORTAL_IP = os.getenv('PORTAL_IP', '10.10.10.1').strip() or '10.10.10.1'
 PISONET_ENFORCE_FIREWALL_BASELINE_ON_STARTUP = os.getenv('ENFORCE_FIREWALL_BASELINE_ON_STARTUP', 'True').lower() in ('true', '1', 'yes')
 PISONET_REQUIRE_FORWARD_DROP_BEFORE_SESSION = os.getenv('REQUIRE_FORWARD_DROP_BEFORE_SESSION', 'True').lower() in ('true', '1', 'yes')
 PISONET_MAX_CONCURRENT_SESSIONS = int(os.getenv('MAX_CONCURRENT_SESSIONS', '50'))
