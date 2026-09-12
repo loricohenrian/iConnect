@@ -674,6 +674,11 @@ async function syncPortalLiveData() {
             _updateSlotsIndicator(data.slots);
         }
 
+        // Update group pass status in real-time
+        if (data.group_pass) {
+            _updateGroupPassStatus(data.group_pass);
+        }
+
         // Real-time ISP outage check on portal (dynamically detect session page)
         const isSession = Boolean(document.getElementById("session-timer"));
         handlePortalOutageState(data, isSession);
@@ -683,6 +688,54 @@ async function syncPortalLiveData() {
         _syncLiveDataInFlight = false;
     }
 }
+
+function _updateGroupPassStatus(groupData) {
+    if (!groupData || !groupData.code) return;
+
+    let groupStatusEl = document.getElementById("group-plan-status");
+    if (!groupStatusEl) {
+        const timerContainer = document.querySelector(".timer-container");
+        if (timerContainer) {
+            const inlineDetails = timerContainer.querySelector(".session-details-inline");
+            const groupSection = document.createElement("div");
+            groupSection.className = "mt-md";
+            groupSection.id = "group-plan-container";
+            groupSection.innerHTML = `
+                <span class="badge" style="background: var(--color-primary); color: #fff;">Group Pass · ${escapeHtml(groupData.code)}</span>
+                <div id="group-plan-status" style="font-weight: 700; margin-top: 6px; font-size: 13px; color: var(--color-primary);">
+                    ${groupData.redeemed} / ${groupData.max} slots redeemed
+                </div>
+                <div id="group-code-expiry" style="font-size: 11px; margin-top: 4px; color: var(--color-gray);">
+                    Code: active
+                </div>
+                <div style="font-size: 11px; margin-top: 2px; color: var(--color-gray);">
+                    Share code <strong>${escapeHtml(groupData.code)}</strong> — friends get their own full session.
+                </div>
+            `;
+            if (inlineDetails) {
+                timerContainer.insertBefore(groupSection, inlineDetails);
+            } else {
+                timerContainer.appendChild(groupSection);
+            }
+            groupStatusEl = document.getElementById("group-plan-status");
+        }
+    }
+
+    if (groupStatusEl) {
+        const nextText = `${groupData.redeemed} / ${groupData.max} slots redeemed`;
+        if (groupStatusEl.textContent.trim() !== nextText) {
+            groupStatusEl.textContent = nextText;
+        }
+    }
+
+    if (groupData.code_expires_at) {
+        const expiryTimerEl = document.getElementById("group-code-expiry-timer");
+        if (expiryTimerEl && !expiryTimerEl.getAttribute("data-expires")) {
+            expiryTimerEl.setAttribute("data-expires", groupData.code_expires_at);
+        }
+    }
+}
+window._updateGroupPassStatus = _updateGroupPassStatus;
 
 function _updateSlotsIndicator(slots) {
     const badge = document.getElementById('slots-badge');
@@ -2276,48 +2329,12 @@ function pollSessionStatus(macAddress, intervalMs = 2500) {
             }
 
             if (data.group_code && data.group_max !== undefined && data.group_redeemed !== undefined) {
-                let groupStatusEl = document.getElementById("group-plan-status");
-                if (!groupStatusEl) {
-                    const timerContainer = document.querySelector(".timer-container");
-                    if (timerContainer) {
-                        const inlineDetails = timerContainer.querySelector(".session-details-inline");
-                        const groupSection = document.createElement("div");
-                        groupSection.className = "mt-md";
-                        groupSection.id = "group-plan-container";
-                        groupSection.innerHTML = `
-                            <span class="badge" style="background: var(--color-primary); color: #fff;">Group Pass · ${escapeHtml(data.group_code)}</span>
-                            <div id="group-plan-status" style="font-weight: 700; margin-top: 6px; font-size: 13px; color: var(--color-primary);">
-                                ${data.group_redeemed} / ${data.group_max} slots redeemed
-                            </div>
-                            <div id="group-code-expiry" style="font-size: 11px; margin-top: 4px; color: var(--color-gray);">
-                                Code: active
-                            </div>
-                            <div style="font-size: 11px; margin-top: 2px; color: var(--color-gray);">
-                                Share code <strong>${escapeHtml(data.group_code)}</strong> — friends get their own full session.
-                            </div>
-                        `;
-                        if (inlineDetails) {
-                            timerContainer.insertBefore(groupSection, inlineDetails);
-                        } else {
-                            timerContainer.appendChild(groupSection);
-                        }
-                        groupStatusEl = document.getElementById("group-plan-status");
-                    }
-                }
-
-                if (groupStatusEl) {
-                    const nextText = `${data.group_redeemed} / ${data.group_max} slots redeemed`;
-                    if (groupStatusEl.textContent.trim() !== nextText) {
-                        groupStatusEl.textContent = nextText;
-                    }
-                }
-
-                if (data.group_code_expires_at) {
-                    const expiryTimerEl = document.getElementById("group-code-expiry-timer");
-                    if (expiryTimerEl && !expiryTimerEl.getAttribute("data-expires")) {
-                        expiryTimerEl.setAttribute("data-expires", data.group_code_expires_at);
-                    }
-                }
+                _updateGroupPassStatus({
+                    code: data.group_code,
+                    redeemed: data.group_redeemed,
+                    max: data.group_max,
+                    code_expires_at: data.group_code_expires_at
+                });
             }
         } catch (error) {
             console.error("Status poll error:", error);

@@ -486,6 +486,26 @@ def live_data(request):
     smart_combos = generate_smart_combo_examples(plans, is_extend=False)
     smart_combos_extend = generate_smart_combo_examples(plans, is_extend=True)
 
+    mac_address = _get_mac_address(request)
+    group_pass_payload = None
+    if mac_address:
+        user_session = Session.objects.filter(
+            mac_address__iexact=mac_address,
+            status__in=["active", "paused"]
+        ).order_by("-id").first()
+        if user_session and user_session.session_group_id:
+            from sessions_app.models import SessionGroup
+            grp = SessionGroup.objects.filter(id=user_session.session_group_id).first()
+            if grp:
+                actual_redeemed = max(grp.redeemed_count, grp.sessions.count())
+                group_pass_payload = {
+                    "code": grp.group_code,
+                    "redeemed": actual_redeemed,
+                    "max": grp.max_devices,
+                    "status": grp.status,
+                    "code_expires_at": grp.code_expires_at.isoformat() if grp.code_expires_at else None,
+                }
+
     return JsonResponse(
         {
             "plans": plan_payload,
@@ -496,6 +516,7 @@ def live_data(request):
             "enable_outage_announcement": isp_info.get("enable_outage_announcement", True),
             "enable_outage_auto_pause": isp_info.get("enable_outage_auto_pause", True),
             "outage_message": isp_info.get("message", ""),
+            "group_pass": group_pass_payload,
             "slots": {
                 "active": active_count,
                 "max": max_slots,
