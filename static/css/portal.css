@@ -18,14 +18,23 @@ html, body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding-bottom: 58px; /* Space for flush bottom nav */
+    padding-bottom: 64px; /* Space for colored bottom nav */
+    box-sizing: border-box;
 }
 
 .portal-container {
     width: 100%;
     max-width: 440px;
-    padding: 12px 16px 4px 16px;
+    padding: 16px 20px 8px 20px;
     margin: 0 auto;
+    box-sizing: border-box;
+}
+
+main.portal-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
 }
 
 /* ============================================
@@ -74,7 +83,6 @@ html, body {
 .header-right {
     display: flex;
     align-items: center;
-    gap: 8px;
 }
 
 .slots-indicator-inline {
@@ -85,15 +93,15 @@ html, body {
 .slots-indicator-inline .slots-badge {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    padding: 3px 9px;
+    gap: 6px;
+    padding: 4px 10px;
     border-radius: 100px;
-    font-size: 11px;
+    font-size: 11.5px;
     font-weight: 600;
     letter-spacing: 0.2px;
-    background: rgba(255, 255, 255, 0.16);
+    background: rgba(255, 255, 255, 0.18);
     color: #ffffff;
-    border: 1px solid rgba(255, 255, 255, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.28);
     backdrop-filter: blur(4px);
     transition: var(--transition-fast);
 }
@@ -101,19 +109,6 @@ html, body {
 .slots-indicator-inline .slots-badge.available .slots-dot { background: #34D399; }
 .slots-indicator-inline .slots-badge.low .slots-dot { background: #FBBF24; }
 .slots-indicator-inline .slots-badge.full .slots-dot { background: #F87171; }
-
-.header-avatar-circle {
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.18);
-    border: 1px solid rgba(255, 255, 255, 0.28);
-    color: #ffffff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
 
 /* ============================================
    Connection Slots Indicator Badge
@@ -1233,7 +1228,7 @@ body.modal-open {
 }
 
 /* ============================================
-   Portal Navigation — Minimal Flush Bottom Bar
+   Portal Navigation — Colored App Bar
    ============================================ */
 .portal-nav {
     position: fixed;
@@ -1241,48 +1236,65 @@ body.modal-open {
     left: 0;
     right: 0;
     width: 100%;
-    height: 50px;
-    background: var(--color-white);
-    border-top: 1px solid var(--color-border);
+    height: 54px;
+    background: var(--color-primary);
+    border-top: 1px solid rgba(255, 255, 255, 0.14);
     border-radius: 0;
     display: flex;
     justify-content: space-around;
     align-items: center;
-    padding: 0 16px;
-    box-shadow: 0 -1px 4px rgba(0, 0, 0, 0.04);
+    padding: 0 8px;
+    box-shadow: 0 -3px 12px rgba(0, 0, 0, 0.12);
     z-index: 1000;
     transform: none;
     box-sizing: border-box;
 }
 
 .portal-nav a {
-    color: #6b7280;
+    color: rgba(255, 255, 255, 0.65);
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
     text-decoration: none;
     flex: 1;
-    height: 100%;
-    border-radius: 0;
-    transition: var(--transition-fast);
+    height: 44px;
+    margin: 0 4px;
+    border-radius: 8px;
+    gap: 3px;
+    transition: all 0.2s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.portal-nav a:hover {
+    color: rgba(255, 255, 255, 0.9);
 }
 
 .portal-nav a.active {
-    color: var(--color-primary);
-    background: transparent;
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.18);
 }
 
-.portal-nav a i {
-    font-size: 22px;
+.portal-nav .nav-svg {
+    width: 21px;
+    height: 21px;
+    stroke-width: 2.2;
+}
+
+.portal-nav .nav-label {
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    line-height: 1;
 }
 
 .portal-footer {
-    padding: 4px 16px 8px 16px;
+    margin-top: auto;
+    padding: 12px 16px 14px 16px;
     text-align: center;
     color: var(--color-gray);
-    font-size: 11px;
+    font-size: 11.5px;
     font-weight: 500;
-    margin: 2px 0 0 0;
 }
 
 /* ============================================
@@ -1290,15 +1302,15 @@ body.modal-open {
    ============================================ */
 #spin-fab {
     position: fixed;
-    bottom: 34px;
-    right: 14px;
+    bottom: 66px;
+    right: 16px;
     z-index: 1050;
-    width: 44px;
-    height: 44px;
+    width: 46px;
+    height: 46px;
     border-radius: 50%;
     border: 2px solid #ffffff;
     background: var(--color-primary);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.22);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -1310,7 +1322,7 @@ body.modal-open {
 
 #spin-fab:hover {
     transform: scale(1.08);
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.28);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.32);
 }
 
 #spin-fab:active {
@@ -1817,17 +1829,18 @@ body.modal-open {
    Option C: Minimal Center Layout & Wireframe UI
    ============================================ */
 .option-c-layout {
-    max-width: 320px;
+    max-width: 390px;
+    width: 100%;
     margin: 0 auto;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 14px;
 }
 
 .option-c-instruction {
-    font-size: 13px;
-    line-height: 1.35;
-    color: #374151;
+    font-size: 14px;
+    line-height: 1.45;
+    color: #4b5563;
     text-align: center;
     margin: 0 0 2px 0;
     font-weight: 400;
@@ -1836,19 +1849,19 @@ body.modal-open {
 .option-c-btn-stack {
     display: flex;
     flex-direction: column;
-    gap: 7px;
+    gap: 10px;
     width: 100%;
 }
 
 .btn-pill-primary,
 .btn-option-c-pill {
     width: 100%;
-    height: 44px;
+    height: 52px;
     border-radius: 9999px;
     background: var(--color-primary);
     color: var(--color-white);
     border: none;
-    font-size: 1.05rem;
+    font-size: 1.15rem;
     font-weight: 700;
     letter-spacing: 0.2px;
     display: flex;
@@ -1856,7 +1869,7 @@ body.modal-open {
     justify-content: center;
     gap: 8px;
     cursor: pointer;
-    box-shadow: 0 3px 10px rgba(123, 45, 59, 0.25);
+    box-shadow: 0 4px 14px rgba(123, 45, 59, 0.28);
     transition: all 0.2s ease;
     text-decoration: none;
     outline: none;
@@ -1867,8 +1880,8 @@ body.modal-open {
 .btn-pill-primary:hover:not(:disabled),
 .btn-option-c-pill:hover:not(:disabled) {
     background: var(--color-primary-dark);
-    transform: translateY(-1px);
-    box-shadow: 0 5px 14px rgba(123, 45, 59, 0.32);
+    transform: translateY(-1.5px);
+    box-shadow: 0 6px 18px rgba(123, 45, 59, 0.35);
 }
 
 .btn-pill-primary:active:not(:disabled),
@@ -1884,12 +1897,12 @@ body.modal-open {
 
 .btn-pill-secondary {
     width: 100%;
-    height: 42px;
+    height: 48px;
     border-radius: 9999px;
     background: var(--color-white);
     color: var(--color-primary);
     border: 1.5px solid var(--color-primary);
-    font-size: 0.98rem;
+    font-size: 1.05rem;
     font-weight: 700;
     letter-spacing: 0.2px;
     display: flex;
@@ -1897,7 +1910,7 @@ body.modal-open {
     justify-content: center;
     gap: 8px;
     cursor: pointer;
-    box-shadow: 0 2px 6px rgba(123, 45, 59, 0.08);
+    box-shadow: 0 2px 8px rgba(123, 45, 59, 0.1);
     transition: all 0.2s ease;
     text-decoration: none;
     outline: none;
@@ -1908,7 +1921,7 @@ body.modal-open {
 .btn-pill-secondary:hover:not(:disabled) {
     background: var(--color-primary-light);
     transform: translateY(-1px);
-    box-shadow: 0 4px 10px rgba(123, 45, 59, 0.14);
+    box-shadow: 0 4px 12px rgba(123, 45, 59, 0.16);
 }
 
 .btn-pill-secondary:active:not(:disabled) {
@@ -1917,42 +1930,42 @@ body.modal-open {
 
 .option-c-dashed-group {
     border: 1.5px dashed var(--color-border);
-    border-radius: 12px;
-    background: rgba(0, 0, 0, 0.015);
-    padding: 9px 13px;
+    border-radius: 14px;
+    background: rgba(0, 0, 0, 0.018);
+    padding: 13px 16px;
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    margin-top: 3px;
+    gap: 8px;
+    margin-top: 2px;
 }
 
 .option-c-group-title {
     text-align: center;
-    font-size: 12px;
+    font-size: 13px;
     color: var(--color-dark);
     font-weight: 600;
-    line-height: 1.25;
+    line-height: 1.3;
 }
 
 .option-c-group-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 10px;
+    gap: 12px;
 }
 
 .btn-option-c-group {
     border: 1.5px solid var(--color-primary);
     background: var(--color-white);
     border-radius: 8px;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 700;
     color: var(--color-primary);
-    padding: 6px 12px;
-    line-height: 1.2;
+    padding: 7px 16px;
+    line-height: 1.25;
     text-align: center;
     cursor: pointer;
-    box-shadow: 0 2px 5px rgba(123, 45, 59, 0.1);
+    box-shadow: 0 2px 6px rgba(123, 45, 59, 0.12);
     transition: all 0.15s ease;
 }
 
@@ -1968,7 +1981,7 @@ body.modal-open {
 .link-option-c-group {
     background: transparent;
     border: none;
-    font-size: 12.5px;
+    font-size: 13px;
     font-weight: 600;
     color: #2563eb;
     text-decoration: underline;
@@ -1986,9 +1999,9 @@ body.modal-open {
 
 .option-c-dashed-tip {
     border: 1px solid rgba(37, 99, 235, 0.18);
-    border-radius: 12px;
+    border-radius: 14px;
     background: rgba(37, 99, 235, 0.04);
-    padding: 9px 13px;
+    padding: 12px 16px;
     margin-top: 2px;
     cursor: pointer;
 }
@@ -1998,7 +2011,7 @@ body.modal-open {
     align-items: center;
     justify-content: space-between;
     list-style: none;
-    font-size: 12.5px;
+    font-size: 13.5px;
     font-weight: 600;
     color: var(--color-primary);
     user-select: none;
@@ -2018,17 +2031,17 @@ details.option-c-dashed-tip[open] .option-c-chevron {
 }
 
 .option-c-tip-body {
-    padding-top: 8px;
-    font-size: 11.5px;
+    padding-top: 10px;
+    font-size: 12px;
     color: var(--color-dark);
-    line-height: 1.4;
+    line-height: 1.45;
     border-top: 1px dashed rgba(37, 99, 235, 0.15);
-    margin-top: 6px;
+    margin-top: 8px;
     cursor: default;
 }
 
 .option-c-tip-body p {
-    margin: 0 0 4px 0;
+    margin: 0 0 6px 0;
 }
 
 .option-c-tip-body a {

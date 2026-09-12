@@ -37,9 +37,6 @@
                         </span>
                     </div>
                 </div>
-                <div class="header-avatar-circle" title="Profile">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-                </div>
             </div>
         </div>
     </header>
@@ -63,19 +60,33 @@
         <p>iConnect &copy; 2026</p>
     </footer>
 
-    <!-- Bottom Navigation (flush, minimal, full-width) -->
+    <!-- Bottom Navigation (colored, full-width) -->
     <nav class="portal-nav">
-        <!-- Menu / List icon (left) -->
-        <a href="{% url 'portal:history' %}{% if mac_address %}?mac={{ mac_address|urlencode }}{% endif %}" class="{% if active_page == 'history' %}active{% endif %}" id="nav-history" title="History & Logs" aria-label="Menu / History">
-            <i class="bi bi-list" style="font-size: 24px;"></i>
+        <!-- History tab (left) -->
+        <a href="{% url 'portal:history' %}{% if mac_address %}?mac={{ mac_address|urlencode }}{% endif %}" class="{% if active_page == 'history' %}active{% endif %}" id="nav-history" title="History & Logs" aria-label="History">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="nav-svg">
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                <path d="M3 3v5h5"/>
+                <path d="M12 7v5l4 2"/>
+            </svg>
+            <span class="nav-label">History</span>
         </a>
-        <!-- Home icon (center) -->
+        <!-- Home tab (center) -->
         <a href="{% url 'portal:index' %}{% if mac_address %}?mac={{ mac_address|urlencode }}{% endif %}" class="{% if active_page == 'home' %}active{% endif %}" id="nav-home" title="Home" aria-label="Home">
-            <i class="bi bi-house{% if active_page == 'home' %}-door-fill{% else %}-door{% endif %}"></i>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="nav-svg">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                <polyline points="9 22 9 12 15 12 15 22"/>
+            </svg>
+            <span class="nav-label">Home</span>
         </a>
-        <!-- Settings / Gear icon (right) -->
-        <a href="{% url 'portal:manual' %}{% if mac_address %}?mac={{ mac_address|urlencode }}{% endif %}" class="{% if active_page == 'manual' %}active{% endif %}" id="nav-manual" title="Settings & Help" aria-label="Settings / Manual">
-            <i class="bi bi-gear{% if active_page == 'manual' %}-fill{% endif %}"></i>
+        <!-- Help tab (right) -->
+        <a href="{% url 'portal:manual' %}{% if mac_address %}?mac={{ mac_address|urlencode }}{% endif %}" class="{% if active_page == 'manual' %}active{% endif %}" id="nav-manual" title="Help & FAQs" aria-label="Help">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="nav-svg">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+                <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            <span class="nav-label">Help</span>
         </a>
     </nav>
 </div>

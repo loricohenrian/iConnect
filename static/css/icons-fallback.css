@@ -20,7 +20,10 @@
 .bi::before { content: "\2022"; font-size: 1em; }
 
 /* ─── Navigation & Chevrons ─── */
-.bi-house::before { content: "\2302"; font-size: 1.2em; }
+.bi-house::before,
+.bi-house-door::before,
+.bi-house-door-fill::before,
+.bi-house-fill::before { content: "\2302"; font-size: 1.2em; }
 .bi-clock-history::before { content: "\29D6"; font-size: 1em; }
 .bi-question-circle::before,
 .bi-question-circle-fill::before { content: "?"; font-size: 1em; font-weight: 700; }
