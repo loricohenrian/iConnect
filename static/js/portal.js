@@ -2158,15 +2158,21 @@ function handlePortalOutageState(data, isSessionPage) {
 
 
 
-function pollSessionStatus(macAddress, intervalMs = 3000) {
+function pollSessionStatus(macAddress, intervalMs = 2500) {
     let inFlight = false;
 
     const checkSessionStatus = async () => {
         if (inFlight) return;
         inFlight = true;
+        const currentMac = macAddress || getMacAddress();
+        if (!currentMac) {
+            inFlight = false;
+            return;
+        }
+
         try {
             const response = await fetch(
-                `/api/session/status/?mac_address=${encodeURIComponent(macAddress)}&t=${Date.now()}`,
+                `/api/session/status/?mac_address=${encodeURIComponent(currentMac)}&t=${Date.now()}`,
                 {
                     cache: "no-store",
                     headers: {
@@ -2181,9 +2187,9 @@ function pollSessionStatus(macAddress, intervalMs = 3000) {
                 if (window.sessionTimer) {
                     window.sessionTimer.stop();
                 }
-                _showExpiredModal(macAddress);
+                _showExpiredModal(currentMac);
                 setTimeout(() => {
-                    window.location.href = buildPortalUrl("/", macAddress, { expired: 1 });
+                    window.location.href = buildPortalUrl("/", currentMac, { expired: 1 });
                 }, 2000);
                 return;
             }
@@ -2270,11 +2276,39 @@ function pollSessionStatus(macAddress, intervalMs = 3000) {
             }
 
             if (data.group_code && data.group_max !== undefined && data.group_redeemed !== undefined) {
-                const groupStatusEl = document.getElementById("group-plan-status");
+                let groupStatusEl = document.getElementById("group-plan-status");
+                if (!groupStatusEl) {
+                    const timerContainer = document.querySelector(".timer-container");
+                    if (timerContainer) {
+                        const inlineDetails = timerContainer.querySelector(".session-details-inline");
+                        const groupSection = document.createElement("div");
+                        groupSection.className = "mt-md";
+                        groupSection.id = "group-plan-container";
+                        groupSection.innerHTML = `
+                            <span class="badge" style="background: var(--color-primary); color: #fff;">Group Pass · ${escapeHtml(data.group_code)}</span>
+                            <div id="group-plan-status" style="font-weight: 700; margin-top: 6px; font-size: 13px; color: var(--color-primary);">
+                                ${data.group_redeemed} / ${data.group_max} slots redeemed
+                            </div>
+                            <div id="group-code-expiry" style="font-size: 11px; margin-top: 4px; color: var(--color-gray);">
+                                Code: active
+                            </div>
+                            <div style="font-size: 11px; margin-top: 2px; color: var(--color-gray);">
+                                Share code <strong>${escapeHtml(data.group_code)}</strong> — friends get their own full session.
+                            </div>
+                        `;
+                        if (inlineDetails) {
+                            timerContainer.insertBefore(groupSection, inlineDetails);
+                        } else {
+                            timerContainer.appendChild(groupSection);
+                        }
+                        groupStatusEl = document.getElementById("group-plan-status");
+                    }
+                }
+
                 if (groupStatusEl) {
                     const nextText = `${data.group_redeemed} / ${data.group_max} slots redeemed`;
-                    if (groupStatusEl.innerText.trim() !== nextText) {
-                        groupStatusEl.innerText = nextText;
+                    if (groupStatusEl.textContent.trim() !== nextText) {
+                        groupStatusEl.textContent = nextText;
                     }
                 }
 

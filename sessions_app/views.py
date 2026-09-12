@@ -2241,7 +2241,8 @@ def session_status(request):
                 "announcement": ann_text,
             }
             if grp:
-                paused_response["group_redeemed"] = grp.redeemed_count
+                actual_redeemed = max(grp.redeemed_count, grp.sessions.count())
+                paused_response["group_redeemed"] = actual_redeemed
                 paused_response["group_max"] = grp.max_devices
                 paused_response["group_code"] = grp.group_code
                 paused_response["group_code_expires_at"] = (
@@ -2318,7 +2319,8 @@ def session_status(request):
                 "announcement": ann_text,
             }
             if grp:
-                response_data["group_redeemed"] = grp.redeemed_count
+                actual_redeemed = max(grp.redeemed_count, grp.sessions.count())
+                response_data["group_redeemed"] = actual_redeemed
                 response_data["group_max"] = grp.max_devices
                 response_data["group_code"] = grp.group_code
                 response_data["group_code_expires_at"] = (
