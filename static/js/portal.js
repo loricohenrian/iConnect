@@ -85,25 +85,23 @@ class SessionTimer {
         const sSec = Math.max(0, Number(serverRemainingSeconds) || 0);
         if (this.isPaused) {
             this.pausedRemainingSeconds = sSec;
+            this.targetEndTime = Date.now() + (sSec * 1000);
             this.update();
-            return;
+            if (!force) return;
         }
 
         const currentLocal = this.remaining;
         const diff = Math.abs(currentLocal - sSec);
 
-        // Only adjust targetEndTime if:
-        // 1. Force is true (e.g. user toggled pause/resume)
-        // 2. Server time increased by > 2s (time was extended via coins or admin preset)
-        // 3. Significant drift (> 4s) due to device deep sleep/background suspension
-        // 4. Server reports session has expired (<= 0)
-        if (force || sSec > currentLocal + 2 || diff > 4 || sSec <= 0) {
+        if (force || sSec > currentLocal + 2 || diff > 4 || sSec <= 0 || !this.interval) {
             this.targetEndTime = Date.now() + (sSec * 1000);
             if (sSec > 0) {
                 this._hasExpired = false;
             }
             this.update();
-            if (this.remaining <= 0) {
+            if (!this.interval && !this.isPaused && sSec > 0) {
+                this.start();
+            } else if (this.remaining <= 0) {
                 this._triggerExpire();
             }
         }
@@ -118,9 +116,10 @@ class SessionTimer {
     }
 
     resume() {
-        if (!this.isPaused) return;
         this.isPaused = false;
-        this.targetEndTime = Date.now() + (this.pausedRemainingSeconds * 1000);
+        if (this.pausedRemainingSeconds > 0) {
+            this.targetEndTime = Date.now() + (this.pausedRemainingSeconds * 1000);
+        }
         this.start();
     }
 
@@ -2341,11 +2340,14 @@ function pollSessionStatus(macAddress, intervalMs = 2500) {
                     pauseWarningEl.style.display = "block";
                 }
             } else if (data.status === "active" && !isOutage) {
-                if (window.sessionTimer && window.sessionTimer.isPaused) {
-                    window.sessionTimer.resume();
-                }
-                if (serverRem !== undefined && window.sessionTimer) {
-                    window.sessionTimer.syncRemaining(serverRem);
+                if (window.sessionTimer) {
+                    const wasPaused = window.sessionTimer.isPaused || !window.sessionTimer.interval;
+                    if (serverRem !== undefined) {
+                        window.sessionTimer.syncRemaining(serverRem, wasPaused);
+                    }
+                    if (wasPaused) {
+                        window.sessionTimer.resume();
+                    }
                 }
                 if (timerEl) {
                     timerEl.dataset.status = "active";
