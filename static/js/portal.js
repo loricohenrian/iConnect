@@ -3322,12 +3322,11 @@ window.openCancelCoinModal = openCancelCoinModal;
 window.closeCancelCoinModal = closeCancelCoinModal;
 window.confirmCancelCoinRequest = confirmCancelCoinRequest; // capture phase ensures we intercept before any other handler
 
-// Global Rates Modal helpers
-window.openRatesModal = function() {
+window.openRatesModal = function(e) {
+    if (e && e.target && e.target !== e.currentTarget && !e.target.classList.contains("modal-overlay")) return;
     const modal = document.getElementById('ratesModal');
     if (modal) {
         window.savedRatesPageScroll = window.scrollY || window.pageYOffset || 0;
-        // Keep root document scroll at >= 2px so Android SwipeRefreshLayout never intercepts upward scrolls inside modal
         if (window.savedRatesPageScroll < 2) {
             window.scrollTo(0, 2);
         }
@@ -3341,13 +3340,75 @@ window.openRatesModal = function() {
     }
 };
 
-window.closeRatesModal = function() {
+window.closeRatesModal = function(e) {
+    if (e && e.target && e.target !== e.currentTarget && !e.target.classList.contains("modal-overlay")) return;
     const modal = document.getElementById('ratesModal');
     if (modal) {
         modal.style.display = 'none';
         document.body.classList.remove('modal-open');
         document.documentElement.classList.remove('modal-open');
         window.scrollTo(0, window.savedRatesPageScroll || 0);
+    }
+};
+
+window.openGroupPlanModal = function(e) {
+    if (e && e.target && e.target !== e.currentTarget && !e.target.classList.contains("modal-overlay")) return;
+    const modal = document.getElementById('groupPlanModal');
+    if (modal) {
+        modal.style.display = 'flex';
+        document.body.classList.add('modal-open');
+        document.documentElement.classList.add('modal-open');
+        if (typeof updateGroupPlanPrice === 'function') updateGroupPlanPrice();
+    }
+};
+
+window.closeGroupPlanModal = function(e) {
+    if (e && e.target && e.target !== e.currentTarget && !e.target.classList.contains("modal-overlay")) return;
+    const modal = document.getElementById('groupPlanModal');
+    if (modal) {
+        modal.style.display = 'none';
+        document.body.classList.remove('modal-open');
+        document.documentElement.classList.remove('modal-open');
+    }
+    const panel = document.getElementById('group-help-panel');
+    const btn = document.getElementById('group-help-toggle');
+    if (panel) panel.style.display = 'none';
+    if (btn) btn.classList.remove('active');
+};
+
+window.toggleGroupPlanHelp = function() {
+    const panel = document.getElementById('group-help-panel');
+    const btn = document.getElementById('group-help-toggle');
+    if (!panel) return;
+    const shown = panel.style.display !== 'none';
+    panel.style.display = shown ? 'none' : 'block';
+    if (btn) btn.classList.toggle('active', !shown);
+};
+
+window.openJoinGroupModal = function(e) {
+    if (e && e.target && e.target !== e.currentTarget && !e.target.classList.contains("modal-overlay")) return;
+    const modal = document.getElementById('joinGroupModal');
+    const input = document.getElementById('join-group-code');
+    const error = document.getElementById('join-group-error');
+    if (modal) {
+        modal.style.display = 'flex';
+        document.body.classList.add('modal-open');
+        document.documentElement.classList.add('modal-open');
+        if (input) {
+            input.value = '';
+            input.focus();
+        }
+        if (error) error.style.display = 'none';
+    }
+};
+
+window.closeJoinGroupModal = function(e) {
+    if (e && e.target && e.target !== e.currentTarget && !e.target.classList.contains("modal-overlay")) return;
+    const modal = document.getElementById('joinGroupModal');
+    if (modal) {
+        modal.style.display = 'none';
+        document.body.classList.remove('modal-open');
+        document.documentElement.classList.remove('modal-open');
     }
 };
 

@@ -33,28 +33,15 @@
                 {% endfor %}
             );
             position: relative;
+            overflow: hidden;
         ">
+            {% for prize in prizes %}
+            <div class="spin-wheel-label" style="transform: translateY(-50%) rotate({{ prize.label_deg }}deg);">{{ prize.name }}</div>
+            {% endfor %}
         </div>
 
-        <!-- SVG Text Labels (outside overflow:hidden wheel div) -->
-        <svg id="wheel-labels" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;overflow:visible;transition: transform 4s cubic-bezier(0.175, 0.885, 0.32, 1.275);" viewBox="0 0 280 280">
-            {% for prize in prizes %}
-            <text
-                x="140" y="140"
-                text-anchor="middle"
-                dominant-baseline="middle"
-                fill="white"
-                font-size="11"
-                font-weight="bold"
-                font-family="sans-serif"
-                style="text-shadow: 1px 1px 2px rgba(0,0,0,0.5);"
-                transform="rotate({{ prize.label_deg }}, 140, 140) translate(80, 0)"
-            >{{ prize.name }}</text>
-            {% endfor %}
-        </svg>
-
         <!-- Center dot -->
-        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 20px; height: 20px; background: white; border-radius: 50%; box-shadow: inset 0 2px 4px rgba(0,0,0,0.3); z-index:2;"></div>
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 20px; height: 20px; background: white; border-radius: 50%; box-shadow: inset 0 2px 4px rgba(0,0,0,0.3); z-index:5;"></div>
     </div>
 
     <div id="spin-result-container" class="alert alert-success" style="display: none;">
@@ -62,13 +49,13 @@
     </div>
 
     <div class="d-flex gap-sm mb-lg">
-        <a href="/" class="btn btn-secondary w-100"><i class="bi bi-arrow-left"></i> Back</a>
+        <a href="/" class="btn btn-secondary w-100" style="border-radius: 12px;"><i class="bi bi-arrow-left"></i> Back</a>
         {% if can_spin %}
-        <button id="spin-btn" class="btn btn-primary w-100">
+        <button id="spin-btn" class="btn btn-primary w-100" style="border-radius: 12px;">
             <i class="bi bi-play-circle-fill"></i> SPIN!
         </button>
         {% else %}
-        <button class="btn btn-primary w-100" disabled>
+        <button class="btn btn-primary w-100" disabled style="border-radius: 12px;">
             <i class="bi bi-play-circle-fill"></i> SPIN!
         </button>
         {% endif %}
@@ -121,9 +108,7 @@
                         // To land targetDeg at the top pointer (0deg position), we rotate by 360 - targetDeg
                         const finalRotation = fullSpins + (360 - targetDeg);
                         
-                        const wheelSvg = document.getElementById("wheel-labels");
                         wheel.style.transform = `rotate(${finalRotation}deg)`;
-                        if (wheelSvg) wheelSvg.style.transform = `rotate(${finalRotation}deg)`;
                         
                         setTimeout(() => {
                             resultContainer.style.display = "block";
@@ -142,7 +127,7 @@
                             }
 
                             spinBtn.style.display = "none";
-                        }, 4000); 
+                        }, 4200); 
                     } else {
                         alert("Error: " + data.message);
                         spinBtn.disabled = false;

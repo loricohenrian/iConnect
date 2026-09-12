@@ -1,0 +1,167 @@
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- Global Captive Portal Modals (Rates, Group Plan, Join) -->
+<!-- ═══════════════════════════════════════════════════ -->
+
+<!-- WiFi Rates & Speeds Modal -->
+<div id="ratesModal" class="modal-overlay" style="display: none;" onclick="closeRatesModal(event)">
+    <div class="modal-card animate-fadeIn" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <h3 style="display: flex; align-items: center; gap: 8px; margin: 0;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--color-primary); flex-shrink: 0;"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
+                WiFi Rates & Speeds
+            </h3>
+            <button type="button" class="modal-close-btn" onclick="closeRatesModal()" title="Close" aria-label="Close">
+                <span style="font-size: 18px; font-weight: 700; line-height: 1;">&times;</span>
+            </button>
+        </div>
+        <p class="text-small text-muted mb-md" style="margin-top: 4px;">
+            Drop any coins at the vendo machine. Coins automatically combine for maximum bonus time!
+        </p>
+        <div class="plan-grid mb-md" id="plan-grid">
+            {% for plan in plans %}
+            <div class="plan-card" data-plan-id="{{ plan.id }}" id="plan-{{ plan.id }}" style="cursor: default;">
+                {% if plan.id == most_popular_plan_id %}
+                <div class="plan-popular">Popular</div>
+                {% endif %}
+                <div class="plan-price">₱{{ plan.price }}</div>
+                <div class="plan-duration">{{ plan.duration_display }}</div>
+                {% if plan.speed_limit %}
+                <div class="plan-speed">
+                    Up to ↓{{ plan.speed_limit }}{% if plan.speed_limit_upload %} / ↑{{ plan.speed_limit_upload }}{% endif %} Mbps
+                </div>
+                {% endif %}
+            </div>
+            {% empty %}
+            <div class="empty-state" id="plans-empty-state">
+                <p style="font-size: 32px; margin-bottom: 8px;">📵</p>
+                <p>No plans available</p>
+                <small>Please contact the administrator</small>
+            </div>
+            {% endfor %}
+        </div>
+        {% if smart_combo_examples %}
+        <div class="smart-combo-card mb-md">
+            <div class="smart-combo-header">
+                <div class="smart-combo-title">
+                    <span class="smart-combo-icon">💡</span>
+                    <strong>Smart Combo Rates</strong>
+                </div>
+                <p class="smart-combo-desc">
+                    Drop any coins you have! Coins automatically combine for maximum time:
+                </p>
+            </div>
+            <div class="smart-combo-list" id="smart-combo-list">
+                {% for combo in smart_combo_examples %}
+                <div class="smart-combo-item">
+                    <div class="smart-combo-coin">₱{{ combo.amount }}</div>
+                    <div class="smart-combo-formula">{{ combo.breakdown }}</div>
+                    <div class="smart-combo-duration">{{ combo.duration }}</div>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="smart-combo-speed-note">
+                <i class="bi bi-speedometer2"></i>
+                <span><strong>Speed Note:</strong> For combo rates, your speed (Mbps) automatically matches the highest plan in the combination.</span>
+            </div>
+        </div>
+        {% endif %}
+        <div style="margin-top: 14px; text-align: center;">
+            <button type="button" class="btn btn-secondary w-100" onclick="closeRatesModal()" style="border-radius: 12px; font-weight: 600; padding: 11px;">
+                Close Rates
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Group Plan Modal -->
+<div id="groupPlanModal" class="modal-overlay" style="display: none;" onclick="closeGroupPlanModal(event)">
+    <div class="modal-card animate-fadeIn" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <h3 style="display: flex; align-items: center; gap: 8px; margin: 0;">
+                <i class="bi bi-people-fill" style="color:var(--color-primary);"></i>
+                <span>Group Plan</span>
+            </h3>
+            <div style="display:flex; gap:8px; align-items:center;">
+                <button type="button" class="modal-close-btn" id="group-help-toggle" onclick="toggleGroupPlanHelp()" title="How to buy & use group plan" style="font-weight:700; font-size:13px;">
+                    ?
+                </button>
+                <button type="button" class="modal-close-btn" onclick="closeGroupPlanModal()" title="Close" aria-label="Close">
+                    <span style="font-size: 18px; font-weight: 700; line-height: 1;">&times;</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Help Panel (hidden by default) -->
+        <div id="group-help-panel" style="display:none; margin-bottom: 14px;">
+            <div style="background: var(--color-primary-light); border: 1px solid var(--color-border); border-radius: 12px; padding: 12px 14px;">
+                <h4 style="margin:0 0 8px 0; font-size:13px; color:var(--color-primary); font-weight:700; display:flex; align-items:center; gap:6px;">
+                    <i class="bi bi-info-circle-fill"></i> How to Buy a Group Plan
+                </h4>
+                <ol style="padding-left:18px; margin:0; font-size:12px; color:var(--color-dark); line-height:1.6;">
+                    <li><strong>Choose Plan & Devices:</strong> Select your desired plan and choose how many people will share it (minimum 2).</li>
+                    <li><strong>Insert Total Coins:</strong> Tap <em>Insert Coins</em> and drop the required total amount into the vendo machine.</li>
+                    <li><strong>Connect / Extend First:</strong> Tap <em>Connect Now</em> or <em>Extend Now</em> to activate your group session.</li>
+                    <li><strong>Get Your Group Code:</strong> Once connected, your unique 5-character group code (e.g. <code>A1B2C</code>) will appear right on your session screen.</li>
+                    <li><strong>Share With Friends:</strong> Have each friend connect to the Wi-Fi, tap <em>"Have a group code? Enter it here"</em>, enter your code, and tap <em>Join</em>! Each person gets their own full session.</li>
+                </ol>
+            </div>
+        </div>
+
+        <p class="text-small text-muted mb-md" style="margin-top: 4px;">Buy a plan for multiple people to connect using one code.</p>
+        
+        <div class="form-group mb-md">
+            <label class="form-label">1. Choose a Plan</label>
+            <select id="group-plan-select" class="form-input w-100">
+                {% for plan in plans %}
+                    <option value="{{ plan.id }}" data-price="{{ plan.price }}">₱{{ plan.price }} - {{ plan.duration_display }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="form-group mb-md" style="display: flex; justify-content: space-between; align-items: center;">
+            <label class="form-label m-0">2. How many people?</label>
+            <div class="counter-group">
+                <button type="button" id="gp-minus" class="counter-btn">-</button>
+                <input type="number" id="gp-device-count" class="counter-input" data-max-slots="{{ slots_available|default:50 }}" value="2" min="2" />
+                <button type="button" id="gp-plus" class="counter-btn">+</button>
+            </div>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--color-border); padding-top: 12px; margin-bottom: 16px;">
+            <div style="font-weight: 600; font-size: 14px; color: var(--color-dark);">Total Amount:</div>
+            <div id="group-plan-price" class="group-price-display">₱0</div>
+        </div>
+        
+        <div class="d-flex" style="gap: 8px; flex-direction: column;">
+            <button type="button" class="btn btn-primary w-100" id="btn-group-request-slot" style="display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 9999px;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="mini-coin-svg"><circle cx="12" cy="12" r="9.5"></circle><path d="M14.5 9.5a2.5 2.5 0 0 0-5 0c0 2.5 5 2.5 5 5a2.5 2.5 0 0 1-5 0"></path><line x1="12" y1="6.5" x2="12" y2="17.5"></line></svg>
+                <span>Insert Coins</span>
+            </button>
+            <button type="button" class="btn btn-secondary w-100" id="btn-cancel-group-plan" onclick="closeGroupPlanModal()" style="border-radius: 9999px;">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- Join Group Pass Modal -->
+<div id="joinGroupModal" class="modal-overlay" style="display: none;" onclick="closeJoinGroupModal(event)">
+    <div class="modal-card animate-fadeIn" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <h3 style="display: flex; align-items: center; gap: 8px; margin: 0;">
+                <i class="bi bi-key-fill" style="color:var(--color-primary);"></i>
+                <span>Join Group Pass</span>
+            </h3>
+            <button type="button" class="modal-close-btn" onclick="closeJoinGroupModal()" title="Close" aria-label="Close">
+                <span style="font-size: 18px; font-weight: 700; line-height: 1;">&times;</span>
+            </button>
+        </div>
+        <p class="text-small text-muted mb-md" style="margin-top: 4px;">Enter the 5-character group code to activate or extend your group session.</p>
+        <div class="form-group mb-md">
+            <input type="text" id="join-group-code" class="form-control group-code-input w-100" placeholder="A1B2C" maxlength="6" style="text-transform: uppercase; letter-spacing: 4px; font-weight: 700; text-align: center;">
+        </div>
+        <div id="join-group-error" class="alert alert-danger" style="display:none; padding: 8px; font-size: 13px;"></div>
+        <div class="d-flex" style="gap: 8px;">
+            <button type="button" class="btn btn-secondary flex-grow-1" id="btn-cancel-join" onclick="closeJoinGroupModal()" style="border-radius: 10px;">Cancel</button>
+            <button type="button" class="btn btn-primary flex-grow-1" id="btn-submit-join" style="border-radius: 10px;">Redeem Code</button>
+        </div>
+    </div>
+</div>
