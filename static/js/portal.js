@@ -2302,6 +2302,43 @@ function pollSessionStatus(macAddress, intervalMs = 2000) {
                 return;
             }
 
+            // Remove expired modal if session was reactivated/extended by admin
+            const expModal = document.getElementById("expired-modal-overlay");
+            if (expModal) expModal.remove();
+
+            // Real-time detection of added time (from admin or coin deposit)
+            const serverRem = data.time_remaining_seconds !== undefined
+                ? data.time_remaining_seconds
+                : (data.session ? data.session.time_remaining_seconds : undefined);
+
+            if (serverRem !== undefined && window.sessionTimer) {
+                const prevRem = window._lastRemainingSeconds;
+                if (prevRem !== undefined && serverRem >= prevRem + 15) {
+                    const addedSec = serverRem - prevRem;
+                    const addedMins = Math.max(1, Math.round(addedSec / 60));
+                    _showTimerBanner(`🎉 +${addedMins} min${addedMins > 1 ? 's' : ''} added to your session!`, "success");
+                    _playAlertSound("warning");
+                    setTimeout(() => { _hideTimerBanner(); }, 6000);
+                }
+                window._lastRemainingSeconds = serverRem;
+            }
+
+            // Real-time update of session details UI
+            if (data.session) {
+                if (data.session.duration_display) {
+                    const durationEl = document.getElementById("session-duration-display");
+                    if (durationEl && durationEl.textContent !== data.session.duration_display) {
+                        durationEl.textContent = data.session.duration_display;
+                    }
+                }
+                if (data.session.amount_paid !== undefined) {
+                    const amtEl = document.getElementById("session-amount-paid");
+                    if (amtEl) {
+                        amtEl.textContent = `₱${data.session.amount_paid}`;
+                    }
+                }
+            }
+
             // Toast notification on real-time admin pause/resume
             if (window._lastSessionStatus && window._lastSessionStatus !== data.status) {
                 if (data.status === "paused" && !Boolean(data.isp_outage)) {
@@ -2323,10 +2360,6 @@ function pollSessionStatus(macAddress, intervalMs = 2000) {
             const pauseBtn = document.getElementById("pause-btn");
             const timerEl = document.getElementById("session-timer");
             const connectionStatusEl = document.getElementById("connection-status");
-
-            const serverRem = data.time_remaining_seconds !== undefined
-                ? data.time_remaining_seconds
-                : (data.session ? data.session.time_remaining_seconds : undefined);
 
             if ((isOutage && pauseEnabled) || data.status === "paused") {
                 if (window.sessionTimer && !window.sessionTimer.isPaused) {
