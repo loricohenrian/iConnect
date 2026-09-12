@@ -2,12 +2,55 @@
 
 {% block title %}iConnect — Connect to WiFi{% endblock %}
 
+{% block header_extra %}
+<div class="slots-indicator-inline" id="slots-indicator">
+    <div class="slots-badge {% if slots_available > 5 %}available{% elif slots_available > 0 %}low{% else %}full{% endif %}" id="slots-badge" title="Active Network Users">
+        <span class="slots-dot" id="slots-dot"></span>
+        <span id="slots-text">
+            {% if slots_available > 0 %}
+                Active Users: {{ slots_active }}/{{ slots_max }}
+            {% else %}
+                Network Full
+            {% endif %}
+        </span>
+        <i class="bi bi-people-fill" style="font-size: 11px; opacity: 0.9;"></i>
+    </div>
+</div>
+{% endblock %}
+
 {% block portal_content %}
 
 {% if expired %}
-<div class="alert alert-warning animate-fadeIn">
-    <strong>Session Expired!</strong> Insert coins to start a new session.
+<div class="alert alert-warning animate-fadeIn" id="session-expired-alert" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; border-radius: 12px; border: 1.5px solid #f59e0b; background: #fef3c7; color: #92400e; padding: 10px 14px;">
+    <div style="font-size: 13px;">
+        <strong>Session Expired!</strong> Insert coins to start a new session.
+    </div>
+    <button type="button" onclick="dismissExpiredAlert()" style="background:none; border:none; font-size:20px; font-weight:700; color:#92400e; cursor:pointer; line-height:1; padding:0 4px;" aria-label="Dismiss">&times;</button>
 </div>
+<script>
+    (function() {
+        const alertEl = document.getElementById('session-expired-alert');
+        if (sessionStorage.getItem('iconnect_expired_dismissed') === '1') {
+            if (alertEl) alertEl.remove();
+        } else {
+            sessionStorage.setItem('iconnect_expired_dismissed', '1');
+        }
+        if (window.history && window.history.replaceState) {
+            try {
+                const _u = new URL(window.location.href);
+                if (_u.searchParams.has('expired')) {
+                    _u.searchParams.delete('expired');
+                    window.history.replaceState({}, document.title, _u.pathname + (_u.search ? _u.search : ''));
+                }
+            } catch(e) {}
+        }
+    })();
+    function dismissExpiredAlert() {
+        const el = document.getElementById('session-expired-alert');
+        if (el) el.remove();
+        sessionStorage.setItem('iconnect_expired_dismissed', '1');
+    }
+</script>
 {% endif %}
 
 {% if mac_required or not mac_address %}
@@ -45,21 +88,7 @@
 
 
 
-{% block header_extra %}
-<div class="slots-indicator-inline" id="slots-indicator">
-    <div class="slots-badge {% if slots_available > 5 %}available{% elif slots_available > 0 %}low{% else %}full{% endif %}" id="slots-badge" title="Active Network Users">
-        <span class="slots-dot" id="slots-dot"></span>
-        <span id="slots-text">
-            {% if slots_available > 0 %}
-                {{ slots_active }}/{{ slots_max }}
-            {% else %}
-                Full
-            {% endif %}
-        </span>
-        <i class="bi bi-people-fill" style="font-size: 11px; opacity: 0.9;"></i>
-    </div>
-</div>
-{% endblock %}
+
 
 <!-- WiFi Rates Modal -->
 <div id="ratesModal" class="modal-overlay" style="display: none;" onclick="closeRatesModal()">
@@ -308,104 +337,91 @@
     }
 </script>
 
-<div class="mt-sm" id="start-session-panel">
-    <div class="card option-c-card" style="border-radius: 20px; padding: 22px 18px;">
-        <div class="minimal-instruction text-center mb-md">
-            <p class="text-small text-muted m-0" style="font-size: 13px; line-height: 1.5;">
-                Tap <strong>Insert Coins</strong> below, then drop coins into the vendo machine.
-            </p>
-        </div>
+<div class="option-c-layout mt-sm" id="start-session-panel">
+    <!-- Centered Instruction Text -->
+    <p class="option-c-instruction">
+        Tap <strong>Insert Coins</strong> below, then drop coins into the vendo machine.
+    </p>
 
-        <div class="d-flex" style="flex-direction: column; gap: 12px;">
-            <button type="button" class="btn btn-pill-primary w-100" id="request-slot-btn">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="mini-coin-svg"><circle cx="12" cy="12" r="9"></circle><path d="M14.5 9h-5a2 2 0 0 0 0 4h3a2 2 0 0 1 0 4h-5"></path><line x1="12" y1="7" x2="12" y2="9"></line><line x1="12" y1="17" x2="12" y2="19"></line></svg>
-                <span>Insert Coins</span>
-            </button>
-            <button type="button" class="btn btn-pill-secondary w-100" id="btn-view-rates" onclick="openRatesModal()">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; flex-shrink: 0;"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
-                <span>View WiFi Rates & Speeds</span>
-            </button>
-        </div>
-
-        <!-- Modern Unified Active Coin Deposit Card -->
-        <div id="coin-deposit-active-card" class="coin-deposit-card animate-fadeIn" style="display: none;">
-            <!-- Countdown Timer Box -->
-            <div id="coin-countdown-container" class="coin-countdown-box" style="display:none;">
-                <div class="coin-countdown-header">
-                    <span class="coin-pulse-indicator"></span>
-                    <span class="coin-countdown-label">Time Remaining to Drop Coins</span>
-                </div>
-                <div id="coin-countdown-display" class="coin-countdown-time">02:00</div>
-            </div>
-
-            <!-- Dynamic Metrics (Coins Inserted & Internet Time) & Status -->
-            <div id="start-flow-meta" class="coin-flow-meta-container"></div>
-
-            <!-- Helpful Guidance Message / Step Notice -->
-            <div id="start-flow-message" class="coin-flow-message alert alert-info" style="display:none;"></div>
-
-            <!-- Actions: Connect Button & Centered Cancel -->
-            <div id="coin-actions-container" class="coin-actions-box" style="display:none;">
-                <button type="button" class="btn btn-connect-now w-100 animate-fadeIn" id="start-session-btn" disabled style="display: none;">
-                    <i class="bi bi-wifi"></i> <span>Connect Now</span>
-                </button>
-                <div class="coin-cancel-wrap">
-                    <button type="button" class="btn btn-cancel-coin" id="btn-cancel-coin-request">
-                        <i class="bi bi-x-circle"></i> Cancel Request
-                    </button>
-                    <a href="javascript:void(0)" id="link-cancel-coin-request" class="link-cancel-coin" style="display: none;">
-                        Cancel Request
-                    </a>
-                </div>
-            </div>
-        </div>
-
-        {% if enable_family_pass %}
-        <!-- Compact Group Plan Row (Option C: Side-by-Side) -->
-        <div class="group-plan-compact-card mt-md">
-            <div class="group-compact-header">
-                <i class="bi bi-people-fill" style="color: var(--color-primary);"></i>
-                <span>Share 1 group pass with your group</span>
-            </div>
-            <div class="group-compact-actions">
-                <button type="button" class="btn-group-pill-buy" id="btn-group-plan" onclick="openGroupPlanModal()">
-                    <i class="bi bi-plus-circle-fill"></i> Buy Group
-                </button>
-                <button type="button" class="btn-group-pill-join" id="btn-show-join-group" onclick="openJoinGroupModal()">
-                    <i class="bi bi-key-fill"></i> Have code?
-                </button>
-            </div>
-        </div>
-        {% else %}
-        <div class="text-center mt-md">
-            <button type="button" class="btn-link-group" id="btn-show-join-group" onclick="openJoinGroupModal()">
-                Have a group code? Enter it here &rarr;
-            </button>
-        </div>
-        {% endif %}
+    <!-- Option C Pill Buttons Stack -->
+    <div class="option-c-btn-stack">
+        <button type="button" class="btn-option-c-pill" id="request-slot-btn">
+            Insert Coins
+        </button>
+        <button type="button" class="btn-option-c-pill" id="btn-view-rates" onclick="openRatesModal()" aria-label="View WiFi Rates & Speeds">
+            View Rates
+        </button>
     </div>
+
+    <!-- Active Coin Deposit Card (Only appears when Insert Coins is pressed) -->
+    <div id="coin-deposit-active-card" class="coin-deposit-card animate-fadeIn" style="display: none;">
+        <!-- Countdown Timer Box -->
+        <div id="coin-countdown-container" class="coin-countdown-box" style="display:none;">
+            <div class="coin-countdown-header">
+                <span class="coin-pulse-indicator"></span>
+                <span class="coin-countdown-label">Time Remaining to Drop Coins</span>
+            </div>
+            <div id="coin-countdown-display" class="coin-countdown-time">02:00</div>
+        </div>
+
+        <!-- Dynamic Metrics (Coins Inserted & Internet Time) & Status -->
+        <div id="start-flow-meta" class="coin-flow-meta-container"></div>
+
+        <!-- Helpful Guidance Message / Step Notice -->
+        <div id="start-flow-message" class="coin-flow-message alert alert-info" style="display:none;"></div>
+
+        <!-- Actions: Connect Button & Centered Cancel -->
+        <div id="coin-actions-container" class="coin-actions-box" style="display:none;">
+            <button type="button" class="btn btn-connect-now w-100 animate-fadeIn" id="start-session-btn" disabled style="display: none; border-radius: 9999px;">
+                <i class="bi bi-wifi"></i> <span>Connect Now</span>
+            </button>
+            <div class="coin-cancel-wrap">
+                <button type="button" class="btn btn-cancel-coin" id="btn-cancel-coin-request">
+                    <i class="bi bi-x-circle"></i> Cancel Request
+                </button>
+                <a href="javascript:void(0)" id="link-cancel-coin-request" class="link-cancel-coin" style="display: none;">
+                    Cancel Request
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dashed Group Box -->
+    {% if enable_family_pass %}
+    <div class="option-c-dashed-group">
+        <div class="option-c-group-title">Share wifi with family or friends</div>
+        <div class="option-c-group-row">
+            <button type="button" class="btn-option-c-group" id="btn-group-plan" onclick="openGroupPlanModal()">
+                Buy Group<br>Plan
+            </button>
+            <button type="button" class="link-option-c-group" id="btn-show-join-group" onclick="openJoinGroupModal()">
+                <u>Have a group code?</u>
+            </button>
+        </div>
+    </div>
+    {% else %}
+    <div class="option-c-dashed-group">
+        <div class="option-c-group-title">Share wifi with family or friends</div>
+        <div class="option-c-group-row" style="justify-content: center;">
+            <button type="button" class="link-option-c-group" id="btn-show-join-group" onclick="openJoinGroupModal()">
+                <u>Have a group code?</u>
+            </button>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Dashed Tip Card Accordion -->
+    <details class="option-c-dashed-tip">
+        <summary class="option-c-tip-summary">
+            <span>Tip card</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="option-c-chevron"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </summary>
+        <div class="option-c-tip-body">
+            <p><strong>iPhone & Android:</strong> For permanent timer tracking, set Wi-Fi to <strong>"Device MAC"</strong> before inserting coins.</p>
+            <a href="{% url 'portal:manual' %}#faq-section">Need help or lost your timer? Read FAQs &rarr;</a>
+        </div>
+    </details>
 </div>
-
-<!-- Option C: Collapsible Accordion Tip Card -->
-<details class="tip-accordion animate-fadeIn mt-md mb-lg">
-    <summary class="tip-accordion-summary">
-        <div class="tip-accordion-title">
-            <i class="bi bi-lightbulb-fill" style="color: #f59e0b;"></i>
-            <span>Device Connection Tip & FAQs</span>
-        </div>
-        <i class="bi bi-chevron-down tip-accordion-chevron"></i>
-    </summary>
-    <div class="tip-accordion-body">
-        <p style="margin: 0 0 8px 0; font-size: 12px; color: var(--color-dark); line-height: 1.45;">
-            <strong>iPhone & Android:</strong> For the most reliable experience, set your Wi-Fi to <strong>"Device MAC" BEFORE inserting coins</strong> so your device identity is permanent.
-        </p>
-        <div>
-            <a href="{% url 'portal:manual' %}#faq-section" style="color: var(--color-primary); font-weight: 600; font-size: 12px; text-decoration: underline;">
-                Need help or lost your timer? Read FAQs & Tips &rarr;
-            </a>
-        </div>
-    </div>
-</details>
 
 <script>
     const COUNTDOWN_SECONDS = {{ insert_coin_countdown_seconds|default:120 }};
