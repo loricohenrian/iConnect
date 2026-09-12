@@ -811,7 +811,7 @@ function formatCoinRequestMeta(coinRequest) {
         } else if (coinRequest.combo_duration_display) {
             timeDisplay = escapeHtml(coinRequest.combo_duration_display);
         } else {
-            timeDisplay = `₱${credited} / ₱${expected}`;
+            timeDisplay = "--";
         }
         breakdownHtml = "";
     } else if (coinRequest.combo_duration_display) {
@@ -821,6 +821,11 @@ function formatCoinRequestMeta(coinRequest) {
         }
     } else if (credited > 0) {
         timeDisplay = "Calculating...";
+    }
+
+    let coinsDisplay = `₱${credited}`;
+    if (coinRequest.is_group_pass && expected > 0) {
+        coinsDisplay = `₱${credited}/${expected}`;
     }
 
     const miniCoinSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="mini-coin-svg"><circle cx="12" cy="12" r="9.5"></circle><path d="M14.5 9.5a2.5 2.5 0 0 0-5 0c0 2.5 5 2.5 5 5a2.5 2.5 0 0 1-5 0"></path><line x1="12" y1="6.5" x2="12" y2="17.5"></line></svg>`;
@@ -833,7 +838,7 @@ function formatCoinRequestMeta(coinRequest) {
                 <span class="coin-metric-icon-wrap">${miniCoinSvg}</span>
                 <span class="coin-metric-label">Coins Inserted</span>
             </div>
-            <div class="coin-metric-value coin-val-peso">₱${credited}</div>
+            <div class="coin-metric-value coin-val-peso">${coinsDisplay}</div>
         </div>
         <div class="coin-metric-tile ${credited > 0 ? 'tile-highlight' : ''}">
             <div class="coin-metric-header">
