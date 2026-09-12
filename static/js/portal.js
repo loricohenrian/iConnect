@@ -1700,6 +1700,8 @@ function initExtendSessionFlow(macAddress) {
                 clearCoinCountdown();
                 const actionsContainer = document.getElementById("coin-actions-container");
                 if (actionsContainer) actionsContainer.style.display = "none";
+                const activeCard = document.getElementById("coin-deposit-active-card");
+                if (activeCard) activeCard.style.display = "none";
 
                 const addedDuration = data?.duration_added_display || (data.session ? `${data.session.duration_minutes_purchased} mins` : "");
 
@@ -1721,7 +1723,7 @@ function initExtendSessionFlow(macAddress) {
                 }
                 scrollToTimerContainer();
 
-                setExtendMessage(data.message || "Session extended!", "success");
+                setExtendMessage("");
                 setExtendMeta("");
 
                 // Update timer with new remaining time
