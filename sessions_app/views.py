@@ -2332,9 +2332,32 @@ def session_status(request):
             resp["Expires"] = "0"
             return resp
 
+    last_expired = Session.objects.filter(
+        mac_address__iexact=mac_address,
+        status="expired"
+    ).order_by("-id").first()
+    if last_expired:
+        resp = Response(
+            {
+                "status": "expired",
+                "message": "Session has expired",
+                "mac_address": mac_address,
+                "session": SessionSerializer(last_expired).data,
+                "is_whitelisted": False,
+                "isp_outage": isp_outage,
+                "enable_outage_announcement": enable_outage_announcement,
+                "enable_outage_auto_pause": enable_outage_auto_pause,
+                "outage_message": outage_message,
+            }
+        )
+        resp["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        resp["Pragma"] = "no-cache"
+        resp["Expires"] = "0"
+        return resp
+
     resp = Response(
         {
-            "status": "no_session",
+            "status": "expired",
             "message": "No active session found",
             "mac_address": mac_address,
             "is_whitelisted": False,

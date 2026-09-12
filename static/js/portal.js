@@ -2291,14 +2291,14 @@ function pollSessionStatus(macAddress, intervalMs = 2000) {
             );
             const data = await response.json();
 
-            if (data.status === "expired") {
+            if (data.status === "expired" || data.status === "no_session") {
                 if (window.sessionTimer) {
                     window.sessionTimer.stop();
                 }
                 _showExpiredModal(currentMac);
                 setTimeout(() => {
                     window.location.href = buildPortalUrl("/", currentMac, { expired: 1 });
-                }, 2000);
+                }, 1500);
                 return;
             }
 
