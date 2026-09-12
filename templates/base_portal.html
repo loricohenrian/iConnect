@@ -18,11 +18,13 @@
 </div>
 
 <div class="portal-wrapper" data-mac="{{ mac_address|default:'' }}">
-    <!-- Header (Option C: Minimal Center Single Top Row) -->
+    <!-- Header (Single Top Row) -->
     <header class="portal-header">
         <div class="portal-header-inner">
             <div class="header-brand">
-                <img src="{% static 'img/final_iconnect_logo.png' %}?v={% now 'U' %}" alt="iConnect" class="portal-logo" width="40" height="40" decoding="sync" fetchpriority="high">
+                <div class="portal-logo-pill">
+                    <img src="{% static 'img/final_iconnect_logo.png' %}?v={% now 'U' %}" alt="iConnect" class="portal-logo" decoding="sync" fetchpriority="high">
+                </div>
             </div>
             <div class="header-right">
                 <div class="slots-indicator-inline" id="slots-indicator">
@@ -34,6 +36,12 @@
                             {% else %}
                                 Active Users: {{ slots_active|default:0 }} / {{ slots_max|default:20 }}
                             {% endif %}
+                        </span>
+                        <span class="slots-avatar-wrap" title="Active Users">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="slots-avatar-icon">
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                                <circle cx="12" cy="7" r="4"></circle>
+                            </svg>
                         </span>
                     </div>
                 </div>
