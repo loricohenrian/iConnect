@@ -202,6 +202,70 @@ def _get_dhcp_hostname(mac_address):
     return None
 
 
+def _get_vendor_from_mac(mac_address):
+    """Identify device manufacturer from MAC OUI prefix (Samsung, Xiaomi/Poco, OPPO/Realme, Vivo, Transsion/Infinix/Tecno, Apple)."""
+    if not mac_address or len(mac_address) < 8:
+        return None
+    mac_clean = mac_address.upper().replace(":", "").replace("-", "").strip()
+    if len(mac_clean) < 6:
+        return None
+    oui = mac_clean[:6]
+
+    SAMSUNG_OUIS = {
+        "000278", "0007AB", "000918", "000DAE", "0012FB", "001599", "0016DB", "0017C9", "001860", "0018AF",
+        "001A8A", "001C43", "001D25", "001EE1", "001FCC", "002119", "0023D7", "002454", "002567", "002637",
+        "34C3D2", "380197", "404E36", "44783E", "4844F7", "4CBCA5", "503275", "54880E", "58C5CB", "5C0A5B",
+        "60AF6D", "64B5C6", "682737", "6C8336", "702C1F", "7445CE", "78471D", "7C9122", "804E81", "8425DB",
+        "88329B", "8C7712", "90F1AA", "9401B2", "9852B1", "9C0298", "A0821F", "A47733", "A80600", "AC5F3E",
+        "B0C4E7", "B479A7", "B85E7B", "BC14EF", "C0BDD1", "C4731E", "C819F7", "CC3A61", "D003DF", "D4E8B2",
+        "D857EF", "DC7144", "E0AA96", "E41218", "E8E0B7", "ECE09B", "F0E77E", "F47B5E", "F8D0BD", "FCA13E"
+    }
+    XIAOMI_OUIS = {
+        "00EC0A", "185936", "1C5216", "286C07", "3480B4", "3CBDD8", "40313C", "5448E6", "584498", "640980",
+        "68DFDD", "7451BA", "7C1DD9", "80AD16", "88C397", "909048", "9C99A0", "A086C6", "A446FA", "ACC1EE",
+        "B0F1EC", "B827EB", "C40BCB", "D4619D", "F460E2", "FC62B9"
+    }
+    OPPO_REALME_OUIS = {
+        "047970", "0CD746", "14AEDB", "1C77F6", "20A60C", "24E271", "3010E4", "34CE00", "440444", "48A472",
+        "50E085", "5CE91E", "64CC2E", "6C8DC1", "745E1C", "7CA7B0", "882844", "8C11CB", "940853", "9C8C6E",
+        "A4C494", "AC87A3", "B8D7AF", "C08C71", "CC8065", "D88C79", "E0DCFF", "E889A8", "F01898", "F4EE14", "FCD4F2"
+    }
+    VIVO_OUIS = {
+        "009ACD", "08C25E", "102C6B", "18F0E4", "206414", "24FB65", "3400A3", "38F9D3", "482CA0", "505065",
+        "549963", "602109", "6870E4", "70B66E", "78F7BE", "804126", "88BFE4", "98FAE3", "A07C70", "A4B8E0",
+        "B041BE", "B8BC5C", "C48508", "D05FB8", "D4016D", "E09D31", "E40A3B", "F4B301"
+    }
+    TRANSSION_OUIS = {
+        "000822", "088AB6", "0C7A15", "102AB3", "18A6F7", "203026", "24B3F1", "2C598A", "3897D6", "40D3AE",
+        "445D02", "483B04", "54EF44", "587004", "605D63", "68761D", "70A8A3", "78E103", "80717A", "884207",
+        "90B74E", "983B8F", "A069B7", "A48D3B", "AC8A47", "B07743", "B83862", "C4D8D5", "D09A13", "D4B27B",
+        "E01396", "E4B3F7", "F008D1", "F47E82", "FCB1E8"
+    }
+    APPLE_OUIS = {
+        "000393", "000502", "000A27", "000D93", "0010FA", "001124", "0014A8", "0016CB", "0017F2", "0019E3",
+        "001B63", "001CB3", "001D4F", "001E52", "001F5B", "001FF3", "0021E9", "002241", "002312", "002332",
+        "00236C", "0023DF", "002436", "002500", "00254B", "0025BC", "002608", "00264A", "0026B0", "040CCE",
+        "041552", "042665", "044BED", "0452F3", "045453", "0469F8", "04DB56", "04E536", "080007", "086698",
+        "087402", "089E08", "0C15C0", "0C3021", "0C3E9F", "0C74C2", "0CBC9F", "101C0C", "1040F3", "1093E9",
+        "10DDB1", "14109F", "14205E", "148AC8", "1499E2", "14BD61", "182032", "183451", "18810E", "18AF61",
+        "18E7F4", "1C1AC0", "1C5CF2", "1C9148", "1CABA7", "1CE85D", "207D74", "209BCD", "20A2E4", "20AB37"
+    }
+
+    if oui in SAMSUNG_OUIS:
+        return "Samsung Phone"
+    elif oui in XIAOMI_OUIS:
+        return "Xiaomi / POCO"
+    elif oui in OPPO_REALME_OUIS:
+        return "OPPO / Realme"
+    elif oui in VIVO_OUIS:
+        return "Vivo Phone"
+    elif oui in TRANSSION_OUIS:
+        return "Infinix / Tecno"
+    elif oui in APPLE_OUIS:
+        return "iPhone / iPad"
+    return None
+
+
 def _is_admin_request(request):
     if not request:
         return False
@@ -215,7 +279,7 @@ def _extract_device_name(request=None, passed_name=None, mac_address=None):
     """
     generic_names = {
         "", "unknown", "android phone", "android", "user device", "k",
-        "windows pc", "windows", "pc", "mac", "linux", "mobile device"
+        "windows pc", "windows", "pc", "mac", "linux", "mobile device", "spin winner"
     }
 
     # 1. If an actual custom friendly name was explicitly provided (e.g. edited by admin)
@@ -229,14 +293,20 @@ def _extract_device_name(request=None, passed_name=None, mac_address=None):
         if clean_dhcp.lower() not in generic_names and not clean_dhcp.lower().startswith("android-"):
             return clean_dhcp[:100]
 
-    # 3. Check HTTP Sec-CH-UA-Model header (ONLY if request is from the client phone itself, NOT admin dashboard)
+    # 3. Check HTTP headers (Sec-CH-UA-Model or X-Device-Model) if request is from the client phone
     if request and not _is_admin_request(request):
-        sec_model = request.META.get("HTTP_SEC_CH_UA_MODEL", "").strip().strip('"').strip("'")
-        if sec_model and sec_model.lower() not in generic_names and sec_model.lower() != "k":
-            import urllib.parse
-            sec_model = urllib.parse.unquote(sec_model).strip()
-            if sec_model and sec_model.lower() not in generic_names:
-                return sec_model[:100]
+        sec_model = (
+            getattr(request, "headers", {}).get("X-Device-Model") or
+            request.META.get("HTTP_X_DEVICE_MODEL") or
+            request.META.get("HTTP_SEC_CH_UA_MODEL", "")
+        )
+        if sec_model:
+            sec_model = str(sec_model).strip().strip('"').strip("'")
+            if sec_model and sec_model.lower() not in generic_names and sec_model.lower() != "k":
+                import urllib.parse
+                sec_model = urllib.parse.unquote(sec_model).strip()
+                if sec_model and sec_model.lower() not in generic_names:
+                    return sec_model[:100]
 
     # 4. Check if a non-generic device name exists from a previous session for this MAC
     if mac_address:
@@ -269,15 +339,13 @@ def _extract_device_name(request=None, passed_name=None, mac_address=None):
                     model = re.sub(r'\s*wv\b', '', model, flags=re.IGNORECASE).strip()
                     if model and model.lower() not in ["k", "android", "unknown"]:
                         return model[:100]
-                return "Android Phone"
-            elif "Windows" in ua:
-                return "Windows PC"
-            elif "Macintosh" in ua:
-                return "Mac"
-            elif "Linux" in ua:
-                return "Linux"
 
-    if passed_name and passed_name.strip() and passed_name.strip().lower() not in ("windows pc", "windows", "pc"):
+    # 7. Hardware Vendor OUI Lookup from MAC address (e.g. Samsung, Xiaomi/POCO, OPPO/Realme, Vivo, Infinix/Tecno)
+    vendor = _get_vendor_from_mac(mac_address)
+    if vendor:
+        return vendor
+
+    if passed_name and passed_name.strip() and passed_name.strip().lower() not in ("windows pc", "windows", "pc", "spin winner"):
         return passed_name.strip()[:100]
 
     return "Android Phone"

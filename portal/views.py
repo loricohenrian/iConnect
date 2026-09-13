@@ -767,8 +767,8 @@ def api_execute_spin(request):
                     except ImportError:
                         pass
 
-                    prev_session = Session.objects.filter(mac_address=mac_address).exclude(device_name="Spin Winner").exclude(device_name="").order_by("-time_in").first()
-                    dev_name = prev_session.device_name if prev_session and prev_session.device_name else "Spin Winner"
+                    from sessions_app.views import _extract_device_name
+                    dev_name = _extract_device_name(request, mac_address=mac_address)
 
                     new_session = Session.objects.create(
                         mac_address=mac_address,
