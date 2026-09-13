@@ -190,6 +190,11 @@ def index(request):
         iptables.block_device(active_session.mac_address)
         active_session = None
 
+    if active_session and active_session.time_remaining_seconds > 1:
+        host = request.get_host()
+        base = "" if host in ("10.10.10.1", "127.0.0.1", "localhost") else "http://10.10.10.1"
+        return redirect(f"{base}/session/?mac={mac_address}")
+
     # Find the most picked plan (highest session count)
     from django.db.models import Sum
     from sessions_app.models import CoinEvent
