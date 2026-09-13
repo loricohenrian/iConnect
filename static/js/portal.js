@@ -3622,6 +3622,52 @@ window.closeJoinGroupModal = function(e) {
     document.addEventListener('touchcancel', resetIndicator, { passive: true });
 })();
 
+// Automatically detect and register client device model (High-Entropy Client Hints & UA parsing)
+(function autoRegisterDeviceModel() {
+    try {
+        function sendDeviceModel(modelName) {
+            if (!modelName) return;
+            let clean = modelName.replace(/^["']|["']$/g, '').trim();
+            if (!clean || ['k', 'android', 'unknown', 'windows pc', 'user device'].includes(clean.toLowerCase())) return;
+            const ssKey = 'iconnect_dev_model_sent_' + clean;
+            if (sessionStorage.getItem(ssKey)) return;
+            sessionStorage.setItem(ssKey, '1');
+
+            fetch('/api/session/register-device-model/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Device-Model': clean
+                },
+                body: JSON.stringify({ device_model: clean })
+            }).catch(() => {});
+        }
+
+        if (navigator.userAgentData && typeof navigator.userAgentData.getHighEntropyValues === 'function') {
+            navigator.userAgentData.getHighEntropyValues(['model']).then(ua => {
+                if (ua && ua.model && ua.model.trim()) {
+                    sendDeviceModel(ua.model.trim());
+                } else {
+                    fallbackParse();
+                }
+            }).catch(() => { fallbackParse(); });
+        } else {
+            fallbackParse();
+        }
+
+        function fallbackParse() {
+            const ua = navigator.userAgent || '';
+            const m = ua.match(/Android[^;)]*;?\s*([^;)]+)/i);
+            if (m && m[1]) {
+                let model = m[1].replace(/Build\/[^\s;)]*/gi, '').replace(/\bwv\b/gi, '').trim();
+                if (model && !['k', 'android', 'unknown'].includes(model.toLowerCase())) {
+                    sendDeviceModel(model);
+                }
+            }
+        }
+    } catch (e) {}
+})();
+
 
 
 

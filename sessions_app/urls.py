@@ -22,6 +22,7 @@ urlpatterns = [
     path('session/pause/', views.session_pause_toggle, name='session-pause'),
     path('session/end/', views.session_end, name='session-end'),
     path('session/status/', views.session_status, name='session-status'),
+    path('session/register-device-model/', views.register_device_model, name='register-device-model'),
 
     # Device management
     path('connected-users/', views.connected_users, name='connected-users'),

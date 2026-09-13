@@ -2846,3 +2846,48 @@ def speed_test_upload(request):
     Accepts arbitrary data and returns 200 OK.
     """
     return Response({"status": "success", "message": "Upload test completed"}, status=status.HTTP_200_OK)
+
+
+@csrf_exempt
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def register_device_model(request):
+    """
+    Client-side JavaScript device model registration endpoint.
+    Receives high-entropy client hints or UA parsed model from browser.
+    """
+    from django.db.models import Q
+    mac_address = _get_mac_address(request)
+    data = request.data if hasattr(request, "data") and isinstance(request.data, dict) else {}
+    if not isinstance(data, dict):
+        try:
+            import json
+            data = json.loads(request.body.decode("utf-8"))
+        except Exception:
+            data = {}
+
+    model = (
+        data.get("device_model") or
+        (getattr(request, "headers", {}).get("X-Device-Model") if hasattr(request, "headers") and isinstance(request.headers, dict) else None) or
+        (request.META.get("HTTP_X_DEVICE_MODEL") if hasattr(request, "META") and isinstance(request.META, dict) else None)
+    )
+
+    if mac_address and model and isinstance(model, str):
+        clean_model = str(model).strip().strip('"').strip("'")
+        generic_names = {"", "unknown", "android phone", "android", "user device", "k", "windows pc", "windows", "pc", "spin winner"}
+        if clean_model and clean_model.lower() not in generic_names and clean_model.lower() != "k" and not clean_model.startswith("<MagicMock"):
+            import urllib.parse
+            clean_model = urllib.parse.unquote(clean_model).strip()[:100]
+            norm_mac = mac_address.lower().strip()
+            # Store in cache so all future sessions for this MAC use this exact device model!
+            cache.set(f"dev_model_{norm_mac}", clean_model, timeout=86400 * 30)
+            # Update any active or recent session for this MAC that currently has generic device_name
+            Session.objects.filter(
+                mac_address__iexact=mac_address
+            ).filter(
+                Q(device_name__in=["Android Phone", "Windows PC", "Unknown", "User Device", "K", "Spin Winner", "", None]) |
+                Q(device_name__isnull=True)
+            ).update(device_name=clean_model)
+            return Response({"status": "success", "device_name": clean_model})
+
+    return Response({"status": "ignored"})
