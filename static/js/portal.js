@@ -2258,8 +2258,10 @@ function handlePortalOutageState(data, isSessionPage) {
             _setOutageActive(false);
             const modal = document.getElementById("ispOutageModal");
             if (modal) modal.style.display = "none";
-            showRestoredToast();
-            playRestoredSound();
+            if (Boolean(data.recovered)) {
+                showRestoredToast();
+                playRestoredSound();
+            }
         }
     }
 }
