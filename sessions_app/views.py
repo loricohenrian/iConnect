@@ -2848,6 +2848,8 @@ def speed_test_upload(request):
     return Response({"status": "success", "message": "Upload test completed"}, status=status.HTTP_200_OK)
 
 
+from django.views.decorators.csrf import csrf_exempt
+
 @csrf_exempt
 @api_view(["POST"])
 @permission_classes([AllowAny])
