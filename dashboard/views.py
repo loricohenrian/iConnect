@@ -2523,6 +2523,74 @@ def settings_view(request):
     settings_obj = SystemSettings.get_settings()
 
     if request.method == 'POST':
+        action = request.POST.get('action')
+        if action == 'reset_operational_data':
+            try:
+                from django.utils import timezone
+                from sessions_app.models import (
+                    Session, CoinEvent, PurchaseTransaction, CoinInsertRequest,
+                    SessionGroup, DeviceProfile
+                )
+                from dashboard.models import (
+                    DailyRevenueSummary, ProjectCost, OperatingExpense, IssueReport
+                )
+                from reports.models import ReportDeliveryLog
+
+                sess_qs = Session.objects.all()
+                try:
+                    from sessions_app import iptables
+                    for active_sess in sess_qs.filter(status='active'):
+                        try:
+                            if active_sess.mac_address:
+                                iptables.block_device(active_sess.mac_address)
+                        except Exception as err:
+                            logger.warning(f"Error removing iptables rule for session {active_sess.id} on reset: {err}")
+                except Exception:
+                    pass
+
+                deleted_sessions = sess_qs.count()
+                deleted_coins = CoinEvent.objects.count()
+                deleted_purchases = PurchaseTransaction.objects.count()
+                deleted_requests = CoinInsertRequest.objects.count()
+                deleted_summaries = DailyRevenueSummary.objects.count()
+                deleted_groups = SessionGroup.objects.count()
+                deleted_reports = ReportDeliveryLog.objects.count()
+                deleted_issues = IssueReport.objects.count()
+
+                sess_qs.delete()
+                CoinEvent.objects.all().delete()
+                PurchaseTransaction.objects.all().delete()
+                CoinInsertRequest.objects.all().delete()
+                DailyRevenueSummary.objects.all().delete()
+                SessionGroup.objects.all().delete()
+                ReportDeliveryLog.objects.all().delete()
+                IssueReport.objects.all().delete()
+
+                DeviceProfile.objects.all().update(
+                    points=0,
+                    spins_today=0,
+                    current_streak=0,
+                    last_spin_date=None
+                )
+
+                now = timezone.now()
+                ProjectCost.objects.all().update(date_added=now)
+                OperatingExpense.objects.all().update(date_added=now)
+
+                audit_logger.warning(
+                    "event=reset_operational_data user=%s deleted_sessions=%d deleted_coins=%d deleted_purchases=%d deleted_summaries=%d deleted_issues=%d ip=%s",
+                    request.user.username, deleted_sessions, deleted_coins, deleted_purchases, deleted_summaries, deleted_issues, _client_ip(request)
+                )
+
+                messages.success(
+                    request,
+                    "✅ System operational data reset successfully! All sales, session history, and reports cleared, and Days Operating reset back to 1 Day. WiFi Rates, Gamification Prizes, and Admin Settings remain intact."
+                )
+                return _safe_redirect_referer(request, fallback='dashboard:settings')
+            except Exception as e:
+                messages.error(request, f"Failed to reset system operational data: {e}")
+                return _safe_redirect_referer(request, fallback='dashboard:settings')
+
         try:
             # Networking
             settings_obj.enable_anti_tethering = request.POST.get('enable_anti_tethering') == 'on'

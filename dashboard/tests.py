@@ -5,8 +5,9 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 from unittest.mock import patch
 
-from sessions_app.models import Plan, Session, SuspiciousDevice, CoinEvent, SessionGroup
-from dashboard.models import RevenueGoal, DailyRevenueSummary
+from sessions_app.models import Plan, Session, SuspiciousDevice, CoinEvent, SessionGroup, SpinPrize, DeviceProfile, PurchaseTransaction, CoinInsertRequest
+from dashboard.models import RevenueGoal, DailyRevenueSummary, ProjectCost, IssueReport, OperatingExpense
+from reports.models import ReportDeliveryLog
 from django.core.cache import cache
 
 
@@ -2356,6 +2357,96 @@ class AnnouncementManagementTests(TestCase):
         })
         self.assertEqual(resp4.status_code, 302)
         self.assertFalse(Announcement.objects.filter(id=ann.id).exists())
+
+
+class ResetOperationalDataTests(TestCase):
+    def setUp(self):
+        User = get_user_model()
+
+        self.admin = User.objects.create_superuser(
+            username="reset_admin",
+            email="reset@example.com",
+            password="adminpassword123"
+        )
+        self.client.login(username="reset_admin", password="adminpassword123")
+
+        self.plan = Plan.objects.create(
+            name="1 Hour Plan",
+            price=10,
+            duration_minutes=60,
+            is_active=True
+        )
+        self.prize = SpinPrize.objects.create(
+            name="10 Mins Free",
+            minutes_reward=10,
+            probability_weight=20,
+            is_active=True
+        )
+
+        old_date = timezone.now() - timedelta(days=10)
+        self.cost = ProjectCost.objects.create(
+            description="Vendo Orange Pi Setup",
+            amount=5000,
+            date_added=old_date
+        )
+        self.session = Session.objects.create(
+            mac_address="AA:BB:CC:DD:EE:99",
+            ip_address="10.0.0.88",
+            plan=self.plan,
+            amount_paid=10,
+            duration_minutes_purchased=60,
+            status="active",
+            time_in=old_date
+        )
+        self.coin = CoinEvent.objects.create(amount=10, denomination=10, timestamp=old_date)
+        self.summary = DailyRevenueSummary.objects.create(
+            date=old_date.date(),
+            total_revenue=10,
+            total_sessions=1,
+            avg_session_minutes=60,
+            peak_hour=14
+        )
+        self.issue = IssueReport.objects.create(
+            category="coin_stuck",
+            message="Coin stuck in slot",
+            mac_address="AA:BB:CC:DD:EE:99"
+        )
+        self.profile = DeviceProfile.objects.create(
+            mac_address="AA:BB:CC:DD:EE:99",
+            points=50,
+            spins_today=3,
+            current_streak=5,
+            last_spin_date=old_date.date()
+        )
+
+    def test_reset_operational_data_clears_sales_and_resets_days_operating(self):
+        resp = self.client.post("/iconnect-ops/settings/", {
+            "action": "reset_operational_data",
+        }, follow=True)
+        self.assertEqual(resp.status_code, 200)
+
+        # 1. Sales & activity logs should be deleted
+        self.assertEqual(Session.objects.count(), 0)
+        self.assertEqual(CoinEvent.objects.count(), 0)
+        self.assertEqual(DailyRevenueSummary.objects.count(), 0)
+        self.assertEqual(IssueReport.objects.count(), 0)
+
+        # 2. Device profile points & spins reset to 0
+        self.profile.refresh_from_db()
+        self.assertEqual(self.profile.points, 0)
+        self.assertEqual(self.profile.spins_today, 0)
+        self.assertEqual(self.profile.current_streak, 0)
+        self.assertIsNone(self.profile.last_spin_date)
+
+        # 3. ProjectCost date_added updated to today -> Days operating reset to 1
+        self.cost.refresh_from_db()
+        self.assertEqual(self.cost.date_added.date(), timezone.localdate())
+
+        # 4. Settings, WiFi Rates, Prizes, and User accounts remain intact
+        self.assertTrue(Plan.objects.filter(id=self.plan.id).exists())
+        self.assertTrue(SpinPrize.objects.filter(id=self.prize.id).exists())
+        self.assertTrue(get_user_model().objects.filter(username="reset_admin").exists())
+
 
 
 
