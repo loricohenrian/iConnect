@@ -2054,6 +2054,14 @@ def session_pause_toggle(request):
 
     _session_ip_matches_request(session, request)
 
+    from sessions_app.internet_monitor import check_isp_internet_status
+    isp_info = check_isp_internet_status(force_probe=False)
+    if isp_info.get("isp_outage"):
+        return Response(
+            {"error": "Internet is temporarily offline. Timer is frozen and cannot be modified until internet connection is restored."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
     if session.status == "active":
         limit = session.effective_pause_limit
         if limit > 0 and session.pause_count >= limit:

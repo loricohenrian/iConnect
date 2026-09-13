@@ -2017,35 +2017,11 @@ function _sanitizeOutageText(text) {
 }
 
 function openIspOutageModal(customMessage, canAutoPause = true) {
-    // If user already dismissed the modal in this session, keep it dismissed!
-    // The red inline banner on the page will remain visible instead.
-    try {
-        const dismissedAt = parseInt(sessionStorage.getItem("iconnect_outage_modal_dismissed") || "0", 10);
-        if (dismissedAt && (Date.now() - dismissedAt < 900000)) { // 15 minutes
-            return;
-        }
-    } catch {}
-
-    const modal = document.getElementById("ispOutageModal");
-    if (!modal) return;
-
-    if (customMessage) {
-        const msgEl = document.getElementById("isp-outage-modal-message");
-        if (msgEl) msgEl.textContent = _sanitizeOutageText(customMessage);
-    }
-
-    const badgeEl = document.getElementById("isp-outage-modal-badge");
-    if (badgeEl) {
-        badgeEl.style.display = canAutoPause ? "inline-flex" : "none";
-    }
-
-    modal.style.display = "flex";
+    // Disabled modal popup per user request — only the inline announcement banner is displayed.
+    return;
 }
 
 function closeIspOutageModal(e) {
-    if (e && e.target && e.target !== e.currentTarget) return;
-    // Remember that the user dismissed the modal with a timestamp so it NEVER pops open again in this session
-    try { sessionStorage.setItem("iconnect_outage_modal_dismissed", Date.now().toString()); } catch {}
     const modal = document.getElementById("ispOutageModal");
     if (modal) modal.style.display = "none";
 }
@@ -2145,18 +2121,17 @@ function _showIspOutageBanner(customText, isSessionPage) {
         ? Boolean(isSessionPage)
         : Boolean(document.getElementById("session-timer"));
 
-    // Deduplicate: Find all outage banners in DOM (both home and session IDs, and any stray body children)
+    // Deduplicate: Find all outage banners in DOM
     const allOutageBanners = document.querySelectorAll(
         "#isp-outage-banner, #isp-outage-banner-home, body > #isp-outage-banner, body > #isp-outage-banner-home, [id^='isp-outage-banner']"
     );
-    // Keep at most one element, delete any extras immediately
     if (allOutageBanners.length > 1) {
         for (let i = 1; i < allOutageBanners.length; i++) {
             allOutageBanners[i].remove();
         }
     }
 
-    // Suppress general announcements and top bars during an outage to ensure ONLY ONE notification
+    // Suppress general announcements and top bars during an outage
     const annContainer = document.getElementById("portal-announcements");
     if (annContainer) annContainer.style.display = "none";
     const topBar = document.getElementById("announcement-banner-top");
@@ -2168,27 +2143,31 @@ function _showIspOutageBanner(customText, isSessionPage) {
         el.id = "isp-outage-banner";
         el.className = "alert alert-danger animate-fadeIn mb-md";
         el.style.cssText =
-            "display: flex; align-items: center; gap: 12px; border-left: 4px solid #ef4444; background: #fee2e2; color: #b91c1c; padding: 12px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 14px;";
-        const main = document.querySelector("main.portal-container") || document.querySelector(".portal-container");
-        if (main) {
-            main.insertBefore(el, main.firstChild);
+            "display: flex; align-items: center; gap: 12px; border-left: 4px solid #ef4444; background: #fee2e2; color: #b91c1c; padding: 12px 16px; border-radius: 12px; font-size: 13px; margin-bottom: 16px;";
+    } else {
+        el.id = "isp-outage-banner";
+    }
+
+    // Place banner immediately above timer container on session page, or main container on home page
+    const timerContainer = document.querySelector(".timer-container");
+    if (timerContainer && timerContainer.parentElement) {
+        if (el.parentElement !== timerContainer.parentElement || el.nextElementSibling !== timerContainer) {
+            timerContainer.parentElement.insertBefore(el, timerContainer);
         }
     } else {
-        el.id = "isp-outage-banner"; // standardize to canonical ID
-        // If the element was misplaced outside main, move it inside main
         const main = document.querySelector("main.portal-container") || document.querySelector(".portal-container");
         if (main && el.parentElement !== main) {
             main.insertBefore(el, main.firstChild);
         }
     }
 
-    const title = isSession ? "Internet Interrupted" : "Internet Service is Offline";
+    const title = isSession ? "Internet Temporarily Interrupted" : "Internet Service is Offline";
     const defaultMsg = isSession
-        ? "Internet connection is temporarily interrupted. Your timer is FROZEN to protect your time! Once connection is restored, tap Resume whenever you are ready."
+        ? "Internet connection is temporarily offline. Your timer is FROZEN to protect your time. Pause/Resume buttons are locked until connection is restored."
         : "Internet Service is Currently Offline. Coin insertion is temporarily paused to protect your coins.";
     const msg = _sanitizeOutageText(customText || defaultMsg);
 
-    el.innerHTML = `<i class="bi bi-wifi-off" style="font-size: 22px; line-height: 1; flex-shrink: 0;"></i><div><strong style="font-size: 13.5px;">${escapeHtml(title)}</strong><br><span class="text-xs" style="color: #991b1b;">${escapeHtml(msg)}</span></div>`;
+    el.innerHTML = `<i class="bi bi-wifi-off" style="font-size: 22px; line-height: 1; flex-shrink: 0; color: #dc2626;"></i><div><strong style="font-size: 13.5px; color: #991b1b;">${escapeHtml(title)}</strong><br><span class="text-xs" style="color: #991b1b;">${escapeHtml(msg)}</span></div>`;
     el.style.display = "flex";
 }
 
@@ -2209,8 +2188,6 @@ function _hideIspOutageHomeBanner() {
 
 function handlePortalOutageState(data, isSessionPage) {
     const isOutage = Boolean(data.isp_outage);
-    const annEnabled = data.enable_outage_announcement !== false;
-    const pauseEnabled = data.enable_outage_auto_pause !== false;
     const outageMsg = data.outage_message || "⚠️ Internet is temporarily interrupted by our ISP. All user timers have been FROZEN to protect your remaining time!";
 
     const wasActive = _getOutageActive();
@@ -2220,19 +2197,24 @@ function handlePortalOutageState(data, isSessionPage) {
 
     if (isOutage) {
         if (!wasActive) {
-            // Outage newly started — flag active, reset dismissed state, and alert once
             _setOutageActive(true);
-            try { sessionStorage.removeItem("iconnect_outage_modal_dismissed"); } catch {}
-            // Reset restored-toast debounce so it always fires fresh on the next restoration
             try { sessionStorage.removeItem("iconnect_last_restored_toast"); } catch {}
-            if (annEnabled) {
-                openIspOutageModal(outageMsg, pauseEnabled);
-                playOutageAlertSound();
-            }
+            playOutageAlertSound();
         }
 
-        // Show single canonical outage banner
+        // Show single canonical inline outage banner immediately above timer container
         _showIspOutageBanner(outageMsg, isSession);
+
+        // Freeze Pause/Resume button on session page during outage
+        const pauseBtn = document.getElementById("pause-btn");
+        if (pauseBtn) {
+            pauseBtn.disabled = true;
+            pauseBtn.setAttribute("data-outage-disabled", "1");
+            pauseBtn.style.opacity = "0.65";
+            pauseBtn.style.cursor = "not-allowed";
+            pauseBtn.style.pointerEvents = "none";
+            pauseBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5zm5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5z"/></svg><span>Paused (Offline)</span>';
+        }
 
         if (!isSession) {
             const insertBtn = document.getElementById("request-slot-btn");
@@ -2243,8 +2225,29 @@ function handlePortalOutageState(data, isSessionPage) {
             }
         }
     } else {
-        // Unconditionally remove ALL outage notifications from the DOM in real-time
+        // Unconditionally remove outage banner from the DOM in real-time
         _hideIspOutageBanner();
+
+        // Un-freeze Pause/Resume button on session page once internet is restored
+        const pauseBtn = document.getElementById("pause-btn");
+        if (pauseBtn && pauseBtn.getAttribute("data-outage-disabled") === "1") {
+            pauseBtn.disabled = false;
+            pauseBtn.removeAttribute("data-outage-disabled");
+            pauseBtn.style.opacity = "1";
+            pauseBtn.style.cursor = "pointer";
+            pauseBtn.style.pointerEvents = "auto";
+
+            // Session stays PAUSED when internet comes back online. Show enabled Resume button!
+            const timerEl = document.getElementById("session-timer");
+            const currentStatus = timerEl ? (timerEl.dataset.status || timerEl.getAttribute("data-status")) : "paused";
+            if (currentStatus === "paused") {
+                pauseBtn.classList.add("paused");
+                pauseBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z"/></svg><span>Resume</span>';
+            } else {
+                pauseBtn.classList.remove("paused");
+                pauseBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5zm5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5z"/></svg><span>Pause</span>';
+            }
+        }
 
         const insertBtn = document.getElementById("request-slot-btn");
         if (insertBtn && insertBtn.getAttribute("data-outage-disabled") === "1") {
@@ -2254,7 +2257,6 @@ function handlePortalOutageState(data, isSessionPage) {
         }
 
         if (wasActive) {
-            // Outage confirmed ended — clear outage active flag
             _setOutageActive(false);
             const modal = document.getElementById("ispOutageModal");
             if (modal) modal.style.display = "none";
@@ -2779,6 +2781,7 @@ function initPauseButton(macAddress) {
     if (!pauseBtn) return;
 
     pauseBtn.addEventListener("click", async () => {
+        if (pauseBtn.disabled || pauseBtn.getAttribute("data-outage-disabled") === "1") return;
         pauseBtn.disabled = true;
 
         try {
