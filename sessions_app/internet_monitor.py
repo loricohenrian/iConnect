@@ -152,12 +152,12 @@ def check_isp_internet_status(force_probe=False):
         fail_count = (_safe_cache_get(CACHE_KEY_FAIL_COUNT) or 0) + 1
         _safe_cache_set(CACHE_KEY_FAIL_COUNT, fail_count, timeout=300)
 
-        # Confirmed outage if 2 consecutive fails OR an outage was already active
-        is_confirmed_outage = fail_count >= 2 or existing_outage
+        # Confirmed outage if 1 or more failed probes OR an outage was already active
+        is_confirmed_outage = fail_count >= 1 or existing_outage
         result["isp_outage"] = is_confirmed_outage
 
         if is_confirmed_outage:
-            _safe_cache_set(CACHE_KEY_ACTIVE_OUTAGE, True, timeout=86400)
+            _safe_cache_set(CACHE_KEY_ACTIVE_OUTAGE, True, timeout=86400 * 7)
             logger.warning("ISP Outage active (probe offline, fail_count=%d)", fail_count)
 
             # 1. Auto Announcement Popup
@@ -220,28 +220,28 @@ def check_isp_internet_status(force_probe=False):
         had_outage = existing_outage or len(paused_ids) > 0 or active_outage_flag
 
         if had_outage:
-            # Require 10 consecutive successful checks before clearing an active outage (anti-flapping)
+            # Require 30 consecutive successful checks (~5 minutes) before clearing an active outage (anti-flapping)
             success_count = (_safe_cache_get(CACHE_KEY_SUCCESS_COUNT) or 0) + 1
             _safe_cache_set(CACHE_KEY_SUCCESS_COUNT, success_count, timeout=300)
 
-            if success_count < 10:
+            if success_count < 30:
                 # Still stabilizing — keep outage active!
-                logger.info("ISP probe succeeded %d/10 times, awaiting full stabilization", success_count)
+                logger.info("ISP probe succeeded %d/30 times, awaiting full stabilization", success_count)
                 result["isp_outage"] = True
                 result["is_online"] = True
                 result["message"] = OUTAGE_ANNOUNCEMENT_TEXT
                 _safe_cache_set(CACHE_KEY_STATUS, result, timeout=10)
                 return result
 
-            # Confirmed 10/10 fully restored!
-            logger.info("ISP internet restored after 10 consecutive solid probes!")
+            # Confirmed 30/30 fully restored!
+            logger.info("ISP internet restored after 30 consecutive solid probes!")
             _safe_cache_delete(CACHE_KEY_FAIL_COUNT)
             _safe_cache_delete(CACHE_KEY_SUCCESS_COUNT)
             _safe_cache_delete(CACHE_KEY_ALERT_SENT)
             _safe_cache_delete(CACHE_KEY_PAUSED_IDS)
             _safe_cache_delete(CACHE_KEY_ACTIVE_OUTAGE)
 
-            # Remove outage announcement ONLY after 10 consecutive successful probes
+            # Remove outage announcement ONLY after 30 consecutive successful probes
             Announcement.objects.filter(message__contains=OUTAGE_IDENTIFIER).delete()
 
             # Telegram Recovery Alert

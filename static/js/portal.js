@@ -2391,12 +2391,20 @@ function pollSessionStatus(macAddress, intervalMs = 1000) {
                     pauseBtn.classList.add("paused");
                     if (isOutage) {
                         // Still in outage — lock the Resume button
-                        pauseBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5zm5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5z"/></svg><span>Frozen (No Internet)</span>';
+                        pauseBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5zm5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5z"/></svg><span>Paused (Offline)</span>';
                         pauseBtn.disabled = true;
+                        pauseBtn.setAttribute("data-outage-disabled", "1");
+                        pauseBtn.style.opacity = "0.65";
+                        pauseBtn.style.cursor = "not-allowed";
+                        pauseBtn.style.pointerEvents = "none";
                     } else {
                         // Outage over OR manual pause — Resume button is clickable
                         pauseBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z"/></svg><span>Resume</span>';
                         pauseBtn.disabled = false;
+                        pauseBtn.removeAttribute("data-outage-disabled");
+                        pauseBtn.style.opacity = "1";
+                        pauseBtn.style.cursor = "pointer";
+                        pauseBtn.style.pointerEvents = "auto";
                     }
                 }
                 if (pauseWarningEl) {
