@@ -555,9 +555,34 @@
                     </div>
                 </div>
             </div>
-        </section>
+    </div>
+</div>
 
-<!-- Reset Operational Data Modal -->
+<!-- ================= STICKY ACTION BAR ================= -->
+<div class="settings-sticky-bar" id="settingsStickyBar">
+    <div class="settings-bar-status">
+        <div id="statusSynced" class="settings-status-pill synced">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            <span>All settings saved</span>
+        </div>
+        <div id="statusUnsaved" class="settings-status-pill unsaved" style="display: none;">
+            <span class="pulse-indicator"></span>
+            <span>Unsaved changes</span>
+            <span class="shortcut-tip">(Ctrl+S)</span>
+        </div>
+    </div>
+
+    <div class="settings-bar-actions">
+        <button type="submit" class="btn btn-primary settings-save-btn" id="saveAllSettingsBtn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+            <span>Save All Settings</span>
+        </button>
+    </div>
+</div>
+
+</form>
+
+<!-- Reset Operational Data Modal (outside main form to avoid HTML form nesting) -->
 <div id="resetOperationalModal" class="modal-overlay" style="display: none; z-index: 10000;" onclick="closeResetOperationalModal(event)">
     <div class="modal-card animate-fadeIn" onclick="event.stopPropagation()" style="max-width: 440px; border-top: 4px solid #dc2626; padding: 24px 20px;">
         <div style="width: 56px; height: 56px; margin: 0 auto 14px auto; background: #fee2e2; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #dc2626; box-shadow: 0 4px 12px rgba(220, 38, 38, 0.2);">
@@ -611,33 +636,6 @@ function closeResetOperationalModal(e) {
     }
 }
 </script>
-
-    </div>
-</div>
-
-<!-- ================= STICKY ACTION BAR ================= -->
-<div class="settings-sticky-bar" id="settingsStickyBar">
-    <div class="settings-bar-status">
-        <div id="statusSynced" class="settings-status-pill synced">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            <span>All settings saved</span>
-        </div>
-        <div id="statusUnsaved" class="settings-status-pill unsaved" style="display: none;">
-            <span class="pulse-indicator"></span>
-            <span>Unsaved changes</span>
-            <span class="shortcut-tip">(Ctrl+S)</span>
-        </div>
-    </div>
-
-    <div class="settings-bar-actions">
-        <button type="submit" class="btn btn-primary settings-save-btn" id="saveAllSettingsBtn">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
-            <span>Save All Settings</span>
-        </button>
-    </div>
-</div>
-
-</form>
 
 <style>
 /* ==========================================================================
