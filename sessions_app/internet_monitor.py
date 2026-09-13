@@ -220,28 +220,14 @@ def check_isp_internet_status(force_probe=False):
         had_outage = existing_outage or len(paused_ids) > 0 or active_outage_flag
 
         if had_outage:
-            # Require 30 consecutive successful checks (~5 minutes) before clearing an active outage (anti-flapping)
-            success_count = (_safe_cache_get(CACHE_KEY_SUCCESS_COUNT) or 0) + 1
-            _safe_cache_set(CACHE_KEY_SUCCESS_COUNT, success_count, timeout=300)
-
-            if success_count < 30:
-                # Still stabilizing — keep outage active!
-                logger.info("ISP probe succeeded %d/30 times, awaiting full stabilization", success_count)
-                result["isp_outage"] = True
-                result["is_online"] = True
-                result["message"] = OUTAGE_ANNOUNCEMENT_TEXT
-                _safe_cache_set(CACHE_KEY_STATUS, result, timeout=10)
-                return result
-
-            # Confirmed 30/30 fully restored!
-            logger.info("ISP internet restored after 30 consecutive solid probes!")
+            logger.info("ISP internet restored!")
             _safe_cache_delete(CACHE_KEY_FAIL_COUNT)
             _safe_cache_delete(CACHE_KEY_SUCCESS_COUNT)
             _safe_cache_delete(CACHE_KEY_ALERT_SENT)
             _safe_cache_delete(CACHE_KEY_PAUSED_IDS)
             _safe_cache_delete(CACHE_KEY_ACTIVE_OUTAGE)
 
-            # Remove outage announcement ONLY after 30 consecutive successful probes
+            # Remove outage announcement immediately
             Announcement.objects.filter(message__contains=OUTAGE_IDENTIFIER).delete()
 
             # Telegram Recovery Alert
@@ -260,10 +246,14 @@ def check_isp_internet_status(force_probe=False):
 
             result["recovered"] = True
             result["resumed_count"] = 0  # No sessions auto-resumed; users resume manually
+            result["isp_outage"] = False
+            result["is_online"] = True
         else:
             _safe_cache_delete(CACHE_KEY_FAIL_COUNT)
             _safe_cache_delete(CACHE_KEY_SUCCESS_COUNT)
+            result["isp_outage"] = False
+            result["is_online"] = True
 
-    # Cache result for 10 seconds
-    _safe_cache_set(CACHE_KEY_STATUS, result, timeout=10)
+    # Cache result for 3 seconds so live-sync updates in real-time
+    _safe_cache_set(CACHE_KEY_STATUS, result, timeout=3)
     return result

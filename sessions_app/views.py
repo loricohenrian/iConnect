@@ -2055,7 +2055,7 @@ def session_pause_toggle(request):
     _session_ip_matches_request(session, request)
 
     from sessions_app.internet_monitor import check_isp_internet_status
-    isp_info = check_isp_internet_status(force_probe=False)
+    isp_info = check_isp_internet_status(force_probe=True)
     if isp_info.get("isp_outage"):
         return Response(
             {"error": "Internet is temporarily offline. Timer is frozen and cannot be modified until internet connection is restored."},
