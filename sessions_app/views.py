@@ -202,25 +202,35 @@ def _get_dhcp_hostname(mac_address):
     return None
 
 
+def _is_admin_request(request):
+    if not request:
+        return False
+    path = getattr(request, "path_info", "") or getattr(request, "path", "")
+    return "/dashboard" in path or "/admin" in path
+
+
 def _extract_device_name(request=None, passed_name=None, mac_address=None):
     """
     Extract a friendly device name from passed value, DHCP leases, Sec-CH-UA-Model, previous custom sessions, or User-Agent.
     """
-    generic_names = {"", "unknown", "android phone", "android", "user device", "k"}
+    generic_names = {
+        "", "unknown", "android phone", "android", "user device", "k",
+        "windows pc", "windows", "pc", "mac", "linux", "mobile device"
+    }
 
     # 1. If an actual custom friendly name was explicitly provided (e.g. edited by admin)
     if passed_name and passed_name.strip() and passed_name.strip().lower() not in generic_names:
         return passed_name.strip()[:100]
 
-    # 2. Check DHCP leases (dnsmasq) for real network hostname broadcast by the phone (e.g. POCO-X7-Pro, Henrian)
+    # 2. Check DHCP leases (dnsmasq) for real network hostname broadcast by the device (e.g. POCO-X7-Pro, Henrian)
     dhcp_name = _get_dhcp_hostname(mac_address)
     if dhcp_name:
         clean_dhcp = dhcp_name.strip()
         if clean_dhcp.lower() not in generic_names and not clean_dhcp.lower().startswith("android-"):
             return clean_dhcp[:100]
 
-    # 3. Check HTTP Sec-CH-UA-Model header (modern Android Chrome sends exact model e.g. "POCO X7 Pro" or "Galaxy S23")
-    if request:
+    # 3. Check HTTP Sec-CH-UA-Model header (ONLY if request is from the client phone itself, NOT admin dashboard)
+    if request and not _is_admin_request(request):
         sec_model = request.META.get("HTTP_SEC_CH_UA_MODEL", "").strip().strip('"').strip("'")
         if sec_model and sec_model.lower() not in generic_names and sec_model.lower() != "k":
             import urllib.parse
@@ -233,38 +243,44 @@ def _extract_device_name(request=None, passed_name=None, mac_address=None):
         prev = Session.objects.filter(mac_address=mac_address).exclude(
             device_name__isnull=True
         ).order_by("-id").first()
-        if prev and prev.device_name and prev.device_name.strip().lower() not in generic_names and not prev.device_name.strip().lower().startswith("android-"):
-            return prev.device_name.strip()[:100]
+        if prev and prev.device_name:
+            clean_prev = prev.device_name.strip()
+            if clean_prev.lower() not in generic_names and not clean_prev.lower().startswith("android-"):
+                return clean_prev[:100]
 
     # 5. Check DHCP lease if it was android-hex (fallback if no user-agent model found)
     if dhcp_name and dhcp_name.strip().lower() not in generic_names:
         return dhcp_name.strip()[:100]
 
-    # 6. User-Agent parsing
-    ua = request.META.get("HTTP_USER_AGENT", "") if request else ""
-    if ua:
-        if "iPhone" in ua:
-            return "iPhone"
-        elif "iPad" in ua:
-            return "iPad"
-        elif "Android" in ua:
-            import re
-            m = re.search(r'Android[^;)]*;?\s*([^;)]+)', ua)
-            if m:
-                model = m.group(1).strip()
-                model = re.sub(r'\s*Build/[^\s;)]*', '', model, flags=re.IGNORECASE).strip()
-                model = re.sub(r'\s*wv\b', '', model, flags=re.IGNORECASE).strip()
-                if model and model.lower() not in ["k", "android", "unknown"]:
-                    return model[:100]
-            return "Android Phone"
-        elif "Windows" in ua:
-            return "Windows PC"
-        elif "Macintosh" in ua:
-            return "Mac"
-        elif "Linux" in ua:
-            return "Linux"
+    # 6. User-Agent parsing (ONLY if request is from the client phone itself, NOT admin dashboard)
+    if request and not _is_admin_request(request):
+        ua = request.META.get("HTTP_USER_AGENT", "")
+        if ua:
+            if "iPhone" in ua:
+                return "iPhone"
+            elif "iPad" in ua:
+                return "iPad"
+            elif "Android" in ua:
+                import re
+                m = re.search(r'Android[^;)]*;?\s*([^;)]+)', ua)
+                if m:
+                    model = m.group(1).strip()
+                    model = re.sub(r'\s*Build/[^\s;)]*', '', model, flags=re.IGNORECASE).strip()
+                    model = re.sub(r'\s*wv\b', '', model, flags=re.IGNORECASE).strip()
+                    if model and model.lower() not in ["k", "android", "unknown"]:
+                        return model[:100]
+                return "Android Phone"
+            elif "Windows" in ua:
+                return "Windows PC"
+            elif "Macintosh" in ua:
+                return "Mac"
+            elif "Linux" in ua:
+                return "Linux"
 
-    return "Unknown"
+    if passed_name and passed_name.strip() and passed_name.strip().lower() not in ("windows pc", "windows", "pc"):
+        return passed_name.strip()[:100]
+
+    return "Android Phone"
 
 
 def _public_read_rate_limited(request, scope):

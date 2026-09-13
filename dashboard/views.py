@@ -277,9 +277,9 @@ def dashboard_stats_api(request):
     from sessions_app.views import _extract_device_name
     for s in recent_qs:
         dev_name = s.device_name or 'Unknown'
-        if dev_name in ('Unknown', 'Android Phone', 'Android', 'User Device', 'K'):
-            better_name = _extract_device_name(request=request, mac_address=s.mac_address)
-            if better_name and better_name.lower() not in ('unknown', 'android phone', 'android', 'user device', 'k'):
+        if dev_name in ('Unknown', 'Android Phone', 'Android', 'User Device', 'K', 'Windows PC', 'Windows', 'PC'):
+            better_name = _extract_device_name(request=None, mac_address=s.mac_address)
+            if better_name and better_name.lower() not in ('unknown', 'android phone', 'android', 'user device', 'k', 'windows pc', 'windows', 'pc'):
                 dev_name = better_name
                 Session.objects.filter(id=s.id).update(device_name=better_name)
         recent_sessions_data.append({
@@ -826,9 +826,9 @@ def sessions_live_api(request):
     from sessions_app.views import _extract_device_name
     for s in sessions_page:
         dev_name = s.device_name or 'Unknown'
-        if dev_name in ('Unknown', 'Android Phone', 'Android', 'User Device', 'K'):
-            better_name = _extract_device_name(request=request, mac_address=s.mac_address)
-            if better_name and better_name.lower() not in ('unknown', 'android phone', 'android', 'user device', 'k'):
+        if dev_name in ('Unknown', 'Android Phone', 'Android', 'User Device', 'K', 'Windows PC', 'Windows', 'PC'):
+            better_name = _extract_device_name(request=None, mac_address=s.mac_address)
+            if better_name and better_name.lower() not in ('unknown', 'android phone', 'android', 'user device', 'k', 'windows pc', 'windows', 'pc'):
                 dev_name = better_name
                 Session.objects.filter(id=s.id).update(device_name=better_name)
         session_list.append({
@@ -1207,9 +1207,9 @@ def sessions_view(request):
 
     from sessions_app.views import _extract_device_name
     for s in sessions_page:
-        if s.device_name in (None, '', 'Unknown', 'Android Phone', 'Android', 'User Device', 'K'):
-            better_name = _extract_device_name(request=request, mac_address=s.mac_address)
-            if better_name and better_name.lower() not in ('unknown', 'android phone', 'android', 'user device', 'k'):
+        if s.device_name in (None, '', 'Unknown', 'Android Phone', 'Android', 'User Device', 'K', 'Windows PC', 'Windows', 'PC'):
+            better_name = _extract_device_name(request=None, mac_address=s.mac_address)
+            if better_name and better_name.lower() not in ('unknown', 'android phone', 'android', 'user device', 'k', 'windows pc', 'windows', 'pc'):
                 s.device_name = better_name
                 Session.objects.filter(id=s.id).update(device_name=better_name)
 
