@@ -274,14 +274,14 @@ def dashboard_stats_api(request):
     # Recent sessions (latest 10)
     recent_qs = Session.objects.select_related('plan').order_by('-time_in')[:10]
     recent_sessions_data = []
-    from sessions_app.views import _get_dhcp_hostname
+    from sessions_app.views import _extract_device_name
     for s in recent_qs:
         dev_name = s.device_name or 'Unknown'
         if dev_name in ('Unknown', 'Android Phone', 'Android', 'User Device', 'K'):
-            dhcp_name = _get_dhcp_hostname(s.mac_address)
-            if dhcp_name:
-                dev_name = dhcp_name
-                Session.objects.filter(id=s.id).update(device_name=dhcp_name)
+            better_name = _extract_device_name(request=request, mac_address=s.mac_address)
+            if better_name and better_name.lower() not in ('unknown', 'android phone', 'android', 'user device', 'k'):
+                dev_name = better_name
+                Session.objects.filter(id=s.id).update(device_name=better_name)
         recent_sessions_data.append({
             'id': s.id,
             'device_name': dev_name,
@@ -823,14 +823,14 @@ def sessions_live_api(request):
         sessions_page = paginator.page(paginator.num_pages if paginator.num_pages > 0 else 1)
 
     session_list = []
-    from sessions_app.views import _get_dhcp_hostname
+    from sessions_app.views import _extract_device_name
     for s in sessions_page:
         dev_name = s.device_name or 'Unknown'
         if dev_name in ('Unknown', 'Android Phone', 'Android', 'User Device', 'K'):
-            dhcp_name = _get_dhcp_hostname(s.mac_address)
-            if dhcp_name:
-                dev_name = dhcp_name
-                Session.objects.filter(id=s.id).update(device_name=dhcp_name)
+            better_name = _extract_device_name(request=request, mac_address=s.mac_address)
+            if better_name and better_name.lower() not in ('unknown', 'android phone', 'android', 'user device', 'k'):
+                dev_name = better_name
+                Session.objects.filter(id=s.id).update(device_name=better_name)
         session_list.append({
             'id': s.id,
             'device_name': dev_name,
@@ -1205,13 +1205,13 @@ def sessions_view(request):
     except EmptyPage:
         sessions_page = paginator.page(paginator.num_pages)
 
-    from sessions_app.views import _get_dhcp_hostname
+    from sessions_app.views import _extract_device_name
     for s in sessions_page:
         if s.device_name in (None, '', 'Unknown', 'Android Phone', 'Android', 'User Device', 'K'):
-            dhcp_name = _get_dhcp_hostname(s.mac_address)
-            if dhcp_name:
-                s.device_name = dhcp_name
-                Session.objects.filter(id=s.id).update(device_name=dhcp_name)
+            better_name = _extract_device_name(request=request, mac_address=s.mac_address)
+            if better_name and better_name.lower() not in ('unknown', 'android phone', 'android', 'user device', 'k'):
+                s.device_name = better_name
+                Session.objects.filter(id=s.id).update(device_name=better_name)
 
     active_plans = Plan.objects.filter(is_active=True).order_by('price')
 
