@@ -431,12 +431,18 @@ def auto_resume_connected_sessions():
     if not settings_obj.enable_auto_pause_resume:
         return 'Auto-pause/resume disabled'
 
+    # Do NOT auto-resume any sessions if an ISP outage is active
+    from sessions_app.internet_monitor import check_isp_internet_status
+    isp_info = check_isp_internet_status(force_probe=False)
+    if isp_info.get("isp_outage"):
+        return 'Auto-resume skipped: ISP outage is active'
+
     paused_sessions = Session.objects.filter(status='paused').exclude(ip_address__isnull=True)
     resumed_count = 0
 
     for session in paused_sessions:
-        # Never auto-resume a session that was manually paused by the user
-        if cache.get(f"manual_pause_{session.id}"):
+        # Never auto-resume a session that was manually paused or outage-paused
+        if cache.get(f"manual_pause_{session.id}") or cache.get(f"outage_paused_{session.id}"):
             continue
 
         # Only auto-resume sessions that were paused automatically due to WiFi disconnection

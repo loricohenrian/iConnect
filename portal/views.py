@@ -287,6 +287,7 @@ def session_page(request):
             try:
                 from django.core.cache import cache as dj_cache
                 dj_cache.set(f"manual_pause_{active_session.id}", True, timeout=86400 * 7)
+                dj_cache.set(f"outage_paused_{active_session.id}", True, timeout=86400 * 7)
                 dj_cache.delete(f"auto_paused_{active_session.id}")
             except Exception:
                 pass
@@ -491,6 +492,21 @@ def live_data(request):
             mac_address__iexact=mac_address,
             status__in=["active", "paused"]
         ).order_by("-id").first()
+
+        # If an ISP outage is active and auto-pause is enabled, freeze active session immediately
+        if user_session and user_session.status == "active" and isp_info.get("isp_outage") and isp_info.get("enable_outage_auto_pause", True):
+            user_session.pause_session()
+            try:
+                from sessions_app import iptables
+                iptables.block_device(user_session.mac_address)
+            except Exception:
+                pass
+            from django.core.cache import cache as dj_cache
+            dj_cache.set(f"manual_pause_{user_session.id}", True, timeout=86400 * 7)
+            dj_cache.set(f"outage_paused_{user_session.id}", True, timeout=86400 * 7)
+            dj_cache.delete(f"auto_paused_{user_session.id}")
+            user_session.refresh_from_db()
+
         if user_session and user_session.time_remaining_seconds > 1:
             has_active_session = True
             session_status_val = user_session.status

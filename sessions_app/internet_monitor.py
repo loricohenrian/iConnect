@@ -180,9 +180,10 @@ def check_isp_internet_status(force_probe=False):
                             iptables.block_device(s.mac_address)
                         except Exception:
                             pass
-                        # Tag as manual_pause so Celery auto_resume_connected_sessions NEVER auto-resumes it!
+                        # Tag as manual_pause & outage_paused so Celery auto_resume_connected_sessions NEVER auto-resumes it!
                         try:
                             dj_cache.set(f"manual_pause_{s.id}", True, timeout=86400 * 7)
+                            dj_cache.set(f"outage_paused_{s.id}", True, timeout=86400 * 7)
                             dj_cache.delete(f"auto_paused_{s.id}")
                         except Exception:
                             pass
@@ -219,7 +220,7 @@ def check_isp_internet_status(force_probe=False):
             success_count = (_safe_cache_get(CACHE_KEY_SUCCESS_COUNT) or 0) + 1
             _safe_cache_set(CACHE_KEY_SUCCESS_COUNT, success_count, timeout=300)
 
-            if success_count < 5 and not force_probe:
+            if success_count < 5:
                 # Still stabilizing — keep outage active!
                 logger.info("ISP probe succeeded %d/5 times, awaiting full stabilization", success_count)
                 result["isp_outage"] = True
