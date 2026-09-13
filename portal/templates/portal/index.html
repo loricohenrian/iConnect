@@ -50,18 +50,6 @@
     <strong>Welcome!</strong> Your device has unlimited access.
 {% else %}
 
-{% if active_session %}
-<div class="alert alert-info animate-fadeIn mb-md" style="display: flex; align-items: center; justify-content: space-between; border-radius: 12px; border: 1.5px solid #3b82f6; background: #eff6ff; color: #1e40af; padding: 10px 14px;">
-    <div style="font-size: 13px; display: flex; align-items: center; gap: 8px;">
-        <span style="width: 10px; height: 10px; border-radius: 50%; background: #10b981; display: inline-block;"></span>
-        <span><strong>Active Session:</strong> {{ active_session.time_remaining_display }} remaining</span>
-    </div>
-    <a href="{% url 'portal:session' %}{% if mac_address %}?mac={{ mac_address|urlencode }}{% endif %}" class="btn btn-primary btn-sm" style="font-size: 12px; padding: 5px 12px; border-radius: 6px; text-decoration: none; font-weight: 600;">
-        Timer &rarr;
-    </a>
-</div>
-{% endif %}
-
 {% if is_internet_offline %}
 <div id="isp-outage-banner" class="alert alert-danger animate-fadeIn mb-md" style="display: flex; align-items: center; gap: 12px; border-left: 4px solid #ef4444; background: #fee2e2; color: #b91c1c; padding: 12px 16px; border-radius: 8px;">
     <i class="bi bi-wifi-off" style="font-size: 24px; line-height: 1;"></i>
