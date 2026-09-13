@@ -2141,11 +2141,14 @@ function _showIspOutageBanner(customText, isSessionPage) {
     if (!el) {
         el = document.createElement("div");
         el.id = "isp-outage-banner";
-        el.className = "alert alert-danger animate-fadeIn mb-md";
+        el.className = "alert alert-danger mb-md";
         el.style.cssText =
             "display: flex; align-items: center; gap: 12px; border-left: 4px solid #ef4444; background: #fee2e2; color: #b91c1c; padding: 12px 16px; border-radius: 12px; font-size: 13px; margin-bottom: 16px;";
     } else {
         el.id = "isp-outage-banner";
+        if (el.style.display === "flex" && el.innerHTML.trim() !== "") {
+            return; // Already rendered & visible — stay 100% static without flashing!
+        }
     }
 
     // Place banner immediately above timer container on session page, or main container on home page
