@@ -684,16 +684,6 @@ async function syncPortalLiveData() {
         // Real-time ISP outage check on portal (dynamically detect session page)
         const isSession = Boolean(document.getElementById("session-timer"));
         handlePortalOutageState(data, isSession);
-
-        // Real-time redirect to session page ONLY if user is currently on the home page and an active session exists
-        const isHomePage = Boolean(document.getElementById("plans-container")) ||
-                           window.location.pathname === "/" ||
-                           window.location.pathname.endsWith("/index.html");
-        if (data.has_active_session && isHomePage) {
-            const mac = getMacAddress();
-            window.location.href = buildPortalUrl("/session/", mac);
-            return;
-        }
     } catch (error) {
         console.error("Live data sync error:", error);
     } finally {
