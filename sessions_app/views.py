@@ -162,13 +162,13 @@ def _session_ip_matches_request(session, request):
     return True
 
 
-def _get_dhcp_hostname(mac_address):
+def _get_dhcp_hostname(mac_address, ip_address=None):
     """
-    Read real device hostname from dnsmasq leases file if available across multiple system paths.
+    Read real device hostname from dnsmasq leases file across multiple system paths and active network probes.
     Format of dnsmasq.leases:
     <expiry_epoch> <mac_address> <ip_address> <hostname> <client_id>
     """
-    if not mac_address:
+    if not mac_address and not ip_address:
         return None
     import os
     leases_files = [
@@ -181,7 +181,8 @@ def _get_dhcp_hostname(mac_address):
         "/var/run/dnsmasq.leases",
         "/etc/pihole/dhcp.leases",
     ]
-    norm_mac = mac_address.lower().strip()
+    norm_mac = mac_address.lower().strip() if mac_address else None
+
     for leases_file in leases_files:
         if not leases_file:
             continue
@@ -192,13 +193,30 @@ def _get_dhcp_hostname(mac_address):
                         parts = line.strip().split()
                         if len(parts) >= 4:
                             lease_mac = parts[1].lower().strip()
+                            lease_ip = parts[2].strip()
                             lease_hostname = parts[3].strip()
-                            if lease_mac == norm_mac and lease_hostname and lease_hostname != "*":
+                            if lease_hostname and lease_hostname != "*":
                                 clean_host = lease_hostname.split(".")[0].strip()
                                 if clean_host and clean_host != "*":
-                                    return clean_host
+                                    if norm_mac and lease_mac == norm_mac:
+                                        return clean_host
+                                    if ip_address and lease_ip == ip_address:
+                                        return clean_host
         except Exception:
             pass
+
+    # Reverse DNS query to local dnsmasq on Orange Pi
+    if ip_address and ip_address not in ("127.0.0.1", "localhost", "—"):
+        try:
+            import socket
+            hostname, _, _ = socket.gethostbyaddr(ip_address)
+            if hostname and hostname != ip_address:
+                clean = hostname.split(".")[0].strip()
+                if clean and clean.lower() not in ("localhost", "unknown", "*"):
+                    return clean
+        except Exception:
+            pass
+
     return None
 
 
@@ -295,13 +313,14 @@ def _extract_device_name(request=None, passed_name=None, mac_address=None):
 
     # 3. Check HTTP headers (Sec-CH-UA-Model or X-Device-Model) if request is from the client phone
     if request and not _is_admin_request(request):
-        sec_model = (
-            getattr(request, "headers", {}).get("X-Device-Model") or
-            request.META.get("HTTP_X_DEVICE_MODEL") or
-            request.META.get("HTTP_SEC_CH_UA_MODEL", "")
-        )
-        if sec_model:
-            sec_model = str(sec_model).strip().strip('"').strip("'")
+        sec_model = None
+        try:
+            if hasattr(request, "META") and isinstance(request.META, dict):
+                sec_model = request.META.get("HTTP_X_DEVICE_MODEL") or request.META.get("HTTP_SEC_CH_UA_MODEL")
+        except Exception:
+            pass
+        if sec_model and isinstance(sec_model, str):
+            sec_model = sec_model.strip().strip('"').strip("'")
             if sec_model and sec_model.lower() not in generic_names and sec_model.lower() != "k":
                 import urllib.parse
                 sec_model = urllib.parse.unquote(sec_model).strip()
