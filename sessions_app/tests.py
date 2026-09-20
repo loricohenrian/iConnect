@@ -1372,7 +1372,7 @@ class DeviceNameDetectionTests(TestCase):
             "HTTP_USER_AGENT": "Mozilla/5.0 (Linux; Android 14; Infinix X6725 Build/AP3A.240905.015; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/128.0.6613.88 Mobile Safari/537.36"
         }
         name = _extract_device_name(request, passed_name="Android Phone", mac_address="AA:BB:CC:DD:EE:99")
-        self.assertEqual(name, "Infinix X6725 Build/AP3A.240905.015")
+        self.assertEqual(name, "Infinix X6725")
 
     def test_extract_device_name_preserves_custom_admin_name(self):
         from .views import _extract_device_name

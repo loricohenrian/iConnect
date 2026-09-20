@@ -143,15 +143,15 @@ class Session(models.Model):
         ("paused", "Paused"),
     ]
 
-    mac_address = models.CharField(max_length=17, help_text="Format: AA:BB:CC:DD:EE:FF")
+    mac_address = models.CharField(max_length=17, db_index=True, help_text="Format: AA:BB:CC:DD:EE:FF")
     plan = models.ForeignKey(Plan, on_delete=models.SET_NULL, related_name="sessions", null=True, blank=True)
     session_group = models.ForeignKey(SessionGroup, on_delete=models.SET_NULL, null=True, blank=True, related_name="sessions")
-    time_in = models.DateTimeField(default=timezone.now)
+    time_in = models.DateTimeField(default=timezone.now, db_index=True)
     time_out = models.DateTimeField(null=True, blank=True)
     duration_minutes_purchased = models.PositiveIntegerField()
     remaining_minutes = models.FloatField(default=0)
     amount_paid = models.PositiveIntegerField(help_text="Total amount paid in \u20b1")
-    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="active")
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="active", db_index=True)
     voucher_code = models.CharField(
         max_length=10,
         null=True,
@@ -428,6 +428,7 @@ class CoinEvent(models.Model):
         max_length=17,
         null=True,
         blank=True,
+        db_index=True,
         help_text="Device MAC associated with this payment, when known",
     )
     session = models.ForeignKey(
@@ -437,7 +438,7 @@ class CoinEvent(models.Model):
         blank=True,
         related_name="coin_events",
     )
-    timestamp = models.DateTimeField(default=timezone.now)
+    timestamp = models.DateTimeField(default=timezone.now, db_index=True)
 
     class Meta:
         ordering = ["-timestamp"]
@@ -503,7 +504,7 @@ class CoinInsertRequest(models.Model):
         (STATUS_CANCELLED, "Cancelled"),
     ]
 
-    mac_address = models.CharField(max_length=17, help_text="Format: AA:BB:CC:DD:EE:FF")
+    mac_address = models.CharField(max_length=17, db_index=True, help_text="Format: AA:BB:CC:DD:EE:FF")
     ip_address = models.GenericIPAddressField(null=True, blank=True)
     purpose = models.CharField(max_length=10, choices=PURPOSE_CHOICES, default=PURPOSE_START)
     
@@ -523,7 +524,7 @@ class CoinInsertRequest(models.Model):
 
     expected_amount = models.PositiveIntegerField(default=0, help_text="Amount needed to complete this request")
     credited_amount = models.PositiveIntegerField(default=0, help_text="Current unconsumed credited amount")
-    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=STATUS_PENDING)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=STATUS_PENDING, db_index=True)
     activated_at = models.DateTimeField(null=True, blank=True)
     expires_at = models.DateTimeField(null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
