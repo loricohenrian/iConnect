@@ -115,11 +115,17 @@ def _get_mac_address(request):
     return ""
 
 
-def _coin_rate_limited(request):
-    ip = _client_ip(request)
+def _coin_rate_limited(request, mac_address=None):
+    # Rate limit by MAC address when specified/available, otherwise by client IP
+    target_id = mac_address or (request.data.get("mac_address") if hasattr(request, "data") and isinstance(request.data, dict) else None)
+    if not target_id:
+        target_id = _client_ip(request)
+    else:
+        target_id = str(target_id).upper().strip()
+
     window_seconds = getattr(settings, "PISONET_COIN_WINDOW_SECONDS", 60)
     max_requests = getattr(settings, "PISONET_COIN_MAX_REQUESTS", 120)
-    key = f"coin-inserted:{ip}"
+    key = f"coin-inserted:{target_id}"
 
     count = cache.get(key, 0)
     if count >= max_requests:
@@ -833,18 +839,18 @@ def coin_inserted(request):
     Receives coin pulse data from GPIO script.
     POST /api/coin-inserted/
     """
-    if _coin_rate_limited(request):
-        audit_logger.warning("event=coin_rate_limited ip=%s", _client_ip(request))
-        return Response(
-            {"error": "Too many coin requests. Please retry shortly."},
-            status=status.HTTP_429_TOO_MANY_REQUESTS,
-        )
-
     if not _has_valid_device_api_key(request):
         audit_logger.warning("event=coin_unauthorized ip=%s", _client_ip(request))
         return Response(
             {"error": "Unauthorized coin source"},
             status=status.HTTP_401_UNAUTHORIZED,
+        )
+
+    if _coin_rate_limited(request):
+        audit_logger.warning("event=coin_rate_limited ip=%s", _client_ip(request))
+        return Response(
+            {"error": "Too many coin requests. Please retry shortly."},
+            status=status.HTTP_429_TOO_MANY_REQUESTS,
         )
 
     serializer = CoinInsertedSerializer(data=request.data)
@@ -2104,7 +2110,7 @@ def session_extend_paid(request):
     except Exception as exc:
         audit_logger.error("event=session_extend_paid_error mac=%s error=%s", mac_address, exc)
         return Response(
-            {"error": str(exc)},
+            {"error": "Failed to extend session. Please try again or contact support."},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 

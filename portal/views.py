@@ -90,6 +90,12 @@ def _get_mac_address(request):
 
     explicit_mac = query_mac or header_mac or post_mac
 
+    # Security check: If stored_mac was already set in session and client attempts to spoof a different MAC from an external LAN IP, prefer stored_mac
+    if stored_mac and explicit_mac and stored_mac != explicit_mac:
+        if client_ip not in ("127.0.0.1", "::1", "localhost", "unknown"):
+            audit_logger.warning("event=mac_spoof_attempt ip=%s stored_mac=%s claimed_mac=%s", client_ip, stored_mac, explicit_mac)
+            return stored_mac
+
     if explicit_mac:
         request.session[SESSION_MAC_KEY] = explicit_mac
         return explicit_mac
@@ -379,6 +385,13 @@ def history(request):
     if not mac_address:
         return redirect("/?mac_required=1")
 
+    # Strict ownership: On LAN, force MAC to physical ARP MAC to prevent viewing other users' history
+    client_ip = _client_ip(request)
+    arp_mac = _mac_from_arp(client_ip)
+    if arp_mac and arp_mac != mac_address:
+        audit_logger.warning("event=history_mac_mismatch ip=%s arp_mac=%s req_mac=%s", client_ip, arp_mac, mac_address)
+        mac_address = arp_mac
+
     passcode_required = _history_passcode_enabled()
     passcode_error = ""
     verified_for_mac = request.session.get(HISTORY_PASSCODE_VERIFIED_KEY, "")
@@ -442,6 +455,10 @@ def manual(request):
 @never_cache
 def live_data(request):
     """Public portal API for realtime announcements, plan updates, and connection slots."""
+    from sessions_app.views import _public_read_rate_limited
+    if _public_read_rate_limited(request, "live-data"):
+        return JsonResponse({"error": "Too many requests. Please retry shortly."}, status=429)
+
     plans = Plan.objects.filter(is_active=True).order_by("price", "id")
     announcements = Announcement.objects.filter(is_active=True).exclude(message__contains="interrupted by our ISP").exclude(message__contains="automatically resume").order_by("-created_at", "-id")
 

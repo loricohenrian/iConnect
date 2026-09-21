@@ -27,10 +27,21 @@ if SECRET_KEY == DEFAULT_DEV_SECRET_KEY:
     with open(secret_path, 'r') as f:
         SECRET_KEY = f.read().strip()
 DEBUG = os.getenv('DEBUG', 'False').lower().strip() in ('true', '1', 'yes')
-_allowed_hosts_env = os.getenv('ALLOWED_HOSTS', '*').strip()
-ALLOWED_HOSTS = [host.strip() for host in _allowed_hosts_env.split(',') if host.strip()]
-if not ALLOWED_HOSTS:
+_allowed_hosts_env = os.getenv('ALLOWED_HOSTS', '').strip()
+if _allowed_hosts_env:
+    ALLOWED_HOSTS = [host.strip() for host in _allowed_hosts_env.split(',') if host.strip()]
+elif DEBUG:
     ALLOWED_HOSTS = ['*']
+else:
+    portal_ip = os.getenv('PORTAL_IP', '10.10.10.1').strip() or '10.10.10.1'
+    ALLOWED_HOSTS = [
+        portal_ip,
+        'localhost',
+        '127.0.0.1',
+        '[::1]',
+        'orangepizero3',
+        'testserver',
+    ]
 
 # Authentication redirects
 LOGIN_URL = '/iconnect-ops/login/'
