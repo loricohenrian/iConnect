@@ -16,7 +16,7 @@ logger = logging.getLogger("coin_detector")
 
 DJANGO_URL = os.getenv("DJANGO_URL", "http://127.0.0.1")
 GPIO_PIN = int(os.getenv("GPIO_PIN", "3"))
-COIN_RELAY_PIN = int(os.getenv("COIN_RELAY_PIN", os.getenv("RELAY_PIN", "5")))
+COIN_RELAY_PIN = int(os.getenv("COIN_RELAY_PIN", "5"))
 RELAY_ACTIVE_HIGH = os.getenv("RELAY_ACTIVE_HIGH", "True").lower() in ("true", "1", "yes")
 GPIO_CHIP = os.getenv("GPIO_CHIP", "auto").strip() or "auto"
 
@@ -79,64 +79,38 @@ def gpio_number_for_header_pin(header_pin):
         ) from exc
 
 
-def _sysfs_gpiochips(sysfs_root="/sys/class/gpio", dev_root="/dev"):
-    """Return (device, base, line-count) entries exposed by the kernel."""
-    chips = []
-    for chip_dir in sorted(glob.glob(os.path.join(sysfs_root, "gpiochip*"))):
-        try:
-            with open(os.path.join(chip_dir, "base"), encoding="ascii") as handle:
-                base = int(handle.read().strip())
-            with open(os.path.join(chip_dir, "ngpio"), encoding="ascii") as handle:
-                line_count = int(handle.read().strip())
-        except (OSError, ValueError):
-            continue
-        chips.append((os.path.join(dev_root, os.path.basename(chip_dir)), base, line_count))
-    return chips
-
-
 def resolve_gpio(gpiod_module, global_number, chip_hint="auto"):
-    """Resolve a legacy/global GPIO number to a gpiochip-local line offset.
+    """Find the gpiochip that exposes an H618 GPIO line offset.
 
-    libgpiod line offsets are local to a particular gpiochip. The previous
-    implementation passed global lines 226/229 to gpiochip1, which commonly
-    has far fewer lines and makes the detector exit before it can unlock the
-    acceptor.
+    The Orange Pi Zero 3 image may enumerate its 32-line always-on controller
+    before its 288-line main controller. Sysfs gpiochip directory numbers are
+    legacy GPIO bases and do not reliably match /dev/gpiochip device numbers,
+    so inspect each character device directly with libgpiod.
     """
     chip_hint = (chip_hint or "auto").strip()
-    chip_ranges = _sysfs_gpiochips()
-
-    for device, base, line_count in chip_ranges:
-        if (
-            chip_hint.lower() != "auto"
-            and os.path.realpath(device) != os.path.realpath(chip_hint)
-        ):
-            continue
-        if base <= global_number < base + line_count:
-            return device, global_number - base
-
     candidates = (
         [chip_hint]
         if chip_hint.lower() != "auto"
         else sorted(glob.glob("/dev/gpiochip*"))
     )
+    detected = []
     for device in candidates:
         if not device or not os.path.exists(device):
             continue
         try:
             with gpiod_module.Chip(device) as chip:
                 line_count = chip.get_info().num_lines
-            # Most H618 images expose the main controller at base zero, so its
-            # official GPIO number is also the chip-local offset.
+            detected.append(f"{device}[lines={line_count}]")
             if 0 <= global_number < line_count:
                 return device, global_number
-        except (OSError, AttributeError):
+        except (OSError, AttributeError) as exc:
+            detected.append(f"{device}[error={exc}]")
             continue
 
-    detected = ", ".join(
-        f"{device}[base={base}, lines={count}]" for device, base, count in chip_ranges
-    ) or "none"
+    detected_text = ", ".join(detected) or "none"
     raise RuntimeError(
-        f"GPIO {global_number} was not found on {chip_hint!r}; detected gpiochips: {detected}. "
+        f"GPIO {global_number} was not found on {chip_hint!r}; "
+        f"detected gpiochips: {detected_text}. "
         "Run 'gpiodetect' and 'gpioinfo' to verify the kernel GPIO layout."
     )
 
