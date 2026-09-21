@@ -29,8 +29,8 @@ if SECRET_KEY == DEFAULT_DEV_SECRET_KEY:
 DEBUG = os.getenv('DEBUG', 'False').lower().strip() in ('true', '1', 'yes')
 _allowed_hosts_env = os.getenv('ALLOWED_HOSTS', '*').strip()
 ALLOWED_HOSTS = [host.strip() for host in _allowed_hosts_env.split(',') if host.strip()]
-if '*' not in ALLOWED_HOSTS:
-    ALLOWED_HOSTS.append('*')
+if not ALLOWED_HOSTS:
+    ALLOWED_HOSTS = ['*']
 
 # Authentication redirects
 LOGIN_URL = '/iconnect-ops/login/'
@@ -118,17 +118,14 @@ if DATABASE_URL:
         raise ValueError(f'Invalid DATABASE_URL format: {DATABASE_URL}')
 else:
     # SQLite (default for development)
+    # NOTE: WAL mode and PRAGMAs are applied via connection_created signal
+    # in sessions_app/apps.py — NOT via init_command (which is MySQL-only).
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
             'NAME': BASE_DIR / 'db.sqlite3',
             'OPTIONS': {
                 'timeout': 30,
-                'init_command': (
-                    'PRAGMA journal_mode=WAL;'
-                    'PRAGMA synchronous=NORMAL;'
-                    'PRAGMA busy_timeout=30000;'
-                ),
             },
         }
     }
@@ -214,12 +211,11 @@ elif cache_location.startswith('redis://') or cache_location.startswith('rediss:
         }
     }
 else:
-    CACHE_DIR = BASE_DIR / 'cache'
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    # In-memory cache (no SD card writes — safe for Orange Pi)
     CACHES = {
         'default': {
-            'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
-            'LOCATION': str(CACHE_DIR),
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'iconnect-cache',
             'TIMEOUT': 300,
             'OPTIONS': {
                 'MAX_ENTRIES': 2000,
