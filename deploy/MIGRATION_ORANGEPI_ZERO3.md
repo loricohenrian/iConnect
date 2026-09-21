@@ -113,7 +113,7 @@ python manage.py collectstatic --noinput
 The GPIO settings use **physical 26-pin header numbers** (BOARD numbering):
 
 - Coin pulse input: physical pin **3** (`PH5`, GPIO 229) by default.
-- Coin enable/inhibit relay: physical pin **8** (`PH2`, GPIO 226) by default.
+- Coin enable/inhibit relay: physical pin **5** (`PH4`, GPIO 228) by default.
 - Coin acceptor power: 12V supply, with a common ground through the PisoWiFi interface board.
 
 Do not connect a 12V coin-acceptor signal directly to the Orange Pi. Its GPIO is
@@ -122,7 +122,9 @@ Do not connect a 12V coin-acceptor signal directly to the Orange Pi. Its GPIO is
 `GPIO_CHIP=auto` must normally be left enabled. The detector translates the
 official H618 GPIO number into the chip-local line offset required by libgpiod.
 The old `/dev/gpiochip1` configuration was incorrect on images where that chip
-does not contain global GPIOs 226 and 229.
+does not contain global GPIOs 228 and 229. The PisoWiFi board's "relay setting
+8" label is a vendor-software setting, not Orange Pi physical pin 8; the same
+board identifies the electrical relay connection as GPIO 228 / physical pin 5.
 
 To see the exact software, API, and GPIO mapping failure without taking control
 of the pins, run:

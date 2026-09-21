@@ -16,7 +16,7 @@ logger = logging.getLogger("coin_detector")
 
 DJANGO_URL = os.getenv("DJANGO_URL", "http://127.0.0.1")
 GPIO_PIN = int(os.getenv("GPIO_PIN", "3"))
-COIN_RELAY_PIN = int(os.getenv("COIN_RELAY_PIN", os.getenv("RELAY_PIN", "8")))
+COIN_RELAY_PIN = int(os.getenv("COIN_RELAY_PIN", os.getenv("RELAY_PIN", "5")))
 RELAY_ACTIVE_HIGH = os.getenv("RELAY_ACTIVE_HIGH", "True").lower() in ("true", "1", "yes")
 GPIO_CHIP = os.getenv("GPIO_CHIP", "auto").strip() or "auto"
 

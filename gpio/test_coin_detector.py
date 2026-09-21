@@ -7,7 +7,12 @@ from gpio import coin_detector
 class CoinDetectorConfigurationTests(TestCase):
     def test_default_header_pin_mapping_matches_zero_3_pinout(self):
         self.assertEqual(coin_detector.gpio_number_for_header_pin(3), 229)
+        self.assertEqual(coin_detector.gpio_number_for_header_pin(5), 228)
         self.assertEqual(coin_detector.gpio_number_for_header_pin(8), 226)
+
+    def test_pisowifi_defaults_use_board_gpio_labels(self):
+        self.assertEqual(coin_detector.GPIO_PIN, 3)
+        self.assertEqual(coin_detector.COIN_RELAY_PIN, 5)
 
     def test_global_gpio_number_remains_supported(self):
         self.assertEqual(coin_detector.gpio_number_for_header_pin(229), 229)
