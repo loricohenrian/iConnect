@@ -1489,10 +1489,16 @@ def session_join_group(request):
     device_name = _extract_device_name(request, serializer.validated_data.get("device_name"), mac_address)
 
     # Rate limiting
+    # Rate limiting & Anti-brute force
     from django.core.cache import cache
+    fail_cache_key = f"join_group_failed_{ip_address}"
+    failed_attempts = cache.get(fail_cache_key, 0)
+    if failed_attempts >= 5:
+        return Response({"error": "Too many invalid group code attempts. Please wait 5 minutes."}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+
     cache_key = f"join_group_attempts_{ip_address}"
     attempts = cache.get(cache_key, 0)
-    if attempts >= 5:
+    if attempts >= 10:
         return Response({"error": "Too many attempts. Please try again later."}, status=status.HTTP_429_TOO_MANY_REQUESTS)
     cache.set(cache_key, attempts + 1, timeout=60)
 
@@ -1513,6 +1519,7 @@ def session_join_group(request):
 
     group = SessionGroup.objects.filter(group_code=group_code).select_related("plan").first()
     if not group:
+        cache.set(fail_cache_key, failed_attempts + 1, timeout=300)
         return Response({"error": "Invalid group code. Please check and try again."}, status=status.HTTP_404_NOT_FOUND)
 
     # If device already redeemed this group pass, inform them clearly immediately
@@ -2221,6 +2228,15 @@ def session_pause_toggle(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
+    request_ip = _client_ip(request)
+    arp_mac = _mac_from_arp(request_ip)
+    if arp_mac and arp_mac != mac_address:
+        audit_logger.warning("event=pause_mac_mismatch ip=%s arp_mac=%s requested_mac=%s", request_ip, arp_mac, mac_address)
+        return Response(
+            {"error": "You can only pause or resume your own session."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
     session = Session.objects.filter(
         mac_address=mac_address,
         status__in=["active", "paused"],
@@ -2373,18 +2389,22 @@ def session_status(request):
     if session:
         # If an ISP outage is active and auto-pause is enabled, freeze active session immediately!
         if isp_outage and enable_outage_auto_pause and session.status == "active":
-            session.pause_session()
-            try:
-                iptables.block_device(session.mac_address)
-            except Exception:
-                pass
-            try:
-                from django.core.cache import cache as dj_cache
-                dj_cache.set(f"manual_pause_{session.id}", True, timeout=86400 * 7)
-                dj_cache.delete(f"auto_paused_{session.id}")
-            except Exception:
-                pass
-            session.refresh_from_db()
+            from django.core.cache import cache as dj_cache
+            lock_key = f"outage_pause_lock_{session.id}"
+            if dj_cache.add(lock_key, True, timeout=10):
+                try:
+                    session.refresh_from_db()
+                    if session.status == "active":
+                        session.pause_session(is_system_pause=True)
+                        try:
+                            iptables.block_device(session.mac_address)
+                        except Exception:
+                            pass
+                        dj_cache.set(f"manual_pause_{session.id}", True, timeout=86400 * 7)
+                        dj_cache.delete(f"auto_paused_{session.id}")
+                        session.refresh_from_db()
+                finally:
+                    dj_cache.delete(lock_key)
 
         grp = None
         target_group_id = session.session_group_id

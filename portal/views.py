@@ -12,6 +12,7 @@ from django.core.paginator import Paginator
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 from django.views.decorators.cache import never_cache
+from django.views.decorators.csrf import ensure_csrf_cookie
 
 from dashboard.models import Announcement
 from sessions_app import iptables
@@ -107,8 +108,8 @@ def _get_mac_address(request):
 
 
 def _history_passcode_enabled():
-    # Passcode disabled — sessions are already scoped to each device's MAC
-    return False
+    passcode = str(getattr(settings, "PISONET_HISTORY_PASSCODE", "")).strip()
+    return bool(passcode)
 
 
 def _get_most_popular_plan_id():
@@ -285,19 +286,23 @@ def session_page(request):
     if active_session:
         # Check if ISP is currently down and auto-pause is enabled
         if isp_outage and isp_info.get("enable_outage_auto_pause", True) and active_session.status == "active":
-            active_session.pause_session()
-            try:
-                iptables.block_device(active_session.mac_address)
-            except Exception:
-                pass
-            try:
-                from django.core.cache import cache as dj_cache
-                dj_cache.set(f"manual_pause_{active_session.id}", True, timeout=86400 * 7)
-                dj_cache.set(f"outage_paused_{active_session.id}", True, timeout=86400 * 7)
-                dj_cache.delete(f"auto_paused_{active_session.id}")
-            except Exception:
-                pass
-            active_session.refresh_from_db()
+            from django.core.cache import cache as dj_cache
+            lock_key = f"outage_pause_lock_{active_session.id}"
+            if dj_cache.add(lock_key, True, timeout=10):
+                try:
+                    active_session.refresh_from_db()
+                    if active_session.status == "active":
+                        active_session.pause_session(is_system_pause=True)
+                        try:
+                            iptables.block_device(active_session.mac_address)
+                        except Exception:
+                            pass
+                        dj_cache.set(f"manual_pause_{active_session.id}", True, timeout=86400 * 7)
+                        dj_cache.set(f"outage_paused_{active_session.id}", True, timeout=86400 * 7)
+                        dj_cache.delete(f"auto_paused_{active_session.id}")
+                        active_session.refresh_from_db()
+                finally:
+                    dj_cache.delete(lock_key)
 
     if active_session and request_ip and active_session.ip_address != request_ip:
         active_session.ip_address = request_ip
@@ -442,6 +447,7 @@ def history(request):
 
 
 @never_cache
+@ensure_csrf_cookie
 def manual(request):
     """User guide / FAQ page."""
     context = {
@@ -512,17 +518,24 @@ def live_data(request):
 
         # If an ISP outage is active and auto-pause is enabled, freeze active session immediately
         if user_session and user_session.status == "active" and isp_info.get("isp_outage") and isp_info.get("enable_outage_auto_pause", True):
-            user_session.pause_session()
-            try:
-                from sessions_app import iptables
-                iptables.block_device(user_session.mac_address)
-            except Exception:
-                pass
             from django.core.cache import cache as dj_cache
-            dj_cache.set(f"manual_pause_{user_session.id}", True, timeout=86400 * 7)
-            dj_cache.set(f"outage_paused_{user_session.id}", True, timeout=86400 * 7)
-            dj_cache.delete(f"auto_paused_{user_session.id}")
-            user_session.refresh_from_db()
+            lock_key = f"outage_pause_lock_{user_session.id}"
+            if dj_cache.add(lock_key, True, timeout=10):
+                try:
+                    user_session.refresh_from_db()
+                    if user_session.status == "active":
+                        user_session.pause_session(is_system_pause=True)
+                        try:
+                            from sessions_app import iptables
+                            iptables.block_device(user_session.mac_address)
+                        except Exception:
+                            pass
+                        dj_cache.set(f"manual_pause_{user_session.id}", True, timeout=86400 * 7)
+                        dj_cache.set(f"outage_paused_{user_session.id}", True, timeout=86400 * 7)
+                        dj_cache.delete(f"auto_paused_{user_session.id}")
+                        user_session.refresh_from_db()
+                finally:
+                    dj_cache.delete(lock_key)
 
         if user_session and user_session.time_remaining_seconds > 1:
             has_active_session = True

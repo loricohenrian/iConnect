@@ -362,14 +362,17 @@ class Session(models.Model):
         except Exception:
             pass
 
-    def pause_session(self):
+    def pause_session(self, is_system_pause=False):
         """Pause the session — freezes timer."""
         if self.status != "active":
             return False
         self.status = "paused"
         self.paused_at = timezone.now()
-        self.pause_count += 1
-        self.save(update_fields=["status", "paused_at", "pause_count"])
+        if not is_system_pause:
+            self.pause_count += 1
+            self.save(update_fields=["status", "paused_at", "pause_count"])
+        else:
+            self.save(update_fields=["status", "paused_at"])
         return True
 
     def resume_session(self):
