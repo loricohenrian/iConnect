@@ -93,6 +93,28 @@ def _mac_from_arp(ip_address):
     return ""
 
 
+def _get_mac_address(request):
+    """Resolve MAC address from ARP table or request attributes."""
+    client_ip = _client_ip(request)
+    arp_mac = _mac_from_arp(client_ip)
+    if arp_mac:
+        return arp_mac
+    if hasattr(request, "session"):
+        stored_mac = request.session.get("portal_mac_address", "")
+        if stored_mac:
+            try:
+                return normalize_mac_address(stored_mac)
+            except Exception:
+                pass
+    header_mac = request.META.get("HTTP_X_MAC_ADDRESS", "") or request.GET.get("mac", "")
+    if header_mac:
+        try:
+            return normalize_mac_address(header_mac)
+        except Exception:
+            pass
+    return ""
+
+
 def _coin_rate_limited(request):
     ip = _client_ip(request)
     window_seconds = getattr(settings, "PISONET_COIN_WINDOW_SECONDS", 60)
@@ -1118,24 +1140,42 @@ def session_start_request_status(request):
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def session_start_cancel(request):
-    """Cancel a pending start-session coin request."""
-    mac_address = request.data.get("mac_address", "").upper().strip() or _get_mac_address(request)
+    """Cancel a pending start-session coin request with device ownership verification."""
+    request_ip = _client_ip(request)
+    arp_mac = _mac_from_arp(request_ip)
+    provided_mac = request.data.get("mac_address", "").upper().strip()
+
+    # Prevent users from canceling another device's slot
+    if arp_mac:
+        if provided_mac and provided_mac != arp_mac:
+            audit_logger.warning("event=cancel_mac_mismatch ip=%s arp_mac=%s requested_mac=%s", request_ip, arp_mac, provided_mac)
+            return Response({"error": "You can only cancel coin requests for your own device."}, status=status.HTTP_403_FORBIDDEN)
+        mac_address = arp_mac
+    else:
+        mac_address = provided_mac or _get_mac_address(request)
+
     if not mac_address:
         return Response({"error": "MAC address required"}, status=status.HTTP_400_BAD_REQUEST)
-        
+
     coin_request = CoinInsertRequest.objects.filter(
         mac_address=mac_address,
         status__in=[CoinInsertRequest.STATUS_PENDING, CoinInsertRequest.STATUS_ACTIVE]
     ).order_by("-id").first()
-    
+
     if coin_request:
+        # Verify IP matches origin IP if recorded and not local loopback
+        if coin_request.ip_address and request_ip not in ("unknown", "127.0.0.1", "::1"):
+            if coin_request.ip_address != request_ip:
+                audit_logger.warning("event=cancel_ip_mismatch mac=%s req_ip=%s cr_ip=%s", mac_address, request_ip, coin_request.ip_address)
+                return Response({"error": "Origin IP does not match the active coin slot."}, status=status.HTTP_403_FORBIDDEN)
+
         coin_request.status = CoinInsertRequest.STATUS_CANCELLED
         coin_request.completed_at = timezone.now()
         coin_request.save(update_fields=["status", "completed_at"])
-        
+
         # In case the cancelled request was ACTIVE, activate the next one in queue
         _activate_next_coin_request()
-        
+
     return Response({"status": "success"})
 
 
@@ -2817,34 +2857,97 @@ def plans_list(request):
 
 
 from django.http import StreamingHttpResponse
-import os
+
+_SPEED_TEST_CHUNK = b"\x00" * 65536
+
+
+def _device_has_active_speed_test_access(request):
+    """Ensure only devices with an active session, whitelist entry, or staff can run raw network speed tests."""
+    if _is_dashboard_admin(request.user):
+        return True
+    client_ip = _client_ip(request)
+    mac = _mac_from_arp(client_ip) or _get_mac_address(request)
+    if mac:
+        if WhitelistedDevice.objects.filter(mac_address__iexact=mac).exists():
+            return True
+        if Session.objects.filter(mac_address__iexact=mac, status="active").exists():
+            return True
+    if client_ip and client_ip not in ("unknown", "127.0.0.1", "::1"):
+        if Session.objects.filter(ip_address=client_ip, status="active").exists():
+            return True
+    return False
+
+
+def _speed_test_rate_limited(request, action="download"):
+    ip = _client_ip(request)
+    key = f"speed_test_rate:{action}:{ip}"
+    count = cache.get(key, 0)
+    if count >= 3:
+        return True
+    cache.add(key, 0, timeout=300)
+    try:
+        cache.incr(key)
+    except ValueError:
+        cache.set(key, 1, timeout=300)
+    return False
+
 
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def speed_test_download(request):
     """
     Endpoint for performing a real download speed test.
-    Streams 10MB of random data.
+    Requires active session and is rate-limited (max 3 per 5 minutes per IP).
+    Streams 10MB of pre-allocated data with minimal CPU overhead.
     """
-    chunk_size = 65536
+    if _speed_test_rate_limited(request, "download"):
+        audit_logger.warning("event=speed_test_download_rate_limited ip=%s", _client_ip(request))
+        return Response(
+            {"error": "Too many speed test requests. Please wait 5 minutes."},
+            status=status.HTTP_429_TOO_MANY_REQUESTS,
+        )
+
+    if not _device_has_active_speed_test_access(request):
+        audit_logger.warning("event=speed_test_download_unauthorized ip=%s", _client_ip(request))
+        return Response(
+            {"error": "Active session required to perform network speed tests."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    chunk_size = len(_SPEED_TEST_CHUNK)
     chunks = (10 * 1024 * 1024) // chunk_size
 
-    def stream_random_data():
+    def stream_data():
         for _ in range(chunks):
-            yield os.urandom(chunk_size)
+            yield _SPEED_TEST_CHUNK
 
-    response = StreamingHttpResponse(stream_random_data(), content_type="application/octet-stream")
-    response['Content-Length'] = str(10 * 1024 * 1024)
+    response = StreamingHttpResponse(stream_data(), content_type="application/octet-stream")
+    response['Content-Length'] = str(chunks * chunk_size)
     response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
     return response
+
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def speed_test_upload(request):
     """
     Endpoint for performing a real upload speed test.
-    Accepts arbitrary data and returns 200 OK.
+    Requires active session and is rate-limited (max 3 per 5 minutes per IP).
     """
+    if _speed_test_rate_limited(request, "upload"):
+        audit_logger.warning("event=speed_test_upload_rate_limited ip=%s", _client_ip(request))
+        return Response(
+            {"error": "Too many speed test requests. Please wait 5 minutes."},
+            status=status.HTTP_429_TOO_MANY_REQUESTS,
+        )
+
+    if not _device_has_active_speed_test_access(request):
+        audit_logger.warning("event=speed_test_upload_unauthorized ip=%s", _client_ip(request))
+        return Response(
+            {"error": "Active session required to perform network speed tests."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
     return Response({"status": "success", "message": "Upload test completed"}, status=status.HTTP_200_OK)
 
 

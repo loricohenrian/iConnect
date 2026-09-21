@@ -631,9 +631,6 @@ def spin_wheel_view(request):
     
     return render(request, "portal/spin_wheel.html", context)
 
-from django.views.decorators.csrf import csrf_exempt
-
-@csrf_exempt
 def api_execute_spin(request):
     """API endpoint to execute a spin, deduct points, and award prize."""
     import json
@@ -641,6 +638,7 @@ def api_execute_spin(request):
     from django.http import JsonResponse
     from django.utils import timezone
     from django.db import transaction
+    from django.core.cache import cache
     from dashboard.models import SystemSettings
     from sessions_app.models import DeviceProfile, SpinPrize, Session
 
@@ -654,6 +652,15 @@ def api_execute_spin(request):
     mac_address = _get_mac_address(request)
     if not mac_address:
         return JsonResponse({"status": "error", "message": "MAC address required"})
+
+    # Rate limiting per IP & MAC (max 15 attempts per minute prevents automated brute force/abuse)
+    client_ip = _client_ip(request)
+    ip_rate_key = f"spin_rate_{client_ip}_{mac_address}"
+    spin_attempts = cache.get(ip_rate_key, 0)
+    if spin_attempts >= 15:
+        return JsonResponse({"status": "error", "message": "Too many spin requests. Please wait a minute."}, status=429)
+
+    cache.set(ip_rate_key, spin_attempts + 1, timeout=60)
 
     from sessions_app.models import SuspiciousDevice
     if SuspiciousDevice.objects.filter(mac_address=mac_address, is_blocked=True).exists():
@@ -759,13 +766,7 @@ def api_execute_spin(request):
                     hidden_plan.is_active = False
                     hidden_plan.save()
 
-                    # Attempt to get IP if function available in this scope, otherwise fallback
-                    ip_address = ""
-                    try:
-                        from sessions_app.views import _client_ip
-                        ip_address = _client_ip(request)
-                    except ImportError:
-                        pass
+                    ip_address = _client_ip(request)
 
                     from sessions_app.views import _extract_device_name
                     dev_name = _extract_device_name(request, mac_address=mac_address)
