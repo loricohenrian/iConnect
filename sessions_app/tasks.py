@@ -151,6 +151,7 @@ def cleanup_expired_and_stale_sessions():
     return expired_count
 
 
+@shared_task
 def check_expired_sessions():
     """
     Check and expire sessions that have run out of time or exceeded pause limits.
