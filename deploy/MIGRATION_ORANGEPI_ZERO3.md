@@ -110,10 +110,29 @@ python manage.py collectstatic --noinput
 
 ## Phase 5: GPIO Wiring on Orange Pi Zero 3
 
-The coin detector service uses pin **GPIO 3** (physical pin 5 on header) by default.
-- Signal wire from coin acceptor -> GPIO Pin 3 (or configured `GPIO_PIN` in `.env`).
-- 12V / GND connected to 12V power supply and common ground.
-- Optional coin relay wire -> configured `COIN_RELAY_PIN`.
+The GPIO settings use **physical 26-pin header numbers** (BOARD numbering):
+
+- Coin pulse input: physical pin **3** (`PH5`, GPIO 229) by default.
+- Coin enable/inhibit relay: physical pin **8** (`PH2`, GPIO 226) by default.
+- Coin acceptor power: 12V supply, with a common ground through the PisoWiFi interface board.
+
+Do not connect a 12V coin-acceptor signal directly to the Orange Pi. Its GPIO is
+3.3V only; use the optocoupler/level-shifting input on the PisoWiFi board.
+
+`GPIO_CHIP=auto` must normally be left enabled. The detector translates the
+official H618 GPIO number into the chip-local line offset required by libgpiod.
+The old `/dev/gpiochip1` configuration was incorrect on images where that chip
+does not contain global GPIOs 226 and 229.
+
+To see the exact software, API, and GPIO mapping failure without taking control
+of the pins, run:
+
+```bash
+cd /opt/iconnect/pisowifi
+sudo .venv/bin/python gpio/coin_detector.py --diagnose
+sudo systemctl status coindetector --no-pager -l
+sudo journalctl -u coindetector -n 100 --no-pager
+```
 
 ---
 

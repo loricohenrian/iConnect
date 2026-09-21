@@ -59,6 +59,8 @@ check_command systemctl
 check_command iptables
 check_command curl
 check_command redis-cli
+check_command gpiodetect
+check_command gpioinfo
 
 if [ ! -x "$PYTHON_BIN" ]; then
     fail "python executable not found: $PYTHON_BIN"
@@ -105,6 +107,18 @@ if [ -x "$PYTHON_BIN" ]; then
         pass "Django system check"
     else
         fail "Django system check failed"
+    fi
+
+    if "$PYTHON_BIN" -c "import gpiod" >/dev/null 2>&1; then
+        pass "Python gpiod v2 bindings"
+    else
+        fail "Python gpiod missing (run: $PYTHON_BIN -m pip install -r $PROJECT_ROOT/requirements.txt)"
+    fi
+
+    if "$PYTHON_BIN" "$PROJECT_ROOT/gpio/coin_detector.py" --diagnose >/dev/null 2>&1; then
+        pass "Coin detector GPIO mapping and Django API"
+    else
+        fail "Coin detector diagnostic (run manually with --diagnose to see the cause)"
     fi
 
     if "$PYTHON_BIN" -c "import os; os.environ.setdefault('DJANGO_SETTINGS_MODULE','pisowifi.settings'); import django; django.setup(); from reports.tasks import generate_and_deliver_daily_report as f; r=f(); import sys; sys.exit(0 if r.get('status')=='success' else 1)" >/dev/null 2>&1; then
