@@ -108,6 +108,8 @@ def _get_mac_address(request):
 
 
 def _history_passcode_enabled():
+    if not getattr(settings, "PISONET_HISTORY_PASSCODE_ENABLED", False):
+        return False
     passcode = str(getattr(settings, "PISONET_HISTORY_PASSCODE", "")).strip()
     return bool(passcode)
 

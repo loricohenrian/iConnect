@@ -328,10 +328,10 @@ PISONET_AUTO_PAUSE_ENABLED = os.getenv('AUTO_PAUSE_ENABLED', 'False').lower() in
 PISONET_AUTO_PAUSE_TIMEOUT_SECONDS = int(os.getenv('AUTO_PAUSE_TIMEOUT_SECONDS', '300'))  # 5 minutes default
 # Dev portal flow removed — production only.
 
-# Portal history passcode security
-DEFAULT_HISTORY_PASSCODE = '123456'
-PISONET_HISTORY_PASSCODE_ENABLED = os.getenv('HISTORY_PASSCODE_ENABLED', 'True').lower() in ('true', '1', 'yes')
-PISONET_HISTORY_PASSCODE = os.getenv('HISTORY_PASSCODE', DEFAULT_HISTORY_PASSCODE).strip()
+# Portal history passcode security (disabled by default so users can view their own history directly)
+DEFAULT_HISTORY_PASSCODE = ''
+PISONET_HISTORY_PASSCODE_ENABLED = os.getenv('HISTORY_PASSCODE_ENABLED', 'False').lower() in ('true', '1', 'yes')
+PISONET_HISTORY_PASSCODE = os.getenv('HISTORY_PASSCODE', '').strip()
 
 # Voucher settings
 PISONET_VOUCHER_LENGTH = 6
