@@ -250,6 +250,16 @@ function _playAlertSound(type) {
             gainNode.gain.linearRampToValueAtTime(0, ctx.currentTime + 1);
             oscillator.start();
             oscillator.stop(ctx.currentTime + 1);
+        } else if (type === 'turn_ready') {
+            // Ascending cheerful chime (C5 -> E5 -> G5) for when queue turn arrives
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(523.25, ctx.currentTime);
+            oscillator.frequency.setValueAtTime(659.25, ctx.currentTime + 0.12);
+            oscillator.frequency.setValueAtTime(783.99, ctx.currentTime + 0.24);
+            gainNode.gain.setValueAtTime(0.35, ctx.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.55);
+            oscillator.start();
+            oscillator.stop(ctx.currentTime + 0.55);
         }
     } catch (e) {
         // Web Audio not supported — fail silently
@@ -836,6 +846,36 @@ function setStartFlowMeta(metaHtml) {
     metaEl.innerHTML = metaHtml || "";
 }
 
+function updateCoinModalHeader(status) {
+    const titleEl = document.getElementById("coin-modal-title");
+    const iconEl = document.getElementById("coin-modal-icon");
+    if (!titleEl) return;
+
+    const normStatus = (status || "").toLowerCase();
+    if (normStatus === "pending") {
+        titleEl.textContent = "In Queue • Nakapila";
+        if (iconEl) {
+            iconEl.className = "coin-modal-icon-pulse queue-mode";
+            iconEl.innerHTML = `
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="mini-clock-svg">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>`;
+        }
+    } else {
+        titleEl.textContent = "Drop Coins Now";
+        if (iconEl) {
+            iconEl.className = "coin-modal-icon-pulse";
+            iconEl.innerHTML = `
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="mini-coin-svg">
+                    <circle cx="12" cy="12" r="9.5"></circle>
+                    <path d="M14.5 9.5a2.5 2.5 0 0 0-5 0c0 2.5 5 2.5 5 5a2.5 2.5 0 0 1-5 0"></path>
+                    <line x1="12" y1="6.5" x2="12" y2="17.5"></line>
+                </svg>`;
+        }
+    }
+}
+
 function formatCoinRequestMeta(coinRequest) {
     if (!coinRequest) {
         return "";
@@ -845,17 +885,55 @@ function formatCoinRequestMeta(coinRequest) {
     const credited = Number(coinRequest.credited_amount || 0);
     const expected = Number(coinRequest.expected_amount || 0);
 
+    // Keep modal header title and icon live-synced to queue state
+    if (typeof updateCoinModalHeader === "function") {
+        updateCoinModalHeader(coinRequest.status);
+    }
+
+    // When IN QUEUE: Remove Coins Inserted and Internet Time, and show BIG bilingual Queue Indicator
+    if (status === "PENDING") {
+        return `
+        <div class="coin-queue-hero-card animate-fadeIn">
+            <div class="coin-queue-badge-row">
+                <span class="coin-queue-status-badge">
+                    <span class="queue-spinner-ring"></span>
+                    <span>IKAW AY NAKAPILA &bull; IN QUEUE</span>
+                </span>
+            </div>
+
+            <div class="coin-queue-stop-banner">
+                <div class="coin-queue-stop-icon">⚠️</div>
+                <div class="coin-queue-stop-text">
+                    <div class="stop-title-tagalog">HUWAG MUNA MAGHULOG NG BARYA!</div>
+                    <div class="stop-title-english">DO NOT INSERT COINS YET!</div>
+                </div>
+            </div>
+
+            <div class="coin-queue-guide-box">
+                <div class="guide-tagalog">
+                    👉 May kasalukuyan pang naghuhulog ng barya sa vendo. <strong>Kusang magbubukas ang hulugan</strong> kapag turn mo na!
+                </div>
+                <div class="guide-english">
+                    Someone else is currently inserting coins. The coin slot will open automatically when it is your turn.
+                </div>
+            </div>
+
+            <div class="coin-queue-live-footer">
+                <span class="queue-live-pulse"></span>
+                <span>Naka-standby... Huwag isara &bull; Waiting for your turn...</span>
+            </div>
+        </div>
+        `;
+    }
+
     let statusBadgeClass = "badge-neutral";
     let statusText = status;
     if (status === "ACTIVE") {
         statusBadgeClass = "badge-active";
-        statusText = "Coin Slot Active";
-    } else if (status === "PENDING") {
-        statusBadgeClass = "badge-pending";
-        statusText = "In Queue";
+        statusText = "Coin Slot Active • Puwede nang Maghulog";
     } else if (status === "COMPLETED") {
         statusBadgeClass = "badge-ready";
-        statusText = "Payment Ready";
+        statusText = "Payment Ready • Handa na";
     }
 
     let timeDisplay = "--";
@@ -924,39 +1002,40 @@ function coinRequestStatusMessage(coinRequest, context = "start") {
 
     if (status === "completed") {
         return context === "extend"
-            ? "Payment complete! Tap Extend Now below to add your time."
-            : "Payment complete! Tap Connect Now below to start your internet.";
+            ? "Kumpleto na ang bayad! Pindutin ang Extend Now sa ibaba. / Payment complete! Tap Extend Now below."
+            : "Kumpleto na ang bayad! Pindutin ang Connect Now sa ibaba. / Payment complete! Tap Connect Now below.";
     }
     if (status === "active") {
         if (isGroupPlan) {
             const actionWord = context === "extend" ? "Extend Now" : "Connect Now";
             if (expectedAmt > 0 && creditedAmt >= expectedAmt) {
-                return `Full payment received (₱${creditedAmt}/₱${expectedAmt})! Tap ${actionWord} below to activate your Group Pass.`;
+                return `Pumasok na ang buong bayad (₱${creditedAmt}/₱${expectedAmt})! Pindutin ang ${actionWord}. / Full payment received! Tap ${actionWord} below.`;
             }
             if (creditedAmt > 0 && expectedAmt > 0) {
                 const remaining = Math.max(0, expectedAmt - creditedAmt);
-                return `Coins inserted: ₱${creditedAmt} / ₱${expectedAmt}. Insert ₱${remaining} more to enable ${actionWord}.`;
+                return `Naipasok na barya: ₱${creditedAmt} / ₱${expectedAmt}. Maghulog pa ng ₱${remaining} para sa ${actionWord}. / Coins inserted: ₱${creditedAmt} / ₱${expectedAmt}. Insert ₱${remaining} more.`;
             }
-            return `Insert ₱${expectedAmt} for your Group Pass. Drop coins (₱1, ₱5, ₱10, ₱20) into the machine.`;
+            return `Maghulog ng ₱${expectedAmt} para sa Group Pass (₱1, ₱5, ₱10, ₱20). / Insert ₱${expectedAmt} for your Group Pass. Drop coins into the machine.`;
         }
 
         if (coinRequest.ready_to_start) {
             const actionWord = context === "extend" ? "Extend Now" : "Connect Now";
             if (coinRequest.combo_duration_display) {
-                return `Coins detected! You have ${coinRequest.combo_duration_display} ready. Insert more coins or tap ${actionWord}.`;
+                return `Puwede nang mag-connect! May ${coinRequest.combo_duration_display} ka na. Maghulog pa o pindutin ang ${actionWord}. / Coins detected! You have ${coinRequest.combo_duration_display} ready. Insert more coins or tap ${actionWord}.`;
             }
-            return `Coins detected! Insert more coins for more time, or tap ${actionWord}.`;
+            return `May barya nang pumasok! Maghulog pa o pindutin ang ${actionWord}. / Coins detected! Insert more coins or tap ${actionWord}.`;
         }
-        return "Insert coins now. Drop your coins (₱1, ₱5, ₱10, ₱20) into the machine.";
+        return "Puwede nang maghulog ng barya! (₱1, ₱5, ₱10, ₱20) sa vendo machine. / Drop your coins now into the machine.";
     }
     if (status === "pending") {
-        return "Request queued. Please wait for your turn to insert coins.";
+        // Redundant alert message suppressed because the big hero card displays full bilingual guidance
+        return "";
     }
     if (status === "expired") {
-        return "Coin window expired. Tap Insert Coins again.";
+        return "Nag-expire ang oras sa paghulog. Pindutin muli ang Insert Coins. / Coin window expired. Tap Insert Coins again.";
     }
     if (status === "cancelled") {
-        return "Coin request was cancelled. Tap Insert Coins to continue.";
+        return "Kinansela ang coin request. Pindutin ang Insert Coins para magsimula muli. / Coin request was cancelled. Tap Insert Coins to continue.";
     }
     return "Coin request updated.";
 }
@@ -1150,6 +1229,15 @@ function initProductionStartFlow(macAddress) {
                 state.planId = coinRequest.plan_id;
             }
         }
+
+        const currentStatus = coinRequest ? coinRequest.status : null;
+        if (state.lastStatus === "pending" && currentStatus === "active") {
+            try {
+                _playAlertSound("turn_ready");
+                if (navigator.vibrate) navigator.vibrate([250, 100, 250]);
+            } catch (err) {}
+        }
+        state.lastStatus = currentStatus;
 
         syncCoinCountdown(coinRequest);
 
@@ -1535,6 +1623,15 @@ function initExtendSessionFlow(macAddress) {
                 if (extendPlanInput) extendPlanInput.value = coinRequest.plan_id;
             }
         }
+
+        const currentStatus = coinRequest ? coinRequest.status : null;
+        if (state.lastStatus === "pending" && currentStatus === "active") {
+            try {
+                _playAlertSound("turn_ready");
+                if (navigator.vibrate) navigator.vibrate([250, 100, 250]);
+            } catch (err) {}
+        }
+        state.lastStatus = currentStatus;
 
         syncCoinCountdown(coinRequest);
 

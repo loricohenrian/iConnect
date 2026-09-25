@@ -40,8 +40,10 @@ def _get_lan_interface():
 
 
 def _get_mac_to_ip_map():
-    """Parse ARP table to map MAC address to current IP address."""
+    """Parse ARP table, dnsmasq DHCP leases, and active sessions to reliably map MAC to IP."""
     mac_to_ip = {}
+
+    # 1. Parse ARP table (fast, kernel active cache)
     try:
         with open('/proc/net/arp', 'r') as f:
             for line in f:
@@ -54,6 +56,32 @@ def _get_mac_to_ip_map():
                         mac_to_ip[mac] = ip
     except (OSError, IOError):
         pass
+
+    # 2. Parse dnsmasq DHCP lease files (handles sleeping/paused phones that dropped from ARP)
+    for lease_path in ('/var/lib/misc/dnsmasq.leases', '/tmp/dnsmasq.leases', '/var/run/dnsmasq.leases'):
+        try:
+            with open(lease_path, 'r') as f:
+                for line in f:
+                    parts = line.split()
+                    if len(parts) >= 3:
+                        mac = parts[1].upper().strip()
+                        ip = parts[2].strip()
+                        if len(mac) == 17 and ip and mac not in mac_to_ip:
+                            mac_to_ip[mac] = ip
+        except (OSError, IOError):
+            pass
+
+    # 3. Database session fallback (for active/paused sessions)
+    try:
+        from .models import Session
+        for s in Session.objects.filter(status__in=['active', 'paused']).exclude(ip_address__isnull=True).exclude(ip_address='').values('mac_address', 'ip_address'):
+            mac = (s['mac_address'] or '').upper().strip()
+            ip = (s['ip_address'] or '').strip()
+            if len(mac) == 17 and ip and mac not in mac_to_ip:
+                mac_to_ip[mac] = ip
+    except Exception:
+        pass
+
     return mac_to_ip
 
 

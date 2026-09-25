@@ -1062,6 +1062,9 @@ def captive_portal_probe(request):
             response = HttpResponse('Microsoft NCSI', content_type='text/plain')
         elif 'success' in path:
             response = HttpResponse('success\n', content_type='text/plain')
+        elif 'redirect' in path:
+            portal_ip = _portal_ip()
+            response = redirect(f'http://{portal_ip}/session/')
         else:
             response = HttpResponse(status=204)
     else:

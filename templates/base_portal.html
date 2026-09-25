@@ -471,14 +471,14 @@ document.addEventListener('DOMContentLoaded', () => {
         <!-- Modal Header -->
         <div class="modal-header coin-modal-header">
             <h3 style="display: flex; align-items: center; gap: 8px; margin: 0;">
-                <span class="coin-modal-icon-pulse">
+                <span class="coin-modal-icon-pulse" id="coin-modal-icon">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="mini-coin-svg">
                         <circle cx="12" cy="12" r="9.5"></circle>
                         <path d="M14.5 9.5a2.5 2.5 0 0 0-5 0c0 2.5 5 2.5 5 5a2.5 2.5 0 0 1-5 0"></path>
                         <line x1="12" y1="6.5" x2="12" y2="17.5"></line>
                     </svg>
                 </span>
-                <span>Drop Coins Now</span>
+                <span id="coin-modal-title">Drop Coins Now</span>
             </h3>
             <button type="button" class="modal-close-btn" onclick="closeCoinModal()" title="Close" aria-label="Close">
                 <span style="font-size: 18px; font-weight: 700; line-height: 1;">&times;</span>
