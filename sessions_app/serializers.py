@@ -21,12 +21,17 @@ def normalize_mac_address(value):
 class PlanSerializer(serializers.ModelSerializer):
     duration_display = serializers.ReadOnlyField()
     price_per_minute = serializers.ReadOnlyField()
+    validity_display = serializers.ReadOnlyField()
+    pause_limit_display = serializers.ReadOnlyField()
 
     class Meta:
         model = Plan
         fields = [
             'id', 'name', 'price', 'duration_minutes',
-            'duration_display', 'price_per_minute', 'speed_limit', 'is_active', 'created_at'
+            'duration_display', 'price_per_minute', 'speed_limit',
+            'speed_limit_upload', 'pause_limit', 'pause_duration_limit',
+            'validity_display', 'pause_limit_display',
+            'is_active', 'created_at'
         ]
 
 

@@ -67,6 +67,23 @@ class Plan(models.Model):
             return 0
         return round(self.price / self.duration_minutes, 2)
 
+    @property
+    def validity_display(self):
+        """Return human-readable session validity/expiration window."""
+        if not self.pause_duration_limit or self.pause_duration_limit <= 0:
+            return "No Expiry"
+        if self.pause_duration_limit % 24 == 0:
+            days = self.pause_duration_limit // 24
+            return f"Valid: {days} Day{'s' if days > 1 else ''}"
+        return f"Valid: {self.pause_duration_limit} hrs"
+
+    @property
+    def pause_limit_display(self):
+        """Return human-readable pause allowance."""
+        if not self.pause_limit or self.pause_limit <= 0:
+            return "Unli Pauses"
+        return f"{self.pause_limit} Pause{'s' if self.pause_limit > 1 else ''}"
+
 
 class SessionGroup(models.Model):
     """

@@ -566,12 +566,32 @@ function renderPlans(plans) {
                     ? `<div class="plan-speed">Up to ↓${plan.speed_limit}${plan.speed_limit_upload ? ' / ↑' + plan.speed_limit_upload : ''} Mbps</div>`
                     : '';
 
+                const pauseText = plan.pause_limit_display || (plan.pause_limit !== undefined && plan.pause_limit !== null
+                    ? (plan.pause_limit > 0 ? `${plan.pause_limit} ${plan.pause_limit === 1 ? 'Pause' : 'Pauses'}` : 'Unli Pauses')
+                    : '');
+
+                const validityText = plan.validity_display || (plan.pause_duration_limit !== undefined && plan.pause_duration_limit !== null
+                    ? (plan.pause_duration_limit > 0
+                        ? (plan.pause_duration_limit % 24 === 0
+                            ? `Valid: ${plan.pause_duration_limit / 24} ${plan.pause_duration_limit === 24 ? 'Day' : 'Days'}`
+                            : `Valid: ${plan.pause_duration_limit} hrs`)
+                        : 'No Expiry')
+                    : '');
+
+                const featuresHtml = (pauseText || validityText)
+                    ? `<div class="plan-features">
+                        ${pauseText ? `<div class="plan-feature-badge"><span class="plan-feature-icon">⏸️</span> ${escapeHtml(pauseText)}</div>` : ''}
+                        ${validityText ? `<div class="plan-feature-badge"><span class="plan-feature-icon">📅</span> ${escapeHtml(validityText)}</div>` : ''}
+                    </div>`
+                    : '';
+
                 return `
                     <div class="plan-card" data-plan-id="${plan.id}" id="plan-${plan.id}">
                         ${popularBadge}
                         <div class="plan-price">₱${plan.price}</div>
                         <div class="plan-duration">${escapeHtml(plan.duration_display)}</div>
                         ${speedHtml}
+                        ${featuresHtml}
                     </div>
                 `;
             })
@@ -610,12 +630,32 @@ function renderPlans(plans) {
                     ? `<div class="plan-speed">Up to ↓${plan.speed_limit}${plan.speed_limit_upload ? ' / ↑' + plan.speed_limit_upload : ''} Mbps</div>`
                     : '';
 
+                const pauseText = plan.pause_limit_display || (plan.pause_limit !== undefined && plan.pause_limit !== null
+                    ? (plan.pause_limit > 0 ? `${plan.pause_limit} ${plan.pause_limit === 1 ? 'Pause' : 'Pauses'}` : 'Unli Pauses')
+                    : '');
+
+                const validityText = plan.validity_display || (plan.pause_duration_limit !== undefined && plan.pause_duration_limit !== null
+                    ? (plan.pause_duration_limit > 0
+                        ? (plan.pause_duration_limit % 24 === 0
+                            ? `Valid: ${plan.pause_duration_limit / 24} ${plan.pause_duration_limit === 24 ? 'Day' : 'Days'}`
+                            : `Valid: ${plan.pause_duration_limit} hrs`)
+                        : 'No Expiry')
+                    : '');
+
+                const featuresHtml = (pauseText || validityText)
+                    ? `<div class="plan-features">
+                        ${pauseText ? `<div class="plan-feature-badge"><span class="plan-feature-icon">⏸️</span> ${escapeHtml(pauseText)}</div>` : ''}
+                        ${validityText ? `<div class="plan-feature-badge"><span class="plan-feature-icon">📅</span> ${escapeHtml(validityText)}</div>` : ''}
+                    </div>`
+                    : '';
+
                 return `
                     <div class="plan-card" data-plan-id="${plan.id}" id="plan-${plan.id}" style="cursor: default;">
                         ${popularBadge}
                         <div class="plan-price">₱${plan.price}</div>
                         <div class="plan-duration">+${escapeHtml(plan.duration_display)}</div>
                         ${speedHtml}
+                        ${featuresHtml}
                     </div>
                 `;
             })

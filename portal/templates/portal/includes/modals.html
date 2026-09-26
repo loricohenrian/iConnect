@@ -30,6 +30,14 @@
                     Up to ↓{{ plan.speed_limit }}{% if plan.speed_limit_upload %} / ↑{{ plan.speed_limit_upload }}{% endif %} Mbps
                 </div>
                 {% endif %}
+                <div class="plan-features">
+                    <div class="plan-feature-badge">
+                        <span class="plan-feature-icon">⏸️</span> {{ plan.pause_limit_display }}
+                    </div>
+                    <div class="plan-feature-badge">
+                        <span class="plan-feature-icon">📅</span> {{ plan.validity_display }}
+                    </div>
+                </div>
             </div>
             {% empty %}
             <div class="empty-state" id="plans-empty-state">

@@ -286,6 +286,36 @@ main.portal-container {
     line-height: 1.2;
 }
 
+.plan-card .plan-features {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px dashed var(--color-border);
+}
+
+.plan-card .plan-feature-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--color-dark);
+    background: var(--color-light);
+    border: 1px solid rgba(123, 45, 59, 0.12);
+    border-radius: 6px;
+    padding: 3px 6px;
+    line-height: 1.25;
+    letter-spacing: -0.1px;
+}
+
+.plan-card .plan-feature-icon {
+    font-size: 11px;
+    line-height: 1;
+}
+
 /* Non-clickable plan cards in Rates Modal */
 #ratesModal .plan-card {
     cursor: default !important;
