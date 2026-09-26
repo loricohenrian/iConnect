@@ -1068,7 +1068,9 @@ function coinRequestStatusMessage(coinRequest, context = "start") {
             }
             return `May barya nang pumasok! Maghulog pa o pindutin ang ${actionWord}. / Coins detected! Insert more coins or tap ${actionWord}.`;
         }
-        return "Puwede nang maghulog ng barya! (₱1, ₱5, ₱10, ₱20) sa vendo machine. / Drop your coins now into the machine.";
+        // The active slot badge already communicates that coins can be inserted.
+        // Keep this area empty to avoid repeating the same instruction.
+        return "";
     }
     if (status === "pending") {
         // Redundant alert message suppressed because the big hero card displays full bilingual guidance
