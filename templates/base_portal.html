@@ -25,17 +25,6 @@
                 <img src="{% static 'img/final_iconnect_logo.png' %}?v={% now 'U' %}" alt="iConnect" class="portal-logo" width="48" height="48" decoding="sync" fetchpriority="high">
             </div>
             <div class="header-right">
-                <button type="button"
-                        id="ticket-notification-btn"
-                        class="ticket-notification-btn"
-                        aria-label="Open support ticket notifications"
-                        title="Support ticket notifications">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path>
-                        <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-                    </svg>
-                    <span id="ticket-notification-count" class="ticket-notification-count" hidden>0</span>
-                </button>
                 <div class="slots-indicator-inline" id="slots-indicator">
                     <div class="slots-badge {% if slots_available is not None and slots_available <= 0 %}full{% elif slots_available is not None and slots_available <= 5 %}low{% else %}available{% endif %}" id="slots-badge" title="Active Network Users">
                         <span class="slots-dot" id="slots-dot"></span>
@@ -53,6 +42,17 @@
                         </span>
                     </div>
                 </div>
+                <button type="button"
+                        id="ticket-notification-btn"
+                        class="ticket-notification-btn"
+                        aria-label="Open support ticket notifications"
+                        title="Support ticket notifications">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path>
+                        <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                    </svg>
+                    <span id="ticket-notification-count" class="ticket-notification-count" hidden>0</span>
+                </button>
             </div>
         </div>
     </header>
