@@ -302,6 +302,8 @@ PISONET_GPIO_PIN = int(os.getenv('GPIO_PIN', '3'))
 PISONET_GPIO_SIMULATION = os.getenv('GPIO_SIMULATION', 'False').lower() in ('true', '1', 'yes')
 DEFAULT_DEVICE_API_KEY = 'iconnect-local-device-key-change-me'
 PISONET_DEVICE_API_KEY = os.getenv('DEVICE_API_KEY', DEFAULT_DEVICE_API_KEY)
+PISONET_ESP32_API_KEY = os.getenv('ESP32_API_KEY', '').strip()
+PISONET_ESP32_VOLTAGE_TIMEOUT_SECONDS = int(os.getenv('ESP32_VOLTAGE_TIMEOUT_SECONDS', '60'))
 
 # Auto-generate a secure key if using a vulnerable default
 if PISONET_DEVICE_API_KEY in (DEFAULT_DEVICE_API_KEY, 'replace-with-a-strong-device-api-key', ''):

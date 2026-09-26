@@ -31,6 +31,7 @@ from .models import (
 )
 from .serializers import (
     CoinInsertedSerializer,
+    HardwareVoltageSerializer,
     PlanSerializer,
     SessionExtendSerializer,
     SessionSerializer,
@@ -59,6 +60,16 @@ def _require_dashboard_admin_response(request):
 def _has_valid_device_api_key(request):
     expected = getattr(settings, "PISONET_DEVICE_API_KEY", "").strip()
     provided = request.headers.get("X-DEVICE-API-KEY", "").strip()
+
+    if not expected or not provided:
+        return False
+    return hmac.compare_digest(provided, expected)
+
+
+def _has_valid_esp32_api_key(request):
+    """Authenticate ESP32 telemetry separately from coin-credit requests."""
+    expected = getattr(settings, "PISONET_ESP32_API_KEY", "").strip()
+    provided = request.headers.get("X-ESP32-API-KEY", "").strip()
 
     if not expected or not provided:
         return False
@@ -981,6 +992,67 @@ def coinslot_status(request):
         "remaining_seconds": 0,
         "expires_at": None,
     })
+
+
+@api_view(["POST", "GET"])
+@permission_classes([AllowAny])
+def hardware_voltage(request):
+    """Receive ESP32-C3 voltage telemetry or return the latest reading."""
+    cache_key = "esp32_voltage"
+
+    if request.method == "POST":
+        if not _has_valid_esp32_api_key(request):
+            audit_logger.warning(
+                "Rejected ESP32 voltage telemetry from IP %s: invalid API key",
+                _client_ip(request),
+            )
+            return Response(
+                {"success": False, "error": "Unauthorized device"},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        serializer = HardwareVoltageSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(
+                {"success": False, "errors": serializer.errors},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        device_name = serializer.validated_data["device"]
+        voltage = round(serializer.validated_data["voltage"], 2)
+        voltage_data = {
+            "device": device_name,
+            "voltage": voltage,
+            "updated_at": timezone.now().isoformat(),
+        }
+        cache.set(
+            cache_key,
+            voltage_data,
+            timeout=getattr(settings, "PISONET_ESP32_VOLTAGE_TIMEOUT_SECONDS", 60),
+        )
+
+        logger.info(
+            "ESP32 voltage received: %.2f V from %s (%s)",
+            voltage,
+            device_name,
+            _client_ip(request),
+        )
+        return Response({
+            "success": True,
+            "message": "Voltage received",
+            **voltage_data,
+        })
+
+    voltage_data = cache.get(cache_key)
+    if not voltage_data:
+        return Response({
+            "online": False,
+            "device": "ESP32-C3",
+            "voltage": None,
+            "message": "No recent data from ESP32",
+        })
+
+    return Response({"online": True, **voltage_data})
 
 
 @api_view(["POST"])

@@ -437,6 +437,51 @@ class SessionApiTests(TestCase):
         self.assertEqual(with_key.status_code, 201)
 
     @override_settings(
+        PISONET_ESP32_API_KEY="test-esp32-key",
+        PISONET_ESP32_VOLTAGE_TIMEOUT_SECONDS=60,
+    )
+    def test_hardware_voltage_accepts_authenticated_esp32_telemetry(self):
+        cache.delete("esp32_voltage")
+        response = self.client.post(
+            reverse("sessions_app:hardware-voltage"),
+            {"device": "ESP32-C3 Battery Monitor", "voltage": 12.64},
+            format="json",
+            HTTP_X_ESP32_API_KEY="test-esp32-key",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["success"])
+
+        latest = self.client.get(reverse("sessions_app:hardware-voltage"))
+        self.assertEqual(latest.status_code, 200)
+        self.assertTrue(latest.json()["online"])
+        self.assertEqual(latest.json()["device"], "ESP32-C3 Battery Monitor")
+        self.assertEqual(latest.json()["voltage"], 12.64)
+
+    @override_settings(PISONET_ESP32_API_KEY="test-esp32-key")
+    def test_hardware_voltage_rejects_missing_key_and_invalid_voltage(self):
+        no_key = self.client.post(
+            reverse("sessions_app:hardware-voltage"),
+            {"voltage": 12.5},
+            format="json",
+        )
+        self.assertEqual(no_key.status_code, 401)
+
+        out_of_range = self.client.post(
+            reverse("sessions_app:hardware-voltage"),
+            {"voltage": 31},
+            format="json",
+            HTTP_X_ESP32_API_KEY="test-esp32-key",
+        )
+        self.assertEqual(out_of_range.status_code, 400)
+
+    def test_hardware_voltage_reports_offline_without_recent_data(self):
+        cache.delete("esp32_voltage")
+        response = self.client.get(reverse("sessions_app:hardware-voltage"))
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.json()["online"])
+        self.assertIsNone(response.json()["voltage"])
+
+    @override_settings(
         PISONET_DEVICE_API_KEY="test-device-key",
         PISONET_COIN_MAX_REQUESTS=1,
         PISONET_COIN_WINDOW_SECONDS=60,

@@ -1,6 +1,7 @@
 """
 Serializers for Session Management API
 """
+import math
 import re
 from rest_framework import serializers
 from .models import Plan, Session, CoinEvent, WhitelistedDevice
@@ -103,6 +104,23 @@ class CoinInsertedSerializer(serializers.Serializer):
                 {'amount': 'Amount must exactly match denomination for a single coin event.'}
             )
         return attrs
+
+
+class HardwareVoltageSerializer(serializers.Serializer):
+    """Validate voltage telemetry received from an ESP32 monitor."""
+
+    device = serializers.CharField(
+        max_length=64,
+        default="ESP32-C3",
+        allow_blank=False,
+        trim_whitespace=True,
+    )
+    voltage = serializers.FloatField(min_value=0, max_value=30)
+
+    def validate_voltage(self, value):
+        if not math.isfinite(value):
+            raise serializers.ValidationError("Voltage must be a finite number.")
+        return value
 
 
 class SessionStartSerializer(serializers.Serializer):
