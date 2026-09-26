@@ -135,6 +135,7 @@
                 <ul style="list-style:none; padding:0; margin:0; font-size:12px; color:var(--color-dark); line-height:1.6;">
                     <li><strong style="color:var(--color-primary);">Spend money:</strong> Earn <span id="help-pts-peso">1</span> pt per ₱1 spent on sessions</li>
                     <li><strong style="color:var(--color-warning);">Daily streak:</strong> Connect daily to earn <span id="help-pts-streak">5</span> pts per day</li>
+                    <li><strong style="color:var(--color-primary);">Daily limit:</strong> Resets every midnight</li>
                 </ul>
             </div>
         </div>
@@ -149,9 +150,9 @@
                 <div class="spin-stat-value" id="spin-cost">10</div>
                 <div class="spin-stat-label">Cost/Spin</div>
             </div>
-            <div class="spin-stat">
+            <div class="spin-stat" title="Spins remaining for today (resets at midnight)">
                 <div class="spin-stat-value" id="spin-remaining">0</div>
-                <div class="spin-stat-label">Spins Left</div>
+                <div class="spin-stat-label">Left Today</div>
             </div>
         </div>
 
@@ -379,7 +380,7 @@ function executeSpin() {
                     btn.disabled = true;
                     btn.innerHTML = '<i class="bi bi-play-circle-fill"></i> SPIN!';
                     if (data.updated && data.updated.remaining_spins <= 0) {
-                        errorEl.textContent = 'Daily spin limit reached.';
+                        errorEl.textContent = "Daily spin limit reached for today. (Resets tomorrow)";
                         errorEl.style.display = 'block';
                     } else if (data.updated && data.updated.points < parseInt(document.getElementById('spin-cost').textContent)) {
                         errorEl.textContent = 'Not enough points to spin.';

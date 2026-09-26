@@ -620,7 +620,7 @@ def spin_wheel_view(request):
         error_message = "Your device has been blocked by the administrator."
     elif remaining_spins <= 0:
         can_spin = False
-        error_message = "You have reached the daily spin limit."
+        error_message = "You have reached today's spin limit. (Resets tomorrow)"
     
     # 2. Check points
     elif device_profile.points < settings.spin_cost_points:
@@ -719,7 +719,7 @@ def api_execute_spin(request):
 
             # Validation — all checks BEFORE deducting points
             if device_profile.spins_today >= settings_obj.daily_spin_limit:
-                return JsonResponse({"status": "error", "message": "Daily spin limit reached"})
+                return JsonResponse({"status": "error", "message": "Daily spin limit reached for today. (Resets tomorrow)"})
 
             if device_profile.points < settings_obj.spin_cost_points:
                 return JsonResponse({"status": "error", "message": "Not enough points"})
@@ -891,7 +891,7 @@ def api_spin_data(request):
 
     if remaining_spins <= 0:
         can_spin = False
-        error_message = "You have reached the daily spin limit."
+        error_message = "You have reached today's spin limit. (Resets tomorrow)"
     elif device_profile.points < settings_obj.spin_cost_points:
         can_spin = False
         error_message = "Not enough points to spin."
