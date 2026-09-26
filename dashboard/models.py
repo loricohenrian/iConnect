@@ -321,6 +321,7 @@ class IssueReport(models.Model):
 
     STATUS_CHOICES = [
         ('pending', 'Pending'),
+        ('answered', 'Answered'),
         ('resolved', 'Resolved'),
     ]
 
@@ -330,8 +331,11 @@ class IssueReport(models.Model):
     message = models.TextField(help_text="Issue description from customer")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     admin_notes = models.TextField(blank=True, help_text="Operator resolution notes")
+    admin_reply = models.TextField(blank=True, help_text="Customer-facing reply shown in the captive portal")
     created_at = models.DateTimeField(auto_now_add=True)
+    replied_at = models.DateTimeField(null=True, blank=True)
     resolved_at = models.DateTimeField(null=True, blank=True)
+    user_viewed_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ['-created_at']

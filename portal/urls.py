@@ -15,6 +15,8 @@ urlpatterns = [
     path('api/execute_spin/', views.api_execute_spin, name='api_execute_spin'),
     path('api/spin-data/', views.api_spin_data, name='api_spin_data'),
     path('api/report-issue/', views.api_report_issue, name='api_report_issue'),
+    path('api/ticket-notifications/', views.api_ticket_notifications, name='api_ticket_notifications'),
+    path('api/ticket-notifications/<int:issue_id>/read/', views.api_ticket_notification_read, name='api_ticket_notification_read'),
 
     # Captive portal connectivity check probe endpoints (RFC 8908 + OS probes)
     path('api/captive-portal/', views.captive_portal_api, name='captive_portal_api'),
@@ -29,4 +31,3 @@ urlpatterns = [
     path('canonical-check.txt', views.captive_portal_probe, name='probe_canonical'),
     path('check_network_status.txt', views.captive_portal_probe, name='probe_network_status'),
 ]
-

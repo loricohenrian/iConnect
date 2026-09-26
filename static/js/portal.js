@@ -2723,6 +2723,209 @@ function buildPortalUrl(path, macAddress, extraParams = {}) {
     return url.toString();
 }
 
+let portalSupportTickets = [];
+
+function formatSupportTicketDate(value) {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toLocaleString([], {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+    });
+}
+
+function initTicketNotifications(macAddress) {
+    const button = document.getElementById('ticket-notification-btn');
+    const count = document.getElementById('ticket-notification-count');
+    const modal = document.getElementById('ticket-notification-modal');
+    const closeButton = document.getElementById('ticket-notification-close');
+    const backButton = document.getElementById('ticket-notification-back');
+    const listView = document.getElementById('ticket-notification-list-view');
+    const list = document.getElementById('ticket-notification-list');
+    const loading = document.getElementById('ticket-notification-loading');
+    const empty = document.getElementById('ticket-notification-empty');
+    const detail = document.getElementById('ticket-notification-detail');
+
+    if (!button || !count || !modal || !listView || !list || !detail) return;
+
+    const updateUnreadBadge = () => {
+        const unreadCount = portalSupportTickets.filter((ticket) => ticket.unread).length;
+        count.textContent = unreadCount > 99 ? '99+' : String(unreadCount);
+        count.hidden = unreadCount === 0;
+        button.classList.toggle('has-unread', unreadCount > 0);
+        button.setAttribute(
+            'aria-label',
+            unreadCount > 0
+                ? `Open support ticket notifications, ${unreadCount} unread`
+                : 'Open support ticket notifications'
+        );
+    };
+
+    const showListView = () => {
+        listView.hidden = false;
+        detail.hidden = true;
+    };
+
+    const renderTicketList = () => {
+        list.replaceChildren();
+        if (loading) loading.hidden = true;
+        if (empty) empty.hidden = portalSupportTickets.length !== 0;
+
+        portalSupportTickets.forEach((ticket) => {
+            const item = document.createElement('button');
+            item.type = 'button';
+            item.className = 'ticket-notification-item';
+            if (ticket.unread) item.classList.add('is-unread');
+
+            const dot = document.createElement('span');
+            dot.className = 'ticket-notification-dot';
+            dot.setAttribute('aria-hidden', 'true');
+
+            const copy = document.createElement('span');
+            copy.className = 'ticket-notification-copy';
+
+            const title = document.createElement('strong');
+            title.textContent = `Ticket #${ticket.id} · ${ticket.category_label}`;
+
+            const preview = document.createElement('p');
+            if (ticket.admin_reply) {
+                preview.textContent = `Support replied: ${ticket.admin_reply}`;
+            } else if (ticket.status === 'resolved') {
+                preview.textContent = 'Your ticket was marked resolved.';
+            } else {
+                preview.textContent = ticket.message;
+            }
+
+            const time = document.createElement('time');
+            time.textContent = formatSupportTicketDate(ticket.notification_at || ticket.created_at);
+
+            const status = document.createElement('span');
+            const safeStatus = ['pending', 'answered', 'resolved'].includes(ticket.status)
+                ? ticket.status
+                : 'pending';
+            status.className = `ticket-status ticket-status--${safeStatus}`;
+            status.textContent = ticket.status_label || 'Pending';
+
+            copy.append(title, preview, time);
+            item.append(dot, copy, status);
+            item.addEventListener('click', () => showTicketDetail(ticket.id));
+            list.appendChild(item);
+        });
+
+        updateUnreadBadge();
+    };
+
+    const markTicketRead = async (ticket) => {
+        if (!ticket.unread) return;
+        ticket.unread = false;
+        updateUnreadBadge();
+        try {
+            await fetch(
+                buildPortalUrl(`/api/ticket-notifications/${ticket.id}/read/`, macAddress || getMacAddress()),
+                {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': getCSRFToken() },
+                }
+            );
+        } catch (error) {
+            // The next poll restores unread state if the server did not receive it.
+        }
+    };
+
+    const showTicketDetail = (ticketId) => {
+        const ticket = portalSupportTickets.find((item) => item.id === ticketId);
+        if (!ticket) return;
+
+        const status = document.getElementById('ticket-detail-status');
+        const safeStatus = ['pending', 'answered', 'resolved'].includes(ticket.status)
+            ? ticket.status
+            : 'pending';
+        status.className = `ticket-status ticket-status--${safeStatus}`;
+        status.textContent = ticket.status_label || 'Pending';
+
+        document.getElementById('ticket-detail-id').textContent = `Ticket #${ticket.id}`;
+        document.getElementById('ticket-detail-category').textContent = ticket.category_label || 'Support ticket';
+        document.getElementById('ticket-detail-message').textContent = ticket.message || '';
+        document.getElementById('ticket-detail-created').textContent = `Submitted ${formatSupportTicketDate(ticket.created_at)}`;
+
+        const reply = document.getElementById('ticket-detail-reply');
+        const replied = document.getElementById('ticket-detail-replied');
+        if (ticket.admin_reply) {
+            reply.textContent = ticket.admin_reply;
+            replied.textContent = ticket.replied_at
+                ? `Replied ${formatSupportTicketDate(ticket.replied_at)}`
+                : '';
+        } else if (ticket.status === 'resolved') {
+            reply.textContent = 'Your ticket has been marked resolved by iConnect Support.';
+            replied.textContent = ticket.resolved_at
+                ? `Resolved ${formatSupportTicketDate(ticket.resolved_at)}`
+                : '';
+        } else {
+            reply.textContent = 'Your ticket is waiting for an operator response.';
+            replied.textContent = '';
+        }
+
+        listView.hidden = true;
+        detail.hidden = false;
+        markTicketRead(ticket);
+    };
+
+    const refresh = async () => {
+        const currentMac = macAddress || getMacAddress();
+        try {
+            const response = await fetch(buildPortalUrl('/api/ticket-notifications/', currentMac), {
+                cache: 'no-store',
+            });
+            if (!response.ok) return;
+            const data = await response.json();
+            portalSupportTickets = Array.isArray(data.tickets) ? data.tickets : [];
+            renderTicketList();
+        } catch (error) {
+            if (loading && modal.style.display === 'flex') {
+                loading.textContent = 'Could not load ticket updates. Please try again.';
+            }
+        }
+    };
+
+    const openModal = () => {
+        modal.style.display = 'flex';
+        modal.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('modal-open');
+        document.documentElement.classList.add('modal-open');
+        showListView();
+        if (loading && portalSupportTickets.length === 0) loading.hidden = false;
+        refresh();
+    };
+
+    const closeModal = () => {
+        modal.style.display = 'none';
+        modal.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('modal-open');
+        document.documentElement.classList.remove('modal-open');
+        showListView();
+    };
+
+    button.addEventListener('click', openModal);
+    if (closeButton) closeButton.addEventListener('click', closeModal);
+    if (backButton) backButton.addEventListener('click', () => {
+        showListView();
+        renderTicketList();
+    });
+    modal.addEventListener('click', (event) => {
+        if (event.target === modal) closeModal();
+    });
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && modal.style.display === 'flex') closeModal();
+    });
+
+    window.refreshTicketNotifications = refresh;
+    refresh();
+    window.setInterval(refresh, 30000);
+}
+
 function initJoinGroupFlow(macAddress) {
     const btnShowJoin = document.getElementById("btn-show-join-group");
     const joinModal = document.getElementById("joinGroupModal");
@@ -2852,6 +3055,7 @@ document.addEventListener("DOMContentLoaded", () => {
     initExtendSessionFlow(macAddress);
     applyCoinCooldownTimer();
     initPortalRealtime();
+    initTicketNotifications(macAddress);
 
     try {
         const pendingToast = sessionStorage.getItem("iconnect_time_added_toast");

@@ -10,7 +10,7 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.core.paginator import Paginator
 from django.utils import timezone
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET, require_POST
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import ensure_csrf_cookie, csrf_exempt
 
@@ -79,15 +79,16 @@ def _get_mac_address(request):
 
     post_mac = ""
     if request.method == "POST":
-        post_mac = _normalize_mac(request.POST.get("mac_address", "") or request.POST.get("mac", ""))
-        if not post_mac and request.body:
+        if request.content_type == "application/json":
             try:
                 import json
-                body_data = json.loads(request.body.decode('utf-8'))
+                body_data = json.loads(request.body.decode('utf-8')) if request.body else {}
                 if isinstance(body_data, dict):
                     post_mac = _normalize_mac(body_data.get("mac_address", "") or body_data.get("mac", ""))
             except Exception:
                 pass
+        else:
+            post_mac = _normalize_mac(request.POST.get("mac_address", "") or request.POST.get("mac", ""))
 
     explicit_mac = query_mac or header_mac or post_mac
 
@@ -1038,9 +1039,90 @@ def api_report_issue(request):
 
     return JsonResponse({
         "status": "success",
-        "message": "Your report has been sent to the operator. Thank you!",
+        "message": f"Ticket #{report.id} was sent. Check the bell for replies.",
         "report_id": report.id,
     })
+
+
+def _ticket_notification_time(issue):
+    """Return the latest customer-visible update time for an issue."""
+    update_times = [
+        value
+        for value in (issue.replied_at, issue.resolved_at)
+        if value is not None
+    ]
+    return max(update_times) if update_times else None
+
+
+def _ticket_notification_payload(issue):
+    notification_time = _ticket_notification_time(issue)
+    is_unread = bool(
+        notification_time
+        and (
+            issue.user_viewed_at is None
+            or issue.user_viewed_at < notification_time
+        )
+    )
+    return {
+        "id": issue.id,
+        "category": issue.category,
+        "category_label": issue.get_category_display(),
+        "message": issue.message,
+        "status": issue.status,
+        "status_label": issue.get_status_display(),
+        "admin_reply": issue.admin_reply,
+        "created_at": issue.created_at.isoformat(),
+        "replied_at": issue.replied_at.isoformat() if issue.replied_at else None,
+        "resolved_at": issue.resolved_at.isoformat() if issue.resolved_at else None,
+        "notification_at": notification_time.isoformat() if notification_time else None,
+        "unread": is_unread,
+    }
+
+
+@never_cache
+@require_GET
+def api_ticket_notifications(request):
+    """Return support tickets belonging to the current captive-portal device."""
+    from dashboard.models import IssueReport
+    from sessions_app.views import _public_read_rate_limited
+
+    if _public_read_rate_limited(request, "ticket-notifications"):
+        return JsonResponse({"error": "Too many requests. Please retry shortly."}, status=429)
+
+    mac_address = _get_mac_address(request)
+    if not mac_address:
+        return JsonResponse({"tickets": [], "unread_count": 0})
+
+    tickets = list(
+        IssueReport.objects.filter(mac_address=mac_address)
+        .order_by("-created_at")[:20]
+    )
+    payloads = [_ticket_notification_payload(ticket) for ticket in tickets]
+    return JsonResponse({
+        "tickets": payloads,
+        "unread_count": sum(1 for ticket in payloads if ticket["unread"]),
+    })
+
+
+@csrf_exempt
+@require_POST
+def api_ticket_notification_read(request, issue_id):
+    """Mark one customer-visible ticket update as read by its owning device."""
+    from dashboard.models import IssueReport
+
+    mac_address = _get_mac_address(request)
+    if not mac_address:
+        return JsonResponse({"error": "Device identity is required."}, status=400)
+
+    issue = IssueReport.objects.filter(id=issue_id, mac_address=mac_address).first()
+    if issue is None:
+        return JsonResponse({"error": "Ticket not found."}, status=404)
+
+    if _ticket_notification_time(issue):
+        issue.user_viewed_at = timezone.now()
+        issue.save(update_fields=["user_viewed_at"])
+
+    return JsonResponse({"status": "success", "ticket_id": issue.id})
 
 
 def captive_portal_probe(request):

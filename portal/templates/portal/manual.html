@@ -459,6 +459,11 @@
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle;"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg> Send Message
         </button>
     </form>
+
+    <button type="button" id="btn-view-my-tickets" class="btn btn-secondary" style="width: 100%; margin-top: 10px; padding: 10px 12px; font-weight: 700; font-size: 13px; border-radius: 10px; display: flex; align-items: center; justify-content: center; gap: 7px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+        View My Tickets & Replies
+    </button>
 </div>
 
 <script>
@@ -466,6 +471,14 @@ document.addEventListener("DOMContentLoaded", function() {
     const form = document.getElementById("report-issue-form");
     const alertBox = document.getElementById("report-alert-box");
     const submitBtn = document.getElementById("btn-submit-report");
+    const viewTicketsBtn = document.getElementById("btn-view-my-tickets");
+
+    if (viewTicketsBtn) {
+        viewTicketsBtn.addEventListener("click", function() {
+            const notificationButton = document.getElementById("ticket-notification-btn");
+            if (notificationButton) notificationButton.click();
+        });
+    }
 
     if (!form) return;
 
@@ -513,6 +526,9 @@ document.addEventListener("DOMContentLoaded", function() {
             if (response.ok) {
                 showAlert("✅ " + (data.message || "Your report has been sent to the operator!"), "success");
                 form.reset();
+                if (typeof window.refreshTicketNotifications === "function") {
+                    window.refreshTicketNotifications();
+                }
             } else {
                 showAlert("⚠️ " + (data.error || "Failed to send report. Please retry."), "danger");
             }
@@ -561,4 +577,3 @@ document.addEventListener("DOMContentLoaded", function() {
 </script>
 
 {% endblock %}
-

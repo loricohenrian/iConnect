@@ -1,6 +1,8 @@
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
+from dashboard.models import IssueReport
 from sessions_app.models import Plan
 
 
@@ -32,6 +34,8 @@ class PortalProductionTests(TestCase):
         self.assertContains(response, 'id="cancelCoinModal"', html=False)
         self.assertContains(response, 'id="btn-abort-cancel-coin"', html=False)
         self.assertContains(response, 'id="btn-confirm-cancel-coin"', html=False)
+        self.assertContains(response, 'id="ticket-notification-btn"', html=False)
+        self.assertContains(response, 'id="ticket-notification-modal"', html=False)
 
     def test_report_issue_success(self):
         """Users can submit issue reports via API."""
@@ -64,6 +68,77 @@ class PortalProductionTests(TestCase):
             content_type="application/json",
         )
         self.assertEqual(response.status_code, 400)
+
+    def test_ticket_notifications_are_scoped_to_device_and_hide_internal_notes(self):
+        own = IssueReport.objects.create(
+            mac_address="11:22:33:44:55:66",
+            category="coin_stuck",
+            message="My coin was not credited",
+            status="answered",
+            admin_reply="We added the missing credit.",
+            admin_notes="Private operator investigation details",
+            replied_at=timezone.now(),
+        )
+        IssueReport.objects.create(
+            mac_address="AA:BB:CC:DD:EE:FF",
+            category="other",
+            message="Another device ticket",
+            status="answered",
+            admin_reply="Private reply for another device",
+            replied_at=timezone.now(),
+        )
+
+        response = self.client.get(
+            reverse("portal:api_ticket_notifications"),
+            {"mac": "11:22:33:44:55:66"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["unread_count"], 1)
+        self.assertEqual(len(data["tickets"]), 1)
+        self.assertEqual(data["tickets"][0]["id"], own.id)
+        self.assertEqual(data["tickets"][0]["admin_reply"], "We added the missing credit.")
+        self.assertNotIn("admin_notes", data["tickets"][0])
+
+    def test_opening_ticket_marks_customer_update_read(self):
+        report = IssueReport.objects.create(
+            mac_address="11:22:33:44:55:66",
+            category="no_internet",
+            message="No connection",
+            status="resolved",
+            resolved_at=timezone.now(),
+        )
+
+        response = self.client.post(
+            reverse("portal:api_ticket_notification_read", args=[report.id]) + "?mac=11:22:33:44:55:66"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        report.refresh_from_db()
+        self.assertIsNotNone(report.user_viewed_at)
+
+        notifications = self.client.get(
+            reverse("portal:api_ticket_notifications"),
+            {"mac": "11:22:33:44:55:66"},
+        ).json()
+        self.assertEqual(notifications["unread_count"], 0)
+
+    def test_device_cannot_mark_another_devices_ticket_read(self):
+        report = IssueReport.objects.create(
+            mac_address="AA:BB:CC:DD:EE:FF",
+            category="other",
+            message="Other device",
+            status="answered",
+            admin_reply="Reply",
+            replied_at=timezone.now(),
+        )
+
+        response = self.client.post(
+            reverse("portal:api_ticket_notification_read", args=[report.id]) + "?mac=11:22:33:44:55:66"
+        )
+
+        self.assertEqual(response.status_code, 404)
 
 
 class RatesModalTests(TestCase):
@@ -322,7 +397,6 @@ class CaptivePortalRedirectionTests(TestCase):
         self.assertFalse(data["captive"])
         self.assertIn("/session/", data["user-portal-url"])
         self.assertGreater(data["seconds-remaining"], 0)
-
 
 
 

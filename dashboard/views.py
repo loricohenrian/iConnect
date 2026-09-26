@@ -3463,7 +3463,7 @@ def issues_view(request):
 
     reports = IssueReport.objects.all()
 
-    if status_filter in ['pending', 'resolved']:
+    if status_filter in ['pending', 'answered', 'resolved']:
         reports = reports.filter(status=status_filter)
 
     if category_filter in dict(IssueReport.CATEGORY_CHOICES).keys():
@@ -3474,7 +3474,9 @@ def issues_view(request):
         q_filter = (
             Q(mac_address__icontains=search_query) |
             Q(contact_info__icontains=search_query) |
-            Q(message__icontains=search_query)
+            Q(message__icontains=search_query) |
+            Q(admin_reply__icontains=search_query) |
+            Q(admin_notes__icontains=search_query)
         )
         if clean_id.isdigit():
             q_filter = Q(id=int(clean_id)) | q_filter
@@ -3483,6 +3485,7 @@ def issues_view(request):
     # Stats
     total_count = IssueReport.objects.count()
     pending_count = IssueReport.objects.filter(status='pending').count()
+    answered_count = IssueReport.objects.filter(status='answered').count()
     resolved_count = IssueReport.objects.filter(status='resolved').count()
 
     paginator = Paginator(reports, 15)
@@ -3497,6 +3500,7 @@ def issues_view(request):
         'search_query': search_query,
         'total_count': total_count,
         'pending_count': pending_count,
+        'answered_count': answered_count,
         'resolved_count': resolved_count,
         'categories': IssueReport.CATEGORY_CHOICES,
     }
@@ -3506,17 +3510,44 @@ def issues_view(request):
 @user_passes_test(_is_dashboard_admin, login_url='dashboard:login')
 @require_POST
 def update_issue_status(request, issue_id):
-    """Update issue status or operator notes."""
+    """Update issue status, internal notes, and the customer-facing reply."""
     issue = get_object_or_404(IssueReport, id=issue_id)
     new_status = request.POST.get('status')
     admin_notes = request.POST.get('admin_notes')
+    admin_reply = request.POST.get('admin_reply')
 
-    if new_status in ['pending', 'resolved']:
+    sanitized_reply = issue.admin_reply
+    reply_changed = False
+    if admin_reply is not None:
+        sanitized_reply = sanitize_text(admin_reply, max_length=2000, allow_multiline=True)
+        reply_changed = sanitized_reply != issue.admin_reply
+
+    if reply_changed and sanitized_reply and new_status in (None, 'pending'):
+        # A customer-facing response moves a new ticket into Answered automatically.
+        new_status = 'answered'
+
+    if new_status == 'answered' and not sanitized_reply:
+        messages.error(request, 'Write a reply before marking the ticket as Answered.')
+        return _safe_redirect_referer(request, fallback='dashboard:issues')
+
+    status_changed = new_status in ['pending', 'answered', 'resolved'] and new_status != issue.status
+
+    if new_status in ['pending', 'answered', 'resolved']:
         issue.status = new_status
         if new_status == 'resolved':
-            issue.resolved_at = timezone.now()
+            if status_changed:
+                issue.resolved_at = timezone.now()
+                issue.user_viewed_at = None
         else:
             issue.resolved_at = None
+
+    if admin_reply is not None:
+        issue.admin_reply = sanitized_reply
+        if sanitized_reply and (reply_changed or (new_status == 'answered' and status_changed)):
+            issue.replied_at = timezone.now()
+            issue.user_viewed_at = None
+        elif not sanitized_reply:
+            issue.replied_at = None
 
     if admin_notes is not None:
         issue.admin_notes = sanitize_text(admin_notes, max_length=1000, allow_multiline=True)

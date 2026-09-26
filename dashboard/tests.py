@@ -953,6 +953,44 @@ class SupportTicketHardeningTests(TestCase):
         self.assertEqual(self.report.admin_notes, "Manually refunded ₱5 to customer.")
         self.assertIsNotNone(self.report.resolved_at)
 
+    def test_customer_reply_marks_pending_ticket_answered_and_unread(self):
+        self.report.user_viewed_at = timezone.now()
+        self.report.save(update_fields=["user_viewed_at"])
+
+        resp = self.client.post(
+            f"/iconnect-ops/issues/{self.report.id}/update/",
+            {
+                "status": "pending",
+                "admin_reply": "We restored the missing five-peso credit.",
+                "admin_notes": "Verified against the coin event log.",
+            },
+        )
+
+        self.assertEqual(resp.status_code, 302)
+        self.report.refresh_from_db()
+        self.assertEqual(self.report.status, "answered")
+        self.assertEqual(
+            self.report.admin_reply,
+            "We restored the missing five-peso credit.",
+        )
+        self.assertEqual(
+            self.report.admin_notes,
+            "Verified against the coin event log.",
+        )
+        self.assertIsNotNone(self.report.replied_at)
+        self.assertIsNone(self.report.user_viewed_at)
+
+    def test_answered_status_requires_customer_reply(self):
+        resp = self.client.post(
+            f"/iconnect-ops/issues/{self.report.id}/update/",
+            {"status": "answered", "admin_reply": ""},
+        )
+
+        self.assertEqual(resp.status_code, 302)
+        self.report.refresh_from_db()
+        self.assertEqual(self.report.status, "pending")
+        self.assertEqual(self.report.admin_reply, "")
+
     def test_open_redirect_protection(self):
         # Malicious referer should fallback to safe internal URL
         resp = self.client.post(

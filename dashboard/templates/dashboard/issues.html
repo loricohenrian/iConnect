@@ -14,23 +14,23 @@
 {% endif %}
 
 <style>
-.stats-grid.stats-grid-3 {
-    grid-template-columns: repeat(3, 1fr);
+.stats-grid.stats-grid-4 {
+    grid-template-columns: repeat(4, 1fr);
 }
 @media (max-width: 1024px) {
-    .stats-grid.stats-grid-3 {
+    .stats-grid.stats-grid-4 {
         grid-template-columns: repeat(2, 1fr);
     }
 }
 @media (max-width: 639px) {
-    .stats-grid.stats-grid-3 {
+    .stats-grid.stats-grid-4 {
         grid-template-columns: 1fr;
     }
 }
 </style>
 
 <!-- Stats Cards -->
-<div class="stats-grid stats-grid-3">
+<div class="stats-grid stats-grid-4">
     <!-- Pending -->
     <a href="?status=pending{% if category_filter != 'all' %}&category={{ category_filter }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}" class="stat-card animate-fadeIn" style="text-decoration: none; color: inherit; cursor: pointer; transition: transform 0.15s ease, box-shadow 0.15s ease; border: {% if status_filter == 'pending' %}2px solid #d97706{% else %}1px solid var(--color-border){% endif %};" title="Filter by Pending tickets">
         <div class="stat-info">
@@ -39,6 +39,17 @@
         </div>
         <div class="static-icon" style="color: #d97706; background: #fffbeb; width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+        </div>
+    </a>
+
+    <!-- Answered -->
+    <a href="?status=answered{% if category_filter != 'all' %}&category={{ category_filter }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}" class="stat-card animate-fadeIn" style="text-decoration: none; color: inherit; cursor: pointer; transition: transform 0.15s ease, box-shadow 0.15s ease; border: {% if status_filter == 'answered' %}2px solid #2563eb{% else %}1px solid var(--color-border){% endif %};" title="Filter by Answered tickets">
+        <div class="stat-info">
+            <div class="stat-label">Answered</div>
+            <div class="stat-value" style="color: #2563eb;">{{ answered_count }}</div>
+        </div>
+        <div class="static-icon" style="color: #2563eb; background: #eff6ff; width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><polyline points="9 11 11 13 15 9"></polyline></svg>
         </div>
     </a>
 
@@ -83,6 +94,7 @@
             <select name="status" class="form-input" style="width: 130px; padding: 4px 8px; height: 32px; font-size: 12px;" onchange="this.form.submit()">
                 <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Status</option>
                 <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
+                <option value="answered" {% if status_filter == 'answered' %}selected{% endif %}>Answered</option>
                 <option value="resolved" {% if status_filter == 'resolved' %}selected{% endif %}>Resolved</option>
             </select>
 
@@ -111,6 +123,13 @@
                     <td>
                         {% if report.status == 'pending' %}
                         <span class="badge" style="background: #fef3c7; color: #b45309; font-weight: 700; padding: 3px 8px; border-radius: 6px; font-size: 11px;">Pending</span>
+                        {% elif report.status == 'answered' %}
+                        <span class="badge" style="background: #dbeafe; color: #1d4ed8; font-weight: 700; padding: 3px 8px; border-radius: 6px; font-size: 11px;">Answered</span>
+                        {% if report.replied_at %}
+                        <div style="font-size: 10px; color: #2563eb; margin-top: 3px;" title="{{ report.replied_at|date:'Y-m-d H:i:s' }}">
+                            Replied {{ report.replied_at|date:"M d, h:i A" }}
+                        </div>
+                        {% endif %}
                         {% else %}
                         <span class="badge" style="background: #dcfce7; color: #15803d; font-weight: 700; padding: 3px 8px; border-radius: 6px; font-size: 11px;">Resolved</span>
                         {% if report.resolved_at %}
@@ -129,9 +148,14 @@
                         <div style="font-size: 13px; color: var(--color-dark); max-width: 320px; line-height: 1.4; word-break: break-word;">
                             {{ report.message }}
                         </div>
+                        {% if report.admin_reply %}
+                        <div style="font-size: 11px; color: #1d4ed8; background: #eff6ff; padding: 6px 8px; border-radius: 6px; margin-top: 6px; border: 1px solid #bfdbfe;">
+                            <strong>Reply to customer:</strong> {{ report.admin_reply }}
+                        </div>
+                        {% endif %}
                         {% if report.admin_notes %}
-                        <div style="font-size: 11px; color: var(--color-primary); background: #fdf2f4; padding: 4px 8px; border-radius: 4px; margin-top: 6px; display: inline-block;">
-                            <strong>Note:</strong> {{ report.admin_notes }}
+                        <div style="font-size: 11px; color: var(--color-gray); background: var(--color-light); padding: 5px 8px; border-radius: 6px; margin-top: 5px; display: inline-block;">
+                            <strong>Internal note:</strong> {{ report.admin_notes }}
                         </div>
                         {% endif %}
                     </td>
@@ -157,8 +181,8 @@
                     </td>
                     <td style="text-align: right;">
                         <div style="display: flex; gap: 6px; justify-content: flex-end; align-items: center;">
-                            <button type="button" class="btn btn-sm btn-secondary" style="padding: 4px 8px; font-size: 11px; border-radius: 6px; font-weight: 600;" title="Edit Notes & Status" onclick="openNoteModal('{% url 'dashboard:update_issue_status' report.id %}', '{{ report.status }}', '{{ report.admin_notes|escapejs }}', '{{ report.id }}')">
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -1px;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg> Note
+                            <button type="button" class="btn btn-sm btn-secondary" style="padding: 4px 8px; font-size: 11px; border-radius: 6px; font-weight: 600;" title="Reply to Customer" onclick="openNoteModal('{% url 'dashboard:update_issue_status' report.id %}', '{{ report.status }}', '{{ report.admin_reply|escapejs }}', '{{ report.admin_notes|escapejs }}', '{{ report.id }}')">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -1px;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg> Reply
                             </button>
 
                             {% if report.status != 'resolved' %}
@@ -240,14 +264,14 @@
     </div>
 </div>
 
-<!-- Resolution / Admin Note Modal -->
+<!-- Customer Reply / Resolution Modal -->
 <div id="noteModal" class="modal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center;">
     <div class="chart-card animate-fadeIn" style="width: 100%; max-width: 440px; margin: 16px;">
         <h3 class="card-title mb-sm" style="display: flex; align-items: center; gap: 8px;">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--color-primary);"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-            <span id="noteModalTitle">Ticket Resolution & Notes</span>
+            <span id="noteModalTitle">Reply to Support Ticket</span>
         </h3>
-        <p class="text-small text-muted mb-md">Record internal resolution details (e.g. coin unjammed, refunded ₱5, time added to MAC).</p>
+        <p class="text-small text-muted mb-md">The customer reply is visible in their captive-portal notifications. Internal notes remain private.</p>
         
         <form method="POST" id="noteModalForm" action="">
             {% csrf_token %}
@@ -255,18 +279,25 @@
                 <label class="form-label" for="noteModalStatus">Status</label>
                 <select name="status" id="noteModalStatus" class="form-input" style="width: 100%; font-size: 13px;">
                     <option value="resolved">Resolved</option>
+                    <option value="answered">Answered</option>
                     <option value="pending">Pending</option>
                 </select>
             </div>
+
+            <div class="form-group mb-sm">
+                <label class="form-label" for="noteModalReply">Reply to Customer</label>
+                <textarea name="admin_reply" id="noteModalReply" rows="4" class="form-input" placeholder="Write the response the customer will receive..." maxlength="2000" style="width: 100%; resize: vertical; font-size: 13px;"></textarea>
+                <div class="text-xs text-muted" style="margin-top: 4px;">Saving a reply automatically marks a Pending ticket as Answered.</div>
+            </div>
             
             <div class="form-group mb-md">
-                <label class="form-label" for="noteModalNotes">Operator Notes</label>
+                <label class="form-label" for="noteModalNotes">Internal Operator Notes</label>
                 <textarea name="admin_notes" id="noteModalNotes" rows="3" class="form-input" placeholder="Describe action taken (e.g. Checked machine, refunded ₱5, manual time credited)..." maxlength="1000" style="width: 100%; resize: vertical; font-size: 13px;"></textarea>
             </div>
 
             <div class="d-flex gap-sm justify-content-end">
                 <button type="button" class="btn btn-secondary btn-sm" onclick="closeNoteModal()">Cancel</button>
-                <button type="submit" class="btn btn-primary btn-sm">Save Ticket</button>
+                <button type="submit" class="btn btn-primary btn-sm">Send Reply & Save</button>
             </div>
         </form>
     </div>
@@ -278,6 +309,7 @@
     const noteModal = document.getElementById('noteModal');
     const noteModalForm = document.getElementById('noteModalForm');
     const noteModalStatus = document.getElementById('noteModalStatus');
+    const noteModalReply = document.getElementById('noteModalReply');
     const noteModalNotes = document.getElementById('noteModalNotes');
     const noteModalTitle = document.getElementById('noteModalTitle');
 
@@ -294,14 +326,15 @@
         }
     }
 
-    function openNoteModal(actionUrl, currentStatus, currentNotes, ticketId) {
+    function openNoteModal(actionUrl, currentStatus, currentReply, currentNotes, ticketId) {
         if (noteModal && noteModalForm) {
             noteModalForm.action = actionUrl;
             if (noteModalStatus) noteModalStatus.value = currentStatus;
+            if (noteModalReply) noteModalReply.value = currentReply || '';
             if (noteModalNotes) noteModalNotes.value = currentNotes || '';
-            if (noteModalTitle) noteModalTitle.textContent = `Ticket #${ticketId} Notes & Status`;
+            if (noteModalTitle) noteModalTitle.textContent = `Reply to Ticket #${ticketId}`;
             noteModal.style.display = 'flex';
-            setTimeout(() => { if (noteModalNotes) noteModalNotes.focus(); }, 100);
+            setTimeout(() => { if (noteModalReply) noteModalReply.focus(); }, 100);
         }
     }
 
