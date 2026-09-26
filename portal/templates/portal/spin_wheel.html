@@ -113,10 +113,10 @@
                         setTimeout(() => {
                             resultContainer.style.display = "block";
                             if (data.prize.minutes > 0) {
-                                resultText.innerHTML = `🎉 You won ${data.prize.name}! (+${data.prize.minutes} mins added to your session)`;
+                                resultText.textContent = `🎉 You won ${data.prize.name}! (+${data.prize.minutes} mins added to your session)`;
                             } else {
                                 resultContainer.className = "alert alert-secondary mt-md";
-                                resultText.innerHTML = `😅 You won ${data.prize.name}. Better luck next time!`;
+                                resultText.textContent = `😅 You won ${data.prize.name}. Better luck next time!`;
                             }
                             
                             if (data.updated) {

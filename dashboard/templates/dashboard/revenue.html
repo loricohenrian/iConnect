@@ -318,6 +318,8 @@
 {% endblock %}
 
 {% block dashboard_js %}
+{{ plan_labels|json_script:"plan-labels-data" }}
+{{ plan_data|json_script:"plan-data" }}
 <script>
     function enableCustomPeriod() {
         document.getElementById('custom-period-input').disabled = false;
@@ -356,8 +358,8 @@
     document.addEventListener('DOMContentLoaded', () => {
         // Initialize Bar Chart for Plan Sales Breakdown
         const ctx = document.getElementById('plan-sales-chart').getContext('2d');
-        const planLabels = JSON.parse('{{ plan_labels|safe }}');
-        const planData = JSON.parse('{{ plan_data|safe }}');
+        const planLabels = JSON.parse(document.getElementById('plan-labels-data').textContent);
+        const planData = JSON.parse(document.getElementById('plan-data').textContent);
         
         new Chart(ctx, {
             type: 'bar',

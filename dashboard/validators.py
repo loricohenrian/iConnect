@@ -75,22 +75,35 @@ def validate_username(username):
 
 def sanitize_text(text, max_length=None, allow_multiline=False):
     """
-    Sanitizes string inputs:
-    - Strips whitespace and null bytes
-    - Escapes dangerous HTML entities (<, >, &, \", \') to prevent stored XSS
-    - Enforces max_length truncation if requested
+    Normalize plain-text input before storing it.
+
+    HTML escaping belongs at the output boundary (Django templates, JSON consumers,
+    etc.). Escaping before persistence causes entities such as ``&quot;`` and
+    ``&amp;`` to be escaped a second time when rendered. Decode legacy entities
+    here so edited values are repaired automatically.
     """
     if not text:
         return ""
 
-    # Strip null bytes and control chars
-    clean = str(text).replace('\x00', '').strip()
+    clean = str(text)
+    for _ in range(5):
+        decoded = html.unescape(clean)
+        if decoded == clean:
+            break
+        clean = decoded
+
+    # Strip null bytes and non-printing control characters while retaining
+    # line breaks and tabs in multiline fields.
+    clean = clean.replace('\x00', '')
+    clean = ''.join(
+        char for char in clean
+        if ord(char) >= 32 or (allow_multiline and char in '\r\n\t')
+    ).strip()
 
     if not allow_multiline:
         clean = " ".join(clean.splitlines())
-
-    # Escape HTML tags
-    clean = html.escape(clean)
+    else:
+        clean = clean.replace('\r\n', '\n').replace('\r', '\n')
 
     if max_length and len(clean) > max_length:
         clean = clean[:max_length]

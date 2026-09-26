@@ -366,11 +366,11 @@ function executeSpin() {
                     } else {
                         msg += ` (Start a session to use your reward)`;
                     }
-                    resultEl.innerHTML = msg;
+                    resultEl.textContent = msg;
                     resultEl.style.background = 'linear-gradient(135deg, rgba(16,185,129,0.1) 0%, rgba(16,185,129,0.05) 100%)';
                     resultEl.style.color = '#059669';
                 } else {
-                    resultEl.innerHTML = `😅 ${data.prize.name} — Better luck next time!`;
+                    resultEl.textContent = `😅 ${data.prize.name} — Better luck next time!`;
                     resultEl.style.background = 'rgba(107,114,128,0.08)';
                     resultEl.style.color = '#6b7280';
                 }

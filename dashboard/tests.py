@@ -629,9 +629,8 @@ class IspOutageManagementTests(TestCase):
         self.assertTrue(valid)
 
         # Sanitizer
-        cleaned = sanitize_text("<script>alert('xss')</script>")
-        self.assertNotIn("<script>", cleaned)
-        self.assertIn("&lt;script&gt;", cleaned)
+        cleaned = sanitize_text("<script>alert('xss')</script> &quot;quoted&quot;")
+        self.assertEqual(cleaned, "<script>alert('xss')</script> \"quoted\"")
 
         # Bounded parsing
         self.assertEqual(parse_bounded_int("42", 1, 100), 42)
@@ -990,6 +989,21 @@ class SupportTicketHardeningTests(TestCase):
         self.report.refresh_from_db()
         self.assertEqual(self.report.status, "pending")
         self.assertEqual(self.report.admin_reply, "")
+
+    def test_customer_reply_preserves_special_characters_and_template_escapes_html(self):
+        reply = 'Use "View WiFi Rates" & choose <Best Plan> — it\'s ready.'
+        resp = self.client.post(
+            f"/iconnect-ops/issues/{self.report.id}/update/",
+            {"status": "answered", "admin_reply": reply},
+        )
+
+        self.assertEqual(resp.status_code, 302)
+        self.report.refresh_from_db()
+        self.assertEqual(self.report.admin_reply, reply)
+
+        page = self.client.get("/iconnect-ops/issues/")
+        self.assertContains(page, "&lt;Best Plan&gt;", html=False)
+        self.assertNotContains(page, "&amp;lt;Best Plan&amp;gt;", html=False)
 
     def test_open_redirect_protection(self):
         # Malicious referer should fallback to safe internal URL
@@ -1752,6 +1766,20 @@ class RevenueHardeningTests(TestCase):
         resp_custom = self.client.get(f"/iconnect-ops/revenue/?start_date={custom_date}&end_date={custom_date}")
         self.assertEqual(resp_custom.status_code, 200)
         self.assertEqual(resp_custom.context["period"], "custom")
+
+    def test_revenue_chart_safely_preserves_special_plan_name(self):
+        special_name = 'School "Best" & </script><script>alert(1)</script>'
+        self.plan.name = special_name
+        self.plan.save(update_fields=["name"])
+        PurchaseTransaction.objects.create(plan=self.plan, amount=10, timestamp=self.now)
+
+        response = self.client.get("/iconnect-ops/revenue/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["plan_labels"], [special_name])
+        content = response.content.decode("utf-8")
+        self.assertIn(r"\u003C/script\u003E\u003Cscript\u003Ealert(1)", content)
+        self.assertNotIn("</script><script>alert(1)</script>", content)
 
     def test_revenue_live_api_targets_and_search(self):
         RevenueGoal.objects.create(period="daily", target_amount=100)

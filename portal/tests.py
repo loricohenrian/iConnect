@@ -75,7 +75,7 @@ class PortalProductionTests(TestCase):
             category="coin_stuck",
             message="My coin was not credited",
             status="answered",
-            admin_reply="We added the missing credit.",
+            admin_reply='We added the "missing" credit & restored <5> minutes.',
             admin_notes="Private operator investigation details",
             replied_at=timezone.now(),
         )
@@ -98,7 +98,10 @@ class PortalProductionTests(TestCase):
         self.assertEqual(data["unread_count"], 1)
         self.assertEqual(len(data["tickets"]), 1)
         self.assertEqual(data["tickets"][0]["id"], own.id)
-        self.assertEqual(data["tickets"][0]["admin_reply"], "We added the missing credit.")
+        self.assertEqual(
+            data["tickets"][0]["admin_reply"],
+            'We added the "missing" credit & restored <5> minutes.',
+        )
         self.assertNotIn("admin_notes", data["tickets"][0])
 
     def test_opening_ticket_marks_customer_update_read(self):
@@ -397,7 +400,6 @@ class CaptivePortalRedirectionTests(TestCase):
         self.assertFalse(data["captive"])
         self.assertIn("/session/", data["user-portal-url"])
         self.assertGreater(data["seconds-remaining"], 0)
-
 
 
 
