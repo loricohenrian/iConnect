@@ -544,6 +544,9 @@ document.addEventListener('DOMContentLoaded', () => {
 window.openCoinModal = function() {
     var modal = document.getElementById("coinDepositModal");
     if (modal) {
+        if (modal.style.display === "flex") {
+            return;
+        }
         try {
             var gpModal = document.getElementById("groupPlanModal");
             if (gpModal) gpModal.style.display = "none";

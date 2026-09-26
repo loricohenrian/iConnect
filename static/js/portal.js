@@ -886,7 +886,12 @@ function setStartFlowMeta(metaHtml) {
     if (!metaEl) {
         return;
     }
-    metaEl.innerHTML = metaHtml || "";
+    const nextHtml = metaHtml || "";
+    if (metaEl._lastCoinMetaHtml === nextHtml) {
+        return;
+    }
+    metaEl._lastCoinMetaHtml = nextHtml;
+    metaEl.innerHTML = nextHtml;
 }
 
 function updateCoinModalHeader(status) {
@@ -895,6 +900,11 @@ function updateCoinModalHeader(status) {
     if (!titleEl) return;
 
     const normStatus = (status || "").toLowerCase();
+    if (titleEl.dataset.coinStatus === normStatus) {
+        return;
+    }
+    titleEl.dataset.coinStatus = normStatus;
+
     if (normStatus === "pending") {
         titleEl.textContent = "In Queue • Nakapila";
         if (iconEl) {
@@ -933,37 +943,15 @@ function formatCoinRequestMeta(coinRequest) {
         updateCoinModalHeader(coinRequest.status);
     }
 
-    // When IN QUEUE: Remove Coins Inserted and Internet Time, and show BIG bilingual Queue Indicator
+    // Queue state: one concise warning. Avoid repeating the header or overloading
+    // small screens with multiple cards that communicate the same instruction.
     if (status === "PENDING") {
         return `
-        <div class="coin-queue-hero-card animate-fadeIn">
-            <div class="coin-queue-badge-row">
-                <span class="coin-queue-status-badge">
-                    <span class="queue-spinner-ring"></span>
-                    <span>IKAW AY NAKAPILA &bull; IN QUEUE</span>
-                </span>
-            </div>
-
-            <div class="coin-queue-stop-banner">
-                <div class="coin-queue-stop-icon">⚠️</div>
-                <div class="coin-queue-stop-text">
-                    <div class="stop-title-tagalog">HUWAG MUNA MAGHULOG NG BARYA!</div>
-                    <div class="stop-title-english">DO NOT INSERT COINS YET!</div>
-                </div>
-            </div>
-
-            <div class="coin-queue-guide-box">
-                <div class="guide-tagalog">
-                    👉 May kasalukuyan pang naghuhulog ng barya sa vendo. <strong>Kusang magbubukas ang hulugan</strong> kapag turn mo na!
-                </div>
-                <div class="guide-english">
-                    Someone else is currently inserting coins. The coin slot will open automatically when it is your turn.
-                </div>
-            </div>
-
-            <div class="coin-queue-live-footer">
-                <span class="queue-live-pulse"></span>
-                <span>Naka-standby... Huwag isara &bull; Waiting for your turn...</span>
+        <div class="coin-queue-compact" role="status">
+            <span class="coin-queue-compact-icon" aria-hidden="true">⚠️</span>
+            <div class="coin-queue-compact-copy">
+                <strong>Huwag muna maghulog</strong>
+                <span>Wait for your turn. The slot opens automatically.</span>
             </div>
         </div>
         `;
@@ -1650,7 +1638,11 @@ function initExtendSessionFlow(macAddress) {
 
     const setExtendMeta = (text) => {
         const el = document.getElementById("extend-flow-meta");
-        if (el) el.innerHTML = text || "";
+        if (!el) return;
+        const nextHtml = text || "";
+        if (el._lastCoinMetaHtml === nextHtml) return;
+        el._lastCoinMetaHtml = nextHtml;
+        el.innerHTML = nextHtml;
     };
 
     const clearPolling = () => {

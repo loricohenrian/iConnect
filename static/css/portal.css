@@ -2279,155 +2279,51 @@ body.modal-open {
 .badge-ready { background: #DBEAFE; color: #1E40AF; }
 .badge-neutral { background: #F3F4F6; color: #4B5563; }
 
-/* ============================================================ */
-/* Queue Hero Card & Warning Banner (Bilingual English/Tagalog) */
-/* ============================================================ */
-.coin-queue-hero-card {
-    background: linear-gradient(180deg, #FFFBEB 0%, #FEF3C7 100%);
-    border: 1.5px solid #FCD34D;
-    border-radius: 16px;
-    padding: 16px 14px;
-    text-align: center;
-    margin-bottom: 12px;
-    box-shadow: 0 4px 14px rgba(217, 119, 6, 0.1);
-    position: relative;
-    overflow: hidden;
-}
-
-.coin-queue-badge-row {
+/* Compact queue state: one warning, no animation or repeated information. */
+.coin-queue-compact {
     display: flex;
-    justify-content: center;
-    margin-bottom: 12px;
-}
-
-.coin-queue-status-badge {
-    display: inline-flex;
     align-items: center;
-    gap: 7px;
-    background: #FEF3C7;
-    border: 1px solid #F59E0B;
-    color: #92400E;
-    font-size: 12.5px;
-    font-weight: 800;
-    letter-spacing: 0.5px;
-    padding: 6px 14px;
-    border-radius: 9999px;
-    text-transform: uppercase;
-    box-shadow: 0 2px 6px rgba(245, 158, 11, 0.15);
-}
-
-.queue-spinner-ring {
-    width: 14px;
-    height: 14px;
-    border: 2.5px solid #FCD34D;
-    border-top-color: #D97706;
-    border-radius: 50%;
-    animation: queueSpin 0.9s linear infinite;
-    display: inline-block;
-}
-
-@keyframes queueSpin {
-    to { transform: rotate(360deg); }
-}
-
-.coin-queue-stop-banner {
-    background: #FEF2F2;
-    border: 1.5px solid #F87171;
+    gap: 11px;
+    padding: 13px 14px;
+    margin-bottom: 12px;
+    border: 1px solid #FCD34D;
     border-radius: 12px;
-    padding: 12px 10px;
-    margin-bottom: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.12);
-}
-
-.coin-queue-stop-icon {
-    font-size: 26px;
-    line-height: 1;
-    animation: stopPulse 1.5s ease-in-out infinite;
-    flex-shrink: 0;
-}
-
-@keyframes stopPulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.15); }
-}
-
-.coin-queue-stop-text {
+    background: #FFFBEB;
+    color: #78350F;
     text-align: left;
 }
 
-.stop-title-tagalog {
-    font-size: 15px;
-    font-weight: 900;
-    color: #DC2626;
-    letter-spacing: 0.3px;
+.coin-queue-compact-icon {
+    flex: 0 0 auto;
+    font-size: 22px;
+    line-height: 1;
+}
+
+.coin-queue-compact-copy {
+    min-width: 0;
+}
+
+.coin-queue-compact-copy strong,
+.coin-queue-compact-copy span {
+    display: block;
+}
+
+.coin-queue-compact-copy strong {
+    margin-bottom: 2px;
+    color: #B91C1C;
+    font-size: 13px;
     line-height: 1.25;
 }
 
-.stop-title-english {
+.coin-queue-compact-copy span {
     font-size: 11.5px;
-    font-weight: 700;
-    color: #991B1B;
-    letter-spacing: 0.2px;
-    margin-top: 1px;
-}
-
-.coin-queue-guide-box {
-    background: rgba(255, 255, 255, 0.7);
-    border-radius: 10px;
-    padding: 10px 12px;
-    margin-bottom: 10px;
-    text-align: left;
-    border: 1px solid rgba(252, 211, 77, 0.6);
-}
-
-.guide-tagalog {
-    font-size: 13px;
-    font-weight: 600;
-    color: #78350F;
-    line-height: 1.4;
-}
-
-.guide-english {
-    font-size: 11.5px;
-    color: #92400E;
     line-height: 1.35;
-    margin-top: 4px;
-    padding-top: 4px;
-    border-top: 1px dashed rgba(217, 119, 6, 0.2);
-}
-
-.coin-queue-live-footer {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 7px;
-    font-size: 11.5px;
-    color: #B45309;
-    font-weight: 600;
-    padding-top: 6px;
-}
-
-.queue-live-pulse {
-    width: 8px;
-    height: 8px;
-    background: #F59E0B;
-    border-radius: 50%;
-    display: inline-block;
-    animation: livePulse 1.2s ease-in-out infinite;
-}
-
-@keyframes livePulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.3; transform: scale(0.85); }
 }
 
 .coin-modal-icon-pulse.queue-mode {
     background: #FEF3C7;
-    box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.2);
+    box-shadow: none;
+    animation: none;
 }
 
 /* Enhanced Flow Message */
