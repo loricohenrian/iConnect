@@ -12,7 +12,7 @@ from django.core.paginator import Paginator
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 from django.views.decorators.cache import never_cache
-from django.views.decorators.csrf import ensure_csrf_cookie
+from django.views.decorators.csrf import ensure_csrf_cookie, csrf_exempt
 
 from dashboard.models import Announcement
 from sessions_app import iptables
@@ -157,6 +157,7 @@ def _get_most_popular_plan_id():
 
 
 @never_cache
+@ensure_csrf_cookie
 def index(request):
     """Plan selection page."""
     mac_address = _get_mac_address(request)
@@ -259,6 +260,7 @@ def index(request):
 
 
 @never_cache
+@ensure_csrf_cookie
 def session_page(request):
     """Session timer page."""
     mac_address = _get_mac_address(request)
@@ -585,6 +587,8 @@ def live_data(request):
         }
     )
 
+@never_cache
+@ensure_csrf_cookie
 def spin_wheel_view(request):
     """View to show the spin wheel game."""
     from dashboard.models import SystemSettings
@@ -667,6 +671,8 @@ def spin_wheel_view(request):
     
     return render(request, "portal/spin_wheel.html", context)
 
+@csrf_exempt
+@require_POST
 def api_execute_spin(request):
     """API endpoint to execute a spin, deduct points, and award prize."""
     import json
@@ -929,6 +935,7 @@ def api_spin_data(request):
     })
 
 
+@csrf_exempt
 @require_POST
 def api_report_issue(request):
     """

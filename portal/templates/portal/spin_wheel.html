@@ -137,7 +137,8 @@
                 })
                 .catch(err => {
                     console.error("Spin error:", err);
-                    alert("Network error occurred. Please try again.");
+                    const msg = (err && err.message && !err.message.includes('JSON')) ? err.message : "Connection error. Please check your WiFi connection.";
+                    alert("Error: " + msg);
                     spinBtn.disabled = false;
                     spinBtn.innerHTML = '<i class="bi bi-play-circle-fill"></i> SPIN!';
                     isSpinning = false;

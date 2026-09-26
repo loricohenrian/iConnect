@@ -395,8 +395,9 @@ function executeSpin() {
             spinIsSpinning = false;
         }
     })
-    .catch(() => {
-        errorEl.textContent = 'Network error. Please try again.';
+    .catch((err) => {
+        const msg = (err && err.message && !err.message.includes('JSON')) ? err.message : 'Connection error. Please check your WiFi connection.';
+        errorEl.textContent = msg;
         errorEl.style.display = 'block';
         btn.disabled = false;
         btn.innerHTML = '<i class="bi bi-play-circle-fill"></i> SPIN!';

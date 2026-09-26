@@ -736,8 +736,7 @@ class DeviceProfile(models.Model):
                 profile.points += settings_obj.points_per_streak_day
         else:
             profile.current_streak = 1
-            if settings_obj.enable_spin_wheel and not profile.last_connected_date:
-                # First time gets points too
+            if settings_obj.enable_spin_wheel:
                 profile.points += settings_obj.points_per_streak_day
 
         profile.last_connected_date = today
