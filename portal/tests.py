@@ -207,6 +207,8 @@ class RatesModalTests(TestCase):
         self.assertContains(response, 'id="btn-group-request-slot"')
         self.assertContains(response, 'Insert Coins')
         self.assertNotContains(response, 'Insert Coins 🪙')
+        self.assertContains(response, 'placeholder="Enter your group code here"')
+        self.assertNotContains(response, 'placeholder="A1B2C"')
 
         # Progressive extend buttons and cancel controls
         self.assertContains(response, 'id="scroll-to-extend-btn"')
@@ -404,7 +406,5 @@ class CaptivePortalRedirectionTests(TestCase):
         self.assertFalse(data["captive"])
         self.assertIn("/session/", data["user-portal-url"])
         self.assertGreater(data["seconds-remaining"], 0)
-
-
 
 

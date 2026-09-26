@@ -1324,6 +1324,13 @@ body.modal-open {
     border-radius: 12px;
 }
 
+.group-code-input::placeholder {
+    font-size: 14px;
+    letter-spacing: 0;
+    text-transform: none;
+    font-weight: 500;
+}
+
 /* ============================================
    Announcements Banner
    ============================================ */
