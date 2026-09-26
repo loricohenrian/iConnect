@@ -467,7 +467,7 @@ document.addEventListener('DOMContentLoaded', () => {
 <!-- ═══════════════════════════════════════════════════ -->
 <!-- Global Coin Deposit Modal (Popup for Drop Coins)    -->
 <!-- ═══════════════════════════════════════════════════ -->
-<div id="coinDepositModal" class="modal-overlay" style="display: none; z-index: 9980;" onclick="closeCoinModal(event)">
+<div id="coinDepositModal" class="modal-overlay" style="display: none; z-index: 9980;" onclick="handleCoinModalDismiss(event)">
     <div class="modal-card animate-fadeIn coin-deposit-modal-card" onclick="event.stopPropagation()">
         <!-- Modal Header -->
         <div class="modal-header coin-modal-header">
@@ -481,7 +481,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </span>
                 <span id="coin-modal-title">Drop Coins Now</span>
             </h3>
-            <button type="button" class="modal-close-btn" onclick="closeCoinModal()" title="Close" aria-label="Close">
+            <button type="button" class="modal-close-btn" onclick="handleCoinModalDismiss(event)" title="Close" aria-label="Close">
                 <span style="font-size: 18px; font-weight: 700; line-height: 1;">&times;</span>
             </button>
         </div>
@@ -545,16 +545,48 @@ window.openCoinModal = function() {
     }
 };
 
-window.closeCoinModal = function(e) {
-    if (e && e.target && e.target !== e.currentTarget && !e.target.classList.contains("modal-overlay")) {
-        return;
-    }
+window.forceCloseCoinModal = function() {
     var modal = document.getElementById("coinDepositModal");
     if (modal) {
         modal.style.display = "none";
         document.body.classList.remove("modal-open");
         document.documentElement.classList.remove("modal-open");
     }
+};
+
+window.handleCoinModalDismiss = function(e) {
+    if (e) {
+        if (e.target && e.target !== e.currentTarget && !e.target.classList.contains("modal-overlay") && !e.target.closest(".modal-close-btn")) {
+            return;
+        }
+    }
+
+    var countdownBox = document.getElementById("coin-countdown-container");
+    var actionsBox = document.getElementById("coin-actions-container");
+    var activeCard = document.getElementById("coin-deposit-active-card");
+    var currentReq = window.currentCoinRequest || null;
+    var isTerminal = currentReq && ["expired", "cancelled"].includes(currentReq.status);
+
+    var isFlowActive = Boolean(currentReq && !isTerminal) ||
+                       Boolean(countdownBox && countdownBox.style.display !== "none") ||
+                       Boolean(actionsBox && actionsBox.style.display !== "none") ||
+                       Boolean(activeCard && activeCard.style.display !== "none");
+
+    if (isFlowActive && typeof window.openCancelCoinModal === "function") {
+        var cancelTrigger = document.getElementById("btn-cancel-coin-request") || document.getElementById("link-cancel-coin-request");
+        window.openCancelCoinModal(cancelTrigger);
+        return;
+    }
+
+    window.forceCloseCoinModal();
+};
+
+window.closeCoinModal = function(e, force) {
+    if (force === true) {
+        window.forceCloseCoinModal();
+        return;
+    }
+    window.handleCoinModalDismiss(e);
 };
 </script>
 
@@ -650,8 +682,11 @@ window.closeCancelCoinModal = function(e) {
     var modal = document.getElementById("cancelCoinModal");
     if (modal) {
         modal.style.display = "none";
-        document.body.classList.remove("modal-open");
-        document.documentElement.classList.remove("modal-open");
+        var coinModal = document.getElementById("coinDepositModal");
+        if (!coinModal || coinModal.style.display === "none") {
+            document.body.classList.remove("modal-open");
+            document.documentElement.classList.remove("modal-open");
+        }
     }
     window.pendingCancelTrigger = null;
 };

@@ -3341,6 +3341,12 @@ const handleCancelCoinRequest = async (trigger) => {
     // 15-second anti-trolling cooldown persisted in localStorage before reload
     setCoinRequestCooldown(15);
 
+    if (typeof window.forceCloseCoinModal === "function") {
+        window.forceCloseCoinModal();
+    } else if (typeof window.closeCoinModal === "function") {
+        window.closeCoinModal(null, true);
+    }
+
     if (trigger) {
         if (trigger.tagName === "BUTTON") {
             trigger.disabled = true;
@@ -3447,8 +3453,11 @@ function closeCancelCoinModal(e) {
     const modal = document.getElementById("cancelCoinModal");
     if (modal) {
         modal.style.display = "none";
-        document.body.classList.remove("modal-open");
-        document.documentElement.classList.remove("modal-open");
+        const coinModal = document.getElementById("coinDepositModal");
+        if (!coinModal || coinModal.style.display === "none") {
+            document.body.classList.remove("modal-open");
+            document.documentElement.classList.remove("modal-open");
+        }
     }
     pendingCancelTrigger = null;
 }
