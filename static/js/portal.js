@@ -681,7 +681,6 @@ function renderSmartCombos(combos) {
     list.innerHTML = combos.map(combo => `
         <div class="smart-combo-item">
             <div class="smart-combo-coin">₱${escapeHtml(combo.amount)}</div>
-            <div class="smart-combo-formula">${escapeHtml(combo.breakdown)}</div>
             <div class="smart-combo-duration">${escapeHtml(combo.duration)}</div>
         </div>
     `).join("");
