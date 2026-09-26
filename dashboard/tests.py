@@ -2518,12 +2518,26 @@ class HardwareVoltageAPITests(TestCase):
         self.assertEqual(response.data["voltage"], 12.58)
 
     def test_system_stats_includes_battery_voltage(self):
-        cache.set("esp32_voltage", {"voltage": 12.6, "device": "ESP32-C3"}, timeout=60)
+        cache.set("esp32_voltage", {"voltage": 13.3, "device": "ESP32-C3"}, timeout=60)
         self.client.force_authenticate(user=self.admin_user)
         res = self.client.get("/api/dashboard/system/")
         self.assertEqual(res.status_code, 200)
         self.assertIsNotNone(res.data.get("battery_voltage"))
-        self.assertEqual(res.data["battery_voltage"]["voltage"], 12.6)
+        self.assertEqual(res.data["battery_voltage"]["voltage"], 13.3)
+        self.assertEqual(res.data["battery_voltage"]["percentage"], 90)
+        self.assertEqual(res.data["battery_voltage"]["state"], "good")
+        self.assertEqual(res.data["battery_voltage"]["chemistry"], "LiFePO4 4S")
+        self.assertTrue(res.data["battery_voltage"]["percentage_is_estimate"])
+
+    def test_system_stats_marks_deeply_low_4s_lifepo4_voltage_critical(self):
+        cache.set("esp32_voltage", {"voltage": 7.07, "device": "ESP32-C3"}, timeout=60)
+        self.client.force_authenticate(user=self.admin_user)
+
+        res = self.client.get("/api/dashboard/system/")
+
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.data["battery_voltage"]["percentage"], 0)
+        self.assertEqual(res.data["battery_voltage"]["state"], "critical")
 
 
 

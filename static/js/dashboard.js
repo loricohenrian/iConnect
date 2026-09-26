@@ -830,28 +830,55 @@ async function refreshSystemStats() {
             }
         }
 
-        // --- Battery / Voltage (ESP32) ---
-        const voltBadge = document.getElementById('topbar-voltage-badge');
-        const voltVal = document.getElementById('topbar-voltage-val');
-        if (voltBadge && voltVal) {
-            const vData = data.battery_voltage;
-            if (vData && vData.voltage !== undefined && vData.voltage !== null) {
-                voltBadge.style.display = 'inline-flex';
-                voltVal.textContent = Number(vData.voltage).toFixed(2) + 'V';
-                if (vData.voltage < 11.5 && vData.voltage > 6.0) {
-                    // Low 12V battery warning
-                    voltBadge.style.background = 'rgba(239, 68, 68, 0.1)';
-                    voltBadge.style.color = '#EF4444';
-                    voltBadge.style.borderColor = 'rgba(239, 68, 68, 0.3)';
-                    voltBadge.title = (vData.device || 'ESP32') + ' Low Battery: ' + Number(vData.voltage).toFixed(2) + 'V';
-                } else {
-                    voltBadge.style.background = 'rgba(16, 185, 129, 0.1)';
-                    voltBadge.style.color = '#059669';
-                    voltBadge.style.borderColor = 'rgba(16, 185, 129, 0.25)';
-                    voltBadge.title = (vData.device || 'ESP32') + ' Voltage: ' + Number(vData.voltage).toFixed(2) + 'V';
-                }
+        // --- 4S LiFePO4 battery estimate ---
+        const batteryBadge = document.getElementById('topbar-voltage-badge');
+        const batteryFill = document.getElementById('topbar-battery-fill');
+        const batteryPercent = document.getElementById('topbar-battery-percent');
+        const batteryVoltage = document.getElementById('topbar-voltage-val');
+        const batteryState = document.getElementById('topbar-battery-state');
+        if (batteryBadge && batteryFill && batteryPercent && batteryVoltage && batteryState) {
+            const battery = data.battery_voltage;
+            const voltage = Number(battery && battery.voltage);
+            const percentage = Number(battery && battery.percentage);
+            const validReading = battery && Number.isFinite(voltage) && Number.isFinite(percentage);
+
+            batteryBadge.hidden = false;
+            batteryBadge.classList.remove(
+                'battery-status--offline',
+                'battery-status--good',
+                'battery-status--medium',
+                'battery-status--low',
+                'battery-status--critical'
+            );
+
+            if (validReading) {
+                const safePercentage = Math.min(100, Math.max(0, Math.round(percentage)));
+                const allowedStates = ['good', 'medium', 'low', 'critical'];
+                const state = allowedStates.includes(battery.state) ? battery.state : 'medium';
+                const stateLabel = battery.state_label || 'Estimated';
+                const updatedAt = battery.updated_at ? new Date(battery.updated_at) : null;
+                const updatedText = updatedAt && !Number.isNaN(updatedAt.getTime())
+                    ? ` Updated ${updatedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`
+                    : '';
+
+                batteryBadge.classList.add(`battery-status--${state}`);
+                batteryFill.style.width = safePercentage + '%';
+                batteryPercent.textContent = safePercentage + '%';
+                batteryVoltage.textContent = voltage.toFixed(2) + ' V';
+                batteryState.textContent = stateLabel;
+                batteryBadge.title = `${battery.device || 'Battery monitor'} · ${voltage.toFixed(2)} V · approximately ${safePercentage}% for a resting 4S LiFePO4 battery.${updatedText}`;
+                batteryBadge.setAttribute(
+                    'aria-label',
+                    `Battery ${stateLabel}, approximately ${safePercentage} percent, ${voltage.toFixed(2)} volts`
+                );
             } else {
-                voltBadge.style.display = 'none';
+                batteryBadge.classList.add('battery-status--offline');
+                batteryFill.style.width = '0%';
+                batteryPercent.textContent = '--%';
+                batteryVoltage.textContent = '-- V';
+                batteryState.textContent = 'Offline';
+                batteryBadge.title = 'Battery monitor offline — no voltage received in the last minute';
+                batteryBadge.setAttribute('aria-label', 'Battery monitor offline');
             }
         }
 
@@ -1172,9 +1199,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (document.getElementById('revenue-today') || document.getElementById('revenue-today-val') || document.querySelector('.dashboard-hero-layout') || document.querySelector('.sys-strip-container') || document.querySelector('.stats-grid')) {
         refreshDashboardStats();
         setInterval(refreshDashboardStats, 3000);
-
-        // System stats (CPU, RAM, Disk, Temp, Internet)
-        refreshSystemStats();
-        setInterval(refreshSystemStats, 5000);
     }
+
+    // The header battery indicator is present on every admin dashboard page.
+    refreshSystemStats();
+    setInterval(refreshSystemStats, 5000);
 });

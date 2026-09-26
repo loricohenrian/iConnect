@@ -2,6 +2,7 @@
 Dashboard Views — API endpoints and template views for admin dashboard
 """
 import csv
+import math
 import re
 from datetime import timedelta, date
 from decimal import Decimal, InvalidOperation
@@ -37,6 +38,78 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 audit_logger = logging.getLogger('audit')
+
+
+# Approximate resting-voltage curve for a 12.8 V (4S) LiFePO4 battery.
+# Voltage alone cannot provide laboratory-grade state of charge because the
+# chemistry has a very flat discharge curve. A shunt/BMS is required for a
+# precise percentage while charging or under load.
+LIFEPO4_4S_SOC_CURVE = (
+    (10.0, 0),
+    (12.0, 9),
+    (12.5, 14),
+    (12.8, 17),
+    (12.9, 20),
+    (13.0, 30),
+    (13.1, 40),
+    (13.2, 70),
+    (13.3, 90),
+    (13.4, 99),
+    (13.6, 100),
+)
+
+
+def _estimate_lifepo4_4s_percentage(voltage):
+    """Estimate 4S LiFePO4 state of charge using linear interpolation."""
+    try:
+        voltage = float(voltage)
+    except (TypeError, ValueError):
+        return None
+
+    if not math.isfinite(voltage):
+        return None
+    if voltage <= LIFEPO4_4S_SOC_CURVE[0][0]:
+        return 0
+    if voltage >= LIFEPO4_4S_SOC_CURVE[-1][0]:
+        return 100
+
+    for (low_v, low_pct), (high_v, high_pct) in zip(
+        LIFEPO4_4S_SOC_CURVE,
+        LIFEPO4_4S_SOC_CURVE[1:],
+    ):
+        if voltage <= high_v:
+            fraction = (voltage - low_v) / (high_v - low_v)
+            return round(low_pct + fraction * (high_pct - low_pct))
+    return 100
+
+
+def _battery_display_data(reading):
+    """Enrich a cached voltage reading for the dashboard battery indicator."""
+    if not isinstance(reading, dict):
+        return None
+
+    percentage = _estimate_lifepo4_4s_percentage(reading.get('voltage'))
+    if percentage is None:
+        return None
+
+    if percentage <= 10:
+        state, label = 'critical', 'Critical'
+    elif percentage <= 25:
+        state, label = 'low', 'Low'
+    elif percentage <= 50:
+        state, label = 'medium', 'Fair'
+    else:
+        state, label = 'good', 'Good'
+
+    enriched = dict(reading)
+    enriched.update({
+        'percentage': percentage,
+        'state': state,
+        'state_label': label,
+        'chemistry': 'LiFePO4 4S',
+        'percentage_is_estimate': True,
+    })
+    return enriched
 
 
 def _is_dashboard_admin(user):
@@ -432,8 +505,8 @@ def system_stats_api(request):
         except Exception:
             stats['internet_online'] = False
 
-    # ESP32 Voltage Monitor reading
-    stats['battery_voltage'] = cache.get('esp32_voltage')
+    # Voltage-based percentage is an estimate for a resting 4S LiFePO4 pack.
+    stats['battery_voltage'] = _battery_display_data(cache.get('esp32_voltage'))
 
     return Response(stats)
 

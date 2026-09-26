@@ -4,7 +4,7 @@
 {% block title %}iConnect Dashboard — {% block page_title %}Overview{% endblock %}{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=7">
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=8">
 {% endblock %}
 
 {% block body %}
@@ -129,10 +129,21 @@
                 </button>
                 <h1 class="page-title">{% block topbar_title %}Overview{% endblock %}</h1>
             </div>
-            <div class="topbar-actions" style="display: flex; align-items: center; gap: 10px;">
-                <div id="topbar-voltage-badge" style="display: none; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; background: rgba(16, 185, 129, 0.1); color: #059669; border: 1px solid rgba(16, 185, 129, 0.25); cursor: default;" title="ESP32 Voltage Monitor">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
-                    <span id="topbar-voltage-val">-- V</span>
+            <div class="topbar-actions">
+                <div id="topbar-voltage-badge"
+                     class="battery-status battery-status--offline"
+                     role="status"
+                     aria-live="polite"
+                     title="4S LiFePO4 battery monitor — percentage is estimated from voltage"
+                     hidden>
+                    <span class="battery-status__icon" aria-hidden="true">
+                        <span id="topbar-battery-fill" class="battery-status__fill"></span>
+                    </span>
+                    <span class="battery-status__reading">
+                        <strong id="topbar-battery-percent">--%</strong>
+                        <span id="topbar-voltage-val">-- V</span>
+                    </span>
+                    <span id="topbar-battery-state" class="battery-status__state">Offline</span>
                 </div>
                 {% block topbar_actions %}{% endblock %}
             </div>
@@ -197,7 +208,7 @@ window.addEventListener('keydown', function(e) {
 
 {% block extra_js %}
 <script src="{% static 'js/chart.min.js' %}"></script>
-<script src="{% static 'js/dashboard.js' %}?v=8"></script>
+<script src="{% static 'js/dashboard.js' %}?v=9"></script>
 {% block dashboard_js %}{% endblock %}
 {% endblock %}
 

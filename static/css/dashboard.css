@@ -284,6 +284,118 @@
     gap: var(--space-md);
 }
 
+/* Live 4S LiFePO4 battery monitor */
+.battery-status {
+    --battery-accent: #64748b;
+    --battery-background: rgba(100, 116, 139, 0.10);
+    --battery-border: rgba(100, 116, 139, 0.24);
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    min-height: 36px;
+    padding: 5px 9px 5px 10px;
+    border: 1px solid var(--battery-border);
+    border-radius: 12px;
+    background: var(--battery-background);
+    color: var(--battery-accent);
+    cursor: default;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.battery-status[hidden] {
+    display: none;
+}
+
+.battery-status__icon {
+    position: relative;
+    display: block;
+    width: 27px;
+    height: 14px;
+    padding: 2px;
+    border: 2px solid currentColor;
+    border-radius: 4px;
+    flex: 0 0 auto;
+}
+
+.battery-status__icon::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    right: -5px;
+    width: 3px;
+    height: 6px;
+    border-radius: 0 2px 2px 0;
+    background: currentColor;
+}
+
+.battery-status__fill {
+    display: block;
+    width: 0;
+    height: 100%;
+    border-radius: 1px;
+    background: currentColor;
+    transition: width 0.5s ease;
+}
+
+.battery-status__reading {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    white-space: nowrap;
+    line-height: 1;
+}
+
+.battery-status__reading strong {
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+}
+
+.battery-status__reading span {
+    color: var(--color-gray);
+    font-size: 11px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.battery-status__state {
+    padding: 3px 6px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.72);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.battery-status--good {
+    --battery-accent: #059669;
+    --battery-background: rgba(16, 185, 129, 0.10);
+    --battery-border: rgba(16, 185, 129, 0.26);
+}
+
+.battery-status--medium {
+    --battery-accent: #d97706;
+    --battery-background: rgba(245, 158, 11, 0.11);
+    --battery-border: rgba(245, 158, 11, 0.30);
+}
+
+.battery-status--low,
+.battery-status--critical {
+    --battery-accent: #dc2626;
+    --battery-background: rgba(239, 68, 68, 0.10);
+    --battery-border: rgba(239, 68, 68, 0.28);
+}
+
+.battery-status--critical .battery-status__icon {
+    animation: battery-critical-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes battery-critical-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.45; }
+}
+
 .topbar .hamburger {
     display: none;
     background: none;
@@ -803,6 +915,16 @@
         font-size: 16px;
     }
 
+    .battery-status {
+        gap: 7px;
+        min-height: 34px;
+        padding: 4px 8px;
+    }
+
+    .battery-status__state {
+        display: none;
+    }
+
     .card,
     .chart-card {
         padding: 16px 14px;
@@ -866,6 +988,10 @@
     background: #1e293b;
     border-color: #334155;
     color: #f1f5f9;
+}
+
+.dashboard-wrapper[data-theme="dark"] .battery-status__state {
+    background: rgba(15, 23, 42, 0.62);
 }
 
 .dashboard-wrapper[data-theme="dark"] .topbar-title {
