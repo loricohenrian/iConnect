@@ -37,6 +37,17 @@
             <span>Pause</span>
         {% endif %}
     </button>
+
+    <button type="button"
+            class="pause-btn extend-scroll-btn"
+            id="scroll-to-extend-btn"
+            aria-controls="extend-session-panel">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 5v14"></path>
+            <path d="m19 12-7 7-7-7"></path>
+        </svg>
+        <span>Extend Session?</span>
+    </button>
     
     <!-- Pause Info -->
     <div style="font-size: 12px; color: var(--color-gray); margin-top: 10px; text-align: center; font-weight: 500;">
@@ -149,6 +160,30 @@
 </div>
 
 <script>
+    function scrollToExtendSession() {
+        const insertCoinsButton = document.getElementById('extend-request-btn');
+        const extendPanel = document.getElementById('extend-session-panel');
+        const target = insertCoinsButton || extendPanel;
+        if (!target) return;
+
+        const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        target.scrollIntoView({
+            behavior: reduceMotion ? 'auto' : 'smooth',
+            block: 'center'
+        });
+
+        if (insertCoinsButton) {
+            window.setTimeout(() => {
+                insertCoinsButton.focus({ preventScroll: true });
+            }, reduceMotion ? 0 : 450);
+        }
+    }
+
+    const scrollToExtendButton = document.getElementById('scroll-to-extend-btn');
+    if (scrollToExtendButton) {
+        scrollToExtendButton.addEventListener('click', scrollToExtendSession);
+    }
+
     function toggleSessionDetails() {
         const content = document.getElementById('session-details-content');
         const btn = document.getElementById('details-toggle-btn');

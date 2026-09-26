@@ -209,6 +209,10 @@ class RatesModalTests(TestCase):
         self.assertNotContains(response, 'Insert Coins 🪙')
 
         # Progressive extend buttons and cancel controls
+        self.assertContains(response, 'id="scroll-to-extend-btn"')
+        self.assertContains(response, 'aria-controls="extend-session-panel"')
+        self.assertContains(response, "Extend Session?")
+        self.assertContains(response, "scrollToExtendSession")
         self.assertContains(response, 'id="extend-request-btn"')
         self.assertContains(response, 'id="extend-now-btn"')
         self.assertContains(response, 'id="btn-cancel-coin-request"')
@@ -400,7 +404,6 @@ class CaptivePortalRedirectionTests(TestCase):
         self.assertFalse(data["captive"])
         self.assertIn("/session/", data["user-portal-url"])
         self.assertGreater(data["seconds-remaining"], 0)
-
 
 
 

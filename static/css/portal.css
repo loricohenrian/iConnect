@@ -826,6 +826,25 @@ main.portal-container {
     border-color: var(--color-success);
 }
 
+.extend-scroll-btn {
+    margin-top: 8px;
+    border-color: rgba(123, 45, 59, 0.28);
+    background: var(--color-primary-light);
+    color: var(--color-primary);
+}
+
+.extend-scroll-btn:hover,
+.extend-scroll-btn:focus-visible {
+    border-color: var(--color-primary);
+    background: #fff;
+    outline: none;
+}
+
+#extend-request-btn {
+    scroll-margin-top: 90px;
+    scroll-margin-bottom: 90px;
+}
+
 /* Collapsible Session Details */
 .session-details-collapsible {
     width: 100%;
