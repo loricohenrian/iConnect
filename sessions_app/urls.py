@@ -11,6 +11,7 @@ urlpatterns = [
     path('coin-inserted/', views.coin_inserted, name='coin-inserted'),
     path('coinslot/status/', views.coinslot_status, name='coinslot-status'),
     path('hardware/voltage/', views.hardware_voltage, name='hardware-voltage'),
+    path('hardware/voltage', views.hardware_voltage),
 
     # Session management
     path('session/start/request/', views.session_start_request, name='session-start-request'),

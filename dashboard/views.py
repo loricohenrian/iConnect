@@ -432,6 +432,9 @@ def system_stats_api(request):
         except Exception:
             stats['internet_online'] = False
 
+    # ESP32 Voltage Monitor reading
+    stats['battery_voltage'] = cache.get('esp32_voltage')
+
     return Response(stats)
 
 

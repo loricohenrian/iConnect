@@ -67,13 +67,25 @@ def _has_valid_device_api_key(request):
 
 
 def _has_valid_esp32_api_key(request):
-    """Authenticate ESP32 telemetry separately from coin-credit requests."""
-    expected = getattr(settings, "PISONET_ESP32_API_KEY", "").strip()
-    provided = request.headers.get("X-ESP32-API-KEY", "").strip()
+    """
+    Authenticate ESP32 telemetry:
+    - Accepts X-ESP32-API-KEY if PISONET_ESP32_API_KEY is configured.
+    - Also accepts X-DEVICE-API-KEY or X-ESP32-API-KEY matching PISONET_DEVICE_API_KEY.
+    """
+    expected_esp = getattr(settings, "PISONET_ESP32_API_KEY", "").strip()
+    provided_esp = request.headers.get("X-ESP32-API-KEY", "").strip()
+    if expected_esp and provided_esp and hmac.compare_digest(provided_esp, expected_esp):
+        return True
 
-    if not expected or not provided:
-        return False
-    return hmac.compare_digest(provided, expected)
+    expected_dev = getattr(settings, "PISONET_DEVICE_API_KEY", "").strip()
+    provided_dev = (
+        request.headers.get("X-DEVICE-API-KEY", "").strip()
+        or request.headers.get("X-ESP32-API-KEY", "").strip()
+    )
+    if expected_dev and provided_dev and hmac.compare_digest(provided_dev, expected_dev):
+        return True
+
+    return False
 
 
 def _client_ip(request):

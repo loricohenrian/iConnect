@@ -2448,6 +2448,85 @@ class ResetOperationalDataTests(TestCase):
         self.assertTrue(get_user_model().objects.filter(username="reset_admin").exists())
 
 
+@override_settings(PISONET_DEVICE_API_KEY="test-esp32-key")
+class HardwareVoltageAPITests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        cache.clear()
+        User = get_user_model()
+        self.admin_user = User.objects.create_user(
+            username="volt_admin",
+            password="adminpassword123",
+            is_staff=True,
+        )
+
+    def test_post_without_key_rejected(self):
+        response = self.client.post(
+            "/api/hardware/voltage/",
+            {"voltage": 12.45, "device": "ESP32-C3"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 401)
+
+    def test_post_with_valid_key_stores_voltage(self):
+        response = self.client.post(
+            "/api/hardware/voltage/",
+            {"voltage": 12.58, "device": "ESP32-C3"},
+            format="json",
+            HTTP_X_DEVICE_API_KEY="test-esp32-key",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.data["success"])
+        self.assertEqual(response.data["voltage"], 12.58)
+
+        # Verify cached
+        cached = cache.get("esp32_voltage")
+        self.assertIsNotNone(cached)
+        self.assertEqual(cached["voltage"], 12.58)
+        self.assertEqual(cached["device"], "ESP32-C3")
+
+    def test_post_invalid_voltage_returns_400(self):
+        # Non-numeric
+        res = self.client.post(
+            "/api/hardware/voltage/",
+            {"voltage": "invalid"},
+            format="json",
+            HTTP_X_DEVICE_API_KEY="test-esp32-key",
+        )
+        self.assertEqual(res.status_code, 400)
+
+        # Out of range
+        res = self.client.post(
+            "/api/hardware/voltage/",
+            {"voltage": 35.0},
+            format="json",
+            HTTP_X_DEVICE_API_KEY="test-esp32-key",
+        )
+        self.assertEqual(res.status_code, 400)
+
+    def test_get_voltage_status(self):
+        # Offline when cache is empty
+        response = self.client.get("/api/hardware/voltage/")
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.data["online"])
+
+        # Online when cache has voltage
+        cache.set("esp32_voltage", {"voltage": 12.58, "device": "ESP32-C3"}, timeout=60)
+        response = self.client.get("/api/hardware/voltage/")
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.data["online"])
+        self.assertEqual(response.data["voltage"], 12.58)
+
+    def test_system_stats_includes_battery_voltage(self):
+        cache.set("esp32_voltage", {"voltage": 12.6, "device": "ESP32-C3"}, timeout=60)
+        self.client.force_authenticate(user=self.admin_user)
+        res = self.client.get("/api/dashboard/system/")
+        self.assertEqual(res.status_code, 200)
+        self.assertIsNotNone(res.data.get("battery_voltage"))
+        self.assertEqual(res.data["battery_voltage"]["voltage"], 12.6)
+
+
+
 
 
 

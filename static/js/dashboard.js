@@ -830,6 +830,31 @@ async function refreshSystemStats() {
             }
         }
 
+        // --- Battery / Voltage (ESP32) ---
+        const voltBadge = document.getElementById('topbar-voltage-badge');
+        const voltVal = document.getElementById('topbar-voltage-val');
+        if (voltBadge && voltVal) {
+            const vData = data.battery_voltage;
+            if (vData && vData.voltage !== undefined && vData.voltage !== null) {
+                voltBadge.style.display = 'inline-flex';
+                voltVal.textContent = Number(vData.voltage).toFixed(2) + 'V';
+                if (vData.voltage < 11.5 && vData.voltage > 6.0) {
+                    // Low 12V battery warning
+                    voltBadge.style.background = 'rgba(239, 68, 68, 0.1)';
+                    voltBadge.style.color = '#EF4444';
+                    voltBadge.style.borderColor = 'rgba(239, 68, 68, 0.3)';
+                    voltBadge.title = (vData.device || 'ESP32') + ' Low Battery: ' + Number(vData.voltage).toFixed(2) + 'V';
+                } else {
+                    voltBadge.style.background = 'rgba(16, 185, 129, 0.1)';
+                    voltBadge.style.color = '#059669';
+                    voltBadge.style.borderColor = 'rgba(16, 185, 129, 0.25)';
+                    voltBadge.title = (vData.device || 'ESP32') + ' Voltage: ' + Number(vData.voltage).toFixed(2) + 'V';
+                }
+            } else {
+                voltBadge.style.display = 'none';
+            }
+        }
+
     } catch (err) {
         console.error('Failed to refresh system stats:', err);
     }
