@@ -62,6 +62,10 @@
                 {% for combo in smart_combo_examples %}
                 <div class="smart-combo-item">
                     <div class="smart-combo-coin">₱{{ combo.amount }}</div>
+                    <div class="smart-combo-arrow">
+                        <span class="smart-combo-arrow-line"></span>
+                        <span class="smart-combo-arrow-head"></span>
+                    </div>
                     <div class="smart-combo-duration">{{ combo.duration }}</div>
                 </div>
                 {% endfor %}
@@ -72,11 +76,6 @@
             </div>
         </div>
         {% endif %}
-        <div style="margin-top: 14px; text-align: center;">
-            <button type="button" class="btn btn-secondary w-100" onclick="closeRatesModal()" style="border-radius: 12px; font-weight: 600; padding: 11px;">
-                Close Rates
-            </button>
-        </div>
     </div>
 </div>
 
