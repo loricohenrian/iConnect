@@ -1239,6 +1239,40 @@ class SessionApiTests(TestCase):
         self.assertEqual(body3["coin_request"]["credited_amount"], 0)
         self.assertFalse(body3["coin_request"]["ready_to_start"])
 
+    def test_expired_coin_request_starts_fifteen_second_cooldown(self):
+        request_started = self.client.post(
+            reverse("sessions_app:session-start-request"),
+            {"mac_address": self.mac_one, "plan_id": self.plan.id},
+            format="json",
+        )
+        self.assertIn(request_started.status_code, (200, 201))
+        request_id = request_started.json()["coin_request"]["id"]
+
+        coin_request = CoinInsertRequest.objects.get(id=request_id)
+        coin_request.expires_at = timezone.now() - timezone.timedelta(seconds=1)
+        coin_request.save(update_fields=["expires_at"])
+
+        expired_status = self.client.get(
+            reverse("sessions_app:session-start-request-status"),
+            {"request_id": request_id, "mac_address": self.mac_one},
+        )
+        self.assertEqual(expired_status.status_code, 200)
+        self.assertEqual(
+            expired_status.json()["coin_request"]["status"],
+            CoinInsertRequest.STATUS_EXPIRED,
+        )
+
+        coin_request.refresh_from_db()
+        self.assertIsNotNone(coin_request.completed_at)
+
+        immediate_retry = self.client.post(
+            reverse("sessions_app:session-start-request"),
+            {"mac_address": self.mac_one, "plan_id": self.plan.id},
+            format="json",
+        )
+        self.assertEqual(immediate_retry.status_code, 429)
+        self.assertGreater(immediate_retry.json()["cooldown_remaining"], 0)
+
 
 class ComboPlanTests(TestCase):
     def setUp(self):

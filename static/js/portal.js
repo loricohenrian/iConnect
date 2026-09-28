@@ -1342,6 +1342,7 @@ function initProductionStartFlow(macAddress) {
                 clearPolling();
                 startBtn.click();
             } else {
+                setCoinRequestCooldown(15);
                 clearPolling();
             }
         } else if (coinRequest?.status === "cancelled") {
@@ -1736,6 +1737,7 @@ function initExtendSessionFlow(macAddress) {
                 clearPolling();
                 extendNowBtn.click();
             } else {
+                setCoinRequestCooldown(15);
                 clearPolling();
             }
         } else if (coinRequest?.status === "cancelled") {

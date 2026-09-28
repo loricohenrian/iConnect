@@ -475,7 +475,10 @@ def _activate_next_coin_request(now=None):
             status=CoinInsertRequest.STATUS_ACTIVE,
             expires_at__isnull=False,
             expires_at__lte=now,
-        ).update(status=CoinInsertRequest.STATUS_EXPIRED)
+        ).update(
+            status=CoinInsertRequest.STATUS_EXPIRED,
+            completed_at=now,
+        )
 
         active_request = CoinInsertRequest.objects.select_for_update().filter(
             status=CoinInsertRequest.STATUS_ACTIVE
@@ -773,7 +776,8 @@ def _sync_coin_request_progress(coin_request):
         and coin_request.expires_at <= now
     ):
         coin_request.status = CoinInsertRequest.STATUS_EXPIRED
-        update_fields.append("status")
+        coin_request.completed_at = now
+        update_fields.extend(["status", "completed_at"])
         transitioned = True
 
     if update_fields:
