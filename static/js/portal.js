@@ -1315,7 +1315,12 @@ function initProductionStartFlow(macAddress) {
             } else if (!coinRequest || isTerminal) {
                 activeCard.style.display = "none";
                 if (typeof window.closeCoinModal === "function") {
-                    window.closeCoinModal();
+                    // Expiry is a system action, not a user dismissal. Force-close
+                    // so it cannot open the cancel-confirmation dialog.
+                    window.closeCoinModal(null, true);
+                }
+                if (isTerminal && typeof window.closeCancelCoinModal === "function") {
+                    window.closeCancelCoinModal();
                 }
             }
         }
@@ -1710,7 +1715,12 @@ function initExtendSessionFlow(macAddress) {
             } else if (!coinRequest || isTerminal) {
                 activeCard.style.display = "none";
                 if (typeof window.closeCoinModal === "function") {
-                    window.closeCoinModal();
+                    // Expiry is a system action, not a user dismissal. Force-close
+                    // so it cannot open the cancel-confirmation dialog.
+                    window.closeCoinModal(null, true);
+                }
+                if (isTerminal && typeof window.closeCancelCoinModal === "function") {
+                    window.closeCancelCoinModal();
                 }
             }
         }
@@ -3639,7 +3649,11 @@ function openCancelCoinModal(trigger) {
         }, 350);
     }
 
-    setTimeout(() => {
+    if (window._cancelCoinModalOpenTimer) {
+        clearTimeout(window._cancelCoinModalOpenTimer);
+    }
+    window._cancelCoinModalOpenTimer = setTimeout(() => {
+        window._cancelCoinModalOpenTimer = null;
         modal.style.display = "flex";
         document.body.classList.add("modal-open");
         document.documentElement.classList.add("modal-open");
@@ -3649,6 +3663,10 @@ function openCancelCoinModal(trigger) {
 function closeCancelCoinModal(e) {
     if (e && e.target && e.target !== e.currentTarget && !e.target.classList.contains("modal-overlay")) {
         return;
+    }
+    if (window._cancelCoinModalOpenTimer) {
+        clearTimeout(window._cancelCoinModalOpenTimer);
+        window._cancelCoinModalOpenTimer = null;
     }
     const modal = document.getElementById("cancelCoinModal");
     if (modal) {
