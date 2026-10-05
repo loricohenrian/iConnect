@@ -7,10 +7,26 @@
 
 <!-- ROI Formula Banner -->
 <div class="card mb-md animate-fadeIn" style="padding: 24px 28px; background: linear-gradient(135deg, rgba(123, 45, 59, 0.04) 0%, rgba(16, 185, 129, 0.04) 100%); border: 1px solid rgba(123, 45, 59, 0.12);">
-    <div>
-        <div class="font-semibold text-muted" style="text-transform: uppercase; font-size: 12px; letter-spacing: 0.5px;">Return on Investment (ROI)</div>
-        <div class="font-bold" style="font-size: clamp(1.15rem, 3vw, 1.65rem); color: var(--color-dark, #7b2d3b); line-height: 1.35; margin-top: 10px;">
-            <code>ROI = (Net Profit ÷ Total Capital Investment) × 100</code>
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-md">
+        <div>
+            <div class="font-semibold text-muted" style="text-transform: uppercase; font-size: 12px; letter-spacing: 0.5px;">Return on Investment (ROI)</div>
+            <div class="text-xs text-muted" style="margin-top: 8px;">
+                Formula: <code>(Net Profit ÷ Total Capital Investment) × 100</code>
+            </div>
+        </div>
+
+        <div style="min-width: 260px; max-width: 380px; width: 100%;">
+            <div class="d-flex justify-content-between text-xs font-semibold mb-xs">
+                <span>Capital Recovery Progress</span>
+                <span>{{ recovery_progress }}%</span>
+            </div>
+            <div style="height: 12px; background: #e2e8f0; border-radius: 6px; overflow: hidden; position: relative;">
+                <div style="height: 100%; width: {{ recovery_progress }}%; background: {% if roi_percentage >= 100 %}#10b981{% else %}#7b2d3b{% endif %}; border-radius: 6px; transition: width 0.6s ease;"></div>
+            </div>
+            <div class="d-flex justify-content-between text-xs text-muted mt-xs">
+                <span>Recovered: ₱{{ net_profit|default:"0" }}</span>
+                <span>Remaining: ₱{{ remaining_to_recover|default:"0" }}</span>
+            </div>
         </div>
     </div>
 </div>
