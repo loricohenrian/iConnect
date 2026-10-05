@@ -846,6 +846,11 @@ class RoiTrackerEnhancementTests(TestCase):
         # Verify chart canvas in HTML
         self.assertContains(resp, 'id="profit-trend-chart"')
 
+        # The ROI banner is explanatory only and does not expose live values.
+        self.assertContains(resp, "ROI = (Net Profit ÷ Total Capital Investment) × 100")
+        self.assertNotContains(resp, "Capital Recovery in Progress")
+        self.assertNotContains(resp, "Capital Recovery Progress")
+
         # Verify profit trend data in context
         labels = json.loads(resp.context["profit_trend_labels"])
         values = json.loads(resp.context["profit_trend_values"])
