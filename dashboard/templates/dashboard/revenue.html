@@ -121,6 +121,7 @@
         <form method="GET" action="{% url 'dashboard:revenue' %}">
             <!-- Quick Ranges -->
             <div class="d-flex flex-wrap gap-xs mb-md">
+                <button type="submit" name="period" value="yesterday" class="btn btn-sm {% if period == 'yesterday' %}btn-primary{% else %}btn-secondary{% endif %}">Yesterday</button>
                 <button type="submit" name="period" value="today" class="btn btn-sm {% if period == 'today' %}btn-primary{% else %}btn-secondary{% endif %}">Today</button>
                 <button type="submit" name="period" value="week" class="btn btn-sm {% if period == 'week' or period == 'weekly' %}btn-primary{% else %}btn-secondary{% endif %}">Week</button>
                 <button type="submit" name="period" value="month" class="btn btn-sm {% if period == 'month' or period == 'monthly' %}btn-primary{% else %}btn-secondary{% endif %}">Month</button>

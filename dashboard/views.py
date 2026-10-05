@@ -601,6 +601,9 @@ def revenue_data_api(request):
     elif period in ('daily', 'today'):
         start_date = today
         end_date = today
+    elif period == 'yesterday':
+        start_date = today - timedelta(days=1)
+        end_date = start_date
     elif period in ('weekly', 'week'):
         start_date = today - timedelta(days=7)
         end_date = today
@@ -704,6 +707,9 @@ def revenue_live_api(request):
     elif period == 'today':
         start_date = today
         end_date = today
+    elif period == 'yesterday':
+        start_date = today - timedelta(days=1)
+        end_date = start_date
     elif period in ('week', 'weekly'):
         period = 'week'
         start_date = today - timedelta(days=today.weekday())
@@ -1118,6 +1124,9 @@ def revenue(request):
     elif period == 'today':
         start_date = today
         end_date = today
+    elif period == 'yesterday':
+        start_date = today - timedelta(days=1)
+        end_date = start_date
     elif period in ('week', 'weekly'):
         period = 'week'
         start_date = today - timedelta(days=today.weekday())

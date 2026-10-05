@@ -1779,6 +1779,45 @@ class RevenueHardeningTests(TestCase):
         self.assertEqual(resp_custom.status_code, 200)
         self.assertEqual(resp_custom.context["period"], "custom")
 
+    def test_revenue_yesterday_filter_and_today_default(self):
+        yesterday = self.now - timedelta(days=1)
+        CoinEvent.objects.create(amount=20, denomination=20, timestamp=yesterday)
+        CoinEvent.objects.create(amount=50, denomination=50, timestamp=self.now)
+        Session.objects.create(
+            mac_address="AA:BB:CC:DD:EE:10",
+            plan=self.plan,
+            amount_paid=20,
+            duration_minutes_purchased=60,
+            status="expired",
+            time_in=yesterday,
+        )
+        Session.objects.create(
+            mac_address="AA:BB:CC:DD:EE:11",
+            plan=self.plan,
+            amount_paid=50,
+            duration_minutes_purchased=60,
+            status="active",
+            time_in=self.now,
+        )
+
+        default_response = self.client.get("/iconnect-ops/revenue/")
+        self.assertEqual(default_response.context["period"], "today")
+        self.assertEqual(default_response.context["total_sales"], 50)
+
+        yesterday_response = self.client.get("/iconnect-ops/revenue/?period=yesterday")
+        self.assertEqual(yesterday_response.status_code, 200)
+        self.assertEqual(yesterday_response.context["period"], "yesterday")
+        self.assertEqual(yesterday_response.context["total_sales"], 20)
+        self.assertEqual(yesterday_response.context["total_sessions"], 1)
+
+        content = yesterday_response.content.decode("utf-8")
+        self.assertLess(content.index('value="yesterday"'), content.index('value="today"'))
+
+        live_response = self.client.get("/api/dashboard/revenue/live/?period=yesterday")
+        self.assertEqual(live_response.status_code, 200)
+        self.assertEqual(live_response.json()["total_sales"], 20)
+        self.assertEqual(live_response.json()["total_sessions"], 1)
+
     def test_revenue_chart_safely_preserves_special_plan_name(self):
         special_name = 'School "Best" & </script><script>alert(1)</script>'
         self.plan.name = special_name
