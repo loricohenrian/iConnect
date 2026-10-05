@@ -51,6 +51,13 @@ class DashboardSecurityTests(TestCase):
             page_resp = self.client.get(path)
             self.assertEqual(page_resp.status_code, 200, f"Failed rendering {path}")
 
+        overview_page = self.client.get("/iconnect-ops/")
+        revenue_page = self.client.get("/iconnect-ops/revenue/")
+        sessions_page = self.client.get("/iconnect-ops/sessions/")
+        self.assertContains(overview_page, 'id="topbar-voltage-badge"')
+        self.assertNotContains(revenue_page, 'id="topbar-voltage-badge"')
+        self.assertNotContains(sessions_page, 'id="topbar-voltage-badge"')
+
     def test_logout_requires_post(self):
         response = self.client.get("/iconnect-ops/logout/")
         self.assertEqual(response.status_code, 405)

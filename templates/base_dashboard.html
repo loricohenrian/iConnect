@@ -130,6 +130,7 @@
                 <h1 class="page-title">{% block topbar_title %}Overview{% endblock %}</h1>
             </div>
             <div class="topbar-actions">
+                {% if active_page == 'overview' %}
                 <div id="topbar-voltage-badge"
                      class="battery-status battery-status--offline"
                      role="status"
@@ -145,6 +146,7 @@
                     </span>
                     <span id="topbar-battery-state" class="battery-status__state">Offline</span>
                 </div>
+                {% endif %}
                 {% block topbar_actions %}{% endblock %}
             </div>
         </header>
