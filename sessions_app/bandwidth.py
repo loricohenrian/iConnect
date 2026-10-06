@@ -260,16 +260,24 @@ def get_all_device_bandwidth_mb():
 
 
 def refresh_session_bandwidth_usage(session, now=None):
-    """Update session.bandwidth_used_mb from real iptables & tc byte counters, relative to baseline."""
+    """Update session.bandwidth_used_mb from real iptables & tc byte counters.
+
+    Accumulates bandwidth usage monotonically across active browsing,
+    pause/resume cycles, and system reboots without ever wiping previous usage.
+    """
     if not session or not session.mac_address:
         return False
     real_mb = get_device_bandwidth_mb(session.mac_address)
 
-    baseline = getattr(session, 'initial_bandwidth_mb', 0.0) or 0.0
+    baseline = getattr(session, 'initial_bandwidth_mb', None)
+    if baseline is None:
+        baseline = 0.0
+        session.initial_bandwidth_mb = 0.0
 
-    # Retroactive / fallback fix: If session has baseline == 0, check if a previous session exists for this MAC
-    # that accounts for inherited hardware byte counters
-    if baseline == 0.0 and real_mb > 0:
+    current_used = float(session.bandwidth_used_mb or 0.0)
+
+    # Retroactive / fallback fix: If session has baseline == 0 and uncalibrated usage
+    if baseline == 0.0 and real_mb > 0 and current_used >= real_mb:
         prev_sess = session.__class__.objects.filter(
             mac_address=session.mac_address,
             id__lt=session.id
@@ -279,22 +287,27 @@ def refresh_session_bandwidth_usage(session, now=None):
             if real_mb >= prev_total > 0:
                 baseline = prev_total
                 session.initial_bandwidth_mb = baseline
+                current_used = 0.0
             elif real_mb >= prev_sess.bandwidth_used_mb:
                 baseline = prev_sess.bandwidth_used_mb
                 session.initial_bandwidth_mb = baseline
+                current_used = 0.0
 
-    # Handle counter reset (system reboot or iptables flush)
-    if real_mb < baseline:
-        baseline = 0.0
-        session.initial_bandwidth_mb = 0.0
+    delta = 0.0
+    if real_mb >= baseline:
+        delta = round(real_mb - baseline, 2)
+    else:
+        # Counter reset detected (iptables rule removed on pause/resume, or system reboot).
+        # Preserve previously accumulated usage; re-anchor baseline to the new counter.
+        delta = 0.0
 
-    session_mb = round(max(0.0, real_mb - baseline), 1)
-    current = float(session.bandwidth_used_mb or 0)
+    new_used = round(current_used + delta, 1)
+    new_baseline = real_mb
 
-    # Update if usage changed or if baseline was newly established/corrected
-    if session_mb != current or (getattr(session, 'initial_bandwidth_mb', 0.0) != baseline):
-        session.bandwidth_used_mb = session_mb
-        session.initial_bandwidth_mb = baseline
+    # Update if usage changed or if baseline advanced
+    if new_used != current_used or (getattr(session, 'initial_bandwidth_mb', None) != new_baseline):
+        session.bandwidth_used_mb = new_used
+        session.initial_bandwidth_mb = new_baseline
         update_fields = ["bandwidth_used_mb"]
         if hasattr(session, 'initial_bandwidth_mb'):
             update_fields.append("initial_bandwidth_mb")
