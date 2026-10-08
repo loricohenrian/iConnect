@@ -2380,7 +2380,7 @@ def session_pause_toggle(request):
         elif sys_settings and sys_settings.global_pause_limit_hours > 0:
             max_pause_hours = sys_settings.global_pause_limit_hours
 
-        if max_pause_hours > 0 and session.paused_at:
+        if not session.power_paused and max_pause_hours > 0 and session.paused_at:
             paused_hours = (timezone.now() - session.paused_at).total_seconds() / 3600.0
             if paused_hours >= max_pause_hours:
                 session.expire_session()
@@ -2400,12 +2400,20 @@ def session_pause_toggle(request):
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
-        session.resume_session()
+        if session.power_paused:
+            from .power_recovery import resume_power_session
+            if not resume_power_session(session):
+                return Response({"error": "Could not restore internet access. Your time remains paused."},
+                                status=status.HTTP_503_SERVICE_UNAVAILABLE)
+            allowed = True
+        else:
+            session.resume_session()
+            dl_kbps = int(session.plan.speed_limit * 1024) if session.plan and session.plan.speed_limit else None
+            ul_kbps = int(session.plan.speed_limit_upload * 1024) if session.plan and session.plan.speed_limit_upload else dl_kbps
+            allowed = iptables.allow_device(mac_address, rate_kbps=dl_kbps, upload_kbps=ul_kbps)
         cache.delete(f"manual_pause_{session.id}")
         cache.delete(f"auto_paused_{session.id}")
-        dl_kbps = int(session.plan.speed_limit * 1024) if session.plan and session.plan.speed_limit else None
-        ul_kbps = int(session.plan.speed_limit_upload * 1024) if session.plan and session.plan.speed_limit_upload else dl_kbps
-        allowed = iptables.allow_device(mac_address, rate_kbps=dl_kbps, upload_kbps=ul_kbps)
+        cache.delete(f"outage_paused_{session.id}")
         pauses_left = session.pauses_left
         audit_logger.info(
             "event=session_resumed mac=%s allowed=%s ip=%s",
@@ -2501,11 +2509,15 @@ def session_status(request):
             grp = SessionGroup.objects.filter(id=target_group_id).first()
 
         if session.status == "paused":
+            # A returning phone may get a different DHCP address after reboot.
+            # This helper verifies MAC ownership before recording the new IP.
+            if session.power_paused and _mac_from_arp(_client_ip(request)) == session.mac_address.upper():
+                _session_ip_matches_request(session, request)
             # Check if paused session exceeded plan or global max pause hours
             settings_obj = SystemSettings.get_settings()
             global_max_pause = settings_obj.global_pause_limit_hours if settings_obj else 24
             max_pause_hours = session.plan.pause_duration_limit if (session.plan and session.plan.pause_duration_limit > 0) else global_max_pause
-            if max_pause_hours > 0 and session.paused_at:
+            if not session.power_paused and max_pause_hours > 0 and session.paused_at:
                 pause_age_hours = (timezone.now() - session.paused_at).total_seconds() / 3600.0
                 if pause_age_hours >= max_pause_hours:
                     session.expire_session()

@@ -151,6 +151,13 @@ class SessionGroup(models.Model):
         return self.sessions.filter(mac_address=mac_address).exists()
 
 
+class SessionPowerState(models.Model):
+    """Durable, singleton checkpoint shared by web and Celery processes."""
+
+    boot_id = models.CharField(max_length=64, default="")
+    checkpoint_at = models.DateTimeField(default=timezone.now)
+
+
 class Session(models.Model):
     """A WiFi session for a connected device."""
 
@@ -187,6 +194,10 @@ class Session(models.Model):
     device_name = models.CharField(max_length=100, null=True, blank=True)
     paused_at = models.DateTimeField(null=True, blank=True, help_text="When session was paused")
     total_paused_seconds = models.FloatField(default=0, help_text="Total seconds spent paused")
+    power_paused = models.BooleanField(default=False)
+    power_credited_seconds = models.FloatField(default=0)
+    power_checkpoint_at = models.DateTimeField(null=True, blank=True)
+    power_remaining_seconds = models.FloatField(null=True, blank=True)
     pause_count = models.PositiveIntegerField(default=0, help_text="Number of times paused")
     pause_limit = models.PositiveIntegerField(
         default=None,
@@ -204,6 +215,30 @@ class Session(models.Model):
     def __str__(self):
         return f"Session {self.id} - {self.mac_address} ({self.status})"
 
+    def _balance_at(self, now):
+        """Raw balance, without user pause/lifetime limits (for durable snapshots)."""
+        if self.status not in ("active", "paused"):
+            return 0
+        end = (self.paused_at or now) if self.status == "paused" else now
+        elapsed = (end - (self.time_in or now)).total_seconds() - (self.total_paused_seconds or 0)
+        return max(0, (self.duration_minutes_purchased or 0) * 60 - elapsed)
+
+    def _capture_power_checkpoint(self, kwargs):
+        # Capture purchases, extensions and pause/resume immediately, rather than
+        # waiting for the next background checkpoint. Never checkpoint an IP-only save.
+        fields = kwargs.get("update_fields")
+        timer_fields = {"status", "time_in", "paused_at", "total_paused_seconds",
+                        "duration_minutes_purchased", "power_paused", "power_credited_seconds"}
+        if fields is None or timer_fields.intersection(fields):
+            now = timezone.now()
+            self.power_checkpoint_at = now
+            self.power_remaining_seconds = self._balance_at(now)
+            if self.status != "paused":
+                self.power_paused = False
+            if fields is not None:
+                kwargs["update_fields"] = set(fields) | {
+                    "power_checkpoint_at", "power_remaining_seconds", "power_paused"}
+
     @property
     def is_active(self):
         return self.status == "active"
@@ -220,6 +255,8 @@ class Session(models.Model):
         total_seconds = (self.duration_minutes_purchased or 0) * 60
 
         if self.status == "paused":
+            if self.power_paused:
+                return self._balance_at(timezone.now())
             from dashboard.models import SystemSettings
             from sessions_app.models import Plan
             global_max_pause = SystemSettings.get_settings().global_pause_limit_hours
@@ -241,7 +278,7 @@ class Session(models.Model):
                 # Maximum lifetime ceiling: total purchased time + max pause limit
                 if self.time_in:
                     max_lifetime_seconds = total_seconds + (max_pause_hours * 3600)
-                    if (timezone.now() - self.time_in).total_seconds() >= max_lifetime_seconds:
+                    if (timezone.now() - self.time_in).total_seconds() - self.power_credited_seconds >= max_lifetime_seconds:
                         return 0
 
             # When paused normally, freeze remaining time at point of pause
@@ -357,6 +394,8 @@ class Session(models.Model):
             self.time_in = timezone.now()
             self.duration_minutes_purchased = additional_minutes
             self.total_paused_seconds = 0
+            self.power_credited_seconds = 0
+            self.power_paused = False
             self.paused_at = None
             self.pause_count = 0
             if self.plan:
@@ -371,6 +410,7 @@ class Session(models.Model):
         total_seconds = self.duration_minutes_purchased * 60 + self.total_paused_seconds
         self.time_out = self.time_in + timedelta(seconds=total_seconds)
         self.paused_at = None
+        self.power_paused = False
         self.save()
         try:
             from django.core.cache import cache
@@ -398,9 +438,12 @@ class Session(models.Model):
             return False
         paused_duration = (timezone.now() - self.paused_at).total_seconds()
         self.total_paused_seconds += paused_duration
+        if self.power_paused:
+            self.power_credited_seconds += paused_duration
+        self.power_paused = False
         self.status = "active"
         self.paused_at = None
-        self.save(update_fields=["status", "paused_at", "total_paused_seconds"])
+        self.save(update_fields=["status", "paused_at", "total_paused_seconds", "power_paused", "power_credited_seconds"])
         try:
             from django.core.cache import cache
             cache.delete(f"manual_pause_{self.id}")
@@ -416,6 +459,7 @@ class Session(models.Model):
                 self.initial_bandwidth_mb = get_device_bandwidth_mb(self.mac_address) or 0.0
             except Exception:
                 pass
+        self._capture_power_checkpoint(kwargs)
         super().save(*args, **kwargs)
 
     @staticmethod

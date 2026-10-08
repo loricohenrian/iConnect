@@ -5,45 +5,21 @@ Background tasks for session management and daily summaries.
 """
 from celery import shared_task
 from django.utils import timezone
-from django.db.models import Sum, Count, Avg
+from django.db.models import Sum, Count, Avg, Q
 from django.db.models.functions import ExtractHour
 import logging
+import subprocess
 
 logger = logging.getLogger(__name__)
 
 
 @shared_task
 def restore_iptables_on_boot():
-    """
-    Restore iptables rules after reboot.
-    - Active sessions: AUTO-PAUSE them (Pi was off, so timer should not have been running).
-      The downtime is added to total_paused_seconds so no time is lost.
-    - Already-paused sessions: keep blocked.
-    """
+    """Recover power-loss balances before restoring firewall rules."""
     from .models import Session
     from . import iptables
-    import os
-    from django.conf import settings
-
-    # Calculate downtime from heartbeat
-    downtime_seconds = 0
-    heartbeat_path = os.path.join(settings.BASE_DIR, 'heartbeat.txt')
-    try:
-        if os.path.exists(heartbeat_path):
-            with open(heartbeat_path, 'r') as f:
-                last_heartbeat = float(f.read().strip())
-                downtime_seconds = timezone.now().timestamp() - last_heartbeat
-                
-                # Minimum 60s downtime to matter, max 30 days cap
-                if downtime_seconds < 60:
-                    downtime_seconds = 0
-                elif downtime_seconds > 2592000:
-                    downtime_seconds = 2592000
-                    
-            # Clear heartbeat to prevent double-counting
-            os.remove(heartbeat_path)
-    except Exception as e:
-        logger.error(f'Failed to process heartbeat on boot: {e}')
+    from .power_recovery import ensure_power_recovery
+    ensure_power_recovery()
 
     active = Session.objects.filter(status='active')
     paused = Session.objects.filter(status='paused')
@@ -51,15 +27,7 @@ def restore_iptables_on_boot():
     reallowed = 0
     expired = 0
     
-    if downtime_seconds > 0:
-        logger.info(f'Boot: Refunding {int(downtime_seconds)}s of downtime to {active.count()} active sessions.')
-
     for session in active:
-        # Refund downtime BEFORE checking remaining time
-        if downtime_seconds > 0:
-            session.total_paused_seconds += downtime_seconds
-            session.save(update_fields=['total_paused_seconds'])
-
         if session.time_remaining_seconds > 0:
             # Restore internet access for the active session
             dl_kbps = int(session.plan.speed_limit * 1024) if session.plan and session.plan.speed_limit else None
@@ -93,6 +61,9 @@ def cleanup_expired_and_stale_sessions():
     from .models import Session
     from . import iptables
     from dashboard.models import SystemSettings
+    from .power_recovery import ensure_power_recovery
+
+    ensure_power_recovery()
 
     now = timezone.now()
     settings_obj = SystemSettings.get_settings()
@@ -112,6 +83,9 @@ def cleanup_expired_and_stale_sessions():
 
     # 2. Paused sessions exceeding pause limit or with no time remaining
     for session in Session.objects.filter(status='paused').select_related('plan'):
+        if session.power_paused:
+            # Power-loss holds do not spend user pause allowances or expire overnight.
+            continue
         max_pause_hours = session.plan.pause_duration_limit if (session.plan and session.plan.pause_duration_limit > 0) else global_max_pause
         if max_pause_hours == 0 and session.amount_paid:
             from .models import Plan
@@ -132,7 +106,7 @@ def cleanup_expired_and_stale_sessions():
         # Also check if total elapsed wall-clock time since session started exceeds (purchased duration + max pause limit)
         if not should_expire and session.time_in and max_pause_hours > 0:
             max_lifetime_hours = (session.duration_minutes_purchased or 0) / 60.0 + max_pause_hours
-            if (now - session.time_in).total_seconds() / 3600.0 >= max_lifetime_hours:
+            if ((now - session.time_in).total_seconds() - session.power_credited_seconds) / 3600.0 >= max_lifetime_hours:
                 should_expire = True
                 logger.info(f'Expiring paused session {session.id} for {session.mac_address} (lifetime exceeded {max_lifetime_hours}h)')
 
@@ -157,16 +131,8 @@ def check_expired_sessions():
     Check and expire sessions that have run out of time or exceeded pause limits.
     Should be called regularly by Celery Beat.
     """
-    import os
-    from django.conf import settings
-
-    # Record heartbeat so we can calculate downtime on reboot
-    heartbeat_path = os.path.join(settings.BASE_DIR, 'heartbeat.txt')
-    try:
-        with open(heartbeat_path, 'w') as f:
-            f.write(str(timezone.now().timestamp()))
-    except Exception as e:
-        logger.error(f'Failed to write heartbeat: {e}')
+    from .power_recovery import checkpoint_sessions
+    checkpoint_sessions()
 
     expired_count = cleanup_expired_and_stale_sessions()
     if expired_count:
@@ -212,7 +178,7 @@ def enforce_pre_auth_dns_policy():
     return 'DNS pre-auth policy enforcement failed'
 
 
-def _is_device_reachable(mac_address, ip_address):
+def _is_device_reachable(mac_address, ip_address, fresh=False):
     """
     Check if a device is reachable on the local LAN/WiFi.
 
@@ -227,6 +193,17 @@ def _is_device_reachable(mac_address, ip_address):
 
     # Method 1: Check Linux ARP table (/proc/net/arp)
     try:
+        if fresh:
+            # Cached ARP entries can outlive a phone. Power recovery requires a
+            # fresh reply from the saved MAC before restarting paid time.
+            res = subprocess.run(
+                ["arping", "-c", "1", "-w", "1", ip_address],
+                capture_output=True, timeout=2,
+            )
+            output = res.stdout or ""
+            if isinstance(output, bytes):
+                output = output.decode(errors="replace")
+            return res.returncode == 0 and mac_upper in output.upper()
         with open("/proc/net/arp", "r") as f:
             for line in f:
                 parts = line.split()
@@ -238,7 +215,9 @@ def _is_device_reachable(mac_address, ip_address):
                     line_mac = parts[3].upper()
                     if (line_ip == ip_address or line_mac == mac_upper) and flags != "0x0":
                         return True
-    except (OSError, IOError):
+    except (OSError, IOError, subprocess.SubprocessError):
+        if fresh:
+            return False
         pass
 
     # Method 2: Try arping (Layer 2 ARP ping — works even when OS firewall blocks ICMP)
@@ -283,6 +262,8 @@ def auto_pause_disconnected_sessions():
     from . import iptables
 
     from dashboard.models import SystemSettings
+    from .power_recovery import ensure_power_recovery
+    ensure_power_recovery()
     
     settings_obj = SystemSettings.get_settings()
     if not settings_obj.enable_auto_pause_resume:
@@ -403,12 +384,15 @@ def expire_voucher_codes():
     """
     from .models import Session
     from django.conf import settings
+    from .power_recovery import ensure_power_recovery
+    ensure_power_recovery()
 
     expiry_minutes = getattr(settings, 'PISONET_VOUCHER_EXPIRY_MINUTES', 5)
     cutoff = timezone.now() - timezone.timedelta(minutes=expiry_minutes)
 
     expired = Session.objects.filter(
         status='paused',
+        power_paused=False,
         voucher_code__isnull=False,
         created_at__lt=cutoff
     ).update(status='expired')
@@ -427,9 +411,11 @@ def auto_resume_connected_sessions():
     from dashboard.models import SystemSettings
     from .models import Session
     from . import iptables
+    from .power_recovery import ensure_power_recovery
+    ensure_power_recovery()
 
     settings_obj = SystemSettings.get_settings()
-    if not settings_obj.enable_auto_pause_resume:
+    if not settings_obj.enable_auto_pause_resume and not Session.objects.filter(status='paused', power_paused=True).exists():
         return 'Auto-pause/resume disabled'
 
     # Do NOT auto-resume any sessions if an ISP outage is active
@@ -442,18 +428,27 @@ def auto_resume_connected_sessions():
     resumed_count = 0
 
     for session in paused_sessions:
+        if session.power_paused:
+            from .models import SuspiciousDevice
+            if SuspiciousDevice.objects.filter(Q(status='blocked') | Q(is_blocked=True),
+                                               mac_address__iexact=session.mac_address).exists():
+                continue
+        if not session.power_paused and not settings_obj.enable_auto_pause_resume:
+            continue
         # Never auto-resume a session that was manually paused or outage-paused
-        if cache.get(f"manual_pause_{session.id}") or cache.get(f"outage_paused_{session.id}"):
+        if not session.power_paused and (cache.get(f"manual_pause_{session.id}") or cache.get(f"outage_paused_{session.id}")):
             continue
 
         # Only auto-resume sessions that were paused automatically due to WiFi disconnection
-        if not cache.get(f"auto_paused_{session.id}"):
+        if not session.power_paused and not cache.get(f"auto_paused_{session.id}"):
             continue
 
-        if _is_device_reachable(session.mac_address, session.ip_address):
+        reachable = (_is_device_reachable(session.mac_address, session.ip_address, fresh=True)
+                     if session.power_paused else _is_device_reachable(session.mac_address, session.ip_address))
+        if reachable:
             # Device is back online — check if max pause duration was exceeded
             max_pause_hours = session.plan.pause_duration_limit if (session.plan and session.plan.pause_duration_limit > 0) else settings_obj.global_pause_limit_hours
-            if max_pause_hours > 0 and session.paused_at:
+            if not session.power_paused and max_pause_hours > 0 and session.paused_at:
                 paused_hours = (timezone.now() - session.paused_at).total_seconds() / 3600.0
                 if paused_hours >= max_pause_hours:
                     session.expire_session()
@@ -471,12 +466,18 @@ def auto_resume_connected_sessions():
                 logger.warning(f'Cannot auto-resume {session.mac_address} — network full')
                 continue
 
-            session.resume_session()
+            if session.power_paused:
+                from .power_recovery import resume_power_session
+                if not resume_power_session(session):
+                    continue
+            else:
+                session.resume_session()
+                dl_kbps = int(session.plan.speed_limit * 1024) if session.plan and session.plan.speed_limit else None
+                ul_kbps = int(session.plan.speed_limit_upload * 1024) if session.plan and session.plan.speed_limit_upload else dl_kbps
+                iptables.allow_device(session.mac_address, rate_kbps=dl_kbps, upload_kbps=ul_kbps)
             cache.delete(f"auto_paused_{session.id}")
             cache.delete(f"manual_pause_{session.id}")
-            dl_kbps = int(session.plan.speed_limit * 1024) if session.plan and session.plan.speed_limit else None
-            ul_kbps = int(session.plan.speed_limit_upload * 1024) if session.plan and session.plan.speed_limit_upload else dl_kbps
-            iptables.allow_device(session.mac_address, rate_kbps=dl_kbps, upload_kbps=ul_kbps)
+            cache.delete(f"outage_paused_{session.id}")
             resumed_count += 1
             logger.info(f'Auto-resumed session {session.id} for {session.mac_address}')
 

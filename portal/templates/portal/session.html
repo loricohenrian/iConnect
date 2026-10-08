@@ -54,7 +54,7 @@
         Pauses remaining: <strong id="pauses-left-display">{{ pauses_left }}</strong>
     </div>
     
-    <div id="pause-duration-warning" class="alert alert-warning" style="display: {% if session.status == 'paused' %}block{% else %}none{% endif %}; font-size: 12px; margin-top: 12px; padding: 8px 12px; border-radius: 8px; text-align: left;">
+    <div id="pause-duration-warning" class="alert alert-warning" style="display: {% if session.status == 'paused' and not session.power_paused %}block{% else %}none{% endif %}; font-size: 12px; margin-top: 12px; padding: 8px 12px; border-radius: 8px; text-align: left;">
         {% if pause_max_hours > 0 %}
             <strong>Note:</strong> Your paused time will automatically expire if you do not resume within <strong>{{ pause_max_hours }} hour{{ pause_max_hours|pluralize }}</strong>.
         {% else %}

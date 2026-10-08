@@ -23,7 +23,8 @@ class SessionsAppConfig(AppConfig):
                 try:
                     with connection.cursor() as cursor:
                         cursor.execute('PRAGMA journal_mode=WAL;')
-                        cursor.execute('PRAGMA synchronous=NORMAL;')
+                        # Durable session checkpoints must survive sudden power loss.
+                        cursor.execute('PRAGMA synchronous=FULL;')
                         cursor.execute('PRAGMA busy_timeout=30000;')
                 except Exception as e:
                     logger.warning('Failed to apply SQLite PRAGMAs: %s', e)

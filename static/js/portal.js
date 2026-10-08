@@ -2501,7 +2501,9 @@ function pollSessionStatus(macAddress, intervalMs = 1000) {
             // Toast notification on real-time admin pause/resume
             if (window._lastSessionStatus && window._lastSessionStatus !== data.status) {
                 if (data.status === "paused" && !Boolean(data.isp_outage)) {
-                    _showTimerBanner("⏸️ Your session has been paused by the administrator.", "warning");
+                    _showTimerBanner(data.session?.power_paused
+                        ? "⏸️ Your time was saved after a power interruption. Resume when ready."
+                        : "⏸️ Your session has been paused by the administrator.", "warning");
                 } else if (data.status === "active" && window._lastSessionStatus === "paused" && !Boolean(data.isp_outage)) {
                     _showTimerBanner("▶️ Your session has been resumed! Internet reconnected.", "success");
                     setTimeout(() => { _hideTimerBanner(); }, 5000);
@@ -2560,7 +2562,7 @@ function pollSessionStatus(macAddress, intervalMs = 1000) {
                     }
                 }
                 if (pauseWarningEl) {
-                    pauseWarningEl.style.display = "block";
+                    pauseWarningEl.style.display = data.session?.power_paused ? "none" : "block";
                 }
             } else if (data.status === "active" && !isOutage) {
                 if (window.sessionTimer) {

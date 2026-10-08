@@ -11,18 +11,8 @@ app = Celery('pisowifi')
 app.config_from_object('django.conf:settings', namespace='CELERY')
 app.autodiscover_tasks()
 
-from celery.schedules import crontab
-
-app.conf.beat_schedule = {
-    'check-expired-sessions-every-minute': {
-        'task': 'sessions_app.tasks.check_expired_sessions',
-        'schedule': 60.0,  # Run every 60 seconds
-    },
-    'expire-voucher-codes-every-5-minutes': {
-        'task': 'sessions_app.tasks.expire_voucher_codes',
-        'schedule': 300.0,
-    },
-}
+# Keep the schedule in settings.CELERY_BEAT_SCHEDULE as the single source of
+# truth, including 10-second durable checkpoints and reconnect checks.
 
 @worker_ready.connect
 def on_worker_ready(**kwargs):

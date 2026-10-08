@@ -2888,19 +2888,20 @@ def admin_resume_all_sessions(request):
             expired_count += 1
             continue
 
-        if session.paused_at:
-            paused_seconds = (now - session.paused_at).total_seconds()
-            session.total_paused_seconds += paused_seconds
-
-        session.status = "active"
-        session.paused_at = None
-        session.save(update_fields=["status", "total_paused_seconds", "paused_at"])
+        power_resumed = session.power_paused
+        if power_resumed:
+            from sessions_app.power_recovery import resume_power_session
+            if not resume_power_session(session):
+                continue
+        else:
+            session.resume_session()
 
         try:
             from sessions_app.iptables import allow_device
             dl_kbps = int(session.plan.speed_limit * 1024) if session.plan and session.plan.speed_limit else None
             ul_kbps = int(session.plan.speed_limit_upload * 1024) if session.plan and session.plan.speed_limit_upload else dl_kbps
-            allow_device(session.mac_address, rate_kbps=dl_kbps, upload_kbps=ul_kbps)
+            if not power_resumed:
+                allow_device(session.mac_address, rate_kbps=dl_kbps, upload_kbps=ul_kbps)
         except Exception as e:
             logging.error(f"Failed to allow device {session.mac_address} on bulk resume: {e}")
 
@@ -2992,13 +2993,13 @@ def admin_session_action(request, session_id, action):
                 'error': 'Session time has expired and cannot be resumed.'
             }, status=400)
             
-        if session.paused_at:
-            paused_seconds = (timezone.now() - session.paused_at).total_seconds()
-            session.total_paused_seconds += paused_seconds
-            
-        session.status = "active"
-        session.paused_at = None
-        session.save(update_fields=["status", "total_paused_seconds", "paused_at"])
+        power_resumed = session.power_paused
+        if power_resumed:
+            from sessions_app.power_recovery import resume_power_session
+            if not resume_power_session(session):
+                return JsonResponse({'success': False, 'error': 'Could not restore internet access. Time remains paused.'}, status=503)
+        else:
+            session.resume_session()
         try:
             from django.core.cache import cache
             cache.delete(f"manual_pause_{session.id}")
@@ -3011,7 +3012,8 @@ def admin_session_action(request, session_id, action):
             from sessions_app.iptables import allow_device
             dl_kbps = int(session.plan.speed_limit * 1024) if session.plan and session.plan.speed_limit else None
             ul_kbps = int(session.plan.speed_limit_upload * 1024) if session.plan and session.plan.speed_limit_upload else dl_kbps
-            allow_device(session.mac_address, rate_kbps=dl_kbps, upload_kbps=ul_kbps)
+            if not power_resumed:
+                allow_device(session.mac_address, rate_kbps=dl_kbps, upload_kbps=ul_kbps)
         except Exception as e:
             logging.error(f"Failed to allow device on resume: {e}")
 
@@ -3123,12 +3125,23 @@ def admin_session_action(request, session_id, action):
                 logging.warning(f"Failed to assign plan {plan_id} on add_time: {e}")
 
         was_expired = (session.status == 'expired')
+        was_paused = (session.status == 'paused')
+        power_access_restored = False
         session.extend_session(minutes)
-        if was_expired or session.status == 'paused':
+        if was_expired:
             session.status = 'active'
             session.time_out = None
             session.total_paused_seconds = 0
             session.paused_at = None
+        elif was_paused:
+            if session.power_paused:
+                # Commit the added credit while still paused before the helper
+                # reloads/locks the row. Failed access restoration must not spend it.
+                session.save()
+                from sessions_app.power_recovery import resume_power_session
+                power_access_restored = resume_power_session(session)
+            else:
+                session.resume_session()
         session.save()
         try:
             from django.core.cache import cache
@@ -3138,7 +3151,7 @@ def admin_session_action(request, session_id, action):
             pass
 
         # Re-allow in firewall / update bandwidth shaping if active
-        if session.status == 'active':
+        if session.status == 'active' and not power_access_restored:
             try:
                 from sessions_app.iptables import allow_device
                 if speed_limit is not None:

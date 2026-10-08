@@ -10,7 +10,7 @@ This folder contains systemd units for Django/Gunicorn, coin detector, and Celer
 
 ```bash
 sudo apt update
-sudo apt install -y python3-venv python3-pip nginx redis-server
+sudo apt install -y python3-venv python3-pip nginx redis-server iputils-arping
 ```
 
 ## 2) Prepare project

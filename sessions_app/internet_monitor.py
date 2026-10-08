@@ -103,6 +103,8 @@ def check_isp_internet_status(force_probe=False):
     from dashboard.models import Announcement, SystemSettings
     from sessions_app.models import Session
     from sessions_app import iptables
+    from sessions_app.power_recovery import ensure_power_recovery
+    ensure_power_recovery()
 
     settings_obj = SystemSettings.get_settings()
 
