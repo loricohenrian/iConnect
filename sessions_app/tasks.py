@@ -528,11 +528,11 @@ def check_internet_status():
     from sessions_app.internet_monitor import check_isp_internet_status
     status = check_isp_internet_status(force_probe=True)
     if status.get("recovered"):
-        return "ISP restored: sessions kept paused for manual resume"
+        return f"ISP restored: {status.get('resumed_count', 0)} sessions auto-resumed"
     if status.get("isp_outage"):
         return f"ISP outage active: {status.get('message', '')}"
     if not status.get("is_online"):
-        return "ISP probe failed"
+        return "ISP probe failed (pending debounce)"
     return "ISP is online"
 
 

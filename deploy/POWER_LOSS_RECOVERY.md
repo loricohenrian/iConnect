@@ -37,6 +37,28 @@ Back up the production database first. Deploy all changed Python files and
 services while deploying/migrating so old code cannot overwrite new checkpoints.
 Do not stop or flush Redis to perform this update.
 
+The combined release preserves the existing Orange Pi ISP probes, three-failure
+confirmation, ISP auto-resume, dashboard status/chart changes, bandwidth fix, and
+admin add-time fix. ISP restoration cannot auto-resume power-paused sessions,
+even when Redis still lists them as paused by an earlier ISP outage.
+
+If the Pi has those reviewed local edits, stop services first, back up the database,
+then save the five tracked files before pulling:
+
+```bash
+git stash push -m "Orange Pi fixes before combined power recovery" -- \
+  dashboard/views.py sessions_app/bandwidth.py sessions_app/internet_monitor.py \
+  sessions_app/tasks.py static/js/dashboard.js
+git pull --ff-only origin main
+```
+
+Keep this stash as a backup; do not pop it onto the combined release. Its intended
+changes are already integrated, with the power-hold safeguard. Do not stash or
+delete `heartbeat.txt`: first-upgrade recovery needs that running-system timestamp.
+Use a subshell `( ... )` for `set -e` deployment blocks so a failed command does not
+exit the interactive SSH shell. If any step fails, stop and inspect the error;
+do not restart mixed code/schema or force a pull.
+
 ```bash
 cd /opt/iconnect/pisowifi
 sudo systemctl stop celery-beat.service celery-worker.service coindetector.service pisowifi.service
@@ -64,6 +86,7 @@ from the production SD card to test this feature.
 
 ```bash
 python manage.py test sessions_app.test_power_recovery --noinput
+python manage.py test sessions_app.test_isp_power_integration --noinput
 python manage.py test sessions_app dashboard portal --noinput
 python manage.py makemigrations --check --dry-run
 ```

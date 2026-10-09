@@ -491,17 +491,18 @@ def system_stats_api(request):
     except Exception:
         pass
 
-    # Internet Status Check (cached for 15s to prevent worker starvation)
+    # Internet Status Check — use cached result from Celery's check_isp_internet_status
+    # which runs every 30s with 3.5s timeout and 3-failure debounce (reliable)
     from django.core.cache import cache
-    cached_internet = cache.get('dashboard_system_internet_online')
+    cached_internet = cache.get('internet_status_ok')
     if cached_internet is not None:
         stats['internet_online'] = cached_internet
     else:
+        # Fallback: run a probe if Celery hasn't populated the cache yet
         try:
             from sessions_app.internet_monitor import probe_upstream_internet
-            is_online = probe_upstream_internet(timeout=0.8)
+            is_online = probe_upstream_internet(timeout=3.0)
             stats['internet_online'] = is_online
-            cache.set('dashboard_system_internet_online', is_online, 15)
         except Exception:
             stats['internet_online'] = False
 

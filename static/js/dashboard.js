@@ -201,7 +201,7 @@ function initPlanChart(canvasId, data) {
         planChartInstance = null;
     }
 
-    const brandColors = ['#7b2d3b', '#991b1b', '#ea580c', '#d97706', '#6366f1', '#10b981', '#0ea5e9'];
+    const brandColors = ['#7b2d3b', '#3b82f6', '#ea580c', '#eab308', '#6366f1', '#10b981', '#0ea5e9'];
 
     // Custom inline plugin for segment percentages and center total
     const donutDataLabelsPlugin = {

@@ -17,7 +17,7 @@ OUTAGE_IDENTIFIER = "interrupted by our ISP"
 OUTAGE_ANNOUNCEMENT_TEXT = (
     "⚠️ NOTICE: Internet is temporarily interrupted by our ISP. "
     "All user timers have been FROZEN to protect your remaining time! "
-    "Once connection is restored, tap Resume whenever you are ready."
+    "Once connection is restored, sessions will automatically resume."
 )
 
 
@@ -42,44 +42,57 @@ def _safe_cache_delete(key):
         pass
 
 
-def probe_upstream_internet(timeout=2.0):
+def probe_upstream_internet(timeout=3.5):
     """
-    Genuine internet connectivity probe using TLS (HTTPS).
-    Plain HTTP (port 80), ping (ICMP), and DNS (port 53) are vulnerable to local router/modem
-    interception when WAN fiber is down. HTTPS to 1.1.1.1 and www.google.com CANNOT be spoofed
-    by a disconnected local router without triggering an SSL certificate verification failure.
+    Genuine internet connectivity probe using TLS (HTTPS) and fast HTTP 204.
+    Tests fast endpoints that don't redirect:
+    1. Cloudflare trace: https://cloudflare.com/cdn-cgi/trace
+    2. Google generate_204: https://www.google.com/generate_204
+    3. gstatic 204 HTTP fallback: http://connectivitycheck.gstatic.com/generate_204
     """
     import sys
     import urllib.request
     import ssl
 
-    # 1. Direct HTTPS to 1.1.1.1 (no DNS needed, checks real routing + TLS handshake)
+    ctx = ssl.create_default_context()
+
+    # 1. Cloudflare trace (fast, lightweight, direct 200 OK without redirects)
     try:
         req = urllib.request.Request(
-            "https://1.1.1.1",
+            "https://cloudflare.com/cdn-cgi/trace",
             headers={"User-Agent": "iConnect-Probe/1.0"}
         )
-        ctx = ssl.create_default_context()
         with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
             if resp.status == 200:
                 return True
     except Exception:
         pass
 
-    # 2. HTTPS to Google (checks DNS resolution + real internet HTTPS)
+    # 2. Google generate_204 via HTTPS (fast 204 No Content)
     try:
         req = urllib.request.Request(
             "https://www.google.com/generate_204",
             headers={"User-Agent": "iConnect-Probe/1.0"}
         )
-        ctx = ssl.create_default_context()
         with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
             if resp.status in (200, 204):
                 return True
     except Exception:
         pass
 
-    # 3. Unit test mocking fallback (only used in test suite when socket.socket is patched)
+    # 3. HTTP 204 fallback (connectivitycheck.gstatic.com)
+    try:
+        req = urllib.request.Request(
+            "http://connectivitycheck.gstatic.com/generate_204",
+            headers={"User-Agent": "iConnect-Probe/1.0"}
+        )
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            if resp.status in (200, 204):
+                return True
+    except Exception:
+        pass
+
+    # 4. Unit test mocking fallback (only used in test suite when socket.socket is patched)
     if 'test' in sys.argv:
         for host in ("8.8.8.8", "1.1.1.1"):
             try:
@@ -98,7 +111,7 @@ def check_isp_internet_status(force_probe=False):
     """
     Main entry point for checking ISP connection.
     Uses 10-second cache to prevent probe storms while ensuring responsive updates.
-    Handles auto-pause and auto-announcement based on SystemSettings.
+    Handles auto-pause, auto-resume, and auto-announcement based on SystemSettings.
     """
     from dashboard.models import Announcement, SystemSettings
     from sessions_app.models import Session
@@ -123,15 +136,8 @@ def check_isp_internet_status(force_probe=False):
         if cached_status is not None:
             return cached_status
 
-    is_online = probe_upstream_internet(timeout=1.5)
+    is_online = probe_upstream_internet(timeout=3.5)
     _safe_cache_set("internet_status_ok", is_online, timeout=120)
-
-    # Clean up any stale announcements with old auto-resume wording
-    from django.db.models import Q
-    Announcement.objects.filter(
-        Q(message__contains="automatically resume") |
-        Q(message__contains="will automatically resume")
-    ).delete()
 
     existing_announcement = Announcement.objects.filter(
         is_active=True, message__contains=OUTAGE_IDENTIFIER
@@ -154,13 +160,13 @@ def check_isp_internet_status(force_probe=False):
         fail_count = (_safe_cache_get(CACHE_KEY_FAIL_COUNT) or 0) + 1
         _safe_cache_set(CACHE_KEY_FAIL_COUNT, fail_count, timeout=300)
 
-        # Confirmed outage if 1 or more failed probes OR an outage was already active
-        is_confirmed_outage = fail_count >= 1 or existing_outage
+        # Confirmed outage only after 3 consecutive failed probes OR an outage was already active
+        is_confirmed_outage = fail_count >= 3 or existing_outage
         result["isp_outage"] = is_confirmed_outage
 
         if is_confirmed_outage:
             _safe_cache_set(CACHE_KEY_ACTIVE_OUTAGE, True, timeout=86400 * 7)
-            logger.warning("ISP Outage active (probe offline, fail_count=%d)", fail_count)
+            logger.warning("ISP Outage confirmed active (fail_count=%d)", fail_count)
 
             # 1. Auto Announcement Popup
             if settings_obj.enable_outage_announcement:
@@ -180,7 +186,7 @@ def check_isp_internet_status(force_probe=False):
                 from django.core.cache import cache as dj_cache
                 for s in active_sessions:
                     try:
-                        s.pause_session()
+                        s.pause_session(is_system_pause=True)
                         try:
                             iptables.block_device(s.mac_address)
                         except Exception:
@@ -214,6 +220,8 @@ def check_isp_internet_status(force_probe=False):
                         )
                 except Exception as tg_err:
                     logger.warning("Failed to send Telegram outage alert: %s", tg_err)
+        else:
+            logger.info("Probe failed (attempt %d/3), waiting for confirmation before declaring outage", fail_count)
 
     else:
         # Online probe
@@ -232,6 +240,30 @@ def check_isp_internet_status(force_probe=False):
             # Remove outage announcement immediately
             Announcement.objects.filter(message__contains=OUTAGE_IDENTIFIER).delete()
 
+            # Auto-resume sessions that were paused specifically by this outage
+            resumed_count = 0
+            if paused_ids:
+                from django.core.cache import cache as dj_cache
+                for s_id in paused_ids:
+                    try:
+                        s = Session.objects.filter(id=s_id, status="paused").first()
+                        # Redis can retain an old ISP-paused ID across a reboot.
+                        # Power holds must wait for a verified returning device
+                        # or an explicit resume, not merely an online ISP probe.
+                        if s and not s.power_paused and (s.time_remaining_seconds or 0) > 0:
+                            s.resume_session()
+                            dj_cache.delete(f"manual_pause_{s.id}")
+                            dj_cache.delete(f"outage_paused_{s.id}")
+                            dl_kbps = int(s.plan.speed_limit * 1024) if s.plan and s.plan.speed_limit else None
+                            ul_kbps = int(s.plan.speed_limit_upload * 1024) if s.plan and s.plan.speed_limit_upload else dl_kbps
+                            try:
+                                iptables.allow_device(s.mac_address, rate_kbps=dl_kbps, upload_kbps=ul_kbps)
+                            except Exception:
+                                pass
+                            resumed_count += 1
+                    except Exception as res_err:
+                        logger.error("Failed to auto-resume session %s on outage recovery: %s", s_id, res_err)
+
             # Telegram Recovery Alert
             try:
                 from dashboard.telegram_bot import get_telegram_config, send_telegram_message
@@ -240,14 +272,14 @@ def check_isp_internet_status(force_probe=False):
                     send_telegram_message(
                         f"🟢 *ISP INTERNET RESTORED!*\n"
                         f"Upstream connection is back online.\n\n"
-                        f"⏸ *Sessions kept paused* — users must tap Resume on portal.\n"
+                        f"▶️ *Auto-Resumed:* `{resumed_count}` session(s) restored.\n"
                         f"🧹 Captive portal outage popup cleared."
                     )
             except Exception as tg_err:
                 logger.warning("Failed to send Telegram recovery alert: %s", tg_err)
 
             result["recovered"] = True
-            result["resumed_count"] = 0  # No sessions auto-resumed; users resume manually
+            result["resumed_count"] = resumed_count
             result["isp_outage"] = False
             result["is_online"] = True
         else:
