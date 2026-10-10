@@ -408,7 +408,7 @@
                     <div class="setting-toggle-row">
                         <div class="setting-toggle-info">
                             <label for="enable_telegram_bot" class="setting-toggle-title">Enable Telegram Bot Remote Operations</label>
-                            <span class="setting-toggle-desc">Enables webhook polling for real-time sales queries, node restarts, and instant outage alerts.</span>
+                        <span class="setting-toggle-desc">Enables private-admin commands and automatic support, security and ISP alerts.</span>
                         </div>
                         <label class="custom-switch">
                             <input type="checkbox" id="enable_telegram_bot" name="enable_telegram_bot" {% if settings.enable_telegram_bot %}checked{% endif %} data-toggle-target="#telegramParams">
@@ -449,8 +449,8 @@
                             <label class="checkbox-card-label" for="telegram_notify_tickets">
                                 <input type="checkbox" id="telegram_notify_tickets" name="telegram_notify_tickets" {% if settings.telegram_notify_tickets %}checked{% endif %}>
                                 <div class="checkbox-card-content">
-                                    <span class="checkbox-card-title">Instant Support Tickets</span>
-                                    <span class="checkbox-card-desc">Immediate alerts when a student reports a stuck coin or portal issue.</span>
+                                    <span class="checkbox-card-title">Support Ticket Alerts</span>
+                                    <span class="checkbox-card-desc">New tickets, customer-facing replies and ticket status changes.</span>
                                 </div>
                             </label>
 
@@ -462,11 +462,11 @@
                                 </div>
                             </label>
 
-                            <label class="checkbox-card-label" for="telegram_notify_daily_summary">
-                                <input type="checkbox" id="telegram_notify_daily_summary" name="telegram_notify_daily_summary" {% if settings.telegram_notify_daily_summary %}checked{% endif %}>
+                            <label class="checkbox-card-label" for="telegram_notify_security">
+                                <input type="checkbox" id="telegram_notify_security" name="telegram_notify_security" {% if settings.telegram_notify_security %}checked{% endif %}>
                                 <div class="checkbox-card-content">
-                                    <span class="checkbox-card-title">Midnight Sales Closeout</span>
-                                    <span class="checkbox-card-desc">Nightly summary of daily gross revenue, student sessions, and coin totals.</span>
+                                    <span class="checkbox-card-title">Security Alerts</span>
+                                    <span class="checkbox-card-desc">New or reopened suspicious-device incidents, without repeat-detection spam.</span>
                                 </div>
                             </label>
                         </div>

@@ -28,6 +28,7 @@ def get_telegram_config():
             'token': str(s.telegram_bot_token or '').strip(),
             'chat_id': str(s.telegram_admin_chat_id).strip(),
             'notify_tickets': s.telegram_notify_tickets,
+            'notify_security': s.telegram_notify_security,
             'notify_isp_down': s.telegram_notify_isp_down,
             'notify_daily_summary': s.telegram_notify_daily_summary,
         }
@@ -38,6 +39,7 @@ def get_telegram_config():
             'token': '',
             'chat_id': '',
             'notify_tickets': False,
+            'notify_security': False,
             'notify_isp_down': False,
             'notify_daily_summary': False,
         }

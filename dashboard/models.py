@@ -284,8 +284,12 @@ class SystemSettings(models.Model):
         default=True,
         help_text="Send alert when ISP internet drops"
     )
-    telegram_notify_daily_summary = models.BooleanField(
+    telegram_notify_security = models.BooleanField(
         default=True,
+        help_text="Send alerts for new or reopened security incidents"
+    )
+    telegram_notify_daily_summary = models.BooleanField(
+        default=False,
         help_text="Send daily midnight sales summary"
     )
 
@@ -344,4 +348,20 @@ class IssueReport(models.Model):
 
     def __str__(self):
         return f"[{self.get_status_display()}] {self.get_category_display()} ({self.mac_address or 'No MAC'})"
+
+
+class TelegramNotification(models.Model):
+    """Durable event outbox, delivered without blocking ticket/session requests."""
+    event_key = models.CharField(max_length=150, unique=True)
+    kind = models.CharField(max_length=20, choices=[('ticket', 'Support Ticket'), ('security', 'Security Alert')])
+    body = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    next_attempt_at = models.DateTimeField(default=timezone.now, db_index=True)
+    lease_until = models.DateTimeField(null=True, blank=True)
+    attempts = models.PositiveIntegerField(default=0)
+    sent_at = models.DateTimeField(null=True, blank=True)
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['created_at', 'pk']
 

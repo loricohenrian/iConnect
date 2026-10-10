@@ -1033,27 +1033,8 @@ def api_report_issue(request):
         report.id, category, mac_address or "<none>", ip,
     )
 
-    try:
-        from dashboard.telegram_bot import send_telegram_message, get_telegram_config, escape_markdown
-        cfg = get_telegram_config()
-        if cfg.get('enabled') and cfg.get('notify_tickets'):
-            category_name = dict(IssueReport.CATEGORY_CHOICES).get(category, category)
-            esc_cat = escape_markdown(category_name)
-            esc_msg = escape_markdown(report.message)
-            esc_mac = escape_markdown(report.mac_address or 'Unknown MAC')
-            esc_contact = escape_markdown(report.contact_info or 'None')
-            t_msg = (
-                f"🚨 *New Support Ticket #{report.id}*\n\n"
-                f"📂 *Category:* {esc_cat}\n"
-                f"📝 *Message:* _{esc_msg}_\n"
-                f"📱 *Device:* `{esc_mac}`\n"
-                f"📞 *Contact:* `{esc_contact}`\n"
-                f"🕒 *Time:* {timezone.now().strftime('%I:%M %p')}\n\n"
-                f"Type /tickets on Telegram or view in Admin Console."
-            )
-            send_telegram_message(t_msg)
-    except Exception as e:
-        logger.warning(f"Failed to dispatch Telegram issue alert: {e}")
+    # IssueReport's save signal queues one durable Telegram alert. Network delivery
+    # happens in the bot daemon, not in this customer-facing request.
 
     return JsonResponse({
         "status": "success",

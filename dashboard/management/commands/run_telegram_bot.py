@@ -34,6 +34,22 @@ def _credentials(cfg):
     return cfg.get('enabled'), cfg.get('token'), cfg.get('chat_id')
 
 
+def _notification_loop():
+    """Deliver durable alerts independently of session timer workers/polling."""
+    while True:
+        try:
+            close_old_connections()
+            from dashboard.telegram_notifications import deliver_pending_notifications
+            delivered = deliver_pending_notifications()
+            if delivered:
+                logger.info('Delivered %s queued Telegram alert(s)', delivered)
+        except Exception as error:
+            logger.error('Telegram alert delivery unavailable (%s)', type(error).__name__)
+        finally:
+            close_old_connections()
+        time.sleep(5)
+
+
 def dispatch_updates(updates, cfg, offset, not_before):
     """Reject groups, stale queued commands, and changed/disabled credentials."""
     for update in updates:
@@ -72,6 +88,7 @@ class Command(BaseCommand):
             raise CommandError('Telegram is disabled or missing a valid token/personal admin ID.')
 
         threading.Thread(target=_internet_monitor_loop, daemon=True).start()
+        threading.Thread(target=_notification_loop, daemon=True).start()
         self.stdout.write('Telegram poller started for the configured private admin.')
         offset = 0
         credentials = _credentials(cfg)

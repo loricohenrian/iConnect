@@ -23,6 +23,17 @@ or raw API exceptions. Notification/document delivery is limited to the admin.
 The `/backup` export omits the bot token. Set it privately after restoring a backup.
 Local operational backups may still contain credentials and must remain private.
 
+Support-ticket creation, public-reply/status changes, and new/reopened security
+incidents are queued in `TelegramNotification`. Internal ticket notes are excluded.
+The daemon checks the queue every five seconds, with bounded batches and retry
+backoff from 30 seconds up to one hour. Pending rows survive service restarts and
+power outages; nothing can be generated or sent while the Pi itself is off.
+Repeated detections of an already-new security incident do not enqueue more alerts.
+There is no historical backfill and no midnight Telegram sales notification.
+Delivery is at-least-once: if Telegram accepts a send but the response/DB update
+is lost, a retry may duplicate that message. Leases prevent concurrent sends in
+normal operation. No exactly-once delivery guarantee is claimed.
+
 Removing a token from the latest code does not erase earlier Git commits or
 screenshots. Revocation is required; no history rewrite or force-push is performed.
 Restoring the bot's display name/photo/bio is a separate BotFather action and is
