@@ -59,42 +59,6 @@
     </div>
 </div>
 
-<!-- Revenue Goals Target Progress -->
-<div class="chart-card mt-md animate-fadeIn" style="padding: 18px 22px;">
-    <div class="d-flex justify-content-between align-items-center flex-wrap gap-sm mb-md">
-        <div class="d-flex align-items-center gap-xs">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #059669;"><circle cx="12" cy="12" r="10"></circle><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"></path><path d="M12 18V6"></path></svg>
-            <h3 class="chart-title" style="margin: 0; font-size: 14px;">Revenue Targets</h3>
-        </div>
-        <button type="button" class="btn btn-secondary btn-sm" onclick="showGoalsModal()" style="font-size: 12px; padding: 4px 10px;">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-            Edit Goals
-        </button>
-    </div>
-    <div class="grid-2 gap-lg">
-        <!-- Daily Goal -->
-        <div>
-            <div class="d-flex justify-content-between text-xs mb-xs">
-                <span class="text-muted font-semibold" id="goal-today-text">Today's Target: ₱{{ today_sales_for_goal }} / ₱{{ daily_target_amt|default:"0" }}</span>
-                <span class="font-semibold" id="goal-today-pct" style="color: {% if daily_progress >= 100 %}#059669{% else %}#2563eb{% endif %};">{{ daily_progress }}%</span>
-            </div>
-            <div style="width: 100%; height: 8px; background: rgba(0,0,0,0.06); border-radius: 4px; overflow: hidden;">
-                <div id="goal-today-bar" style="width: {{ daily_progress }}%; height: 100%; background: {% if daily_progress >= 100 %}#059669{% else %}#2563eb{% endif %}; border-radius: 4px; transition: width 0.3s ease;"></div>
-            </div>
-        </div>
-        <!-- Weekly Goal -->
-        <div>
-            <div class="d-flex justify-content-between text-xs mb-xs">
-                <span class="text-muted font-semibold" id="goal-week-text">This Week's Target: ₱{{ week_sales_for_goal }} / ₱{{ weekly_target_amt|default:"0" }}</span>
-                <span class="font-semibold" id="goal-week-pct" style="color: {% if weekly_progress >= 100 %}#059669{% else %}#7c3aed{% endif %};">{{ weekly_progress }}%</span>
-            </div>
-            <div style="width: 100%; height: 8px; background: rgba(0,0,0,0.06); border-radius: 4px; overflow: hidden;">
-                <div id="goal-week-bar" style="width: {{ weekly_progress }}%; height: 100%; background: {% if weekly_progress >= 100 %}#059669{% else %}#7c3aed{% endif %}; border-radius: 4px; transition: width 0.3s ease;"></div>
-            </div>
-        </div>
-    </div>
-</div>
-
 <!-- Row 2: Chart & Filters -->
 <div class="grid-2 mt-md" style="grid-template-columns: 1.8fr 1.2fr;">
     <!-- Sales Breakdown Chart -->
@@ -283,39 +247,6 @@
     </div>
 </div>
 
-<!-- Set Goals Modal -->
-<div id="goalsModal" class="modal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center;">
-    <div class="chart-card animate-fadeIn" style="width: 100%; max-width: 420px; margin: 16px;">
-        <h3 class="card-title mb-sm" style="display: flex; align-items: center; gap: 8px;">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #059669;"><circle cx="12" cy="12" r="10"></circle><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"></path><path d="M12 18V6"></path></svg>
-            Set Revenue Targets
-        </h3>
-        <p class="text-small text-muted mb-md">
-            Set daily and weekly gross revenue targets to track business performance and monitor progress.
-        </p>
-
-        <form method="POST" action="{% url 'dashboard:revenue' %}">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="update_goal">
-            
-            <div class="form-group mb-md">
-                <label class="form-label">Daily Revenue Target (₱)</label>
-                <input type="number" min="0" class="form-input" name="daily_target" value="{{ daily_target_amt|default:'500' }}" required placeholder="e.g. 500">
-            </div>
-
-            <div class="form-group mb-lg">
-                <label class="form-label">Weekly Revenue Target (₱)</label>
-                <input type="number" min="0" class="form-input" name="weekly_target" value="{{ weekly_target_amt|default:'3500' }}" required placeholder="e.g. 3500">
-            </div>
-
-            <div class="d-flex justify-content-end gap-sm">
-                <button type="button" class="btn btn-secondary btn-sm" onclick="hideGoalsModal()">Cancel</button>
-                <button type="submit" class="btn btn-primary btn-sm">Save Targets</button>
-            </div>
-        </form>
-    </div>
-</div>
-
 {% endblock %}
 
 {% block dashboard_js %}
@@ -336,23 +267,11 @@
         if (confirmBox) confirmBox.checked = false;
     }
 
-    function showGoalsModal() {
-        document.getElementById('goalsModal').style.display = 'flex';
-    }
-
-    function hideGoalsModal() {
-        document.getElementById('goalsModal').style.display = 'none';
-    }
-
     // Close modal if clicking outside of it
     window.onclick = function(event) {
         var resetModal = document.getElementById('resetModal');
-        var goalsModal = document.getElementById('goalsModal');
         if (event.target == resetModal) {
             hideResetModal();
-        }
-        if (event.target == goalsModal) {
-            hideGoalsModal();
         }
     }
 

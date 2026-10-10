@@ -1718,6 +1718,20 @@ class RevenueHardeningTests(TestCase):
             is_active=True
         )
 
+    def test_revenue_page_omits_targets_and_preserves_reporting_controls(self):
+        RevenueGoal.objects.create(period="daily", target_amount=500)
+        RevenueGoal.objects.create(period="weekly", target_amount=3500)
+        response = self.client.get("/iconnect-ops/revenue/")
+        self.assertEqual(response.status_code, 200)
+        for removed in ("Revenue Targets", "Edit Goals", "goalsModal", "showGoalsModal",
+                        "goal-today-", "goal-week-", 'value="update_goal"'):
+            self.assertNotContains(response, removed)
+        for retained in ("Total Revenue", "Sales Breakdown by Plan", "Date Range Filter",
+                         "Filtered Sessions", "Export CSV", "Reset Sales", "resetModal"):
+            self.assertContains(response, retained)
+        self.assertEqual(RevenueGoal.objects.get(period="daily").target_amount, 500)
+        self.assertEqual(RevenueGoal.objects.get(period="weekly").target_amount, 3500)
+
     @patch("sessions_app.iptables.block_device")
     def test_reset_sales_disconnects_active_sessions_and_clears_summaries(self, mock_block_device):
         # Create active and expired sessions

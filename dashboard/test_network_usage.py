@@ -42,8 +42,9 @@ class NetworkUsageLabelTests(TestCase):
         response = overview(request)
         self.assertContains(response, 'Network Overview')
         self.assertContains(response, 'Data Used')
-        self.assertContains(response, 'Sessions started today only.')
-        self.assertContains(response, 'not Mbps')
+        self.assertContains(response, '>Active</span>')
+        self.assertNotContains(response, 'Active + Whitelisted')
+        self.assertNotContains(response, 'Sessions started today only. Accumulated upload + download, not Mbps.')
         self.assertContains(response, '600.0 MB')
         self.assertNotContains(response, 'Bandwidth In Use')
 
