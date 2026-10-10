@@ -38,7 +38,7 @@ assert(grid.includes('grid-template-columns: 54px repeat(12, 1fr)'));
 assert(grid.includes('min-width: 600px;'), 'Narrow screens keep readable cells in the scroll wrapper');
 assert(!/max-width\s*:/.test(grid), 'Normal heatmap grids fill the available width');
 const cellStyles = css.match(/\.heatmap-cell\s*\{([^}]+)\}/)[1];
-assert(cellStyles.includes('height: 36px;'), 'Normal cells retain their short rectangular height');
+assert(cellStyles.includes('height: 56px;'), 'Cells use a modest fixed height, independent of their width');
 assert(!/aspect-ratio\s*:/.test(cellStyles), 'Normal cells must not grow into large squares');
 
 const template = fs.readFileSync(path.join(__dirname, '..', '..', '..', 'dashboard', 'templates', 'dashboard', 'heatmap.html'), 'utf8');
