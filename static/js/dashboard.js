@@ -354,9 +354,7 @@ function initHeatmap(containerId, data, onSelectCell) {
     }
 
     function getHourHeaderLabel(h) {
-        if (h === 0) return '12a';
-        if (h === 12) return '12p';
-        return h < 12 ? `${h}a` : `${h - 12}p`;
+        return `${h % 12 || 12} ${h < 12 ? 'AM' : 'PM'}`;
     }
 
     function formatHourRange(h) {
