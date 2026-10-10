@@ -35,6 +35,20 @@ assert.equal([...container.innerHTML.matchAll(/class="heatmap-cell heat-0/g)].le
 const css = fs.readFileSync(path.join(__dirname, '..', '..', 'css', 'dashboard.css'), 'utf8');
 const grid = css.match(/\.heatmap-grid\s*\{([^}]+)\}/)[1];
 assert(grid.includes('grid-template-columns: 54px repeat(12, 1fr)'));
+assert(grid.includes('max-width: 720px;'), 'Desktop grids must not expand across the full page');
+assert(grid.includes('min-width: 600px;'), 'Narrow screens keep readable cells in the scroll wrapper');
+assert(grid.includes('margin-inline: auto;'), 'Compact grids should be centered');
+const maxGridWidth = Number(grid.match(/max-width:\s*(\d+)px/)[1]);
+const minGridWidth = Number(grid.match(/min-width:\s*(\d+)px/)[1]);
+const rowLabelWidth = 54;
+const hourColumns = 12;
+const gapWidth = 2;
+for (const availableWidth of [360, 768, 1200, 1650, 2560]) {
+    const gridWidth = Math.max(minGridWidth, Math.min(availableWidth, maxGridWidth));
+    const cellSize = (gridWidth - rowLabelWidth - hourColumns * gapWidth) / hourColumns;
+    assert(cellSize >= 40 && cellSize <= 54, `Heatmap cells must stay compact at ${availableWidth}px`);
+    assert(cellSize * 7 + 6 * gapWidth < 400, 'All seven day rows stay under 400px tall');
+}
 const cellStyles = css.match(/\.heatmap-cell\s*\{([^}]+)\}/)[1];
 assert(cellStyles.includes('aspect-ratio: 1;'));
 assert(!/(?:^|[;\n])\s*height\s*:/.test(cellStyles), 'Square cells must not have a fixed height');
