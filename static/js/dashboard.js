@@ -341,11 +341,15 @@ function initHeatmap(containerId, data, onSelectCell) {
     if (!container) return;
 
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    // Include the full 5 PM hour, covering the scheduled 5:50 PM shutdown.
+    const startHour = 6;
+    const endHour = 18;
     const dataMap = {};
     let maxVal = 1;
 
     if (Array.isArray(data)) {
         for (const item of data) {
+            if (item.hour < startHour || item.hour >= endHour) continue;
             dataMap[`${item.weekday}_${item.hour}`] = item;
             if (item.count > maxVal) {
                 maxVal = item.count;
@@ -370,14 +374,14 @@ function initHeatmap(containerId, data, onSelectCell) {
 
     // Hour labels row
     html += '<div class="heatmap-label"></div>';
-    for (let h = 0; h < 24; h++) {
+    for (let h = startHour; h < endHour; h++) {
         html += `<div class="heatmap-hour-label" title="${formatHourRange(h)}">${getHourHeaderLabel(h)}</div>`;
     }
 
     // Data rows
     for (let d = 1; d <= 7; d++) {
         html += `<div class="heatmap-label">${days[d - 1]}</div>`;
-        for (let h = 0; h < 24; h++) {
+        for (let h = startHour; h < endHour; h++) {
             const entry = dataMap[`${d}_${h}`];
             const count = entry ? entry.count : 0;
             const revenue = entry ? (Number(entry.revenue) || 0) : 0;

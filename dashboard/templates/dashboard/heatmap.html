@@ -127,6 +127,9 @@ function updateHeatmapSummaryCards(data) {
 
     if (!Array.isArray(data)) return;
 
+    // Summary cards and color intensity must match the visible operating hours.
+    data = data.filter(d => d.hour >= 6 && d.hour < 18);
+
     // Morning shift: 6:00 AM - 12:00 PM (hours 6 to 11)
     const morningData = data.filter(d => d.hour >= 6 && d.hour < 12);
     // Afternoon shift: 12:00 PM - 6:00 PM (hours 12 to 17)

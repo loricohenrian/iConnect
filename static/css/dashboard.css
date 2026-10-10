@@ -434,15 +434,15 @@
 
 .heatmap-grid {
     display: grid;
-    grid-template-columns: 54px repeat(24, 1fr);
+    grid-template-columns: 54px repeat(12, 1fr);
     gap: 2px;
     font-size: var(--font-size-xs);
-    min-width: 780px;
+    min-width: 600px;
 }
 
 .heatmap-cell {
     width: 100%;
-    aspect-ratio: 1;
+    height: 36px;
     min-width: 28px;
     min-height: 28px;
     border-radius: 4px;
