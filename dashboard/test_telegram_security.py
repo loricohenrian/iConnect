@@ -82,7 +82,19 @@ class TelegramSecurityTests(TestCase):
             with self.assertLogs(bot.logger, level='ERROR') as logs:
                 self.assertTrue(bot.send_telegram_message('test'))
         self.assertEqual(request.call_count, 2)
+        initial_payload = json.loads(request.call_args_list[0].args[0].data)
+        retry_payload = json.loads(request.call_args_list[1].args[0].data)
+        self.assertEqual(initial_payload['parse_mode'], 'Markdown')
+        self.assertNotIn('parse_mode', retry_payload)
         self.assertNotIn(TEST_TOKEN, str(logs.output))
+
+    def test_plain_text_omits_parse_mode_from_actual_api_payload(self):
+        with patch.object(bot.urllib.request, 'urlopen') as request:
+            request.return_value.__enter__.return_value.status = 200
+            self.assertTrue(bot.send_telegram_message('plain [text] _test_', parse_mode=None))
+        payload = json.loads(request.call_args.args[0].data)
+        self.assertEqual(payload['text'], 'plain [text] _test_')
+        self.assertNotIn('parse_mode', payload)
 
     def test_message_error_does_not_log_token_or_url(self):
         error = urllib.error.URLError('https://api.telegram.org/bot' + TEST_TOKEN)

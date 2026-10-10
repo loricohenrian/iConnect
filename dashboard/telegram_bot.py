@@ -93,9 +93,12 @@ def send_telegram_message(text, chat_id=None, parse_mode="Markdown"):
     payload = {
         "chat_id": target_chat,
         "text": text,
-        "parse_mode": parse_mode,
         "disable_web_page_preview": True,
     }
+    # Plain-text requests must omit this optional field. Telegram rejects JSON
+    # null as an unsupported parse_mode instead of treating it as unspecified.
+    if parse_mode:
+        payload["parse_mode"] = parse_mode
 
     try:
         data = json.dumps(payload).encode("utf-8")
@@ -111,7 +114,7 @@ def send_telegram_message(text, chat_id=None, parse_mode="Markdown"):
         # Fail-safe fallback: if Markdown parsing failed, retry as plain text
         if parse_mode and isinstance(e, urllib.error.HTTPError) and e.code == 400:
             try:
-                payload["parse_mode"] = None
+                payload.pop("parse_mode", None)
                 data = json.dumps(payload).encode("utf-8")
                 req = urllib.request.Request(
                     url,
