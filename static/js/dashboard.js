@@ -830,58 +830,6 @@ async function refreshSystemStats() {
             }
         }
 
-        // --- 4S LiFePO4 battery estimate ---
-        const batteryBadge = document.getElementById('topbar-voltage-badge');
-        const batteryFill = document.getElementById('topbar-battery-fill');
-        const batteryPercent = document.getElementById('topbar-battery-percent');
-        const batteryVoltage = document.getElementById('topbar-voltage-val');
-        const batteryState = document.getElementById('topbar-battery-state');
-        if (batteryBadge && batteryFill && batteryPercent && batteryVoltage && batteryState) {
-            const battery = data.battery_voltage;
-            const voltage = Number(battery && battery.voltage);
-            const percentage = Number(battery && battery.percentage);
-            const validReading = battery && Number.isFinite(voltage) && Number.isFinite(percentage);
-
-            batteryBadge.hidden = false;
-            batteryBadge.classList.remove(
-                'battery-status--offline',
-                'battery-status--good',
-                'battery-status--medium',
-                'battery-status--low',
-                'battery-status--critical'
-            );
-
-            if (validReading) {
-                const safePercentage = Math.min(100, Math.max(0, Math.round(percentage)));
-                const allowedStates = ['good', 'medium', 'low', 'critical'];
-                const state = allowedStates.includes(battery.state) ? battery.state : 'medium';
-                const stateLabel = battery.state_label || 'Estimated';
-                const updatedAt = battery.updated_at ? new Date(battery.updated_at) : null;
-                const updatedText = updatedAt && !Number.isNaN(updatedAt.getTime())
-                    ? ` Updated ${updatedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`
-                    : '';
-
-                batteryBadge.classList.add(`battery-status--${state}`);
-                batteryFill.style.width = safePercentage + '%';
-                batteryPercent.textContent = safePercentage + '%';
-                batteryVoltage.textContent = voltage.toFixed(2) + ' V';
-                batteryState.textContent = stateLabel;
-                batteryBadge.title = `${battery.device || 'Battery monitor'} · ${voltage.toFixed(2)} V · approximately ${safePercentage}% for a resting 4S LiFePO4 battery.${updatedText}`;
-                batteryBadge.setAttribute(
-                    'aria-label',
-                    `Battery ${stateLabel}, approximately ${safePercentage} percent, ${voltage.toFixed(2)} volts`
-                );
-            } else {
-                batteryBadge.classList.add('battery-status--offline');
-                batteryFill.style.width = '0%';
-                batteryPercent.textContent = '--%';
-                batteryVoltage.textContent = '-- V';
-                batteryState.textContent = 'Offline';
-                batteryBadge.title = 'Battery monitor offline — no voltage received in the last minute';
-                batteryBadge.setAttribute('aria-label', 'Battery monitor offline');
-            }
-        }
-
     } catch (err) {
         console.error('Failed to refresh system stats:', err);
     }
@@ -1201,7 +1149,9 @@ document.addEventListener('DOMContentLoaded', () => {
         setInterval(refreshDashboardStats, 3000);
     }
 
-    // The header battery indicator is present on every admin dashboard page.
-    refreshSystemStats();
-    setInterval(refreshSystemStats, 5000);
+    // Only poll system stats on pages that display them.
+    if (document.querySelector('.sys-strip-container')) {
+        refreshSystemStats();
+        setInterval(refreshSystemStats, 5000);
+    }
 });
