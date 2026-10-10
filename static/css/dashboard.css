@@ -438,13 +438,11 @@
     gap: 2px;
     font-size: var(--font-size-xs);
     min-width: 600px;
-    max-width: 720px;
-    margin-inline: auto;
 }
 
 .heatmap-cell {
     width: 100%;
-    aspect-ratio: 1;
+    height: 36px;
     min-width: 28px;
     min-height: 28px;
     border-radius: 4px;
