@@ -1669,44 +1669,13 @@ def heatmap(request):
 @user_passes_test(_is_dashboard_admin, login_url='dashboard:login')
 def analytics_view(request):
     """User behavior analytics page with performance benchmarks and charts."""
-    period = request.GET.get('period', 'month')
-    custom_start = request.GET.get('start_date')
-    custom_end = request.GET.get('end_date')
-
-    today = timezone.localdate()
+    from .analytics import analytics_dates, revenue_benchmark
     now = timezone.now()
-
-    start_date = None
-    end_date = None
-
-    if period == 'custom':
-        if custom_start:
-            start_date = parse_date(custom_start)
-        if custom_end:
-            end_date = parse_date(custom_end)
-        if start_date and end_date and start_date > end_date:
-            start_date, end_date = end_date, start_date
-    elif period == 'today':
-        start_date = today
-        end_date = today
-    elif period == 'week':
-        start_date = today - timedelta(days=today.weekday())
-        end_date = today
-    elif period == 'month':
-        start_date = today - timedelta(days=30)
-        end_date = today
-    elif period == 'year':
-        start_date = today.replace(month=1, day=1)
-        end_date = today
-    elif period == 'all':
-        pass
-    else:
-        period = 'month'
-        start_date = today - timedelta(days=30)
-        end_date = today
+    today = timezone.localdate(now)
+    period, start_date, end_date = analytics_dates(request.GET, today)
 
     # Base sessions queryset
-    sessions_qs = Session.objects.filter(status__in=['active', 'expired', 'paused'])
+    sessions_qs = Session.objects.filter(status__in=['active', 'expired', 'paused'], time_in__lte=now)
     if start_date:
         sessions_qs = sessions_qs.filter(time_in__date__gte=start_date)
     if end_date:
@@ -1793,45 +1762,7 @@ def analytics_view(request):
     else:
         peak_day = 'N/A'
 
-    # Dynamic Revenue Growth benchmark
-    if period == 'today':
-        curr_rev = Session.objects.filter(time_in__date=today, status__in=['active', 'expired', 'paused']).aggregate(t=Sum('amount_paid'))['t'] or 0
-        prev_rev = Session.objects.filter(time_in__date=today - timedelta(days=1), status__in=['active', 'expired', 'paused']).aggregate(t=Sum('amount_paid'))['t'] or 0
-        growth_label = "Compared to yesterday"
-        growth_title = "Daily Revenue Growth Benchmark"
-    elif period in ('week', 'weekly'):
-        curr_start = today - timedelta(days=today.weekday())
-        prev_start = curr_start - timedelta(days=7)
-        curr_rev = Session.objects.filter(time_in__date__gte=curr_start, status__in=['active', 'expired', 'paused']).aggregate(t=Sum('amount_paid'))['t'] or 0
-        prev_rev = Session.objects.filter(time_in__date__gte=prev_start, time_in__date__lt=curr_start, status__in=['active', 'expired', 'paused']).aggregate(t=Sum('amount_paid'))['t'] or 0
-        growth_label = "Compared to previous week"
-        growth_title = "Weekly Revenue Growth Benchmark"
-    elif period in ('year', 'yearly'):
-        curr_year = today.year
-        curr_rev = Session.objects.filter(time_in__year=curr_year, status__in=['active', 'expired', 'paused']).aggregate(t=Sum('amount_paid'))['t'] or 0
-        prev_rev = Session.objects.filter(time_in__year=curr_year - 1, status__in=['active', 'expired', 'paused']).aggregate(t=Sum('amount_paid'))['t'] or 0
-        growth_label = "Compared to previous year"
-        growth_title = "Annual Revenue Growth Benchmark"
-    elif period in ('all', 'all_time'):
-        curr_rev = Session.objects.filter(status__in=['active', 'expired', 'paused']).aggregate(t=Sum('amount_paid'))['t'] or 0
-        prev_rev = 0
-        growth_label = "Cumulative all-time revenue"
-        growth_title = "All-Time Performance"
-    else: # month or custom
-        days_span = 30
-        if start_date and end_date:
-            days_span = max(1, (end_date - start_date).days + 1)
-        curr_start = start_date or (today - timedelta(days=days_span))
-        prev_start = curr_start - timedelta(days=days_span)
-        curr_rev = Session.objects.filter(time_in__date__gte=curr_start, time_in__date__lte=(end_date or today), status__in=['active', 'expired', 'paused']).aggregate(t=Sum('amount_paid'))['t'] or 0
-        prev_rev = Session.objects.filter(time_in__date__gte=prev_start, time_in__date__lt=curr_start, status__in=['active', 'expired', 'paused']).aggregate(t=Sum('amount_paid'))['t'] or 0
-        growth_label = f"Compared to previous {days_span} days"
-        growth_title = f"{'30-Day' if days_span == 30 else 'Period'} Revenue Growth Benchmark"
-
-    if prev_rev > 0:
-        revenue_growth = round(((curr_rev - prev_rev) / prev_rev) * 100, 1)
-    else:
-        revenue_growth = 100 if curr_rev > 0 else 0
+    benchmark = revenue_benchmark(period, start_date, end_date, now)
 
     context = {
         'period': period,
@@ -1843,9 +1774,7 @@ def analytics_view(request):
         'peak_hour': peak_hour,
         'peak_day': peak_day,
         'avg_rev_per_session': round(avg_rev_per_session, 1),
-        'revenue_growth': revenue_growth,
-        'growth_label': growth_label,
-        'growth_title': growth_title,
+        **benchmark,
         'total_sessions': total_sessions_count,
         'unique_devices': unique_devices,
         'returning_devices': returning_devices,

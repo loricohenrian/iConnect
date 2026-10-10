@@ -16,7 +16,7 @@
             <select name="period" id="periodSelect" class="form-input" style="padding: 6px 12px; font-size: 13px; min-width: 150px; font-weight: 500;" onchange="toggleCustomDates()">
                 <option value="today" {% if period == 'today' %}selected{% endif %}>Today</option>
                 <option value="week" {% if period == 'week' %}selected{% endif %}>This Week</option>
-                <option value="month" {% if period == 'month' %}selected{% endif %}>This Month (30 Days)</option>
+                <option value="month" {% if period == 'month' %}selected{% endif %}>Last 30 Days</option>
                 <option value="year" {% if period == 'year' %}selected{% endif %}>This Year</option>
                 <option value="all" {% if period == 'all' %}selected{% endif %}>All Time</option>
                 <option value="custom" {% if period == 'custom' %}selected{% endif %}>Custom Date Range</option>
@@ -24,9 +24,9 @@
         </div>
 
         <div id="customDateContainer" class="d-flex align-items-center gap-sm flex-wrap" style="display: {% if period == 'custom' %}flex{% else %}none{% endif %};">
-            <input type="date" name="start_date" value="{{ start_date|date:'Y-m-d' }}" class="form-input" style="padding: 5px 10px; font-size: 13px;" title="Start Date">
+            <input type="date" name="start_date" value="{{ start_date }}" class="form-input" style="padding: 5px 10px; font-size: 13px;" title="Start Date">
             <span class="text-muted text-xs">to</span>
-            <input type="date" name="end_date" value="{{ end_date|date:'Y-m-d' }}" class="form-input" style="padding: 5px 10px; font-size: 13px;" title="End Date">
+            <input type="date" name="end_date" value="{{ end_date }}" class="form-input" style="padding: 5px 10px; font-size: 13px;" title="End Date">
             <button type="submit" class="btn btn-primary btn-sm" style="padding: 6px 14px; font-size: 13px;">Apply Filter</button>
         </div>
     </form>
@@ -127,12 +127,13 @@
         <div>
             <div class="text-small text-muted" style="font-weight: 500;">{{ growth_title|default:"Revenue Growth Benchmark" }}</div>
             <div class="font-semibold" style="font-size: 22px; color: {% if revenue_growth > 0 %}var(--color-success, #10b981){% elif revenue_growth < 0 %}var(--color-danger, #ef4444){% else %}var(--color-gray, #64748b){% endif %}; margin-top: 2px;">
-                {% if revenue_growth > 0 %}+{% endif %}{{ revenue_growth }}%
+                {% if period == 'all' %}₱{{ growth_current_revenue|floatformat:2 }}{% elif growth_comparable %}{% if revenue_growth > 0 %}+{% endif %}{{ revenue_growth }}%{% else %}N/A{% endif %}
                 <span class="text-xs text-muted" style="font-weight: 400; margin-left: 6px;">({{ growth_label|default:"Compared to previous period" }})</span>
             </div>
+            {% if period != 'all' %}<div class="text-xs text-muted" style="margin-top: 4px;" title="{{ growth_source }}. Previous period: {{ growth_previous_start|date:'M d, Y' }} – {{ growth_previous_end|date:'M d, Y' }}">₱{{ growth_current_revenue|floatformat:2 }} vs ₱{{ growth_previous_revenue|floatformat:2 }}</div>{% endif %}
         </div>
         <span class="badge {% if revenue_growth > 0 %}badge-active{% elif revenue_growth < 0 %}badge-expired{% else %}badge-paused{% endif %}" style="font-size: 13px; padding: 6px 14px;">
-            {% if revenue_growth > 0 %}📈 Growing Momentum{% elif revenue_growth < 0 %}📉 Declining Demand{% else %}⚖️ Steady Pace{% endif %}
+            {% if period == 'all' %}All-Time Total{% elif not growth_comparable %}No previous revenue{% elif revenue_growth > 0 %}📈 Revenue Increased{% elif revenue_growth < 0 %}📉 Revenue Decreased{% else %}⚖️ Revenue Unchanged{% endif %}
         </span>
     </div>
 </div>
@@ -235,12 +236,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Session trend line chart
     try {
         if (typeof fetchRevenueData === 'function' && typeof initSessionsChart === 'function') {
-            // For named periods let the API compute its own canonical window.
-            // For 'custom' always pass ISO-formatted dates so the API can filter correctly.
-            {% if period == 'custom' %}
-            const data = await fetchRevenueData('custom', '{{ start_date|date:"Y-m-d" }}', '{{ end_date|date:"Y-m-d" }}');
+            // Use the same explicit dates as this page's cards and benchmark.
+            // The shared API's legacy named periods have different windows.
+            {% if start_date and end_date %}
+            const data = await fetchRevenueData('custom', '{{ start_date|escapejs }}', '{{ end_date|escapejs }}');
             {% else %}
-            const data = await fetchRevenueData('{{ period|default:"month" }}');
+            const data = await fetchRevenueData('all');
             {% endif %}
             const trendCanvas = document.getElementById('session-trend-chart');
             if (data && data.revenue_data && data.revenue_data.length > 0) {
