@@ -5,14 +5,6 @@
 
 {% block dashboard_content %}
 
-{% if messages %}
-    {% for message in messages %}
-    <div class="alert {% if message.tags == 'error' %}alert-danger{% else %}alert-success{% endif %} animate-fadeIn">
-        {{ message }}
-    </div>
-    {% endfor %}
-{% endif %}
-
 <style>
 .stats-grid.stats-grid-4 {
     grid-template-columns: repeat(4, 1fr);

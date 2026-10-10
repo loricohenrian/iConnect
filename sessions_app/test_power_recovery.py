@@ -405,3 +405,44 @@ class PowerRecoveryTests(TestCase):
         s.refresh_from_db()
         self.assertTrue(s.power_paused)
         self.assertEqual(s.time_remaining_seconds, 230 * 60)
+
+    def test_free_compensation_grants_access_before_timer_and_blocks_at_expiry(self):
+        s = self.session(
+            amount_paid=0, duration_minutes_purchased=180,
+            time_in=self.now, paused_at=self.now, status='paused',
+            power_paused=True, pause_count=0, pause_limit=10,
+        )
+        self.clock.return_value += timedelta(days=7)
+        self.assertEqual(cleanup_expired_and_stale_sessions(), 0)
+        self.assertEqual(s.time_remaining_seconds, 180 * 60)
+
+        self.allow.return_value = False
+        self.assertFalse(resume_power_session(s))
+        s.refresh_from_db()
+        self.assertTrue(s.power_paused)
+        self.assertEqual(s.time_remaining_seconds, 180 * 60)
+
+        def grant_before_start(mac, **kwargs):
+            pending = Session.objects.get(pk=s.pk)
+            self.assertEqual(mac, s.mac_address)
+            self.assertEqual(pending.status, 'paused')
+            self.assertEqual(pending.time_remaining_seconds, 180 * 60)
+            return True
+
+        self.allow.side_effect = grant_before_start
+        self.assertTrue(resume_power_session(s))
+        self.assertEqual(s.status, 'active')
+        self.assertEqual(s.time_remaining_seconds, 180 * 60)
+        self.assertEqual(s.pause_count, 0)
+        self.assertEqual(s.amount_paid, 0)
+        self.block.reset_mock()
+
+        self.clock.return_value += timedelta(hours=3, seconds=-1)
+        self.assertEqual(cleanup_expired_and_stale_sessions(), 0)
+        self.block.assert_not_called()
+        self.clock.return_value += timedelta(seconds=1)
+        check_expired_sessions()
+        s.refresh_from_db()
+        self.assertEqual(s.status, 'expired')
+        self.assertEqual(s.time_remaining_seconds, 0)
+        self.block.assert_called_once_with(s.mac_address)

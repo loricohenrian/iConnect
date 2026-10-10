@@ -985,6 +985,32 @@ class SupportTicketHardeningTests(TestCase):
         self.assertIsNotNone(self.report.replied_at)
         self.assertIsNone(self.report.user_viewed_at)
 
+    def test_ticket_reply_confirmation_is_shown_once(self):
+        response = self.client.post(
+            f"/iconnect-ops/issues/{self.report.id}/update/",
+            {"status": "answered", "admin_reply": "Your compensation is ready."},
+            follow=True,
+        )
+        self.assertContains(response, f"Ticket #{self.report.id} updated.", count=1)
+        self.assertContains(response, 'class="dashboard-messages mb-md"', count=1)
+
+    def test_ticket_validation_error_is_shown_once(self):
+        response = self.client.post(
+            f"/iconnect-ops/issues/{self.report.id}/update/",
+            {"status": "answered", "admin_reply": ""},
+            follow=True,
+        )
+        self.assertContains(
+            response, "Write a reply before marking the ticket as Answered.", count=1,
+        )
+
+    def test_ticket_deletion_confirmation_is_shown_once(self):
+        ticket_id = self.report.id
+        response = self.client.post(
+            f"/iconnect-ops/issues/{ticket_id}/delete/", follow=True,
+        )
+        self.assertContains(response, f"Ticket #{ticket_id} deleted.", count=1)
+
     def test_answered_status_requires_customer_reply(self):
         resp = self.client.post(
             f"/iconnect-ops/issues/{self.report.id}/update/",
