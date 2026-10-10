@@ -67,6 +67,11 @@ def ensure_power_recovery():
         initial = created and legacy is None
         if not initial and reference > now:
             raise RuntimeError("Clock is behind the saved power checkpoint; waiting for clock synchronization")
+        if not initial:
+            # Kernel firewall/tc counters restart at zero on a real OS boot.
+            # Keep saved usage, but never compare new-boot counters with an old
+            # anchor (even when the first new reading exceeds the old value).
+            Session.objects.filter(status__in=("active", "paused")).update(initial_bandwidth_mb=0.0)
         for session in Session.objects.select_for_update().filter(status__in=("active", "paused")):
             if initial:
                 session.power_checkpoint_at = now

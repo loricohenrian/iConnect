@@ -666,7 +666,14 @@ async function refreshLiveNetworkPanels() {
         return;
     }
 
-    totalBandwidthEl.textContent = `${Number(bandwidthData.bandwidth_today_mb ?? bandwidthData.total_bandwidth_mb ?? 0).toFixed(1)} MB`;
+    // Hardware totals are a different cohort and can reset after a reboot.
+    // Keep the saved session total when this field is unavailable.
+    if (bandwidthData.bandwidth_today_mb === undefined || bandwidthData.bandwidth_today_mb === null ||
+        !Number.isFinite(Number(bandwidthData.bandwidth_today_mb))) {
+        metaEl.textContent = 'Session usage unavailable; showing the last saved total.';
+        return;
+    }
+    totalBandwidthEl.textContent = `${Number(bandwidthData.bandwidth_today_mb).toFixed(1)} MB`;
     activeUsersEl.textContent = connectedData.total_connected || 0;
     metaEl.textContent = `Updated ${new Date().toLocaleTimeString()}`;
 }

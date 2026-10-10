@@ -768,7 +768,7 @@ class SessionApiTests(TestCase):
         self.assertEqual(sess2.bandwidth_used_mb, 2.5)
 
     @patch("sessions_app.bandwidth.get_device_bandwidth_mb", return_value=66.2)
-    def test_retroactive_baseline_correction_for_existing_session(self, mock_bandwidth):
+    def test_existing_saved_usage_is_not_rewritten_from_previous_session(self, mock_bandwidth):
         from sessions_app.bandwidth import refresh_session_bandwidth_usage
 
         # Session 1 expired with 66.1 MB
@@ -791,11 +791,12 @@ class SessionApiTests(TestCase):
             bandwidth_used_mb=66.2,
             initial_bandwidth_mb=0,
         )
-        # Refresh should detect baseline from sess1 and correct sess2 to 0.1 MB
+        # A zero anchor is legitimate after a reboot. Never erase saved usage
+        # by guessing that it belongs to a previous session on the same MAC.
         refresh_session_bandwidth_usage(sess2)
         sess2.refresh_from_db()
-        self.assertEqual(sess2.initial_bandwidth_mb, 66.1)
-        self.assertEqual(sess2.bandwidth_used_mb, 0.1)
+        self.assertEqual(sess2.initial_bandwidth_mb, 66.2)
+        self.assertAlmostEqual(sess2.bandwidth_used_mb, 132.4)
 
     @override_settings(PISONET_DEVICE_API_KEY="test-device-key")
     def test_session_start_request_creates_queue_entry(self):

@@ -7,8 +7,10 @@ real bidirectional bandwidth usage per device (MAC address and IP).
 import subprocess
 import re
 import logging
+import math
 
 from django.conf import settings
+from django.db import transaction
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
@@ -108,7 +110,7 @@ def _get_tc_class_bytes(iface):
             capture_output=True, text=True, timeout=5
         )
         if result.returncode != 0:
-            return {}
+            return None
 
         counters = {}
         current_class = None
@@ -133,7 +135,7 @@ def _get_tc_class_bytes(iface):
         return counters
     except Exception as e:
         logger.debug('Failed to read tc class counters on %s: %s', iface, e)
-        return {}
+        return None
 
 
 def get_iptables_byte_counters():
@@ -146,7 +148,9 @@ def get_iptables_byte_counters():
     
     Total = Upload + max(mangle_download, tc_download)
     
-    Returns dict: { 'AA:BB:CC:DD:EE:FF': bytes_int, ... }
+    Returns dict: { 'AA:BB:CC:DD:EE:FF': bytes_int, ... }, or None
+    when a required counter source could not be read. A failed/partial
+    snapshot must not masquerade as a counter reset.
     """
     if _is_simulation():
         return {}
@@ -162,6 +166,8 @@ def get_iptables_byte_counters():
             ['iptables', '-L', 'FORWARD', '-v', '-n', '-x'],
             capture_output=True, text=True, timeout=10
         )
+        if result.returncode != 0:
+            return None
         if result.returncode == 0:
             mac_pattern = re.compile(r'MAC\s+([0-9A-Fa-f:]{17})', re.IGNORECASE)
             for line in result.stdout.splitlines():
@@ -181,6 +187,7 @@ def get_iptables_byte_counters():
                         continue
     except Exception as e:
         logger.error('Failed to read iptables FORWARD counters: %s', e)
+        return None
 
     # 2. Read iptables mangle table (matches Download rules in POSTROUTING: -d <IP>)
     try:
@@ -188,6 +195,8 @@ def get_iptables_byte_counters():
             ['iptables', '-t', 'mangle', '-L', 'POSTROUTING', '-v', '-n', '-x'],
             capture_output=True, text=True, timeout=5
         )
+        if mangle_res.returncode != 0:
+            return None
         if mangle_res.returncode == 0:
             ip_pattern = re.compile(r'(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})')
             for line in mangle_res.stdout.splitlines():
@@ -208,10 +217,13 @@ def get_iptables_byte_counters():
                         continue
     except Exception as e:
         logger.debug('Failed to read iptables mangle counters: %s', e)
+        return None
 
     # 3. Read tc class counters on LAN interface for Download
     lan_iface = _get_lan_interface()
     lan_tc_bytes = _get_tc_class_bytes(lan_iface)
+    if lan_tc_bytes is None:
+        return None
     if lan_tc_bytes:
         for mac, ip in mac_to_ip.items():
             try:
@@ -237,11 +249,12 @@ def get_iptables_byte_counters():
 
 
 def get_device_bandwidth_mb(mac_address):
-    """Get real bandwidth usage in MB for a specific device (Upload + Download)."""
+    """Get a device's counter in MB, or None for an unavailable/missing counter."""
     counters = get_iptables_byte_counters()
     mac = (mac_address or '').upper().strip()
-    byte_count = counters.get(mac, 0)
-    return round(byte_count / (1024 * 1024), 2)
+    if counters is None or (mac not in counters and not _is_simulation()):
+        return None
+    return counters.get(mac, 0) / (1024 * 1024)
 
 
 def get_all_device_bandwidth_mb():
@@ -249,7 +262,7 @@ def get_all_device_bandwidth_mb():
     
     Returns list of dicts: [{'mac_address': 'XX:XX', 'bandwidth_mb': float}, ...]
     """
-    counters = get_iptables_byte_counters()
+    counters = get_iptables_byte_counters() or {}
     result = []
     for mac, byte_count in counters.items():
         result.append({
@@ -265,55 +278,35 @@ def refresh_session_bandwidth_usage(session, now=None):
     Accumulates bandwidth usage monotonically across active browsing,
     pause/resume cycles, and system reboots without ever wiping previous usage.
     """
-    if not session or not session.mac_address:
+    if not session or not session.pk or not session.mac_address:
         return False
-    real_mb = get_device_bandwidth_mb(session.mac_address)
+    # Web polling and Celery can hold different, stale instances of the same
+    # session. Lock and read its current baseline BEFORE sampling counters.
+    with transaction.atomic():
+        current = session.__class__.objects.select_for_update().filter(pk=session.pk).first()
+        if current is None:
+            return False
+        real_mb = get_device_bandwidth_mb(current.mac_address)
+        if real_mb is None or not math.isfinite(real_mb) or real_mb < 0:
+            return False
 
-    baseline = getattr(session, 'initial_bandwidth_mb', None)
-    if baseline is None:
-        baseline = 0.0
-        session.initial_bandwidth_mb = 0.0
-
-    current_used = float(session.bandwidth_used_mb or 0.0)
-
-    # Retroactive / fallback fix: If session has baseline == 0 and uncalibrated usage
-    if baseline == 0.0 and real_mb > 0 and current_used >= real_mb:
-        prev_sess = session.__class__.objects.filter(
-            mac_address=session.mac_address,
-            id__lt=session.id
-        ).order_by('-id').first()
-        if prev_sess and prev_sess.bandwidth_used_mb:
-            prev_total = (getattr(prev_sess, 'initial_bandwidth_mb', 0.0) or 0.0) + (prev_sess.bandwidth_used_mb or 0.0)
-            if real_mb >= prev_total > 0:
-                baseline = prev_total
-                session.initial_bandwidth_mb = baseline
-                current_used = 0.0
-            elif real_mb >= prev_sess.bandwidth_used_mb:
-                baseline = prev_sess.bandwidth_used_mb
-                session.initial_bandwidth_mb = baseline
-                current_used = 0.0
-
-    delta = 0.0
-    if real_mb >= baseline:
-        delta = round(real_mb - baseline, 2)
-    else:
-        # Counter reset detected (iptables rule removed on pause/resume, or system reboot).
-        # Preserve previously accumulated usage; re-anchor baseline to the new counter.
-        delta = 0.0
-
-    new_used = round(current_used + delta, 1)
-    new_baseline = real_mb
-
-    # Update if usage changed or if baseline advanced
-    if new_used != current_used or (getattr(session, 'initial_bandwidth_mb', None) != new_baseline):
-        session.bandwidth_used_mb = new_used
-        session.initial_bandwidth_mb = new_baseline
-        update_fields = ["bandwidth_used_mb"]
-        if hasattr(session, 'initial_bandwidth_mb'):
-            update_fields.append("initial_bandwidth_mb")
-        session.save(update_fields=update_fields)
-        return True
-    return False
+        baseline = current.initial_bandwidth_mb
+        current_used = float(current.bandwidth_used_mb or 0.0)
+        # Unknown baselines are anchored without guessing how much traffic
+        # preceded this session. For an unidentified partial counter reset,
+        # re-anchor conservatively; known OS reboots reset anchors to zero in
+        # power_recovery, while retaining the durable accumulated total.
+        delta = real_mb - baseline if baseline is not None and real_mb >= baseline else 0.0
+        # Keep sub-MB increments; round only for display, not on every poll.
+        new_used = current_used + delta
+        changed = new_used != current_used or baseline != real_mb
+        if changed:
+            current.bandwidth_used_mb = new_used
+            current.initial_bandwidth_mb = real_mb
+            current.save(update_fields=['bandwidth_used_mb', 'initial_bandwidth_mb'])
+        session.bandwidth_used_mb = current.bandwidth_used_mb
+        session.initial_bandwidth_mb = current.initial_bandwidth_mb
+        return changed
 
 
 _THROUGHPUT_CACHE_KEY = 'bw_snapshot'
@@ -340,9 +333,20 @@ def get_live_throughput_mbps():
 
     now_ts = time.time()
     current_counters = get_iptables_byte_counters()
+    if current_counters is None:
+        # Keep the last good snapshot: a failed read is not zero traffic.
+        return {'total_mbps': 0.0, 'by_mac': {}}
 
+    from .power_recovery import current_boot_id
+    boot_id = current_boot_id()
     snapshot = cache.get(_THROUGHPUT_CACHE_KEY)
-    cache.set(_THROUGHPUT_CACHE_KEY, {'ts': now_ts, 'counters': current_counters}, _THROUGHPUT_TTL)
+    if snapshot and snapshot.get('boot_id') != boot_id:
+        # Redis can retain a pre-shutdown snapshot across an OS reboot.
+        snapshot = None
+    if snapshot and now_ts - snapshot['ts'] < 0.5:
+        return {'total_mbps': 0.0, 'by_mac': {}}
+    cache.set(_THROUGHPUT_CACHE_KEY, {'ts': now_ts, 'counters': current_counters,
+                                    'boot_id': boot_id}, _THROUGHPUT_TTL)
 
     if not snapshot:
         # First call — no previous snapshot yet; return 0 and wait for next poll
@@ -357,7 +361,8 @@ def get_live_throughput_mbps():
     by_mac = {}
     total_bytes_delta = 0
 
-    all_macs = set(current_counters.keys()) | set(prev_counters.keys())
+    # Newly appearing counters have no comparable starting snapshot.
+    all_macs = set(current_counters.keys()) & set(prev_counters.keys())
     for mac in all_macs:
         curr = current_counters.get(mac, 0)
         prev = prev_counters.get(mac, 0)

@@ -67,6 +67,32 @@ class PowerRecoveryTests(TestCase):
         self.assertEqual(cleanup_expired_and_stale_sessions(), 0)
         self.assertEqual(s.time_remaining_seconds, 170 * 60)
 
+    def test_real_reboot_clears_bandwidth_anchor_not_saved_total(self):
+        s = self.session(initial_bandwidth_mb=500, bandwidth_used_mb=500)
+        self.reboot()
+        ensure_power_recovery()
+        s.refresh_from_db()
+        self.assertEqual(s.initial_bandwidth_mb, 0)
+        self.assertEqual(s.bandwidth_used_mb, 500)
+        from .bandwidth import refresh_session_bandwidth_usage
+        with patch('sessions_app.bandwidth.get_device_bandwidth_mb', return_value=200):
+            refresh_session_bandwidth_usage(s)
+        self.assertEqual(s.bandwidth_used_mb, 700)
+        # A worker restart in the SAME OS boot must not zero the new anchor.
+        ensure_power_recovery()
+        s.refresh_from_db()
+        self.assertEqual(s.initial_bandwidth_mb, 200)
+        self.assertEqual(s.bandwidth_used_mb, 700)
+
+    def test_repeated_boot_also_resets_anchor_for_existing_power_hold(self):
+        s = self.session(status='paused', paused_at=self.now, power_paused=True,
+                         initial_bandwidth_mb=500, bandwidth_used_mb=500)
+        self.reboot()
+        ensure_power_recovery()
+        s.refresh_from_db()
+        self.assertEqual(s.initial_bandwidth_mb, 0)
+        self.assertEqual(s.bandwidth_used_mb, 500)
+
     def test_expiry_task_running_first_recovers_before_expiring_or_checkpointing(self):
         s = self.session()
         self.reboot()

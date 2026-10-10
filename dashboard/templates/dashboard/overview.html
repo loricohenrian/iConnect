@@ -300,25 +300,26 @@
         </div>
     </a>
 
-    <!-- Live Network Usage -->
+    <!-- Session usage totals, refreshed live (not instantaneous Mbps) -->
     <div class="chart-card mb-0">
         <div class="chart-header">
             <div>
-                <h3 class="chart-title">Live Network</h3>
+                <h3 class="chart-title">Network Overview</h3>
                 <span class="text-xs text-muted" id="live-network-meta">Live updates active</span>
             </div>
             <span class="badge badge-active">Live</span>
         </div>
         <div class="d-flex flex-column gap-sm mt-sm">
             <div class="d-flex justify-content-between align-items-center">
-                <span class="text-xs text-muted">Active Users</span>
+                <span class="text-xs text-muted" title="Active sessions plus whitelisted devices; not a Wi-Fi presence check.">Active + Whitelisted</span>
                 <span class="font-semibold text-small" id="live-active-users">{{ total_connected|default:"0" }}</span>
             </div>
             <div style="width: 100%; height: 1px; background: var(--color-border);"></div>
             <div class="d-flex justify-content-between align-items-center">
-                <span class="text-xs text-muted">Bandwidth In Use</span>
+                <span class="text-xs text-muted">Data Used</span>
                 <span class="font-semibold text-small" id="live-total-bandwidth">{{ bandwidth_today_mb|default:"0" }} MB</span>
             </div>
+            <span class="text-xs text-muted">Sessions started today only. Accumulated upload + download, not Mbps.</span>
         </div>
     </div>
 </div>

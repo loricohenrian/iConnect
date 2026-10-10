@@ -456,7 +456,9 @@ class Session(models.Model):
         if self.pk is None and self.initial_bandwidth_mb is None and self.mac_address:
             try:
                 from .bandwidth import get_device_bandwidth_mb
-                self.initial_bandwidth_mb = get_device_bandwidth_mb(self.mac_address) or 0.0
+                # An unavailable counter is unknown, not zero. Anchor on the
+                # first successful sample rather than attributing old traffic.
+                self.initial_bandwidth_mb = get_device_bandwidth_mb(self.mac_address)
             except Exception:
                 pass
         self._capture_power_checkpoint(kwargs)
