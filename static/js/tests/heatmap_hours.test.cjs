@@ -35,6 +35,9 @@ assert.equal([...container.innerHTML.matchAll(/class="heatmap-cell heat-0/g)].le
 const css = fs.readFileSync(path.join(__dirname, '..', '..', 'css', 'dashboard.css'), 'utf8');
 const grid = css.match(/\.heatmap-grid\s*\{([^}]+)\}/)[1];
 assert(grid.includes('grid-template-columns: 54px repeat(12, 1fr)'));
+const cellStyles = css.match(/\.heatmap-cell\s*\{([^}]+)\}/)[1];
+assert(cellStyles.includes('aspect-ratio: 1;'));
+assert(!/(?:^|[;\n])\s*height\s*:/.test(cellStyles), 'Square cells must not have a fixed height');
 
 const template = fs.readFileSync(path.join(__dirname, '..', '..', '..', 'dashboard', 'templates', 'dashboard', 'heatmap.html'), 'utf8');
 const summaryStart = template.indexOf('function updateHeatmapSummaryCards(');
