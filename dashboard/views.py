@@ -2670,7 +2670,7 @@ def settings_view(request):
 
                 messages.success(
                     request,
-                    "✅ System operational data reset successfully! All sales, session history, and reports cleared, and Days Operating reset back to 1 Day. WiFi Rates, Gamification Prizes, and Admin Settings remain intact."
+                    "✅ System operational data reset successfully! All sales, session history, and reports cleared, and Days Operating reset back to 1 Day. WiFi Rates, Promotion Prizes, and Admin Settings remain intact."
                 )
                 return _safe_redirect_referer(request, fallback='dashboard:settings')
             except Exception as e:
@@ -3291,7 +3291,7 @@ def gamification_view(request):
                     settings_obj.daily_spin_limit,
                     _client_ip(request)
                 )
-                messages.success(request, "Gamification point rules updated successfully.")
+                messages.success(request, "Promotion point rules updated successfully.")
             except ValueError as e:
                 messages.error(request, str(e))
                 

@@ -2356,6 +2356,23 @@ class GamificationManagementTests(TestCase):
         )
         self.client.login(username="gamify_admin", password="admin123")
 
+    def test_dashboard_uses_promotion_labels(self):
+        for path in ["/iconnect-ops/", "/iconnect-ops/gamification/", "/iconnect-ops/settings/"]:
+            with self.subTest(path=path):
+                response = self.client.get(path)
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, "<span>Promotion</span>", html=True)
+                self.assertNotContains(response, ">Gamification<")
+
+        promotion_page = self.client.get("/iconnect-ops/gamification/")
+        self.assertContains(promotion_page, "Promotion Settings")
+        self.assertContains(promotion_page, '<h1 class="page-title">Promotion</h1>', html=True)
+        self.assertNotContains(promotion_page, "Gamification & Loyalty Rewards")
+
+        settings_page = self.client.get("/iconnect-ops/settings/")
+        self.assertContains(settings_page, '<span class="tab-label">Promotion</span>', html=True)
+        self.assertContains(settings_page, "Promotion Engine")
+
     def test_gamification_settings_and_prize_crud(self):
         from dashboard.models import SystemSettings
         from sessions_app.models import SpinPrize
@@ -2376,6 +2393,8 @@ class GamificationManagementTests(TestCase):
         self.assertEqual(settings_obj.points_per_streak_day, 10)
         self.assertEqual(settings_obj.points_per_peso, 2)
         self.assertEqual(settings_obj.daily_spin_limit, 5)
+        confirmation = self.client.get(resp.url)
+        self.assertContains(confirmation, "Promotion point rules updated successfully.")
 
         # 2. Add prize
         resp2 = self.client.post("/iconnect-ops/gamification/", {

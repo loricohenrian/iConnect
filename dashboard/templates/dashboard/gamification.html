@@ -1,7 +1,7 @@
 {% extends "base_dashboard.html" %}
 
-{% block page_title %}Gamification Settings{% endblock %}
-{% block topbar_title %}Gamification & Loyalty Rewards{% endblock %}
+{% block page_title %}Promotion Settings{% endblock %}
+{% block topbar_title %}Promotion{% endblock %}
 
 {% block dashboard_content %}
 
@@ -14,7 +14,7 @@
   {% endfor %}
 {% endif %}
 
-<!-- 4 Gamification KPI Metric Cards -->
+<!-- 4 Promotion KPI Metric Cards -->
 <div class="stats-grid mb-md" style="grid-template-columns: repeat(4, 1fr);">
     <!-- Wheel Engine Status -->
     <div class="stat-card animate-fadeIn">
@@ -63,7 +63,7 @@
     </div>
 </div>
 
-<!-- Main Gamification Management Grid -->
+<!-- Main Promotion Management Grid -->
 <div class="grid-2 mb-md">
     <!-- Point System Engine Settings -->
     <div class="chart-card animate-fadeIn" style="animation-delay: 300ms">
@@ -376,4 +376,3 @@ window.addEventListener('click', (e) => {
 });
 </script>
 {% endblock %}
-
