@@ -18,12 +18,12 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='systemsettings',
             name='telegram_admin_chat_id',
-            field=models.CharField(blank=True, default='6261306648', help_text='Authorized Telegram Admin Chat ID', max_length=50),
+            field=models.CharField(blank=True, default='', help_text='Authorized Telegram Admin Chat ID', max_length=50),
         ),
         migrations.AddField(
             model_name='systemsettings',
             name='telegram_bot_token',
-            field=models.CharField(blank=True, default='8946483111:AAEQBhy1vOqLFPdKIXjInvGjNrofI3TqgZg', help_text='Telegram Bot Token from @BotFather', max_length=150),
+            field=models.CharField(blank=True, default='', help_text='Telegram Bot Token from @BotFather', max_length=150),
         ),
         migrations.AddField(
             model_name='systemsettings',

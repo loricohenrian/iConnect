@@ -1,104 +1,108 @@
-"""
-Management command to run the iConnect Telegram Bot poller service.
-Usage: python manage.py run_telegram_bot
-"""
-import threading
-import time
+"""Private-admin Telegram polling daemon; credentials are never logged."""
 import json
 import logging
-import urllib.request
+import threading
+import time
+import urllib.error
 import urllib.parse
+import urllib.request
+
+from django.core.management.base import BaseCommand, CommandError
 from django.db import close_old_connections
-from django.core.management.base import BaseCommand
-from dashboard.telegram_bot import get_telegram_config, handle_telegram_command, send_telegram_message
+from dashboard.telegram_bot import (
+    get_telegram_config, handle_telegram_command, telegram_config_ready,
+)
 
 logger = logging.getLogger(__name__)
 
 
 def _internet_monitor_loop():
-    """Continuously monitors ISP connection every 15s independent of Celery Beat."""
-    logger.info("Started background ISP health monitor thread.")
+    """Retain the existing independent ISP health monitor."""
     while True:
         try:
             close_old_connections()
             from sessions_app.tasks import check_internet_status
             check_internet_status()
-        except Exception as e:
-            logger.error(f"Error in ISP monitor loop: {e}")
+        except Exception as error:
+            logger.error("ISP monitor failed (%s)", type(error).__name__)
         finally:
             close_old_connections()
         time.sleep(15)
 
 
+def _credentials(cfg):
+    return cfg.get('enabled'), cfg.get('token'), cfg.get('chat_id')
+
+
+def dispatch_updates(updates, cfg, offset, not_before):
+    """Reject groups, stale queued commands, and changed/disabled credentials."""
+    for update in updates:
+        offset = max(offset, int(update.get('update_id', 0)) + 1)
+        message = update.get('message') or {}
+        sender = message.get('from') or {}
+        chat = message.get('chat') or {}
+        if (
+            not isinstance(message.get('text'), str)
+            or chat.get('type') != 'private'
+            or str(sender.get('id')) != cfg['chat_id']
+            or str(chat.get('id')) != cfg['chat_id']
+            or sender.get('is_bot')
+            or message.get('date', 0) < not_before
+        ):
+            continue
+        current = get_telegram_config()
+        if not telegram_config_ready(current) or _credentials(current) != _credentials(cfg):
+            break
+        try:
+            handle_telegram_command(
+                message['text'], sender['id'], sender.get('first_name', 'Operator'),
+                chat_id=chat['id'],
+            )
+        except Exception as error:
+            logger.error("Telegram command failed (%s)", type(error).__name__)
+    return offset
+
+
 class Command(BaseCommand):
-    help = "Run the iConnect Telegram bot polling daemon and background ISP monitor"
+    help = 'Run the private-admin Telegram bot with explicitly configured credentials'
 
     def handle(self, *args, **options):
-        self.stdout.write(self.style.SUCCESS("🤖 Starting iConnect Telegram Bot poller..."))
-
-        # Start background ISP internet monitoring thread
-        monitor_thread = threading.Thread(target=_internet_monitor_loop, daemon=True)
-        monitor_thread.start()
-        self.stdout.write(self.style.SUCCESS("🛡️ Started background ISP monitor thread (15s interval)"))
-
         cfg = get_telegram_config()
-        token = cfg.get("token")
-        if not token:
-            self.stderr.write(self.style.ERROR("❌ No Telegram bot token configured in SystemSettings!"))
-            # Keep thread running even if token not configured so ISP monitor continues
-            while True:
-                time.sleep(60)
-            return
+        if not telegram_config_ready(cfg):
+            raise CommandError('Telegram is disabled or missing a valid token/personal admin ID.')
 
-        # Send greeting to admin that the bot service is online
-        admin_chat = cfg.get("chat_id")
-        if admin_chat:
-            send_telegram_message(
-                "🟢 *iConnect Bot Service Online!*\nYour Piso WiFi controller is listening for remote commands. Type /help to begin.",
-                chat_id=admin_chat
-            )
-
+        threading.Thread(target=_internet_monitor_loop, daemon=True).start()
+        self.stdout.write('Telegram poller started for the configured private admin.')
         offset = 0
-        poll_url = f"https://api.telegram.org/bot{token}/getUpdates"
-
-        self.stdout.write(self.style.SUCCESS(f"Listening for updates on token {token[:10]}..."))
-
+        credentials = _credentials(cfg)
+        not_before = int(time.time())
         while True:
             try:
-                params = {"offset": offset, "timeout": 20}
-                url = f"{poll_url}?{urllib.parse.urlencode(params)}"
-                req = urllib.request.Request(url, headers={"User-Agent": "iConnectBot/1.0"})
-
-                with urllib.request.urlopen(req, timeout=30) as resp:
-                    if resp.status == 200:
-                        data = json.loads(resp.read().decode("utf-8"))
-                        if data.get("ok"):
-                            for update in data.get("result", []):
-                                update_id = update.get("update_id", 0)
-                                offset = max(offset, update_id + 1)
-
-                                message = update.get("message")
-                                if message and "text" in message:
-                                    sender = message.get("from", {})
-                                    sender_id = sender.get("id")
-                                    sender_name = sender.get("first_name", "Operator")
-                                    text = message.get("text", "")
-
-                                    self.stdout.write(f"Received from {sender_name} ({sender_id}): {text}")
-                                    try:
-                                        handle_telegram_command(text, sender_id, sender_name)
-                                    except Exception as cmd_err:
-                                        logger.error(f"Error processing command '{text}': {cmd_err}", exc_info=True)
-                                        self.stderr.write(self.style.ERROR(f"Command error: {cmd_err}"))
-                                        send_telegram_message(f"⚠️ Error executing `{text}`: {cmd_err}", chat_id=sender_id)
-
-            except urllib.error.HTTPError as he:
-                if he.code == 409:
-                    self.stdout.write(self.style.WARNING("Conflict: another bot instance is polling. Waiting 5s..."))
+                close_old_connections()
+                cfg = get_telegram_config()
+                if not telegram_config_ready(cfg):
+                    credentials = None
                     time.sleep(5)
-                else:
-                    self.stdout.write(self.style.WARNING(f"HTTP Error {he.code}: {he}. Waiting 5s..."))
-                    time.sleep(5)
-            except Exception as e:
-                # Network down or timeout — retry gracefully
+                    continue
+                if _credentials(cfg) != credentials:
+                    credentials = _credentials(cfg)
+                    offset = 0
+                    not_before = int(time.time())
+                params = urllib.parse.urlencode({
+                    'offset': offset, 'timeout': 20,
+                    'allowed_updates': json.dumps(['message']),
+                })
+                url = f"https://api.telegram.org/bot{cfg['token']}/getUpdates?{params}"
+                request = urllib.request.Request(url, headers={'User-Agent': 'iConnectBot/1.0'})
+                with urllib.request.urlopen(request, timeout=30) as response:
+                    payload = json.load(response)
+                if payload.get('ok'):
+                    offset = dispatch_updates(payload.get('result', []), cfg, offset, not_before)
+            except urllib.error.HTTPError as error:
+                logger.warning('Telegram polling HTTP status %s', error.code)
+                time.sleep(5)
+            except Exception as error:
+                logger.warning('Telegram polling unavailable (%s)', type(error).__name__)
                 time.sleep(3)
+            finally:
+                close_old_connections()

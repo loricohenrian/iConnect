@@ -6,7 +6,9 @@ Uses pure Python standard library (urllib.request) — zero external pip depende
 import os
 import json
 import logging
+import re
 import urllib.request
+import urllib.error
 import urllib.parse
 from datetime import datetime
 from django.conf import settings
@@ -23,22 +25,44 @@ def get_telegram_config():
         s = SystemSettings.get_settings()
         return {
             'enabled': s.enable_telegram_bot,
-            'token': s.telegram_bot_token,
+            'token': str(s.telegram_bot_token or '').strip(),
             'chat_id': str(s.telegram_admin_chat_id).strip(),
             'notify_tickets': s.telegram_notify_tickets,
             'notify_isp_down': s.telegram_notify_isp_down,
             'notify_daily_summary': s.telegram_notify_daily_summary,
         }
     except Exception as e:
-        logger.error(f"Error reading telegram config: {e}")
+        logger.error("Telegram configuration unavailable (%s)", type(e).__name__)
         return {
-            'enabled': True,
-            'token': '8946483111:AAEQBhy1vOqLFPdKIXjInvGjNrofI3TqgZg',
-            'chat_id': '6261306648',
-            'notify_tickets': True,
-            'notify_isp_down': True,
-            'notify_daily_summary': True,
+            'enabled': False,
+            'token': '',
+            'chat_id': '',
+            'notify_tickets': False,
+            'notify_isp_down': False,
+            'notify_daily_summary': False,
         }
+
+
+def telegram_config_ready(cfg):
+    """Remote operations require explicit credentials and a private admin user."""
+    return bool(
+        cfg.get('enabled')
+        and re.fullmatch(r'\d{6,15}:[A-Za-z0-9_-]{25,60}', str(cfg.get('token') or ''))
+        and re.fullmatch(r'[1-9]\d{4,24}', str(cfg.get('chat_id') or ''))
+    )
+
+
+def telegram_target_allowed(cfg, chat_id):
+    return telegram_config_ready(cfg) and str(chat_id).strip() == cfg['chat_id']
+
+
+def redact_telegram_backup(raw_json):
+    """Never upload the credential used to control this bot into its own chat."""
+    records = json.loads(raw_json)
+    for record in records:
+        if record.get('model') == 'dashboard.systemsettings':
+            record['fields']['telegram_bot_token'] = ''
+    return json.dumps(records)
 
 
 def escape_markdown(text):
@@ -60,7 +84,7 @@ def send_telegram_message(text, chat_id=None, parse_mode="Markdown"):
     token = cfg.get('token')
     target_chat = chat_id or cfg.get('chat_id')
 
-    if not token or not target_chat:
+    if not telegram_target_allowed(cfg, target_chat):
         return False
 
     url = f"https://api.telegram.org/bot{token}/sendMessage"
@@ -81,9 +105,9 @@ def send_telegram_message(text, chat_id=None, parse_mode="Markdown"):
         with urllib.request.urlopen(req, timeout=10) as resp:
             return resp.status == 200
     except Exception as e:
-        logger.error(f"Telegram sendMessage failed: {e}")
+        logger.error("Telegram sendMessage failed (%s)", type(e).__name__)
         # Fail-safe fallback: if Markdown parsing failed, retry as plain text
-        if parse_mode:
+        if parse_mode and isinstance(e, urllib.error.HTTPError) and e.code == 400:
             try:
                 payload["parse_mode"] = None
                 data = json.dumps(payload).encode("utf-8")
@@ -95,7 +119,7 @@ def send_telegram_message(text, chat_id=None, parse_mode="Markdown"):
                 with urllib.request.urlopen(req, timeout=10) as resp:
                     return resp.status == 200
             except Exception as retry_err:
-                logger.error(f"Telegram sendMessage plain text retry failed: {retry_err}")
+                logger.error("Telegram plain text retry failed (%s)", type(retry_err).__name__)
         return False
 
 
@@ -108,7 +132,7 @@ def send_telegram_document(file_path, caption=None, chat_id=None):
     token = cfg.get('token')
     target_chat = chat_id or cfg.get('chat_id')
 
-    if not token or not target_chat or not os.path.exists(file_path):
+    if not telegram_target_allowed(cfg, target_chat) or not os.path.exists(file_path):
         return False
 
     url = f"https://api.telegram.org/bot{token}/sendDocument"
@@ -151,25 +175,25 @@ def send_telegram_document(file_path, caption=None, chat_id=None):
         with urllib.request.urlopen(req, timeout=30) as resp:
             return resp.status == 200
     except Exception as e:
-        logger.error(f"Telegram sendDocument failed: {e}")
+        logger.error("Telegram sendDocument failed (%s)", type(e).__name__)
         return False
 
 
-def handle_telegram_command(command_text, sender_id, sender_name="User"):
+def handle_telegram_command(command_text, sender_id, sender_name="User", *, chat_id=None):
     """
     Route and process bot commands sent by the authorized user.
     """
     cfg = get_telegram_config()
-    authorized_id = str(cfg.get('chat_id')).strip()
+    authorized_id = str(cfg.get('chat_id') or '').strip()
     current_sender_id = str(sender_id).strip()
 
     # Security check: Ignore unauthorized users
-    if authorized_id and current_sender_id != authorized_id:
-        logger.warning(f"Unauthorized Telegram command from {current_sender_id}: {command_text}")
-        send_telegram_message(
-            "🔒 *Access Denied*\nYou are not authorized to control this Piso WiFi node.",
-            chat_id=sender_id
-        )
+    if (
+        not telegram_config_ready(cfg)
+        or current_sender_id != authorized_id
+        or (chat_id is not None and str(chat_id).strip() != authorized_id)
+    ):
+        logger.warning("Rejected unauthorized or unconfigured Telegram command")
         return
 
     cmd = command_text.strip().split()[0].lower() if command_text else ""
@@ -364,7 +388,8 @@ def handle_telegram_command(command_text, sender_id, sender_name="User"):
         send_telegram_message("📦 Generating database backup (JSON dump)...", chat_id=sender_id)
 
         timestamp_str = now.strftime('%Y%m%d_%H%M%S')
-        temp_dir = tempfile.gettempdir()
+        # Private directory (0700), not a predictable world-readable /tmp file.
+        temp_dir = tempfile.mkdtemp(prefix='iconnect-telegram-backup-')
         backup_file = os.path.join(temp_dir, f"iconnect_backup_{timestamp_str}.json.gz")
 
         try:
@@ -374,27 +399,32 @@ def handle_telegram_command(command_text, sender_id, sender_name="User"):
                 stdout=buf,
                 exclude=['contenttypes', 'auth.permission'],
             )
-            raw_bytes = buf.getvalue().encode('utf-8')
+            raw_bytes = redact_telegram_backup(buf.getvalue()).encode('utf-8')
             with gzip.open(backup_file, 'wb') as f:
                 f.write(raw_bytes)
 
             caption = (
                 f"💾 *iConnect Database Backup*\n"
                 f"📅 {now.strftime('%Y-%m-%d %I:%M %p')} (PST)\n"
-                f"📦 Size: {len(raw_bytes)/1024:.1f} KB (Compressed)"
+                f"📦 Size: {len(raw_bytes)/1024:.1f} KB (Compressed)\n"
+                "Bot token excluded; configure it privately after restoring."
             )
             success = send_telegram_document(backup_file, caption=caption, chat_id=sender_id)
             if not success:
                 send_telegram_message("❌ Failed to send backup document to Telegram.", chat_id=sender_id)
         except Exception as e:
-            logger.error(f"Backup generation failed: {e}")
-            send_telegram_message(f"❌ Backup error: {e}", chat_id=sender_id)
+            logger.error("Telegram backup generation failed (%s)", type(e).__name__)
+            send_telegram_message("❌ Backup could not be generated.", chat_id=sender_id)
         finally:
             if os.path.exists(backup_file):
                 try:
                     os.remove(backup_file)
                 except Exception:
                     pass
+            try:
+                os.rmdir(temp_dir)
+            except OSError:
+                pass
 
     else:
         send_telegram_message(

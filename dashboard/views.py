@@ -2688,18 +2688,23 @@ def settings_view(request):
                 )
             
             # Telegram Bot Integration
-            if 'telegram_bot_token' in request.POST or 'enable_telegram_bot' in request.POST:
+            if 'telegram_bot_token' in request.POST or 'enable_telegram_bot' in request.POST or 'clear_telegram_token' in request.POST:
                 settings_obj.enable_telegram_bot = request.POST.get('enable_telegram_bot') == 'on'
                 if 'telegram_bot_token' in request.POST:
                     token = request.POST.get('telegram_bot_token', '').strip()
                     if token and not re.match(r'^\d{6,15}:[A-Za-z0-9_-]{25,60}$', token):
                         raise ValueError("Telegram Bot Token format appears invalid. It should look like 123456789:ABCdef-gh1234_xyz.")
-                    settings_obj.telegram_bot_token = token
+                    if token:
+                        settings_obj.telegram_bot_token = token
+                if request.POST.get('clear_telegram_token') == 'on':
+                    settings_obj.telegram_bot_token = ''
                 if 'telegram_admin_chat_id' in request.POST:
                     chat_id = request.POST.get('telegram_admin_chat_id', '').strip()
-                    if chat_id and not re.match(r'^-?\d{5,25}$', chat_id):
-                        raise ValueError("Telegram Admin Chat ID must be numeric (e.g. 6261306648).")
+                    if chat_id and not re.fullmatch(r'[1-9]\d{4,24}', chat_id):
+                        raise ValueError("Telegram Admin Chat ID must be your positive numeric user ID, not a group ID.")
                     settings_obj.telegram_admin_chat_id = chat_id
+                if settings_obj.enable_telegram_bot and (not settings_obj.telegram_bot_token or not settings_obj.telegram_admin_chat_id):
+                    raise ValueError("Configure both a fresh Telegram bot token and your personal admin user ID before enabling the bot.")
                 settings_obj.telegram_notify_tickets = request.POST.get('telegram_notify_tickets') == 'on'
                 settings_obj.telegram_notify_isp_down = request.POST.get('telegram_notify_isp_down') == 'on'
                 settings_obj.telegram_notify_daily_summary = request.POST.get('telegram_notify_daily_summary') == 'on'

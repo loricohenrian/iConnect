@@ -751,7 +751,7 @@ class IspOutageManagementTests(TestCase):
             "spin_cost_points": 10,
             "daily_spin_limit": 3,
             "points_per_streak_day": 5,
-            "telegram_bot_token": "123456789:ABCdef-gh1234_xyz1234567890ABC",
+            "telegram_bot_token": "123456789:" + "TEST_ONLY_" * 4,
             "telegram_admin_chat_id": "6261306648",
         }, follow=True)
         self.assertEqual(resp.status_code, 200)
@@ -1361,13 +1361,14 @@ class SettingsSystemHardeningTests(TestCase):
         self.assertEqual(self.settings.points_per_peso, 2)
 
     def test_clear_telegram_credentials(self):
-        self.settings.telegram_bot_token = "123456789:ABCdef-gh1234_xyz12345678"
+        self.settings.telegram_bot_token = "123456789:" + "TEST_ONLY_" * 4
         self.settings.telegram_admin_chat_id = "12345678"
         self.settings.save()
 
         post_data = {
             'telegram_bot_token': '',
             'telegram_admin_chat_id': '',
+            'clear_telegram_token': 'on',
         }
         resp = self.client.post('/iconnect-ops/settings/', post_data, follow=True)
         self.assertEqual(resp.status_code, 200)

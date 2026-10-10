@@ -422,19 +422,20 @@
                             <div class="form-group mb-0">
                                 <label class="form-label" for="telegram_bot_token">Bot Token (from @BotFather)</label>
                                 <div class="masked-input-wrapper">
-                                    <input type="password" class="form-input" id="telegram_bot_token" name="telegram_bot_token" value="{{ settings.telegram_bot_token }}" placeholder="e.g. 8946483111:AAEQBhy1vOqLFPdKIXjInvGjNrofI3TqgZg" spellcheck="false" autocomplete="off">
+                                    <input type="password" class="form-input" id="telegram_bot_token" name="telegram_bot_token" value="" placeholder="Paste a fresh token privately; blank keeps the saved token" spellcheck="false" autocomplete="new-password">
                                     <button type="button" class="btn-toggle-mask" id="toggleBotTokenVisibility" title="Show or hide token" aria-label="Toggle token visibility">
                                         <svg class="icon-eye-show" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
                                         <svg class="icon-eye-hide" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: none;"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
                                     </button>
                                 </div>
-                                <small class="form-hint">Obtained securely from the official @BotFather on Telegram.</small>
+                                <small class="form-hint">{% if settings.telegram_bot_token %}A token is saved but is never displayed here.{% else %}No token configured.{% endif %} Obtain a fresh token from verified @BotFather. Never share screenshots of it.</small>
+                                <label><input type="checkbox" name="clear_telegram_token"> Remove the saved token</label>
                             </div>
 
                             <div class="form-group mb-0">
                                 <label class="form-label" for="telegram_admin_chat_id">Authorized Admin Chat ID</label>
                                 <input type="text" class="form-input" id="telegram_admin_chat_id" name="telegram_admin_chat_id" value="{{ settings.telegram_admin_chat_id }}" placeholder="e.g. 6261306648" spellcheck="false">
-                                <small class="form-hint">Only messages from this specific Chat ID will be processed.</small>
+                                <small class="form-hint">Your numeric personal Telegram user ID. Only your private chat can control the bot; group IDs are not accepted.</small>
                             </div>
                         </div>
 
