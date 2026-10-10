@@ -114,6 +114,9 @@
                             resultContainer.style.display = "block";
                             if (data.prize.minutes > 0) {
                                 resultText.textContent = `🎉 You won ${data.prize.name}! (+${data.prize.minutes} mins added to your session)`;
+                                if (data.reward_paused) {
+                                    resultText.textContent += ' Your time is paused. Tap Resume when internet is available.';
+                                }
                             } else {
                                 resultContainer.className = "alert alert-secondary mt-md";
                                 resultText.textContent = `😅 You won ${data.prize.name}. Better luck next time!`;

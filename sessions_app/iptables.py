@@ -140,37 +140,46 @@ def allow_device(mac_address, rate_kbps=None, upload_kbps=None):
     rate_kbps: download speed limit in kbps.
     upload_kbps: upload speed limit in kbps.
     """
-    if is_device_allowed(mac_address):
-        logger.info('Device %s already allowed', mac_address)
-        _add_nat_bypass(mac_address)
-        apply_bandwidth_limit(mac_address, rate_kbps=rate_kbps, upload_kbps=upload_kbps)
-        return True
-
-    if getattr(settings, 'PISONET_DNS_ONLY_PREAUTH', False):
-        apply_pre_auth_dns_policy()
-
     mac = mac_address.upper()
-    # Use -I (Insert) to put it at the top of the chain
-    cmd = ['iptables', '-I', 'FORWARD', '1', '-m', 'mac', '--mac-source', mac, '-j', 'ACCEPT']
-    success = _run_command(cmd)
-    if success:
+    already_allowed = is_device_allowed(mac)
+    had_bypass = _is_nat_bypass_set(mac)
+    if already_allowed:
+        logger.info('Device %s already allowed', mac_address)
+    else:
+        if getattr(settings, 'PISONET_DNS_ONLY_PREAUTH', False):
+            if not apply_pre_auth_dns_policy():
+                return False
+        # Use -I (Insert) to put it at the top of the chain.
+        cmd = ['iptables', '-I', 'FORWARD', '1', '-m', 'mac', '--mac-source', mac, '-j', 'ACCEPT']
+        if not _run_command(cmd):
+            return False
         logger.info('Allowed device: %s', mac)
-        _add_nat_bypass(mac)
+
+    # Both rules are required: a FORWARD grant alone can leave browsers redirected
+    # to the captive portal. Never report a partial grant as internet-ready.
+    if not _add_nat_bypass(mac) or not is_device_allowed(mac) or not _is_nat_bypass_set(mac):
+        logger.error('Internet access not ready for %s: FORWARD/NAT verification failed', mac)
+        if not already_allowed:
+            _run_command(['iptables', '-D', 'FORWARD', '-m', 'mac', '--mac-source', mac, '-j', 'ACCEPT'], ignore_errors=True)
+        return False
+
+    if not already_allowed or not had_bypass:
         # Flush stale conntrack entries from the blocked/redirect state so
         # Chrome's connectivity probe to Google succeeds immediately instead
         # of hitting cached NAT redirect entries that cause "No Internet".
-        _flush_conntrack(mac_address)
-        apply_bandwidth_limit(mac, rate_kbps=rate_kbps, upload_kbps=upload_kbps)
+        _flush_conntrack(mac)
+    apply_bandwidth_limit(mac, rate_kbps=rate_kbps, upload_kbps=upload_kbps)
+    if not already_allowed:
         _ensure_mangle_forward_rule(['-p', 'tcp', '--tcp-flags', 'SYN,RST', 'SYN', '-j', 'TCPMSS', '--clamp-mss-to-pmtu'])
         _ensure_mangle_postrouting_rule(['-p', 'tcp', '--tcp-flags', 'SYN,RST', 'SYN', '-j', 'TCPMSS', '--clamp-mss-to-pmtu'])
         _ensure_forward_rule(['-m', 'conntrack', '--ctstate', 'RELATED,ESTABLISHED', '-j', 'ACCEPT'])
-    return success
+    return True
 
 
 def _flush_conntrack(mac_address):
     """
     Flush connection tracking entries for a device to kill established/redirected connections.
-    Also clears stale NAT connection tracking to Google connectivity check subnets.
+    Scope cleanup to this device, including its cached captive-portal redirects.
     """
     mac = mac_address.upper()
     ip = _get_device_ip(mac)
@@ -183,10 +192,6 @@ def _flush_conntrack(mac_address):
         _run_command(['conntrack', '-D', '-p', 'tcp', '-d', ip, '--sport', '80'], ignore_errors=True)
         logger.info('Flushed conntrack for device: %s (%s)', mac, ip)
         flushed = True
-
-    # Flush Google connectivity check subnets so stale captive-portal redirects don't persist
-    for google_subnet in ['172.217.0.0/16', '142.250.0.0/15', '216.58.0.0/19', '142.251.0.0/16']:
-        _run_command(['conntrack', '-D', '-d', google_subnet], ignore_errors=True)
 
     return flushed
 

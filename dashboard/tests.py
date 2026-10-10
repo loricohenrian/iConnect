@@ -1220,7 +1220,11 @@ class SecuritySystemHardeningTests(TestCase):
             self.assertTrue(data_resp.json().get("is_blocked"))
             self.assertFalse(data_resp.json().get("enabled"))
 
-    def test_spin_wheel_successful_execution(self):
+    @patch('sessions_app.internet_monitor.check_isp_internet_status',
+           return_value={'isp_outage': False, 'is_online': True})
+    @patch('sessions_app.iptables.is_forward_default_drop', return_value=True)
+    @patch('sessions_app.iptables.allow_device', return_value=True)
+    def test_spin_wheel_successful_execution(self, allow_mock, baseline_mock, isp_mock):
         from dashboard.models import SystemSettings
         from sessions_app.models import DeviceProfile, SpinPrize
         sys_settings = SystemSettings.get_settings()

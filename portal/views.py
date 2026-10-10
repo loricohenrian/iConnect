@@ -766,8 +766,10 @@ def api_execute_spin(request):
 
             # Award prize — extend existing session if one is active, or create a new one!
             prize_applied = False
+            new_session = None
+            reward_session = None
             if selected_prize.minutes_reward > 0:
-                session = Session.objects.filter(
+                session = Session.objects.select_for_update().filter(
                     mac_address=mac_address,
                     status__in=["active", "paused"]
                 ).first()
@@ -782,6 +784,7 @@ def api_execute_spin(request):
                             session.add_pauses(selected_prize.pause_limit)
                         update_fields.append('pause_limit')
                     session.save(update_fields=update_fields)
+                    reward_session = session
                     prize_applied = True
                 else:
                     # No active session, so we create a completely free one for the reward!
@@ -814,49 +817,64 @@ def api_execute_spin(request):
                     from sessions_app.views import _extract_device_name
                     dev_name = _extract_device_name(request, mac_address=mac_address)
 
+                    award_time = timezone.now()
                     new_session = Session.objects.create(
                         mac_address=mac_address,
                         plan=hidden_plan, # Apply the prize's network limits
-                        time_in=timezone.now(),
+                        time_in=award_time,
+                        paused_at=award_time,
                         duration_minutes_purchased=selected_prize.minutes_reward,
                         amount_paid=0,
-                        status="active",
+                        status="paused",
+                        power_paused=True,
                         ip_address=ip_address,
                         device_name=dev_name
                     )
                     
-                    rate_kbps = int(selected_prize.speed_limit * 1024) if selected_prize.speed_limit else None
-                    upload_kbps = int(selected_prize.speed_limit_upload * 1024) if selected_prize.speed_limit_upload else rate_kbps
-                    
-                    try:
-                        iptables.allow_device(mac_address, rate_kbps=rate_kbps, upload_kbps=upload_kbps)
-                    except Exception as ipt_err:
-                        logger.warning("iptables allow_device warning during spin prize award: %s", ipt_err)
+                    reward_session = new_session
                     prize_applied = True
 
-            # Calculate remaining spins for the response
-            remaining_spins = max(0, settings_obj.daily_spin_limit - device_profile.spins_today)
+        # Commit the prize and point deduction before touching the firewall.
+        # Failed access keeps the already-awarded time protected, rather than
+        # rolling back the win or running its timer without usable internet.
+        if new_session is not None:
+            try:
+                from sessions_app.internet_monitor import check_isp_internet_status
+                from sessions_app.power_recovery import resume_power_session
+                isp_info = check_isp_internet_status(force_probe=False)
+                has_capacity = Session.objects.filter(status='active').count() < settings_obj.max_concurrent_sessions
+                if not isp_info.get('isp_outage') and has_capacity and iptables.is_forward_default_drop():
+                    resume_power_session(new_session)
+                reward_session.refresh_from_db()
+            except Exception:
+                logger.exception('Prize session %s remains protected while access is unavailable', new_session.pk)
 
-            return JsonResponse({
-                "status": "success",
-                "prize": {
-                    "id": selected_prize.id,
-                    "name": selected_prize.name,
-                    "minutes": selected_prize.minutes_reward,
-                    "mid_deg": round(target_deg, 2),
-                    "applied": prize_applied,
-                    "type": "minutes" if selected_prize.minutes_reward > 0 else "none",
-                    "points": 0,
-                },
-                "target_deg": round(target_deg, 2),
-                "remaining_points": device_profile.points,
+        reward_paused = reward_session is not None and reward_session.status == 'paused'
+        remaining_spins = max(0, settings_obj.daily_spin_limit - device_profile.spins_today)
+
+        return JsonResponse({
+            "status": "success",
+            "prize": {
+                "id": selected_prize.id,
+                "name": selected_prize.name,
+                "minutes": selected_prize.minutes_reward,
+                "mid_deg": round(target_deg, 2),
+                "applied": prize_applied,
+                "type": "minutes" if selected_prize.minutes_reward > 0 else "none",
+                "points": 0,
+            },
+            "target_deg": round(target_deg, 2),
+            "remaining_points": device_profile.points,
+            "remaining_spins": remaining_spins,
+            "applied_to_session": prize_applied,
+            "reward_paused": reward_paused,
+            "session_id": reward_session.pk if reward_session else None,
+            "session_status": reward_session.status if reward_session else None,
+            "updated": {
+                "points": device_profile.points,
                 "remaining_spins": remaining_spins,
-                "applied_to_session": prize_applied,
-                "updated": {
-                    "points": device_profile.points,
-                    "remaining_spins": remaining_spins,
-                }
-            })
+            }
+        })
     except Exception as e:
         logger.exception("Error executing spin: %s", e)
         return JsonResponse({"status": "error", "message": "An error occurred during spin processing"}, status=500)

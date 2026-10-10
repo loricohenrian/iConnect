@@ -341,12 +341,15 @@ function executeSpin() {
                     let msg = `🎉 You won ${data.prize.name}!`;
                     if (data.prize.applied) {
                         msg += ` (+${data.prize.minutes} mins added to your session)`;
+                        if (data.reward_paused) {
+                            msg += ' Your time is paused. Tap Resume when internet is available.';
+                        }
                         if (typeof showTimeAddedToast === 'function') {
                             showTimeAddedToast(data.prize.minutes + ' mins');
                         }
                         
                         // Dynamically update the active session timer
-                        if (window.sessionTimer) {
+                        if (window.sessionTimer && !data.reward_paused) {
                             const newSeconds = window.sessionTimer.remaining + (data.prize.minutes * 60);
                             window.sessionTimer.setRemaining(newSeconds);
                             // Also update the total duration text if it exists
@@ -357,7 +360,7 @@ function executeSpin() {
                                     durationEl.textContent = (currentMins + data.prize.minutes) + ' mins';
                                 }
                             }
-                        } else {
+                        } else if (!window.sessionTimer) {
                             // If they were on the home page and won a free session, reload to show it
                             setTimeout(() => {
                                 window.location.reload();
