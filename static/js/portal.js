@@ -2553,12 +2553,13 @@ function pollSessionStatus(macAddress, intervalMs = 1000) {
                 }
             }
 
-            // Toast notification on real-time admin pause/resume
+            // Status polling cannot identify who paused a session. Do not
+            // attribute a user pause or automatic pause to the administrator.
             if (window._lastSessionStatus && window._lastSessionStatus !== data.status) {
                 if (data.status === "paused" && !Boolean(data.isp_outage)) {
                     _showTimerBanner(data.session?.power_paused
                         ? "⏸️ Your time was saved after a power interruption. Resume when ready."
-                        : "⏸️ Your session has been paused by the administrator.", "warning");
+                        : "⏸️ Your session is paused. Your remaining time is saved.", "warning");
                 } else if (data.status === "active" && window._lastSessionStatus === "paused" && !Boolean(data.isp_outage)) {
                     _showTimerBanner("▶️ Your session has been resumed! Internet reconnected.", "success");
                     setTimeout(() => { _hideTimerBanner(); }, 5000);
