@@ -142,35 +142,6 @@
                         </label>
                     </div>
 
-                    <div class="settings-divider"></div>
-
-                    <!-- SQM CAKE -->
-                    <div class="setting-toggle-row">
-                        <div class="setting-toggle-info">
-                            <label for="enable_sqm" class="setting-toggle-title">SQM CAKE (Anti-Bufferbloat)</label>
-                            <span class="setting-toggle-desc">Eliminates ping spikes and keeps latency ultra-low even under heavy concurrent student load.</span>
-                        </div>
-                        <label class="custom-switch">
-                            <input type="checkbox" id="enable_sqm" name="enable_sqm" {% if settings.enable_sqm %}checked{% endif %} data-toggle-target="#sqmBandwidthGrid">
-                            <span class="switch-slider"></span>
-                        </label>
-                    </div>
-
-                    <!-- Dependent SQM Speeds -->
-                    <div class="dependent-tree-group" id="sqmBandwidthGrid">
-                        <div class="settings-grid-2">
-                            <div class="form-group mb-0">
-                                <label class="form-label" for="isp_download_speed">ISP Download Speed (Mbps)</label>
-                                <input type="number" min="1" class="form-input" id="isp_download_speed" name="isp_download_speed" value="{{ settings.isp_download_speed }}" required>
-                                <small class="form-hint">Set to 90–95% of your measured download speed.</small>
-                            </div>
-                            <div class="form-group mb-0">
-                                <label class="form-label" for="isp_upload_speed">ISP Upload Speed (Mbps)</label>
-                                <input type="number" min="1" class="form-input" id="isp_upload_speed" name="isp_upload_speed" value="{{ settings.isp_upload_speed }}" required>
-                                <small class="form-hint">Set to 90–95% of your measured upload speed.</small>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </div>
         </section>

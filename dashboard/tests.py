@@ -1362,6 +1362,40 @@ class SettingsSystemHardeningTests(TestCase):
         self.assertContains(resp, 'name="global_pause_limit_hours"')
         self.assertContains(resp, 'Paid Purchase Pause Allowance')
 
+    def test_settings_hides_sqm_controls(self):
+        resp = self.client.get('/iconnect-ops/settings/')
+        self.assertEqual(resp.status_code, 200)
+        for text in ('SQM CAKE', 'sqmBandwidthGrid', 'name="enable_sqm"',
+                     'name="isp_download_speed"', 'name="isp_upload_speed"'):
+            self.assertNotContains(resp, text)
+        self.assertContains(resp, 'name="enable_anti_tethering"')
+        self.assertContains(resp, 'name="enable_auto_pause_resume"')
+
+    @patch('sessions_app.iptables.apply_network_settings', return_value=True)
+    def test_settings_save_preserves_hidden_sqm_values(self, apply_network):
+        for enabled in (False, True):
+            self.settings.enable_sqm = enabled
+            self.settings.isp_download_speed = 137
+            self.settings.isp_upload_speed = 29
+            self.settings.save()
+            for hidden_fields in ({}, {
+                'enable_sqm': '' if enabled else 'on',
+                'isp_download_speed': 'invalid',
+                'isp_upload_speed': '999',
+            }):
+                with self.subTest(enabled=enabled, hidden_fields=hidden_fields):
+                    resp = self.client.post('/iconnect-ops/settings/', {
+                        'max_concurrent_sessions': '50',
+                        **hidden_fields,
+                    }, follow=True)
+                    self.assertEqual(resp.status_code, 200)
+                    self.assertContains(resp, 'Settings updated successfully.')
+                    self.settings.refresh_from_db()
+                    self.assertEqual(self.settings.enable_sqm, enabled)
+                    self.assertEqual(self.settings.isp_download_speed, 137)
+                    self.assertEqual(self.settings.isp_upload_speed, 29)
+                    self.assertEqual(self.settings.max_concurrent_sessions, 50)
+
     @patch('sessions_app.iptables.apply_network_settings', return_value=True)
     def test_settings_save_preserves_retired_pause_values(self, apply_network):
         self.settings.min_extend_amount_for_pause = 7

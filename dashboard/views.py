@@ -2609,13 +2609,8 @@ def settings_view(request):
         try:
             # Networking
             settings_obj.enable_anti_tethering = request.POST.get('enable_anti_tethering') == 'on'
-            settings_obj.enable_sqm = request.POST.get('enable_sqm') == 'on'
-            settings_obj.isp_download_speed = parse_bounded_int(
-                request.POST.get('isp_download_speed'), 1, 10_000, "ISP Download Speed", default=settings_obj.isp_download_speed
-            )
-            settings_obj.isp_upload_speed = parse_bounded_int(
-                request.POST.get('isp_upload_speed'), 1, 10_000, "ISP Upload Speed", default=settings_obj.isp_upload_speed
-            )
+            # SQM controls are hidden. Preserve their saved values instead of
+            # interpreting the missing checkbox as a request to disable SQM.
             
             # General / UI
             settings_obj.enable_dark_mode = request.POST.get('enable_dark_mode') == 'on'
