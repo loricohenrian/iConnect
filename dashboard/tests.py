@@ -913,7 +913,9 @@ class ReportsEnhancementTests(TestCase):
         self.assertEqual(p1_data["pct_count"], 75.0)
 
         self.assertContains(resp, "54.5%")
-        self.assertContains(resp, "(75.0% vol)")
+        self.assertContains(resp, 'title="54.5% of total revenue"')
+        self.assertNotContains(resp, "(75.0% vol)")
+        self.assertNotContains(resp, "% of sales volume")
 
 
 class SupportTicketHardeningTests(TestCase):

@@ -170,9 +170,8 @@
                         </td>
                         <td>₱{{ plan.plan__price }}</td>
                         <td>{{ plan.count }}</td>
-                        <td title="{{ plan.pct_revenue }}% of total revenue · {{ plan.pct_count }}% of sales volume">
+                        <td title="{{ plan.pct_revenue }}% of total revenue">
                             <span class="font-semibold" style="color: #0284c7;">{{ plan.pct_revenue }}%</span>
-                            <span class="text-xs text-muted" style="margin-left: 2px;">({{ plan.pct_count }}% vol)</span>
                         </td>
                         <td class="font-semibold" style="text-align: right; color: #10b981;">₱{{ plan.total|default:"0" }}</td>
                     </tr>
