@@ -2613,7 +2613,8 @@ def settings_view(request):
             # interpreting the missing checkbox as a request to disable SQM.
             
             # General / UI
-            settings_obj.enable_dark_mode = request.POST.get('enable_dark_mode') == 'on'
+            # The retired forced-dark setting no longer affects rendering or
+            # accepts form changes. Preserve the database field for compatibility.
             settings_obj.max_concurrent_sessions = parse_bounded_int(
                 request.POST.get('max_concurrent_sessions'), 1, 1_000, "Max Concurrent Sessions", default=settings_obj.max_concurrent_sessions
             )

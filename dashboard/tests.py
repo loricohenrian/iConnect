@@ -13,6 +13,15 @@ from django.core.cache import cache
 
 
 class DashboardSidebarTests(SimpleTestCase):
+    def test_dashboard_does_not_force_dark_with_legacy_setting_enabled(self):
+        for enabled in (False, True):
+            with self.subTest(enabled=enabled):
+                html = render_to_string('base_dashboard.html', {
+                    'sys_settings': {'enable_dark_mode': enabled},
+                })
+                self.assertIn('<div class="dashboard-wrapper">', html)
+                self.assertNotIn('data-theme="dark"', html)
+
     def test_security_menu_is_hidden_without_removing_its_route(self):
         from django.urls import resolve, reverse
 
@@ -1353,6 +1362,33 @@ class SettingsSystemHardeningTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "Coin Slot Countdown Engine")
         self.assertContains(resp, "Points / ₱1 Spent")
+
+    def test_settings_hides_force_dark_theme(self):
+        self.settings.enable_dark_mode = True
+        self.settings.save()
+        resp = self.client.get('/iconnect-ops/settings/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertNotContains(resp, 'Force Dark Theme')
+        self.assertNotContains(resp, 'name="enable_dark_mode"')
+        self.assertNotContains(resp, '<div class="dashboard-wrapper" data-theme="dark">')
+        self.assertContains(resp, '<div class="dashboard-wrapper">')
+        self.assertContains(resp, 'name="coin_timer_min_remaining_seconds"')
+
+    @patch('sessions_app.iptables.apply_network_settings', return_value=True)
+    def test_settings_save_does_not_change_legacy_dark_value(self, apply_network):
+        for enabled in (False, True):
+            self.settings.enable_dark_mode = enabled
+            self.settings.save()
+            for form_fields in ({}, {'enable_dark_mode': '' if enabled else 'on'}):
+                with self.subTest(enabled=enabled, form_fields=form_fields):
+                    resp = self.client.post('/iconnect-ops/settings/', {
+                        'max_concurrent_sessions': '50', **form_fields,
+                    }, follow=True)
+                    self.assertEqual(resp.status_code, 200)
+                    self.assertContains(resp, 'Settings updated successfully.')
+                    self.settings.refresh_from_db()
+                    self.assertEqual(self.settings.enable_dark_mode, enabled)
+                    self.assertEqual(self.settings.max_concurrent_sessions, 50)
 
     def test_settings_hides_retired_pause_controls(self):
         resp = self.client.get('/iconnect-ops/settings/')
