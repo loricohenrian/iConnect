@@ -1031,8 +1031,11 @@ class SessionApiTests(TestCase):
         self.assertEqual(session.status, "active")
 
     @override_settings(PISONET_GPIO_SIMULATION=False)
+    @patch("sessions_app.iptables.allow_device", return_value=True)
+    @patch("sessions_app.iptables.block_device", return_value=True)
+    @patch("sessions_app.internet_monitor.check_isp_internet_status", return_value={"isp_outage": False})
     @patch("sessions_app.tasks._is_device_reachable")
-    def test_auto_pause_can_auto_resume(self, mock_reachable):
+    def test_auto_pause_can_auto_resume(self, mock_reachable, mock_isp, mock_block, mock_allow):
         from dashboard.models import SystemSettings
         from .tasks import auto_resume_connected_sessions, auto_pause_disconnected_sessions
 
@@ -1052,7 +1055,7 @@ class SessionApiTests(TestCase):
 
         # Device disconnects — simulate unreachable for > 300s
         mock_reachable.return_value = False
-        cache_key = f"auto_pause_unreachable_{self.mac_one}"
+        cache_key = f"auto_pause_unreachable_session:{session.pk}"
         past_time = timezone.now() - timezone.timedelta(seconds=400)
         cache.set(cache_key, past_time.isoformat(), timeout=600)
 

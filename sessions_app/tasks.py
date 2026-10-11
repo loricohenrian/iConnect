@@ -9,6 +9,9 @@ from django.db.models import Sum, Count, Avg, Q
 from django.db.models.functions import ExtractHour
 import logging
 import subprocess
+from concurrent.futures import ThreadPoolExecutor
+from functools import wraps
+from uuid import uuid4
 
 logger = logging.getLogger(__name__)
 
@@ -179,73 +182,69 @@ def enforce_pre_auth_dns_policy():
 
 
 def _is_device_reachable(mac_address, ip_address, fresh=False):
-    """
-    Check if a device is reachable on the local LAN/WiFi.
+    """Require a fresh ARP reply from the session MAC, never a cached entry.
 
-    Windows Firewall, iPhones, and Android devices often block ICMP pings (ping -c 1).
-    Therefore we check Layer 2 ARP table first (/proc/net/arp and arping),
-    falling back to ICMP ping only if needed.
+    ``fresh`` remains accepted for existing power-recovery callers. All checks
+    are now fresh. None means the probe itself failed, not that WiFi is offline.
     """
-    if not ip_address:
+    if not ip_address or not mac_address:
         return False
-
     mac_upper = (mac_address or "").upper().strip()
-
-    # Method 1: Check Linux ARP table (/proc/net/arp)
-    try:
-        if fresh:
-            # Cached ARP entries can outlive a phone. Power recovery requires a
-            # fresh reply from the saved MAC before restarting paid time.
-            res = subprocess.run(
-                ["arping", "-c", "1", "-w", "1", ip_address],
-                capture_output=True, timeout=2,
-            )
-            output = res.stdout or ""
-            if isinstance(output, bytes):
-                output = output.decode(errors="replace")
-            return res.returncode == 0 and mac_upper in output.upper()
-        with open("/proc/net/arp", "r") as f:
-            for line in f:
-                parts = line.split()
-                # Format: IP HW_type Flags HW_address Mask Device
-                # Flags 0x2 = COMPLETED (0x0 = INCOMPLETE / EXPIRED)
-                if len(parts) >= 4:
-                    line_ip = parts[0]
-                    flags = parts[2]
-                    line_mac = parts[3].upper()
-                    if (line_ip == ip_address or line_mac == mac_upper) and flags != "0x0":
-                        return True
-    except (OSError, IOError, subprocess.SubprocessError):
-        if fresh:
-            return False
-        pass
-
-    # Method 2: Try arping (Layer 2 ARP ping — works even when OS firewall blocks ICMP)
     try:
         res = subprocess.run(
             ["arping", "-c", "1", "-w", "1", ip_address],
             capture_output=True, timeout=2,
         )
-        if res.returncode == 0:
-            return True
-    except Exception:
-        pass
+    except (OSError, subprocess.SubprocessError):
+        logger.warning('WiFi reachability probe unavailable for %s', ip_address)
+        return None
+    if res.returncode not in (0, 1):
+        logger.warning('WiFi reachability probe failed for %s (exit %s)', ip_address, res.returncode)
+        return None
+    output = res.stdout or b''
+    if isinstance(output, bytes):
+        output = output.decode(errors='replace')
+    return res.returncode == 0 and f'[{mac_upper}]' in output.upper()
 
-    # Method 3: ICMP ping fallback
-    try:
-        res = subprocess.run(
-            ["ping", "-c", "1", "-W", "1", ip_address],
-            capture_output=True, timeout=2,
-        )
-        if res.returncode == 0:
-            return True
-    except Exception:
-        pass
 
-    return False
+def _probe_session_devices(sessions):
+    """Run at most eight bounded network probes at once; no ORM in threads."""
+    targets = {(s.mac_address, s.ip_address) for s in sessions}
+    if not targets:
+        return {}
+    targets = sorted(targets)
+    with ThreadPoolExecutor(max_workers=min(8, len(targets))) as executor:
+        results = list(executor.map(lambda target: _is_device_reachable(*target, fresh=True), targets))
+    by_device = dict(zip(targets, results))
+    return {s.pk: by_device[(s.mac_address, s.ip_address)] for s in sessions}
+
+
+def _single_flight_scan(name):
+    """Do not let periodic copies of the same scan monopolize the worker."""
+    def decorate(function):
+        @wraps(function)
+        def run(*args, **kwargs):
+            from django.core.cache import cache
+            key = f'wifi_scan_lock:{name}'
+            token = uuid4().hex
+            if not cache.add(key, token, timeout=120):
+                return f'Skipped {name}: scan already running'
+            try:
+                return function(*args, **kwargs)
+            finally:
+                if cache.get(key) == token:
+                    cache.delete(key)
+        return run
+    return decorate
+
+
+def _disconnect_cache_key(session):
+    # A new paid session must not inherit an older session's offline timer.
+    return f'auto_pause_unreachable_session:{session.pk}'
 
 
 @shared_task
+@_single_flight_scan('auto-pause')
 def auto_pause_disconnected_sessions():
     """
     Auto-pause sessions whose devices have disconnected from WiFi.
@@ -258,6 +257,7 @@ def auto_pause_disconnected_sessions():
     """
     from django.conf import settings
     from django.core.cache import cache
+    from django.db import transaction
     from .models import Session
     from . import iptables
 
@@ -273,16 +273,21 @@ def auto_pause_disconnected_sessions():
         return 'Skipped in simulation mode'
 
     timeout_seconds = settings_obj.auto_pause_timeout_seconds
-    active_sessions = Session.objects.filter(status='active').exclude(ip_address__isnull=True)
+    active_sessions = list(Session.objects.filter(status='active').exclude(
+        ip_address__isnull=True).select_related('plan'))
+    reachability = _probe_session_devices(active_sessions)
 
     paused_count = 0
     cleared_count = 0
 
     for session in active_sessions:
         ip = session.ip_address
-        cache_key = f'auto_pause_unreachable_{session.mac_address}'
+        cache_key = _disconnect_cache_key(session)
 
-        is_reachable = _is_device_reachable(session.mac_address, ip)
+        is_reachable = reachability[session.pk]
+        if is_reachable is None:
+            # Missing tools/permissions are not evidence of a disconnected phone.
+            continue
 
         if is_reachable:
             # Device is online — clear any unreachable tracking
@@ -305,20 +310,29 @@ def auto_pause_disconnected_sessions():
                 elapsed = (now - first_unreachable).total_seconds()
 
                 if elapsed >= timeout_seconds:
-                    # Respect session pause limit: if user has exhausted pauses, do not auto-pause
-                    limit = session.effective_pause_limit
-                    if limit > 0 and session.pause_count >= limit:
-                        logger.info(
-                            f'Skipping auto-pause for session {session.id} ({session.mac_address}): '
-                            f'pause limit ({limit}) reached.'
-                        )
+                    try:
+                        with transaction.atomic():
+                            current = Session.objects.select_for_update(of=('self',)).select_related('plan').filter(
+                                pk=session.pk, status='active', ip_address=ip,
+                                mac_address=session.mac_address).first()
+                            if current is None:
+                                cache.delete(cache_key)
+                                continue
+                            limit = current.effective_pause_limit
+                            if limit > 0 and current.pause_count >= limit:
+                                continue
+                            if not current.pause_session():
+                                continue
+                            # Do not freeze billing while failed revocation leaves
+                            # internet access open. Roll back and retry next scan.
+                            if not iptables.block_device(current.mac_address):
+                                raise RuntimeError('Could not block auto-paused device')
+                        cache.delete(cache_key)
+                        cache.set(f"auto_paused_{session.id}", True, timeout=86400 * 7)
+                        cache.delete(f"manual_pause_{session.id}")
+                    except Exception:
+                        logger.exception('Could not auto-pause disconnected session %s', session.pk)
                         continue
-
-                    session.pause_session()
-                    iptables.block_device(session.mac_address)
-                    cache.delete(cache_key)
-                    cache.set(f"auto_paused_{session.id}", True, timeout=86400 * 7)
-                    cache.delete(f"manual_pause_{session.id}")
                     paused_count += 1
                     logger.info(
                         f'Auto-paused session {session.id} for {session.mac_address} '
@@ -328,7 +342,7 @@ def auto_pause_disconnected_sessions():
     if paused_count or cleared_count:
         logger.info(f'Auto-pause check: paused={paused_count}, reconnected={cleared_count}')
 
-    return f'Checked {active_sessions.count()} sessions, auto-paused {paused_count}, reconnected {cleared_count}'
+    return f'Checked {len(active_sessions)} sessions, auto-paused {paused_count}, reconnected {cleared_count}'
 
 
 @shared_task
@@ -393,6 +407,10 @@ def expire_voucher_codes():
     expired = Session.objects.filter(
         status='paused',
         power_paused=False,
+        # Unused voucher sessions have never entered a real pause. Disconnect,
+        # manual and ISP pauses all set paused_at and must retain their balance.
+        paused_at__isnull=True,
+        pause_count=0,
         voucher_code__isnull=False,
         created_at__lt=cutoff
     ).update(status='expired')
@@ -403,6 +421,7 @@ def expire_voucher_codes():
     return f'Expired {expired} voucher codes'
 
 @shared_task
+@_single_flight_scan('auto-resume')
 def auto_resume_connected_sessions():
     """
     Auto-resume paused sessions whose devices have reconnected to WiFi.
@@ -411,6 +430,7 @@ def auto_resume_connected_sessions():
     from dashboard.models import SystemSettings
     from .models import Session
     from . import iptables
+    from .capacity import session_capacity_lock
     from .power_recovery import ensure_power_recovery
     ensure_power_recovery()
 
@@ -424,7 +444,9 @@ def auto_resume_connected_sessions():
     if isp_info.get("isp_outage"):
         return 'Auto-resume skipped: ISP outage is active'
 
-    paused_sessions = Session.objects.filter(status='paused').exclude(ip_address__isnull=True)
+    paused_sessions = list(Session.objects.filter(status='paused').exclude(
+        ip_address__isnull=True).select_related('plan'))
+    eligible_sessions = []
     resumed_count = 0
 
     for session in paused_sessions:
@@ -443,48 +465,79 @@ def auto_resume_connected_sessions():
         if not session.power_paused and not cache.get(f"auto_paused_{session.id}"):
             continue
 
-        reachable = (_is_device_reachable(session.mac_address, session.ip_address, fresh=True)
-                     if session.power_paused else _is_device_reachable(session.mac_address, session.ip_address))
-        if reachable:
-            # Device is back online — check if max pause duration was exceeded
-            max_pause_hours = session.plan.pause_duration_limit if (session.plan and session.plan.pause_duration_limit > 0) else settings_obj.global_pause_limit_hours
-            if not session.power_paused and max_pause_hours > 0 and session.paused_at:
-                paused_hours = (timezone.now() - session.paused_at).total_seconds() / 3600.0
-                if paused_hours >= max_pause_hours:
-                    session.expire_session()
-                    cache.delete(f"auto_paused_{session.id}")
-                    cache.delete(f"manual_pause_{session.id}")
-                    logger.info(f'Expired session {session.id} for {session.mac_address} during auto-resume: exceeded {max_pause_hours}h pause limit')
-                    continue
+        eligible_sessions.append(session)
 
-            # Check if network is full before allowing resume
-            from dashboard.models import SystemSettings
-            settings_obj = SystemSettings.get_settings()
-            max_sessions = settings_obj.max_concurrent_sessions if settings_obj else getattr(settings, "PISONET_MAX_CONCURRENT_SESSIONS", 50)
-            active_count = Session.objects.filter(status="active").count()
-            if active_count >= max_sessions:
-                logger.warning(f'Cannot auto-resume {session.mac_address} — network full')
-                continue
-
-            if session.power_paused:
-                from .power_recovery import resume_power_session
-                if not resume_power_session(session):
+    reachability = _probe_session_devices(eligible_sessions)
+    for session in eligible_sessions:
+        if not reachability[session.pk]:
+            continue
+        granted = False
+        try:
+            # Probe outside the lock, but validate and reserve the slot inside
+            # the same lock used by web admissions and administrator resumes.
+            with session_capacity_lock() as current_settings:
+                current = Session.objects.select_for_update(of=('self',)).select_related('plan').filter(
+                    pk=session.pk, status='paused', ip_address=session.ip_address,
+                    mac_address=session.mac_address).first()
+                if current is None or current.power_paused != session.power_paused:
                     continue
-            else:
-                session.resume_session()
-                dl_kbps = int(session.plan.speed_limit * 1024) if session.plan and session.plan.speed_limit else None
-                ul_kbps = int(session.plan.speed_limit_upload * 1024) if session.plan and session.plan.speed_limit_upload else dl_kbps
-                iptables.allow_device(session.mac_address, rate_kbps=dl_kbps, upload_kbps=ul_kbps)
+                if not current.power_paused:
+                    if not current_settings.enable_auto_pause_resume:
+                        continue
+                    if (cache.get(f'manual_pause_{current.id}') or
+                            cache.get(f'outage_paused_{current.id}') or
+                            not cache.get(f'auto_paused_{current.id}')):
+                        continue
+                    max_pause_hours = current.plan.pause_duration_limit if (
+                        current.plan and current.plan.pause_duration_limit > 0
+                    ) else current_settings.global_pause_limit_hours
+                    if max_pause_hours > 0 and current.paused_at:
+                        paused_hours = (timezone.now() - current.paused_at).total_seconds() / 3600.0
+                        if paused_hours >= max_pause_hours:
+                            current.expire_session()
+                            cache.delete(f'auto_paused_{current.id}')
+                            cache.delete(f'manual_pause_{current.id}')
+                            continue
+                from .models import SuspiciousDevice
+                if SuspiciousDevice.objects.filter(Q(status='blocked') | Q(is_blocked=True),
+                                                   mac_address__iexact=current.mac_address).exists():
+                    continue
+                if current.time_remaining_seconds <= 0:
+                    continue
+                if Session.objects.filter(status='active').count() >= current_settings.max_concurrent_sessions:
+                    continue
+                if current.power_paused:
+                    from .power_recovery import resume_power_session
+                    if not resume_power_session(current):
+                        continue
+                else:
+                    dl_kbps = int(current.plan.speed_limit * 1024) if current.plan and current.plan.speed_limit else None
+                    ul_kbps = int(current.plan.speed_limit_upload * 1024) if current.plan and current.plan.speed_limit_upload else dl_kbps
+                    if not iptables.allow_device(current.mac_address, rate_kbps=dl_kbps, upload_kbps=ul_kbps):
+                        iptables.block_device(current.mac_address)
+                        continue
+                    granted = True
+                    if not current.resume_session():
+                        iptables.block_device(current.mac_address)
+                        continue
             cache.delete(f"auto_paused_{session.id}")
             cache.delete(f"manual_pause_{session.id}")
             cache.delete(f"outage_paused_{session.id}")
             resumed_count += 1
             logger.info(f'Auto-resumed session {session.id} for {session.mac_address}')
+        except Exception:
+            logger.exception('Could not auto-resume disconnected session %s', session.pk)
+            if granted:
+                # Only revoke a rolled-back grant, not a competing resume.
+                with session_capacity_lock():
+                    current = Session.objects.select_for_update().filter(pk=session.pk, status='paused').first()
+                    if current:
+                        iptables.block_device(current.mac_address)
 
     if resumed_count:
         logger.info(f'Auto-resume check: resumed={resumed_count}')
 
-    return f'Checked {paused_sessions.count()} paused sessions, auto-resumed {resumed_count}'
+    return f'Checked {len(paused_sessions)} paused sessions, auto-resumed {resumed_count}'
 
 
 _MEMORY_STATE = {}

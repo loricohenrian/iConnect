@@ -236,7 +236,7 @@
                         <div class="form-group mb-0">
                             <label class="form-label" for="auto_pause_timeout_seconds">Disconnect Timeout (Seconds)</label>
                             <input type="number" min="60" max="86400" class="form-input" id="auto_pause_timeout_seconds" name="auto_pause_timeout_seconds" value="{{ settings.auto_pause_timeout_seconds }}" required>
-                            <small class="form-hint">Grace period before an offline user session is frozen (Default: 300s).</small>
+                            <small class="form-hint">Grace period after a device is detected offline. Checked every 10 seconds; pauses on the next check after this timeout (Default: 300s). Pause limits still apply.</small>
                         </div>
                     </div>
 

@@ -267,13 +267,15 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'sessions_app.tasks.enforce_pre_auth_dns_policy',
         'schedule': crontab(minute='*'),
     },
-    'auto-pause-disconnected-sessions-every-30s': {
+    'auto-pause-disconnected-sessions-every-10s': {
         'task': 'sessions_app.tasks.auto_pause_disconnected_sessions',
-        'schedule': 30.0,
+        'schedule': 10.0,
+        'options': {'expires': 20},  # Stale scans must not pile up behind busy tasks.
     },
     'auto-resume-connected-sessions-every-30s': {
         'task': 'sessions_app.tasks.auto_resume_connected_sessions',
         'schedule': 30.0,
+        'options': {'expires': 30},
     },
     'check-internet-status-every-30s': {
         'task': 'sessions_app.tasks.check_internet_status',
