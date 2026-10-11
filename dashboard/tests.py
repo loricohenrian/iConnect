@@ -1,6 +1,7 @@
 from datetime import timedelta
 from django.contrib.auth import get_user_model
-from django.test import TestCase, override_settings
+from django.test import SimpleTestCase, TestCase, override_settings
+from django.template.loader import render_to_string
 from django.utils import timezone
 from rest_framework.test import APIClient
 from unittest.mock import patch
@@ -9,6 +10,21 @@ from sessions_app.models import Plan, Session, SuspiciousDevice, CoinEvent, Sess
 from dashboard.models import RevenueGoal, DailyRevenueSummary, ProjectCost, IssueReport, OperatingExpense
 from reports.models import ReportDeliveryLog
 from django.core.cache import cache
+
+
+class DashboardSidebarTests(SimpleTestCase):
+    def test_security_menu_is_hidden_without_removing_its_route(self):
+        from django.urls import resolve, reverse
+
+        html = render_to_string('base_dashboard.html', {
+            'active_page': 'sessions',
+            'new_security_alerts_count': 3,
+        })
+        self.assertNotIn('id="nav-security"', html)
+        self.assertNotIn('<span>Security</span>', html)
+        for item in ('nav-logs', 'nav-plans', 'nav-issues'):
+            self.assertIn(f'id="{item}"', html)
+        self.assertEqual(resolve(reverse('dashboard:security')).view_name, 'dashboard:security')
 
 
 class DashboardSecurityTests(TestCase):
