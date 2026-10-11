@@ -51,6 +51,33 @@ class RevenueTemplateTests(SimpleTestCase):
             self.assertIn(retained, html)
 
 
+class AccountTemplateTests(SimpleTestCase):
+    def test_account_table_hides_role_and_keeps_account_controls(self):
+        from re import findall
+
+        current_user = {'id': 1, 'username': 'master_admin', 'email': 'admin@example.com'}
+        other_user = {'id': 2, 'username': 'technician_bob', 'email': 'bob@example.com'}
+        for users in ([], [current_user, other_user]):
+            with self.subTest(users=len(users)):
+                html = render_to_string('dashboard/account.html', {
+                    'request': {'user': current_user},
+                    'admin_users': users,
+                })
+                table = html.split('<table>', 1)[1].split('</table>', 1)[0]
+                self.assertNotIn('<th>Role</th>', table)
+                self.assertNotIn('Superadmin', table)
+                self.assertEqual(len(findall(r'<th(?:\s|>)', table)), 5)
+                self.assertEqual(table.count('<td'), 5 * len(users))
+                for retained in ('Username', 'Email', 'Date Joined', 'Last Login', 'Action'):
+                    self.assertIn(retained, table)
+                for control in ('value="update_email"', 'value="change_password"',
+                                'value="create_admin"', 'value="delete_admin"'):
+                    self.assertIn(control, html)
+                if users:
+                    self.assertIn('Current session', table)
+                    self.assertIn("openDeleteAdminModal('2', 'technician_bob')", table)
+
+
 class DashboardSecurityTests(TestCase):
     def setUp(self):
         self.client = APIClient()

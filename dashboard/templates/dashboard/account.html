@@ -144,7 +144,6 @@
                 <tr>
                     <th>Username</th>
                     <th>Email</th>
-                    <th>Role</th>
                     <th>Date Joined</th>
                     <th>Last Login</th>
                     <th style="text-align: right;">Action</th>
@@ -165,9 +164,6 @@
                         </div>
                     </td>
                     <td class="text-xs text-muted">{{ u.email|default:"No email set" }}</td>
-                    <td>
-                        <span class="badge badge-active" style="background: rgba(16,185,129,0.15); color: #059669; font-weight: 600;">Superadmin</span>
-                    </td>
                     <td class="text-xs text-muted">{{ u.date_joined|date:"M d, Y" }}</td>
                     <td class="text-xs text-muted">{{ u.last_login|date:"M d, Y H:i"|default:"Never" }}</td>
                     <td style="text-align: right;">
