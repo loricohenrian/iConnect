@@ -2625,12 +2625,8 @@ def settings_view(request):
             settings_obj.global_pause_limit_hours = parse_bounded_int(
                 request.POST.get('global_pause_limit_hours'), 0, 720, "Global Max Pause Hours", default=settings_obj.global_pause_limit_hours
             )
-            settings_obj.min_extend_amount_for_pause = parse_bounded_int(
-                request.POST.get('min_extend_amount_for_pause'), 0, 1000, "Min Extension Amount for Pause", default=settings_obj.min_extend_amount_for_pause
-            )
-            settings_obj.max_session_pause_cap = parse_bounded_int(
-                request.POST.get('max_session_pause_cap'), 0, 100, "Max Session Pause Cap", default=settings_obj.max_session_pause_cap
-            )
+            # Retired pause controls are not editable through this form. Keep
+            # their stored values for existing bonus/admin allowance behavior.
             
             # Network & Automation Features
             settings_obj.enable_internet_check = request.POST.get('enable_internet_check') == 'on'
