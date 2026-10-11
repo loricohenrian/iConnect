@@ -27,6 +27,21 @@ class DashboardSidebarTests(SimpleTestCase):
         self.assertEqual(resolve(reverse('dashboard:security')).view_name, 'dashboard:security')
 
 
+class RevenueTemplateTests(SimpleTestCase):
+    def test_revenue_page_has_no_export_or_reset_controls(self):
+        html = render_to_string('dashboard/revenue.html', {
+            'period': 'month',
+            'plan_labels': [],
+            'plan_data': [],
+        })
+        for removed in ('Export CSV', 'Reset Sales', 'resetModal',
+                        'showResetModal', 'hideResetModal', 'value="reset_sales"'):
+            self.assertNotIn(removed, html)
+        for retained in ('Total Revenue', 'Sales Breakdown by Plan',
+                         'Date Range Filter', 'Filtered Sessions', 'plan-sales-chart'):
+            self.assertIn(retained, html)
+
+
 class DashboardSecurityTests(TestCase):
     def setUp(self):
         self.client = APIClient()
@@ -1743,10 +1758,12 @@ class RevenueHardeningTests(TestCase):
         response = self.client.get("/iconnect-ops/revenue/")
         self.assertEqual(response.status_code, 200)
         for removed in ("Revenue Targets", "Edit Goals", "goalsModal", "showGoalsModal",
-                        "goal-today-", "goal-week-", 'value="update_goal"'):
+                        "goal-today-", "goal-week-", 'value="update_goal"',
+                        "Export CSV", "Reset Sales", "resetModal", "showResetModal",
+                        "hideResetModal", 'value="reset_sales"'):
             self.assertNotContains(response, removed)
         for retained in ("Total Revenue", "Sales Breakdown by Plan", "Date Range Filter",
-                         "Filtered Sessions", "Export CSV", "Reset Sales", "resetModal"):
+                         "Filtered Sessions"):
             self.assertContains(response, retained)
         self.assertEqual(RevenueGoal.objects.get(period="daily").target_amount, 500)
         self.assertEqual(RevenueGoal.objects.get(period="weekly").target_amount, 3500)
