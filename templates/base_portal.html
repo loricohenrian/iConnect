@@ -153,7 +153,7 @@
                 <h4 style="margin:0 0 6px 0; font-size:13px; color:var(--color-primary); font-weight:700;">How to Earn Points</h4>
                 <ul style="list-style:none; padding:0; margin:0; font-size:12px; color:var(--color-dark); line-height:1.6;">
                     <li><strong style="color:var(--color-primary);">Spend money:</strong> Earn <span id="help-pts-peso">1</span> pt per ₱1 spent on sessions</li>
-                    <li><strong style="color:var(--color-warning);">Daily streak:</strong> Connect daily to earn <span id="help-pts-streak">5</span> pts per day</li>
+                    <li><strong style="color:var(--color-warning);">Daily streak:</strong> Start or resume a paid session to earn <span id="help-pts-streak">5</span> pts once per day. Opening the portal alone does not earn points.</li>
                     <li><strong style="color:var(--color-primary);">Daily limit:</strong> Resets every midnight</li>
                 </ul>
             </div>
@@ -248,7 +248,7 @@ function loadSpinData() {
             document.getElementById('spin-remaining').textContent = data.remaining_spins;
             document.getElementById('spin-fab-pts').textContent = data.points;
             document.getElementById('help-pts-peso').textContent = data.points_per_peso || 1;
-            document.getElementById('help-pts-streak').textContent = data.points_per_streak || 5;
+            document.getElementById('help-pts-streak').textContent = data.points_per_streak ?? 5;
 
             spinPrizes = data.prizes || [];
             renderWheel(spinPrizes);

@@ -762,31 +762,37 @@ class DeviceProfile(models.Model):
         return f"{self.mac_address} - Points: {self.points} | Streak: {self.current_streak}"
 
     @classmethod
-    def record_connection(cls, mac_address):
-        if not mac_address:
+    def record_session_start(cls, session):
+        """Award once per local day after a successful paid activation.
+
+        A conditional database update makes simultaneous starts idempotent and
+        adds to the latest points balance instead of overwriting a stale copy.
+        Call only after access succeeds, inside the activation transaction.
+        """
+        if (not session.pk or session.status != 'active' or not session.mac_address
+                or session.time_remaining_seconds <= 0):
+            return None
+        paid_group = session.session_group_id and session.session_group.total_price > 0
+        if session.amount_paid <= 0 and not paid_group:
             return None
         from dashboard.models import SystemSettings
-        from django.utils import timezone
-        from datetime import timedelta
-
         settings_obj = SystemSettings.get_settings()
-        profile, created = cls.objects.get_or_create(mac_address=mac_address)
+        if not settings_obj.enable_spin_wheel or settings_obj.points_per_streak_day <= 0:
+            return None
+        profile, _ = cls.objects.get_or_create(mac_address=session.mac_address.upper())
         today = timezone.localdate()
-
-        if profile.last_connected_date == today:
-            return profile
-
-        if profile.last_connected_date == today - timedelta(days=1):
-            profile.current_streak += 1
-            if settings_obj.enable_spin_wheel:
-                profile.points += settings_obj.points_per_streak_day
-        else:
-            profile.current_streak = 1
-            if settings_obj.enable_spin_wheel:
-                profile.points += settings_obj.points_per_streak_day
-
-        profile.last_connected_date = today
-        profile.save()
+        cls.objects.filter(pk=profile.pk).filter(
+            models.Q(last_connected_date__isnull=True) | models.Q(last_connected_date__lt=today)
+        ).update(
+            points=models.F('points') + settings_obj.points_per_streak_day,
+            current_streak=models.Case(
+                models.When(last_connected_date=today-timedelta(days=1),
+                            then=models.F('current_streak') + 1),
+                default=models.Value(1), output_field=models.PositiveIntegerField(),
+            ),
+            last_connected_date=today,
+        )
+        profile.refresh_from_db()
         return profile
 
     @classmethod
@@ -800,10 +806,10 @@ class DeviceProfile(models.Model):
             if not settings_obj.enable_spin_wheel or settings_obj.points_per_peso <= 0:
                 return None
                 
-            profile, _ = cls.objects.get_or_create(mac_address=mac_address)
+            profile, _ = cls.objects.get_or_create(mac_address=mac_address.upper())
             points_earned = int(round(float(amount_spent) * float(settings_obj.points_per_peso)))
-            profile.points += points_earned
-            profile.save(update_fields=['points'])
+            cls.objects.filter(pk=profile.pk).update(points=models.F('points') + points_earned)
+            profile.refresh_from_db()
             return profile
         except Exception:
             return None

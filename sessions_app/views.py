@@ -1511,6 +1511,7 @@ def session_start(request):
 
             if not iptables.allow_device(mac_address, rate_kbps=dl_kbps, upload_kbps=ul_kbps):
                 raise RuntimeError("Failed to allow internet access for this device")
+            DeviceProfile.record_session_start(session)
     except RuntimeError as exc:
         return Response({"error": str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
@@ -1722,6 +1723,8 @@ def session_join_group(request):
             if locked_group.max_devices > 0:
                 slot_value = locked_group.total_price / locked_group.max_devices
                 DeviceProfile.add_spending_points(mac_address, slot_value)
+            if not existing_session:
+                DeviceProfile.record_session_start(session)
 
     except RuntimeError as exc:
         return Response({"error": str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
@@ -1931,6 +1934,7 @@ def session_extend(request):
             ul_kbps = int(voucher_session.plan.speed_limit_upload * 1024) if voucher_session.plan and voucher_session.plan.speed_limit_upload else dl_kbps
             if not iptables.allow_device(mac_address, rate_kbps=dl_kbps, upload_kbps=ul_kbps):
                 raise RuntimeError("Failed to restore internet access for this device")
+            DeviceProfile.record_session_start(voucher_session)
     except RuntimeError as exc:
         return Response(
             {"error": str(exc)},
@@ -2094,6 +2098,7 @@ def session_extend_paid(request):
                 effective_plan = combo["highest_plan"]
                 multiplier = 1
 
+            was_active = bool(active_session and active_session.status == 'active')
             if not active_session:
                 active_session = Session.objects.create(
                     mac_address=mac_address,
@@ -2187,16 +2192,19 @@ def session_extend_paid(request):
             else:
                 DeviceProfile.add_spending_points(mac_address, amount_paid)
             
+            activation_allowed = False
             try:
                 dl_kbps = int(effective_plan.speed_limit * 1024) if effective_plan.speed_limit else None
                 ul_kbps = int(effective_plan.speed_limit_upload * 1024) if effective_plan.speed_limit_upload else dl_kbps
 
                 if active_session.status == "active":
-                    iptables.allow_device(mac_address, rate_kbps=dl_kbps, upload_kbps=ul_kbps)
+                    activation_allowed = iptables.allow_device(mac_address, rate_kbps=dl_kbps, upload_kbps=ul_kbps)
                 elif speed_changed:
                     iptables.apply_bandwidth_limit(mac_address, rate_kbps=dl_kbps, upload_kbps=ul_kbps)
             except Exception as e:
                 audit_logger.warning("iptables_extend_warning mac=%s error=%s", mac_address, e)
+            if activation_allowed and not was_active:
+                DeviceProfile.record_session_start(active_session)
 
             used_amount = 0
             for event in _pending_coin_events_for_mac(mac_address):
@@ -2437,6 +2445,8 @@ def session_pause_toggle(request):
         cache.delete(f"manual_pause_{session.id}")
         cache.delete(f"auto_paused_{session.id}")
         cache.delete(f"outage_paused_{session.id}")
+        if allowed:
+            DeviceProfile.record_session_start(session)
         pauses_left = session.pauses_left
         audit_logger.info(
             "event=session_resumed mac=%s allowed=%s ip=%s",

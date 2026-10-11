@@ -220,7 +220,7 @@ def index(request):
             session__isnull=True,
         ).aggregate(total=Sum("amount"))["total"] or 0
         from sessions_app.models import DeviceProfile
-        device_profile = DeviceProfile.record_connection(mac_address)
+        device_profile, _ = DeviceProfile.objects.get_or_create(mac_address=mac_address)
 
     # Connection slots & Internet Check
     from dashboard.models import SystemSettings
@@ -331,7 +331,7 @@ def session_page(request):
     available_slots = max(0, max_slots - active_count)
     
     from sessions_app.models import DeviceProfile
-    device_profile = DeviceProfile.record_connection(mac_address)
+    device_profile, _ = DeviceProfile.objects.get_or_create(mac_address=mac_address)
 
     group_code_remaining_display = None
     group_code_remaining_seconds = 0
@@ -684,7 +684,7 @@ def api_execute_spin(request):
     import random
     from django.http import JsonResponse
     from django.utils import timezone
-    from django.db import transaction
+    from sessions_app.capacity import session_capacity_lock
     from django.core.cache import cache
     from dashboard.models import SystemSettings
     from sessions_app.models import DeviceProfile, SpinPrize, Session
@@ -714,7 +714,9 @@ def api_execute_spin(request):
         return JsonResponse({"status": "error", "message": "Your device has been blocked by the administrator."}, status=403)
 
     try:
-        with transaction.atomic():
+        # Use the same outer lock as paid activations before taking profile and
+        # session locks, so a simultaneous spin/resume cannot invert lock order.
+        with session_capacity_lock():
             device_profile, _ = DeviceProfile.objects.select_for_update().get_or_create(mac_address=mac_address)
 
             today = timezone.localdate()
