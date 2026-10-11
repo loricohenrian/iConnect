@@ -602,6 +602,18 @@ def calculate_combo_for_amount(amount):
     }
 
 
+def _purchase_pause_allowance(plan, multiplier=1, combo=None):
+    """Count allowances for each purchased plan unit, including mixed plans.
+
+    A group pass uses multiplier=1 because its payment buys one plan per
+    device, not multiple plan units for the host. Zero means unlimited.
+    """
+    units = combo["breakdown"] if combo is not None else [(plan, multiplier)]
+    if any(p.pause_limit == 0 for p, count in units if count > 0):
+        return 0
+    return sum(p.pause_limit * count for p, count in units)
+
+
 WORD_NUMS = {1: "one", 2: "two", 3: "three", 4: "four", 5: "five"}
 
 
@@ -974,6 +986,7 @@ def coin_inserted(request):
                 plan=plan,
                 duration_minutes_purchased=plan.duration_minutes,
                 amount_paid=amount,
+                pause_limit=plan.pause_limit,
                 status="paused",
                 voucher_code=voucher_code,
             )
@@ -1460,6 +1473,7 @@ def session_start(request):
                 time_in=timezone.now(),
                 duration_minutes_purchased=actual_duration,
                 amount_paid=amount_paid,
+                pause_limit=_purchase_pause_allowance(plan, multiplier, combo),
                 ip_address=ip_address,
                 device_name=device_name,
                 status="active",
@@ -1678,11 +1692,12 @@ def session_join_group(request):
             pass_duration = locked_group.duration_minutes or group_plan.duration_minutes
             if existing_session:
                 # Extend existing active or paused session
+                existing_session.add_purchased_pauses(group_plan.pause_limit)
                 existing_session.duration_minutes_purchased += pass_duration
                 existing_session.session_group = locked_group
                 if ip_address:
                     existing_session.ip_address = ip_address
-                existing_session.save(update_fields=["duration_minutes_purchased", "session_group", "ip_address"])
+                existing_session.save(update_fields=["duration_minutes_purchased", "session_group", "ip_address", "pause_limit"])
                 session = existing_session
 
                 if session.status == "active":
@@ -1699,6 +1714,7 @@ def session_join_group(request):
                     time_in=timezone.now(),
                     duration_minutes_purchased=pass_duration,
                     amount_paid=0,
+                    pause_limit=group_plan.pause_limit,
                     ip_address=ip_address,
                     device_name=device_name,
                     status="active",
@@ -1843,6 +1859,10 @@ def session_extend(request):
     if active_session:
         active_session.extend_session(voucher_session.duration_minutes_purchased)
         active_session.amount_paid += voucher_session.amount_paid
+        # Capture inherited allowances before a higher-speed plan replaces
+        # the old plan. Transfer the voucher's actual allowance, not one tier.
+        if voucher_session.plan or voucher_session.pause_limit is not None:
+            active_session.add_purchased_pauses(voucher_session.effective_pause_limit)
         
         # Speed Always Wins logic
         speed_changed = False
@@ -1856,26 +1876,9 @@ def session_extend(request):
             active_session.plan = voucher_session.plan
             speed_changed = True
             
-        update_fields = ["duration_minutes_purchased", "amount_paid", "status", "time_in"]
+        update_fields = ["duration_minutes_purchased", "amount_paid", "status", "time_in", "pause_limit"]
         if speed_changed:
             update_fields.append("plan")
-
-        if voucher_session.plan:
-            from dashboard.models import SystemSettings
-            sys_settings = SystemSettings.get_settings()
-            min_extend = getattr(sys_settings, 'min_extend_amount_for_pause', 5)
-            pause_cap = getattr(sys_settings, 'max_session_pause_cap', 5)
-            voucher_val = voucher_session.plan.price or voucher_session.amount_paid or 0
-
-            if voucher_val >= min_extend:
-                v_limit = voucher_session.plan.pause_limit
-                if v_limit == 0:
-                    active_session.pause_limit = 0
-                    update_fields.append("pause_limit")
-                elif v_limit > 0:
-                    plan_cap = max(pause_cap, v_limit) if pause_cap > 0 else 0
-                    active_session.add_pauses(v_limit, cap=plan_cap)
-                    update_fields.append("pause_limit")
 
         active_session.save(update_fields=update_fields)
 
@@ -2099,6 +2102,8 @@ def session_extend_paid(request):
                 multiplier = 1
 
             was_active = bool(active_session and active_session.status == 'active')
+            fresh_allowance = not active_session or active_session.status == 'expired'
+            earned_pauses = _purchase_pause_allowance(effective_plan, multiplier, combo)
             if not active_session:
                 active_session = Session.objects.create(
                     mac_address=mac_address,
@@ -2106,6 +2111,7 @@ def session_extend_paid(request):
                     time_in=timezone.now(),
                     duration_minutes_purchased=0,
                     amount_paid=0,
+                    pause_limit=earned_pauses,
                     ip_address=request_ip,
                     status="active",
                 )
@@ -2142,6 +2148,11 @@ def session_extend_paid(request):
 
             active_session.extend_session(duration_minutes)
             active_session.amount_paid = (active_session.amount_paid or 0) + amount_paid
+            if fresh_allowance:
+                active_session.pause_limit = earned_pauses
+            else:
+                # Freeze any inherited old-plan limit before the speed upgrade.
+                active_session.add_purchased_pauses(earned_pauses)
             
             # Speed Always Wins logic
             speed_changed = False
@@ -2155,7 +2166,9 @@ def session_extend_paid(request):
                 active_session.plan = effective_plan
                 speed_changed = True
 
-            update_fields = ["duration_minutes_purchased", "amount_paid", "status", "time_in", "time_out", "total_paused_seconds", "paused_at"]
+            update_fields = ["duration_minutes_purchased", "amount_paid", "status", "time_in", "time_out", "total_paused_seconds", "paused_at", "pause_limit"]
+            if fresh_allowance:
+                update_fields.append("pause_count")
             if active_session.ip_address:
                 update_fields.append("ip_address")
             if speed_changed:
@@ -2163,22 +2176,6 @@ def session_extend_paid(request):
             if is_group_pass and session_group:
                 update_fields.append("session_group")
 
-            # Option 4 Pause Replenishment Shield:
-            # Only grants extra pauses if extension payment meets minimum threshold (e.g. ₱5),
-            # protecting against ₱1 pause exploit while enforcing max session pause cap.
-            min_extend = getattr(settings_obj, 'min_extend_amount_for_pause', 5)
-            pause_cap = getattr(settings_obj, 'max_session_pause_cap', 5)
-
-            if effective_plan and amount_paid >= min_extend:
-                if effective_plan.pause_limit == 0:
-                    active_session.pause_limit = 0
-                    update_fields.append("pause_limit")
-                else:
-                    earned_pauses = effective_plan.pause_limit * multiplier
-                    plan_cap = max(pause_cap, effective_plan.pause_limit) if pause_cap > 0 else 0
-                    active_session.add_pauses(earned_pauses, cap=plan_cap)
-                    update_fields.append("pause_limit")
-                
             active_session.save(update_fields=update_fields)
             
             PurchaseTransaction.objects.create(

@@ -380,8 +380,24 @@ class Session(models.Model):
 
             new_left = current_left + count
             if cap and cap > 0 and new_left > cap:
-                new_left = cap
+                # A capped bonus must never remove previously purchased pauses.
+                new_left = max(current_left, cap)
             self.pause_limit = self.pause_count + new_left
+
+    def add_purchased_pauses(self, count):
+        """Grant paid plan allowances without the bonus/admin pause cap.
+
+        The caller must save pause_limit within its purchase transaction.
+        Zero retains the plan convention of unlimited pauses; used pauses
+        remain used, and an existing unlimited allowance stays unlimited.
+        """
+        if count < 0:
+            raise ValueError("Purchased pause allowance cannot be negative")
+        limit = self.effective_pause_limit
+        if count == 0 or limit == 0:
+            self.pause_limit = 0
+        else:
+            self.pause_limit = limit + count
 
     def extend_session(self, additional_minutes, additional_pauses=None):
         """Extend the session by adding more time and optional pause chances."""

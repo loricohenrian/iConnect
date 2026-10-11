@@ -1641,8 +1641,8 @@ class BandwidthTrackingTests(TestCase):
         self.assertEqual(status_res.status_code, 200)
         self.assertEqual(status_res.data["pauses_left"], 4)
 
-    def test_one_peso_extend_does_not_grant_extra_pauses(self):
-        """Test that extending with ₱1 (below minimum threshold) adds time but grants 0 extra pauses."""
+    def test_one_peso_extend_grants_its_purchased_plan_pauses(self):
+        """Every paid plan unit grants its allowance, including a ₱1 plan."""
         from dashboard.models import SystemSettings
         sys_settings = SystemSettings.get_settings()
         sys_settings.min_extend_amount_for_pause = 5
@@ -1679,12 +1679,12 @@ class BandwidthTrackingTests(TestCase):
         session.refresh_from_db()
         # Time purchased increased by 15 mins (30 + 15 = 45)
         self.assertEqual(session.duration_minutes_purchased, 45)
-        # But pauses_left is STILL 2 (no cheap ₱1 pause exploit allowed!)
-        self.assertEqual(session.pauses_left, 2)
-        self.assertEqual(response.data["pauses_left"], 2)
+        # The paid ₱1 unit adds its one pause, regardless of the legacy threshold.
+        self.assertEqual(session.pauses_left, 3)
+        self.assertEqual(response.data["pauses_left"], 3)
 
-    def test_pause_cap_enforced_on_extend(self):
-        """Test that pauses cannot exceed max_session_pause_cap."""
+    def test_paid_extension_is_not_clipped_by_bonus_pause_cap(self):
+        """Purchased pause allowances accumulate without the bonus cap."""
         from dashboard.models import SystemSettings
         sys_settings = SystemSettings.get_settings()
         sys_settings.min_extend_amount_for_pause = 5
@@ -1704,7 +1704,7 @@ class BandwidthTrackingTests(TestCase):
         )
         self.assertEqual(session.pauses_left, 4)
 
-        # Extend with another 4-pause plan: 4 + 4 = 8, but capped at 5!
+        # Extend with another 4-pause plan: 4 + 4 = 8, without the bonus cap.
         CoinEvent.objects.create(
             mac_address=mac,
             amount=5,
@@ -1719,11 +1719,11 @@ class BandwidthTrackingTests(TestCase):
         self.assertEqual(response.status_code, 200)
 
         session.refresh_from_db()
-        self.assertEqual(session.pauses_left, 5)  # Capped at 5!
-        self.assertEqual(response.data["pauses_left"], 5)
+        self.assertEqual(session.pauses_left, 8)
+        self.assertEqual(response.data["pauses_left"], 8)
 
-    def test_higher_tier_plan_elevates_pause_cap(self):
-        """Test that purchasing a higher tier plan with a pause limit exceeding global cap honors the higher limit."""
+    def test_higher_tier_purchase_preserves_and_adds_allowances(self):
+        """Purchasing a higher tier adds to the original allowance without clipping."""
         from dashboard.models import SystemSettings
         sys_settings = SystemSettings.get_settings()
         sys_settings.min_extend_amount_for_pause = 5
@@ -1759,10 +1759,10 @@ class BandwidthTrackingTests(TestCase):
         self.assertEqual(response.status_code, 200)
 
         session.refresh_from_db()
-        # Cap was elevated to 10 because the VIP plan explicitly comes with 10 pauses!
-        self.assertEqual(session.effective_pause_limit, 10)
-        self.assertEqual(session.pauses_left, 10)
-        self.assertEqual(response.data["pauses_left"], 10)
+        # The original 2 and purchased 10 opportunities are both retained.
+        self.assertEqual(session.effective_pause_limit, 12)
+        self.assertEqual(session.pauses_left, 12)
+        self.assertEqual(response.data["pauses_left"], 12)
 
 
 
