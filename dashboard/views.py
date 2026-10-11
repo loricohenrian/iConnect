@@ -2737,6 +2737,7 @@ def settings_view(request):
     context = {
         'active_page': 'settings',
         'settings': settings_obj,
+        'backup_is_postgresql': settings.DATABASES.get('default', {}).get('ENGINE') == 'django.db.backends.postgresql',
     }
     return render(request, 'dashboard/settings.html', context)
 
@@ -3308,85 +3309,29 @@ def delete_prize_view(request, prize_id):
     return redirect('dashboard:gamification')
 import os
 from django.conf import settings
-from django.http import FileResponse, Http404
+from django.http import FileResponse
 
 @user_passes_test(_is_dashboard_admin, login_url='dashboard:login')
 def backup_database(request):
-    import io
-    import sqlite3
-    from pathlib import Path
-    from django.core.management import call_command
-    from django.http import HttpResponse
-
-    # 1. Check configured database name
-    db_config = settings.DATABASES.get('default', {})
-    db_name = db_config.get('NAME')
-    
-    candidate_paths = []
-    if db_name:
-        candidate_paths.append(Path(db_name))
-    candidate_paths.extend([
-        Path(settings.BASE_DIR) / 'db.sqlite3',
-        Path(settings.BASE_DIR) / 'pisowifi' / 'db.sqlite3',
-        Path(settings.BASE_DIR).parent / 'db.sqlite3',
-        Path('/opt/iconnect/pisowifi/db.sqlite3'),
-        Path('/opt/iconnect/db.sqlite3'),
-    ])
-
-    found_path = None
-    for p in candidate_paths:
-        try:
-            if p and p.is_file() and p.stat().st_size > 0:
-                found_path = p
-                break
-        except Exception:
-            continue
-
-    if found_path:
-        try:
-            # Use SQLite online backup API to flush WAL frames and guarantee atomic snapshot
-            src_conn = sqlite3.connect(str(found_path))
-            dest_conn = sqlite3.connect(':memory:')
-            with dest_conn:
-                src_conn.backup(dest_conn)
-            src_conn.close()
-
-            if hasattr(dest_conn, 'serialize'):
-                content = dest_conn.serialize()
-            else:
-                import tempfile
-                with tempfile.NamedTemporaryFile(suffix='.sqlite3', delete=False) as tmp:
-                    tmp_name = tmp.name
-                file_dest = sqlite3.connect(tmp_name)
-                with file_dest:
-                    dest_conn.backup(file_dest)
-                file_dest.close()
-                with open(tmp_name, 'rb') as f:
-                    content = f.read()
-                Path(tmp_name).unlink(missing_ok=True)
-            dest_conn.close()
-
-            response = HttpResponse(content, content_type='application/x-sqlite3')
-            timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
-            response['Content-Disposition'] = f'attachment; filename="iconnect_backup_{timestamp}.sqlite3"'
-            audit_logger.info("event=database_backup_download user=%s size=%d", request.user.username, len(content))
-            return response
-        except Exception as e:
-            logger.error(f"Error executing SQLite online backup: {e}")
-
-    # Fallback: Django JSON dumpdata backup
+    from .database_backup import DatabaseBackupError, create_database_backup
     try:
-        buffer = io.StringIO()
-        call_command('dumpdata', stdout=buffer, exclude=['contenttypes', 'auth.permission'])
-        json_data = buffer.getvalue().encode('utf-8')
-        response = HttpResponse(json_data, content_type='application/json')
+        archive, extension, content_type = create_database_backup(settings.DATABASES.get('default', {}))
         timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
-        response['Content-Disposition'] = f'attachment; filename="iconnect_backup_{timestamp}.json"'
-        audit_logger.info("event=database_backup_dumpdata user=%s size=%d", request.user.username, len(json_data))
+        try:
+            response = FileResponse(archive, as_attachment=True,
+                                    filename=f'iconnect_backup_{timestamp}.{extension}',
+                                    content_type=content_type)
+        except Exception:
+            archive.close()
+            raise
+        response['Cache-Control'] = 'private, no-store'
+        response['X-Content-Type-Options'] = 'nosniff'
+        audit_logger.info('event=database_backup_download user=%s format=%s', request.user.username, extension)
         return response
-    except Exception as e:
-        logger.error(f"Dumpdata backup failed: {e}")
-        raise Http404("Database backup could not be generated.")
+    except DatabaseBackupError as error:
+        audit_logger.warning('event=database_backup_failed user=%s', request.user.username)
+        return HttpResponse(str(error), status=503, content_type='text/plain',
+                            headers={'Cache-Control': 'private, no-store'})
 
 
 @user_passes_test(_is_dashboard_admin, login_url='dashboard:login')

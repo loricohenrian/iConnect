@@ -261,7 +261,10 @@ class DashboardSecurityTests(TestCase):
         self.assertEqual(s2.status, "paused")
         self.assertEqual(s3.status, "expired")
 
-    def test_backup_database_download(self):
+    @patch('dashboard.database_backup.create_database_backup')
+    def test_backup_database_download(self, create_backup):
+        import io
+        create_backup.return_value = (io.BytesIO(b'PGDMPtest'), 'dump', 'application/octet-stream')
         User = get_user_model()
         user = User.objects.create_user(
             username="backup_admin",
@@ -274,7 +277,8 @@ class DashboardSecurityTests(TestCase):
         resp = self.client.get("/iconnect-ops/settings/backup/")
         self.assertEqual(resp.status_code, 200)
         self.assertIn("attachment; filename=", resp["Content-Disposition"])
-        self.assertTrue(len(resp.content) > 0)
+        self.assertTrue(len(b''.join(resp.streaming_content)) > 0)
+        resp.close()
 
     def test_admin_user_create_and_delete(self):
         User = get_user_model()
@@ -1487,13 +1491,15 @@ class SettingsSystemHardeningTests(TestCase):
         messages_list = list(resp.context['messages'])
         self.assertTrue(any("Telegram Bot Token format appears invalid" in str(m) for m in messages_list))
 
-    def test_backup_database_sqlite(self):
+    @patch('dashboard.database_backup.create_database_backup')
+    def test_backup_database_sqlite(self, create_backup):
+        import io
+        create_backup.return_value = (io.BytesIO(b'SQLite format 3\x00test'), 'sqlite3', 'application/x-sqlite3')
         resp = self.client.get('/iconnect-ops/settings/backup/')
         self.assertEqual(resp.status_code, 200)
-        self.assertIn(resp['Content-Type'], ['application/x-sqlite3', 'application/json'])
-        if resp['Content-Type'] == 'application/x-sqlite3':
-            # SQLite file header check
-            self.assertTrue(resp.content.startswith(b'SQLite format 3\x00'))
+        self.assertEqual(resp['Content-Type'], 'application/x-sqlite3')
+        self.assertTrue(b''.join(resp.streaming_content).startswith(b'SQLite format 3\x00'))
+        resp.close()
 
 
 class UsersSessionsHardeningTests(TestCase):

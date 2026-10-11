@@ -448,7 +448,7 @@
                         </div>
                         <div>
                             <h3 class="settings-card-title">Database Backup & Snapshots</h3>
-                            <p class="settings-card-subtitle">Download a secure snapshot of your current database for safe offsite archiving.</p>
+                            <p class="settings-card-subtitle">Download a backup of the configured database for private off-device storage.</p>
                         </div>
                     </div>
                 </div>
@@ -456,14 +456,15 @@
                 <div class="settings-card-body">
                     <div class="backup-cta-box">
                         <div class="backup-cta-info">
-                            <h4 class="backup-cta-title">Export Complete SQLite Database</h4>
+                            <h4 class="backup-cta-title">{% if backup_is_postgresql %}Export PostgreSQL Database{% else %}Export Database Backup{% endif %}</h4>
                             <p class="backup-cta-desc">
-                                Contains all active sessions, transactions, revenue records, rates, support tickets, streak points, and node configuration settings.
+                                Includes database tables and records: sessions, transactions, revenue, rates, tickets, points, and stored settings. Keep this file private; it contains customer data and stored credentials. It is not encrypted and does not include application files or the Orange Pi operating system.
+                                {% if backup_is_postgresql %}Restore the .dump archive with PostgreSQL's pg_restore; verify restoration in a separate database first.{% endif %}
                             </p>
                         </div>
                         <a href="{% url 'dashboard:backup_database' %}" class="btn btn-secondary" style="display: inline-flex; align-items: center; gap: 8px; font-weight: 600; white-space: nowrap;">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                            Download db.sqlite3
+                            {% if backup_is_postgresql %}Download PostgreSQL Backup{% else %}Download Database Backup{% endif %}
                         </a>
                     </div>
                 </div>
