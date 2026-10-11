@@ -17,7 +17,9 @@
     </svg>
 </div>
 
-<div class="portal-wrapper" data-mac="{{ mac_address|default:'' }}">
+<div class="portal-wrapper" data-mac="{{ mac_address|default:'' }}"
+     data-network-full="{% if slots_available is not None and slots_available <= 0 %}true{% else %}false{% endif %}"
+     data-session-active="{% if session.status == 'active' %}true{% else %}false{% endif %}">
     <!-- Header (Single Top Row) -->
     <header class="portal-header">
         <div class="portal-header-inner">
@@ -56,6 +58,10 @@
             </div>
         </div>
     </header>
+    <div id="network-full-notice" role="status" class="alert alert-warning"
+         {% if slots_available is None or slots_available > 0 or session.status == 'active' %}hidden{% endif %}>
+        Network full—please wait.
+    </div>
 
     <!-- Announcements -->
     <div class="portal-container" id="portal-announcements" style="padding-bottom: 0;{% if not announcements or is_internet_offline or isp_outage %} display: none;{% endif %}">

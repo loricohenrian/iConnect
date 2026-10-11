@@ -5,6 +5,46 @@
 
 const MAC_ADDRESS_RE = /^([0-9A-F]{2}:){5}[0-9A-F]{2}$/;
 
+const NETWORK_FULL_MESSAGE = "Network full—please wait.";
+
+function coinInsertionBlocked() {
+    const portal = document.querySelector('.portal-wrapper');
+    return Boolean(portal && portal.dataset.networkFull === 'true' && portal.dataset.sessionActive !== 'true');
+}
+
+function setCoinRequestDisabled(button, flowDisabled) {
+    if (!button) return;
+    button.dataset.flowDisabled = flowDisabled ? 'true' : 'false';
+    button.disabled = Boolean(flowDisabled || coinInsertionBlocked() ||
+        button.getAttribute('data-outage-disabled') === '1');
+}
+
+function refreshCoinCapacityControls() {
+    const blocked = coinInsertionBlocked();
+    const notice = document.getElementById('network-full-notice');
+    if (notice) notice.hidden = !blocked;
+    for (const id of ['request-slot-btn', 'extend-request-btn', 'btn-group-request-slot']) {
+        const button = document.getElementById(id);
+        if (!button) continue;
+        if (button.dataset.flowDisabled === undefined) {
+            button.dataset.flowDisabled = button.disabled ? 'true' : 'false';
+        }
+        setCoinRequestDisabled(button, button.dataset.flowDisabled === 'true');
+        button.title = blocked ? NETWORK_FULL_MESSAGE : '';
+    }
+}
+
+function updateCoinCapacity(slots, sessionStatus, activeSession) {
+    const portal = document.querySelector('.portal-wrapper');
+    if (!portal) return;
+    if (slots) portal.dataset.networkFull = Number(slots.available) <= 0 ? 'true' : 'false';
+    if (typeof activeSession === 'boolean') portal.dataset.sessionActive = activeSession ? 'true' : 'false';
+    else if (sessionStatus !== undefined) portal.dataset.sessionActive = sessionStatus === 'active' ? 'true' : 'false';
+    refreshCoinCapacityControls();
+}
+
+document.addEventListener('DOMContentLoaded', refreshCoinCapacityControls);
+
 function isCoinCooldownActive() {
     try {
         const stored = localStorage.getItem("iconnect_coin_cooldown_until");
@@ -459,7 +499,7 @@ function initPlanSelection() {
 
             const requestBtn = document.getElementById("request-slot-btn");
             if (requestBtn) {
-                requestBtn.disabled = false;
+                setCoinRequestDisabled(requestBtn, false);
                 setTimeout(() => {
                     requestBtn.scrollIntoView({ behavior: "smooth", block: "center" });
                 }, 80);
@@ -541,7 +581,7 @@ function renderPlans(plans) {
             selectedPlanInput.value = "";
         }
         if (requestBtn) {
-            requestBtn.disabled = true;
+            setCoinRequestDisabled(requestBtn, true);
         }
         if (startBtn) {
             startBtn.disabled = true;
@@ -609,7 +649,7 @@ function renderPlans(plans) {
 
         // As long as plans exist, Insert Coins is available for solo users
         if (requestBtn) {
-            requestBtn.disabled = false;
+            setCoinRequestDisabled(requestBtn, false);
         }
         if (startBtn && startBtn.dataset.readyToStart !== "1") {
             startBtn.disabled = true;
@@ -664,7 +704,7 @@ function renderPlans(plans) {
 
     const extendRequestBtn = document.getElementById("extend-request-btn");
     if (extendRequestBtn) {
-        extendRequestBtn.disabled = !Array.isArray(plans) || plans.length === 0;
+        setCoinRequestDisabled(extendRequestBtn, !Array.isArray(plans) || plans.length === 0);
     }
 }
 
@@ -726,6 +766,7 @@ async function syncPortalLiveData() {
 
         // Update connection slots in real-time
         if (data.slots) {
+            updateCoinCapacity(data.slots, data.session_status, data.device_session_active);
             _updateSlotsIndicator(data.slots);
         }
 
@@ -737,6 +778,7 @@ async function syncPortalLiveData() {
         // Real-time ISP outage check on portal (dynamically detect session page)
         const isSession = Boolean(document.getElementById("session-timer"));
         handlePortalOutageState(data, isSession);
+        refreshCoinCapacityControls();
     } catch (error) {
         console.error("Live data sync error:", error);
     } finally {
@@ -1022,6 +1064,7 @@ function formatCoinRequestMeta(coinRequest) {
 }
 
 function coinRequestStatusMessage(coinRequest, context = "start") {
+    if (coinRequest && coinRequest.network_full) return NETWORK_FULL_MESSAGE;
     if (!coinRequest) {
         return "Unable to read coin request status.";
     }
@@ -1253,6 +1296,7 @@ function initProductionStartFlow(macAddress) {
     };
 
     const applyCoinRequestState = (coinRequest) => {
+        if (coinRequest && coinRequest.network_full) updateCoinCapacity({available: 0}, null);
         state.requestId = coinRequest ? coinRequest.id : null;
         state.readyToStart = Boolean(coinRequest && coinRequest.ready_to_start);
         if (coinRequest) {
@@ -1300,9 +1344,9 @@ function initProductionStartFlow(macAddress) {
 
         // Keep Insert Coins button disabled while coin request is active; enable only if terminal/cancelled
         if (isCoinCooldownActive()) {
-            requestBtn.disabled = true;
+            setCoinRequestDisabled(requestBtn, true);
         } else {
-            requestBtn.disabled = Boolean(coinRequest && !isTerminal);
+            setCoinRequestDisabled(requestBtn, Boolean(coinRequest && !isTerminal));
         }
 
         const activeCard = document.getElementById("coin-deposit-active-card");
@@ -1411,6 +1455,11 @@ function initProductionStartFlow(macAddress) {
     };
 
     requestBtn.addEventListener("click", async () => {
+        if (coinInsertionBlocked()) {
+            setStartFlowMessage(NETWORK_FULL_MESSAGE, "warning");
+            refreshCoinCapacityControls();
+            return;
+        }
         if (!macAddress) {
             setStartFlowMessage("Device identity missing. Re-open portal from WiFi login.", "danger");
             return;
@@ -1424,7 +1473,7 @@ function initProductionStartFlow(macAddress) {
             window.openCoinModal();
         }
 
-        requestBtn.disabled = true;
+        setCoinRequestDisabled(requestBtn, true);
         startBtn.disabled = true;
         startBtn.dataset.readyToStart = "0";
 
@@ -1473,11 +1522,11 @@ function initProductionStartFlow(macAddress) {
             setStartFlowMessage("Connection error while requesting coin slot.", "danger");
         } finally {
             if (isCoinCooldownActive()) {
-                requestBtn.disabled = true;
+                setCoinRequestDisabled(requestBtn, true);
             } else if (!state.requestId) {
-                requestBtn.disabled = false;
+                setCoinRequestDisabled(requestBtn, false);
             } else {
-                requestBtn.disabled = true;
+                setCoinRequestDisabled(requestBtn, true);
             }
         }
     });
@@ -1496,7 +1545,7 @@ function initProductionStartFlow(macAddress) {
             return;
         }
 
-        requestBtn.disabled = true;
+        setCoinRequestDisabled(requestBtn, true);
         startBtn.disabled = true;
         startBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> <span>Connecting...</span>';
 
@@ -1557,9 +1606,9 @@ function initProductionStartFlow(macAddress) {
             setStartFlowMessage("Connection error while starting session.", "danger");
         } finally {
             if (isCoinCooldownActive()) {
-                requestBtn.disabled = true;
+                setCoinRequestDisabled(requestBtn, true);
             } else {
-                requestBtn.disabled = false;
+                setCoinRequestDisabled(requestBtn, false);
             }
             startBtn.innerHTML = '<i class="bi bi-wifi"></i> <span>Connect Now</span>';
             if (!state.readyToStart) {
@@ -1578,9 +1627,9 @@ function initProductionStartFlow(macAddress) {
         }
 
         if (isCoinCooldownActive()) {
-            requestBtn.disabled = true;
+            setCoinRequestDisabled(requestBtn, true);
         } else {
-            requestBtn.disabled = false;
+            setCoinRequestDisabled(requestBtn, false);
         }
 
         if (state.planId && state.planId !== nextPlanId) {
@@ -1620,9 +1669,9 @@ function initExtendSessionFlow(macAddress) {
 
     // Direct Insert Coins is enabled by default (unless cooldown active)
     if (isCoinCooldownActive()) {
-        extendRequestBtn.disabled = true;
+        setCoinRequestDisabled(extendRequestBtn, true);
     } else {
-        extendRequestBtn.disabled = false;
+        setCoinRequestDisabled(extendRequestBtn, false);
     }
     extendNowBtn.disabled = true;
     extendNowBtn.style.display = "none";
@@ -1660,6 +1709,7 @@ function initExtendSessionFlow(macAddress) {
 
     const applyCoinRequestState = (coinRequest) => {
         state.requestId = coinRequest ? coinRequest.id : null;
+        if (coinRequest && coinRequest.network_full) updateCoinCapacity({available: 0}, null);
         state.readyToStart = Boolean(coinRequest && coinRequest.ready_to_start);
         if (coinRequest) {
             state.isGroupPass = Boolean(coinRequest.is_group_pass);
@@ -1703,9 +1753,9 @@ function initExtendSessionFlow(macAddress) {
 
         // Keep Insert Coins button disabled while coin request is active; enable only if terminal/cancelled
         if (isCoinCooldownActive()) {
-            extendRequestBtn.disabled = true;
+            setCoinRequestDisabled(extendRequestBtn, true);
         } else {
-            extendRequestBtn.disabled = Boolean(coinRequest && !isTerminal);
+            setCoinRequestDisabled(extendRequestBtn, Boolean(coinRequest && !isTerminal));
         }
 
         const activeCard = document.getElementById("coin-deposit-active-card");
@@ -1815,9 +1865,9 @@ function initExtendSessionFlow(macAddress) {
             card.classList.add("selected");
             extendPlanInput.value = card.dataset.planId;
             if (isCoinCooldownActive()) {
-                extendRequestBtn.disabled = true;
+                setCoinRequestDisabled(extendRequestBtn, true);
             } else {
-                extendRequestBtn.disabled = false;
+                setCoinRequestDisabled(extendRequestBtn, false);
             }
             setTimeout(() => {
                 extendRequestBtn.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -1845,6 +1895,11 @@ function initExtendSessionFlow(macAddress) {
 
     // Request coin slot for extend
     extendRequestBtn.addEventListener("click", async () => {
+        if (coinInsertionBlocked()) {
+            setExtendMessage(NETWORK_FULL_MESSAGE, "warning");
+            refreshCoinCapacityControls();
+            return;
+        }
         if (isCoinCooldownActive()) {
             return;
         }
@@ -1860,7 +1915,7 @@ function initExtendSessionFlow(macAddress) {
             return;
         }
 
-        extendRequestBtn.disabled = true;
+        setCoinRequestDisabled(extendRequestBtn, true);
         extendNowBtn.disabled = true;
         state.planId = planId;
 
@@ -1900,11 +1955,11 @@ function initExtendSessionFlow(macAddress) {
             setExtendMessage("Connection error.", "danger");
         } finally {
             if (isCoinCooldownActive()) {
-                extendRequestBtn.disabled = true;
+                setCoinRequestDisabled(extendRequestBtn, true);
             } else if (!state.requestId) {
-                extendRequestBtn.disabled = false;
+                setCoinRequestDisabled(extendRequestBtn, false);
             } else {
-                extendRequestBtn.disabled = true;
+                setCoinRequestDisabled(extendRequestBtn, true);
             }
         }
     });
@@ -1926,7 +1981,7 @@ function initExtendSessionFlow(macAddress) {
             return;
         }
 
-        extendRequestBtn.disabled = true;
+        setCoinRequestDisabled(extendRequestBtn, true);
         extendNowBtn.disabled = true;
 
         try {
@@ -2025,9 +2080,9 @@ function initExtendSessionFlow(macAddress) {
                 if (extendCards.length > 0) extendCards.forEach((c) => c.classList.remove("selected"));
                 if (extendPlanInput) extendPlanInput.value = "";
                 if (isCoinCooldownActive()) {
-                    extendRequestBtn.disabled = true;
+                    setCoinRequestDisabled(extendRequestBtn, true);
                 } else {
-                    extendRequestBtn.disabled = false;
+                    setCoinRequestDisabled(extendRequestBtn, false);
                 }
                 extendNowBtn.disabled = true;
                 return;
@@ -2044,9 +2099,9 @@ function initExtendSessionFlow(macAddress) {
             setExtendMessage("Connection error while extending session.", "danger");
         } finally {
             if (isCoinCooldownActive()) {
-                extendRequestBtn.disabled = true;
+                setCoinRequestDisabled(extendRequestBtn, true);
             } else {
-                extendRequestBtn.disabled = false;
+                setCoinRequestDisabled(extendRequestBtn, false);
             }
             if (!state.readyToStart) {
                 extendNowBtn.disabled = true;
@@ -2374,7 +2429,7 @@ function handlePortalOutageState(data, isSessionPage) {
         if (!isSession) {
             const insertBtn = document.getElementById("request-slot-btn");
             if (insertBtn) {
-                insertBtn.disabled = true;
+                setCoinRequestDisabled(insertBtn, true);
                 insertBtn.setAttribute("data-outage-disabled", "1");
                 insertBtn.innerHTML = '<i class="bi bi-wifi-off"></i> Internet Offline (Paused)';
             }
@@ -2406,7 +2461,7 @@ function handlePortalOutageState(data, isSessionPage) {
 
         const insertBtn = document.getElementById("request-slot-btn");
         if (insertBtn && insertBtn.getAttribute("data-outage-disabled") === "1") {
-            insertBtn.disabled = false;
+            setCoinRequestDisabled(insertBtn, false);
             insertBtn.removeAttribute("data-outage-disabled");
             insertBtn.innerHTML = getCoinButtonDefaultHtml("request-slot-btn");
         }
@@ -3374,6 +3429,11 @@ if (groupPlanSelect) {
 
 if (btnGroupRequestSlot) {
     btnGroupRequestSlot.addEventListener("click", async () => {
+        if (coinInsertionBlocked()) {
+            alert(NETWORK_FULL_MESSAGE);
+            refreshCoinCapacityControls();
+            return;
+        }
         if (isCoinCooldownActive()) {
             return;
         }
@@ -3389,7 +3449,7 @@ if (btnGroupRequestSlot) {
         }
         
         try {
-            btnGroupRequestSlot.disabled = true;
+            setCoinRequestDisabled(btnGroupRequestSlot, true);
             btnGroupRequestSlot.innerText = "Requesting...";
             
             const response = await fetch("/api/session/start/request/", {
@@ -3427,7 +3487,7 @@ if (btnGroupRequestSlot) {
                     flowMessage.className = "alert alert-warning";
                     flowMessage.innerHTML = `<strong>Insert coins now!</strong><br>Please insert exactly ₱${data.coin_request.expected_amount}.`;
                 }
-                btnGroupRequestSlot.disabled = false;
+                setCoinRequestDisabled(btnGroupRequestSlot, false);
                 btnGroupRequestSlot.innerHTML = getCoinButtonDefaultHtml("btn-group-request-slot");
 
                 if (window.applyCoinRequestState && window.startPolling) {
@@ -3455,9 +3515,9 @@ if (btnGroupRequestSlot) {
                 }
                 alert(data.error || "Failed to request coin slot.");
                 if (isCoinCooldownActive()) {
-                    btnGroupRequestSlot.disabled = true;
+                    setCoinRequestDisabled(btnGroupRequestSlot, true);
                 } else {
-                    btnGroupRequestSlot.disabled = false;
+                    setCoinRequestDisabled(btnGroupRequestSlot, false);
                     btnGroupRequestSlot.innerHTML = getCoinButtonDefaultHtml("btn-group-request-slot");
                 }
             }
@@ -3465,9 +3525,9 @@ if (btnGroupRequestSlot) {
             console.error("Error requesting slot:", error);
             alert("Network error.");
             if (isCoinCooldownActive()) {
-                btnGroupRequestSlot.disabled = true;
+                setCoinRequestDisabled(btnGroupRequestSlot, true);
             } else {
-                btnGroupRequestSlot.disabled = false;
+                setCoinRequestDisabled(btnGroupRequestSlot, false);
                 btnGroupRequestSlot.innerHTML = getCoinButtonDefaultHtml("btn-group-request-slot");
             }
         }
@@ -3512,7 +3572,7 @@ function applyCoinCooldownTimer() {
             window._coinCooldownTimer = null;
         }
         requestBtns.forEach(btn => {
-            btn.disabled = false;
+            setCoinRequestDisabled(btn, false);
             btn.innerHTML = btn.dataset.origContent || getCoinButtonDefaultHtml(btn.id);
         });
         return;
@@ -3537,12 +3597,12 @@ function applyCoinCooldownTimer() {
             window._coinCooldownTimer = null;
             try { localStorage.removeItem("iconnect_coin_cooldown_until"); } catch (e) {}
             requestBtns.forEach(btn => {
-                btn.disabled = false;
+                setCoinRequestDisabled(btn, false);
                 btn.innerHTML = btn.dataset.origContent || getCoinButtonDefaultHtml(btn.id);
             });
         } else {
             requestBtns.forEach(btn => {
-                btn.disabled = true;
+                setCoinRequestDisabled(btn, true);
                 btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle;"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> <span>Please wait (${remainingSec}s)</span>`;
             });
         }
@@ -3602,7 +3662,7 @@ const handleCancelCoinRequest = async (trigger) => {
         startBtn.disabled = true;
     }
     const requestBtn = document.getElementById("request-slot-btn") || document.getElementById("extend-request-btn");
-    if (requestBtn) requestBtn.disabled = false;
+    if (requestBtn) setCoinRequestDisabled(requestBtn, false);
 
     window.location.reload();
 };

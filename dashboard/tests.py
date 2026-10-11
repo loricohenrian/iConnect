@@ -1510,7 +1510,8 @@ class UsersSessionsHardeningTests(TestCase):
         self.assertFalse(resp.json()["success"])
         self.assertIn("blocked", resp.json()["error"].lower())
 
-    def test_admin_resume_all_sessions_skips_blocked(self):
+    @patch("sessions_app.iptables.allow_device", return_value=True)
+    def test_admin_resume_all_sessions_skips_blocked(self, allow_device_mock):
         # 1 valid paused session
         s1 = Session.objects.create(
             mac_address="AA:BB:CC:00:00:10",

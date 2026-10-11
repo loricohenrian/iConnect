@@ -18,6 +18,7 @@ from rest_framework.response import Response
 
 from . import iptables
 from .bandwidth import refresh_session_bandwidth_usage
+from .capacity import NETWORK_FULL_MESSAGE, capacity_limited_activation, network_full_for_device
 from .models import (
     CoinEvent,
     CoinInsertRequest,
@@ -484,11 +485,20 @@ def _activate_next_coin_request(now=None):
             status=CoinInsertRequest.STATUS_ACTIVE
         ).order_by("created_at", "id").first()
         if active_request:
-            return active_request
+            if not network_full_for_device(active_request.mac_address):
+                return active_request
+            # Capacity filled after this request opened. Keep its credited coins,
+            # but inhibit the relay and give it a fresh window when a slot frees.
+            active_request.status = CoinInsertRequest.STATUS_PENDING
+            active_request.activated_at = None
+            active_request.expires_at = None
+            active_request.save(update_fields=["status", "activated_at", "expires_at"])
 
-        next_request = CoinInsertRequest.objects.select_for_update().filter(
+        pending_requests = CoinInsertRequest.objects.select_for_update().filter(
             status=CoinInsertRequest.STATUS_PENDING
-        ).order_by("created_at", "id").first()
+        ).order_by("created_at", "id")
+        next_request = next((item for item in pending_requests
+                             if not network_full_for_device(item.mac_address)), None)
         if not next_request:
             return None
 
@@ -716,6 +726,8 @@ def _coin_request_payload(coin_request):
     if not coin_request.is_group_pass and coin_request.credited_amount > 0:
         combo = calculate_combo_for_amount(coin_request.credited_amount)
 
+    network_full = network_full_for_device(coin_request.mac_address)
+
     return {
         "id": coin_request.id,
         "purpose": coin_request.purpose,
@@ -723,6 +735,7 @@ def _coin_request_payload(coin_request):
         "mac_address": coin_request.mac_address,
         "expected_amount": coin_request.expected_amount,
         "credited_amount": coin_request.credited_amount,
+        "network_full": network_full,
         "queue_position": _coin_request_queue_position(coin_request),
         "expires_at": coin_request.expires_at,
         "remaining_seconds": remaining_seconds,
@@ -735,6 +748,7 @@ def _coin_request_payload(coin_request):
         "combo_duration_long_display": combo["duration_long_display"] if combo else "",
         "combo_breakdown_text": combo["breakdown_text"] if combo else "",
         "ready_to_start": (
+            not network_full and
             coin_request.status in (CoinInsertRequest.STATUS_ACTIVE, CoinInsertRequest.STATUS_PENDING, CoinInsertRequest.STATUS_COMPLETED) and
             (
                 (coin_request.expected_amount > 0 and coin_request.credited_amount >= coin_request.expected_amount) or
@@ -1119,6 +1133,10 @@ def session_start_request(request):
             status=status.HTTP_403_FORBIDDEN,
         )
 
+    if network_full_for_device(mac_address, settings_obj):
+        return Response({"error": NETWORK_FULL_MESSAGE, "network_full": True},
+                        status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
     plan = None
     if plan_id:
         try:
@@ -1275,6 +1293,7 @@ def session_start_cancel(request):
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
+@capacity_limited_activation
 def session_start(request):
     """
     Creates new session after payment.
@@ -1523,6 +1542,7 @@ def session_start(request):
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
+@capacity_limited_activation
 def session_join_group(request):
     """
     Redeem a Group Pass code.
@@ -1735,6 +1755,7 @@ def session_join_group(request):
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
+@capacity_limited_activation
 def session_extend(request):
     """
     Extends session via voucher code.
@@ -1935,6 +1956,7 @@ def session_extend(request):
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
+@capacity_limited_activation
 def session_extend_paid(request):
     """
     Extend an active session using the coin payment flow (no voucher code).
@@ -2304,6 +2326,7 @@ def session_end(request):
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
+@capacity_limited_activation
 def session_pause_toggle(request):
     """
     Toggle pause/resume for an active session.

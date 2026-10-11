@@ -576,6 +576,10 @@ def live_data(request):
             "group_pass": group_pass_payload,
             "has_active_session": has_active_session,
             "session_status": session_status_val,
+            # A newer unused voucher can coexist with an active session. The
+            # capacity exception must use actual active status, not that voucher.
+            "device_session_active": bool(mac_address and Session.objects.filter(
+                mac_address__iexact=mac_address, status="active").exists()),
             "slots": {
                 "active": active_count,
                 "max": max_slots,

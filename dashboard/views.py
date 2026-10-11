@@ -2792,73 +2792,59 @@ def admin_pause_all_sessions(request):
 @user_passes_test(_is_dashboard_admin, login_url='dashboard:login')
 @require_POST
 def admin_resume_all_sessions(request):
-    """Admin endpoint to resume all paused sessions at once, skipping blacklisted devices."""
+    """Resume only available slots, keeping overflow and failed grants paused."""
     from django.http import JsonResponse
-    from django.utils import timezone
-    from sessions_app.models import Session, SuspiciousDevice
+    from sessions_app.models import Session
+    from sessions_app.capacity import resume_admin_session
+    from dashboard.models import SystemSettings
 
-    paused_sessions = Session.objects.filter(status='paused')
-    count = paused_sessions.count()
+    paused_ids = list(Session.objects.filter(status='paused').order_by('paused_at', 'pk').values_list('pk', flat=True))
+    count = len(paused_ids)
     if count == 0:
         return JsonResponse({'success': False, 'error': 'No paused sessions to resume.'})
 
-    blocked_macs = set(
-        mac.lower() for mac in SuspiciousDevice.objects.filter(is_blocked=True).values_list('mac_address', flat=True)
-    )
-
-    now = timezone.now()
     resumed_count = 0
     skipped_blocked_count = 0
     expired_count = 0
+    skipped_capacity_count = 0
+    failed_count = 0
 
-    for session in paused_sessions:
-        if session.mac_address.lower() in blocked_macs:
+    for session_id in paused_ids:
+        outcome = resume_admin_session(session_id)
+        if outcome == 'blocked':
             skipped_blocked_count += 1
-            continue
-
-        if session.time_remaining_seconds <= 0:
-            session.status = 'expired'
-            session.time_out = now
-            session.paused_at = None
-            session.save(update_fields=['status', 'time_out', 'paused_at'])
+        elif outcome == 'expired':
             expired_count += 1
-            continue
-
-        power_resumed = session.power_paused
-        if power_resumed:
-            from sessions_app.power_recovery import resume_power_session
-            if not resume_power_session(session):
-                continue
-        else:
-            session.resume_session()
-
-        try:
-            from sessions_app.iptables import allow_device
-            dl_kbps = int(session.plan.speed_limit * 1024) if session.plan and session.plan.speed_limit else None
-            ul_kbps = int(session.plan.speed_limit_upload * 1024) if session.plan and session.plan.speed_limit_upload else dl_kbps
-            if not power_resumed:
-                allow_device(session.mac_address, rate_kbps=dl_kbps, upload_kbps=ul_kbps)
-        except Exception as e:
-            logging.error(f"Failed to allow device {session.mac_address} on bulk resume: {e}")
-
-        resumed_count += 1
+        elif outcome == 'full':
+            skipped_capacity_count += 1
+        elif outcome == 'resumed':
+            resumed_count += 1
+        elif outcome == 'failed':
+            failed_count += 1
 
     audit_logger.info(
         "event=resume_all_sessions user=%s resumed=%d skipped_blocked=%d expired=%d ip=%s",
         request.user.username, resumed_count, skipped_blocked_count, expired_count, _client_ip(request)
     )
 
-    msg = f'Successfully resumed {resumed_count} session(s).'
+    max_users = SystemSettings.get_settings().max_concurrent_sessions
+    msg = f'Resumed {resumed_count} sessions.'
+    if skipped_capacity_count:
+        msg += f' Skipped {skipped_capacity_count} because the network reached its {max_users}-user limit.'
     if skipped_blocked_count > 0:
         msg += f' ({skipped_blocked_count} blocked device(s) skipped)'
     if expired_count > 0:
         msg += f' ({expired_count} expired session(s) finalized)'
+    if failed_count:
+        msg += f' ({failed_count} could not resume; their time remains paused)'
 
     return JsonResponse({
         'success': True,
         'resumed_count': resumed_count,
         'skipped_blocked_count': skipped_blocked_count,
         'expired_count': expired_count,
+        'skipped_capacity_count': skipped_capacity_count,
+        'failed_count': failed_count,
         'message': msg
     })
 

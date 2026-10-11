@@ -706,6 +706,7 @@
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
+                    alert(data.message || 'Resume All completed.');
                     window.location.reload();
                 } else {
                     alert(data.error || 'Failed to resume sessions');
