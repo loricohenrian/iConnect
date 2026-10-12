@@ -2698,7 +2698,8 @@ def settings_view(request):
                 if settings_obj.enable_telegram_bot and (not settings_obj.telegram_bot_token or not settings_obj.telegram_admin_chat_id):
                     raise ValueError("Configure both a fresh Telegram bot token and your personal admin user ID before enabling the bot.")
                 settings_obj.telegram_notify_tickets = request.POST.get('telegram_notify_tickets') == 'on'
-                settings_obj.telegram_notify_security = request.POST.get('telegram_notify_security') == 'on'
+                # Security alerts are no longer editable here. Preserve the saved
+                # value even when an older browser submits the retired checkbox.
                 settings_obj.telegram_notify_isp_down = request.POST.get('telegram_notify_isp_down') == 'on'
                 settings_obj.telegram_notify_daily_summary = False
 

@@ -1401,6 +1401,41 @@ class SettingsSystemHardeningTests(TestCase):
         self.assertContains(resp, '<div class="dashboard-wrapper">')
         self.assertContains(resp, 'name="coin_timer_min_remaining_seconds"')
 
+    def test_settings_hides_telegram_security_alerts(self):
+        for enabled in (False, True):
+            with self.subTest(enabled=enabled):
+                self.settings.telegram_notify_security = enabled
+                self.settings.save()
+                resp = self.client.get('/iconnect-ops/settings/')
+                self.assertEqual(resp.status_code, 200)
+                self.assertNotContains(resp, 'Security Alerts')
+                self.assertNotContains(resp, 'telegram_notify_security')
+                self.assertContains(resp, 'name="telegram_notify_tickets"')
+                self.assertContains(resp, 'name="telegram_notify_isp_down"')
+
+    @patch('sessions_app.iptables.apply_network_settings', return_value=True)
+    def test_settings_save_preserves_hidden_security_alert_value(self, apply_network):
+        for enabled in (False, True):
+            self.settings.telegram_notify_security = enabled
+            self.settings.enable_telegram_bot = False
+            self.settings.save()
+            for retired_fields in ({}, {
+                'telegram_notify_security': '' if enabled else 'on',
+            }):
+                with self.subTest(enabled=enabled, retired_fields=retired_fields):
+                    resp = self.client.post('/iconnect-ops/settings/', {
+                        'telegram_bot_token': '',
+                        'telegram_notify_tickets': 'on',
+                        'telegram_notify_isp_down': 'on',
+                        **retired_fields,
+                    }, follow=True)
+                    self.assertEqual(resp.status_code, 200)
+                    self.assertContains(resp, 'Settings updated successfully.')
+                    self.settings.refresh_from_db()
+                    self.assertEqual(self.settings.telegram_notify_security, enabled)
+                    self.assertTrue(self.settings.telegram_notify_tickets)
+                    self.assertTrue(self.settings.telegram_notify_isp_down)
+
     @patch('sessions_app.iptables.apply_network_settings', return_value=True)
     def test_settings_save_does_not_change_legacy_dark_value(self, apply_network):
         for enabled in (False, True):

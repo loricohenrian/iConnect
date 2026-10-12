@@ -260,10 +260,12 @@ class TelegramNotificationSettingsTests(TestCase):
         self.settings.telegram_admin_chat_id = '12345678'
         self.settings.save()
 
-    def test_settings_shows_security_and_support_but_not_midnight(self):
+    def test_settings_shows_support_and_isp_but_not_retired_alerts(self):
         response = self.client.get('/iconnect-ops/settings/')
-        self.assertContains(response, 'Security Alerts')
+        self.assertNotContains(response, 'Security Alerts')
+        self.assertNotContains(response, 'name="telegram_notify_security"')
         self.assertContains(response, 'Support Ticket Alerts')
+        self.assertContains(response, 'ISP Outage & Recovery')
         self.assertNotContains(response, 'Midnight Sales Closeout')
         self.assertNotContains(response, TEST_TOKEN)
         self.assertFalse(self.settings.telegram_notify_daily_summary)
