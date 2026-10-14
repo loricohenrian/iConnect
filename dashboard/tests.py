@@ -22,15 +22,16 @@ class DashboardSidebarTests(SimpleTestCase):
                 self.assertIn('<div class="dashboard-wrapper">', html)
                 self.assertNotIn('data-theme="dark"', html)
 
-    def test_security_menu_is_hidden_without_removing_its_route(self):
+    def test_security_menu_links_to_existing_page(self):
         from django.urls import resolve, reverse
 
         html = render_to_string('base_dashboard.html', {
             'active_page': 'sessions',
             'new_security_alerts_count': 3,
         })
-        self.assertNotIn('id="nav-security"', html)
-        self.assertNotIn('<span>Security</span>', html)
+        self.assertIn('id="nav-security"', html)
+        self.assertIn('<span>Security</span>', html)
+        self.assertIn(f'href="{reverse("dashboard:security")}"', html)
         for item in ('nav-logs', 'nav-plans', 'nav-issues'):
             self.assertIn(f'id="{item}"', html)
         self.assertEqual(resolve(reverse('dashboard:security')).view_name, 'dashboard:security')
