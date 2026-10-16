@@ -323,6 +323,27 @@
     </div>
 </div>
 
+<section class="chart-card mt-md" id="access-point-monitor" aria-label="Access point reachability">
+    <div class="chart-header"><h3 class="chart-title">Access Points</h3><span class="text-xs text-muted">Checks every 30 seconds while this dashboard is open</span></div>
+    <p class="text-xs text-muted">Reachable means the AP responds, not a full WiFi/internet test. Unreachable after 3 missed checks does not necessarily mean powered off.</p>
+    <div class="hero-main-group mt-md" aria-live="polite">
+        <div class="stat-card-compact" data-ap-id="ap-1">
+            <div class="stat-card-compact-header">EAP225-Outdoor #1 <span data-ap="status" class="badge">Unknown</span></div>
+            <div class="text-small">MAC: EC:B9:31:FB:4F:FA · IP: <span data-ap="ip">—</span></div>
+            <div class="text-xs text-muted" data-ap="reason">Waiting for the first check</div>
+            <div class="text-xs text-muted">Last checked: <span data-ap="checked">Not yet</span></div>
+            <div class="text-xs text-muted">Last seen: <span data-ap="seen">Not observed yet</span></div>
+        </div>
+        <div class="stat-card-compact" data-ap-id="ap-2">
+            <div class="stat-card-compact-header">EAP225-Outdoor #2 <span data-ap="status" class="badge">Unknown</span></div>
+            <div class="text-small">MAC: EC:B9:31:FB:5B:1E · IP: <span data-ap="ip">—</span></div>
+            <div class="text-xs text-muted" data-ap="reason">Waiting for the first check</div>
+            <div class="text-xs text-muted">Last checked: <span data-ap="checked">Not yet</span></div>
+            <div class="text-xs text-muted">Last seen: <span data-ap="seen">Not observed yet</span></div>
+        </div>
+    </div>
+</section>
+
 <!-- Recent Sessions Table -->
 <div class="chart-card mt-md animate-fadeIn" style="animation-delay: 440ms;">
     <div class="chart-header">

@@ -393,6 +393,16 @@ def dashboard_stats_api(request):
 
 
 @api_view(['GET'])
+def access_points_api(request):
+    if not _is_dashboard_admin(request.user):
+        return Response({'detail': 'Authentication required.'}, status=status.HTTP_401_UNAUTHORIZED)
+    from .access_points import get_access_point_status
+    response = Response(get_access_point_status())
+    response['Cache-Control'] = 'private, no-store'
+    return response
+
+
+@api_view(['GET'])
 def system_stats_api(request):
     """System hardware stats (CPU temp, load, RAM, disk)."""
     if not _is_dashboard_admin(request.user):
