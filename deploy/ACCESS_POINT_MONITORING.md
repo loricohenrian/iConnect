@@ -4,6 +4,12 @@ The admin dashboard checks the two configured EAP225-Outdoor MACs in
 `dashboard/access_points.py`. The labels #1/#2 do not identify physical locations.
 The supported management LAN is the existing `10.10.10.0/24` on `usblan0`.
 
+The UI is two compact name/status rows inside Network Overview, not a separate
+full-width section. IP/MAC details, probe explanations and timestamps are not
+displayed. The API retains these fields for monitoring/freshness checks, and
+the browser still marks stale or failed checks Unknown. A short status tooltip
+clarifies that this is reachability rather than proof of power/radio health.
+
 The staff-only GET API resolves unexpired dnsmasq leases (including permanent
 leases), with a cached-neighbor fallback, then requires a fresh ARP reply with
 the expected MAC. Neighbor entries alone never establish reachability. No

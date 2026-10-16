@@ -6,7 +6,7 @@ const source = fs.readFileSync(path.join(__dirname, '..', 'access_points.js'), '
 
 async function run({failed = false, stale = false, hidden = false, absent = false, missing = false} = {}) {
     const cards = ['ap-1', 'ap-2'].map(id => {
-        const fields = Object.fromEntries(['status', 'reason', 'ip', 'checked', 'seen'].map(key => [key, {textContent: '', style: {}}]));
+        const fields = {status: {textContent: '', dataset: {}}};
         return {dataset: {apId: id}, fields, querySelector: selector => fields[selector.match(/"([^"]+)"/)[1]]};
     });
     let calls = 0;
@@ -23,7 +23,7 @@ async function run({failed = false, stale = false, hidden = false, absent = fals
             calls++;
             if (failed) throw new Error('offline');
             return {ok: true, json: async () => ({access_points: missing ? [] : cards.map(card => ({
-                id: card.dataset.apId, status: 'reachable', ip: '<script>not HTML</script>',
+                id: card.dataset.apId, status: card.dataset.apId === 'ap-1' ? 'reachable' : 'unreachable', ip: '<script>not HTML</script>',
                 reason: 'Fresh reply', last_checked: new Date(Date.now() - (stale ? 100000 : 0)).toISOString(),
                 last_seen: new Date().toISOString(),
             }))})};
@@ -37,7 +37,9 @@ async function run({failed = false, stale = false, hidden = false, absent = fals
 (async () => {
     const valid = await run();
     assert.equal(valid.cards[0].fields.status.textContent, 'Reachable');
-    assert.equal(valid.cards[0].fields.ip.textContent, '<script>not HTML</script>');
+    assert.equal(valid.cards[0].fields.status.dataset.state, 'reachable');
+    assert.equal(valid.cards[1].fields.status.textContent, 'Unreachable');
+    assert.equal(valid.cards[1].fields.status.dataset.state, 'unreachable');
     for (const options of [{failed: true}, {stale: true}, {missing: true}]) {
         const result = await run(options);
         assert.equal(result.cards[0].fields.status.textContent, 'Unknown');

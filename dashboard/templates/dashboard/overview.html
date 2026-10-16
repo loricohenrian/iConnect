@@ -115,6 +115,26 @@
     grid-template-columns: repeat(3, 1fr);
     gap: var(--space-lg);
 }
+.ap-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 8px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #64748b;
+    background: #f1f5f9;
+}
+.ap-status::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+}
+.ap-status[data-state="reachable"] { color: #047857; background: #ecfdf5; }
+.ap-status[data-state="unreachable"] { color: #b91c1c; background: #fef2f2; }
 @media (max-width: 768px) {
     .sys-strip-grid {
         grid-template-columns: 1fr;
@@ -319,30 +339,19 @@
                 <span class="text-xs text-muted">Data Used</span>
                 <span class="font-semibold text-small" id="live-total-bandwidth">{{ bandwidth_today_mb|default:"0" }} MB</span>
             </div>
+            <div id="access-point-monitor" class="d-flex flex-column gap-sm" aria-label="Access point reachability" aria-live="polite" style="border-top: 1px solid var(--color-border); padding-top: 10px; margin-top: 2px;">
+                <div class="d-flex justify-content-between align-items-center" data-ap-id="ap-1">
+                    <span class="text-xs text-muted">EAP225 #1</span>
+                    <span data-ap="status" data-state="unknown" class="ap-status" title="Network reachability, not a power or WiFi health guarantee">Unknown</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center" data-ap-id="ap-2">
+                    <span class="text-xs text-muted">EAP225 #2</span>
+                    <span data-ap="status" data-state="unknown" class="ap-status" title="Network reachability, not a power or WiFi health guarantee">Unknown</span>
+                </div>
+            </div>
         </div>
     </div>
 </div>
-
-<section class="chart-card mt-md" id="access-point-monitor" aria-label="Access point reachability">
-    <div class="chart-header"><h3 class="chart-title">Access Points</h3><span class="text-xs text-muted">Checks every 30 seconds while this dashboard is open</span></div>
-    <p class="text-xs text-muted">Reachable means the AP responds, not a full WiFi/internet test. Unreachable after 3 missed checks does not necessarily mean powered off.</p>
-    <div class="hero-main-group mt-md" aria-live="polite">
-        <div class="stat-card-compact" data-ap-id="ap-1">
-            <div class="stat-card-compact-header">EAP225-Outdoor #1 <span data-ap="status" class="badge">Unknown</span></div>
-            <div class="text-small">MAC: EC:B9:31:FB:4F:FA · IP: <span data-ap="ip">—</span></div>
-            <div class="text-xs text-muted" data-ap="reason">Waiting for the first check</div>
-            <div class="text-xs text-muted">Last checked: <span data-ap="checked">Not yet</span></div>
-            <div class="text-xs text-muted">Last seen: <span data-ap="seen">Not observed yet</span></div>
-        </div>
-        <div class="stat-card-compact" data-ap-id="ap-2">
-            <div class="stat-card-compact-header">EAP225-Outdoor #2 <span data-ap="status" class="badge">Unknown</span></div>
-            <div class="text-small">MAC: EC:B9:31:FB:5B:1E · IP: <span data-ap="ip">—</span></div>
-            <div class="text-xs text-muted" data-ap="reason">Waiting for the first check</div>
-            <div class="text-xs text-muted">Last checked: <span data-ap="checked">Not yet</span></div>
-            <div class="text-xs text-muted">Last seen: <span data-ap="seen">Not observed yet</span></div>
-        </div>
-    </div>
-</section>
 
 <!-- Recent Sessions Table -->
 <div class="chart-card mt-md animate-fadeIn" style="animation-delay: 440ms;">

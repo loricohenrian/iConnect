@@ -170,12 +170,20 @@ class AccessPointApiTests(SimpleTestCase):
             self.assertEqual(response['Cache-Control'], 'private, no-store')
             self.assertEqual(client.post('/api/dashboard/access-points/').status_code, 405)
 
-    def test_overview_has_two_separate_cards_and_honest_description(self):
+    def test_overview_has_two_compact_rows_inside_network_overview(self):
         html = render_to_string('dashboard/overview.html', {})
-        for key, name, mac in monitor.ACCESS_POINTS:
+        network = html.split('<h3 class="chart-title">Network Overview</h3>', 1)[1].split('<!-- Recent Sessions Table -->', 1)[0]
+        self.assertIn('id="access-point-monitor"', network)
+        self.assertNotIn('<section', network)
+        for index, (key, name, mac) in enumerate(monitor.ACCESS_POINTS, 1):
             self.assertIn(f'data-ap-id="{key}"', html)
-            self.assertIn(mac, html)
-            self.assertIn(name, html)
-        self.assertIn('while this dashboard is open', html)
-        self.assertIn('does not necessarily mean powered off', html)
+            self.assertIn(f'EAP225 #{index}', network)
+            self.assertNotIn(mac, html)
+        for removed in ('data-ap="reason"', 'data-ap="ip"', 'data-ap="checked"', 'data-ap="seen"',
+                        'Last checked:', 'Last seen:', 'Fresh reply from this AP MAC',
+                        'Checks every 30 seconds while this dashboard is open'):
+            self.assertNotIn(removed, html)
+        self.assertEqual(network.count('class="ap-status"'), 2)
+        self.assertIn('not a power or WiFi health guarantee', network)
         self.assertIn('access_points.js', html)
+        self.assertIn('access_points.js?v=2', html)
