@@ -3,7 +3,9 @@ from decimal import Decimal
 from unittest.mock import patch
 
 from django.core.cache import cache
+from django.http import HttpResponse
 from django.test import RequestFactory, TestCase
+from django.utils import timezone
 from rest_framework.test import APIRequestFactory
 
 from dashboard.models import SystemSettings
@@ -58,6 +60,20 @@ class IpChangeBandwidthTests(TestCase):
         if path == "sync":
             request = RequestFactory().get("/", REMOTE_ADDR=new_ip)
             self.assertTrue(_session_ip_matches_request(self.session, request))
+        elif path in ("portal_index", "portal_session"):
+            from portal import views as portal_views
+            view = portal_views.index if path == "portal_index" else portal_views.session_page
+            request = RequestFactory().get(
+                "/" if path == "portal_index" else "/session/",
+                REMOTE_ADDR=new_ip, HTTP_HOST="10.10.10.1",
+            )
+            request.session = {}
+            with patch("portal.views._get_mac_address", return_value=self.mac), \
+                    patch("portal.views.render", return_value=HttpResponse("Test portal")), \
+                    patch("sessions_app.internet_monitor.check_isp_internet_status",
+                          return_value={"isp_outage": False, "is_online": True}):
+                response = view(request)
+            self.assertEqual(response.status_code, 302 if path == "portal_index" else 200)
         else:
             request = APIRequestFactory().post(
                 "/api/session/start/",
@@ -99,6 +115,12 @@ class IpChangeBandwidthTests(TestCase):
     def test_existing_start_converts_each_plan_and_preserves_separate_upload(self):
         self.check_plan_speeds("start")
 
+    def test_portal_index_converts_each_plan_and_preserves_separate_upload(self):
+        self.check_plan_speeds("portal_index")
+
+    def test_portal_session_converts_each_plan_and_preserves_separate_upload(self):
+        self.check_plan_speeds("portal_session")
+
     def check_fallback_speeds(self, path):
         for download, upload, expected_dl, expected_ul in (
             (Decimal("6.0"), None, 6144, 6144),
@@ -120,6 +142,12 @@ class IpChangeBandwidthTests(TestCase):
     def test_existing_start_preserves_existing_default_speed_conventions(self):
         self.check_fallback_speeds("start")
 
+    def test_portal_index_preserves_existing_default_speed_conventions(self):
+        self.check_fallback_speeds("portal_index")
+
+    def test_portal_session_preserves_existing_default_speed_conventions(self):
+        self.check_fallback_speeds("portal_session")
+
     def test_sync_with_no_plan_keeps_global_defaults(self):
         self.session.plan = None
         self.session.save(update_fields=["plan"])
@@ -137,6 +165,32 @@ class IpChangeBandwidthTests(TestCase):
         self.refresh_ip("start")
         self.assert_caps(None, None)
 
+    def test_portal_pages_with_no_plan_keep_global_defaults(self):
+        self.session.plan = None
+        self.session.save(update_fields=["plan"])
+        for path in ("portal_index", "portal_session"):
+            with self.subTest(path=path):
+                self.session.ip_address = self.old_ip
+                self.session.save(update_fields=["ip_address"])
+                self.allow.reset_mock()
+                self.refresh_ip(path)
+                self.assert_caps(None, None)
+
+    def test_portal_group_participant_keeps_per_device_plan_caps(self):
+        group = SessionGroup.objects.create(
+            group_code="IPGROUP", plan=self.plan, max_devices=2,
+            total_price=20, duration_minutes=120,
+        )
+        self.session.session_group = group
+        self.session.save(update_fields=["session_group"])
+        for path in ("portal_index", "portal_session"):
+            with self.subTest(path=path):
+                self.session.ip_address = self.old_ip
+                self.session.save(update_fields=["ip_address"])
+                self.allow.reset_mock()
+                self.refresh_ip(path)
+                self.assert_caps(6144, 4096)
+
     def test_existing_start_uses_current_plan_not_requested_plan(self):
         other_plan = Plan.objects.create(
             name="Other plan", price=20, duration_minutes=300,
@@ -147,7 +201,7 @@ class IpChangeBandwidthTests(TestCase):
         self.assertEqual(self.session.plan_id, self.plan.pk)
 
     def test_unchanged_ip_does_not_reapply_access(self):
-        for path in ("sync", "start"):
+        for path in ("sync", "start", "portal_index", "portal_session"):
             with self.subTest(path=path):
                 self.refresh_ip(path, new_ip=self.old_ip)
                 self.allow.assert_not_called()
@@ -168,8 +222,25 @@ class IpChangeBandwidthTests(TestCase):
         self.assertFalse(_session_ip_matches_request(None, RequestFactory().get("/")))
         self.allow.assert_not_called()
 
+    def test_portal_ip_refresh_does_not_resume_paused_session_or_use_pauses(self):
+        self.session.status = "paused"
+        self.session.paused_at = timezone.now()
+        self.session.remaining_minutes = 120
+        self.session.save(update_fields=["status", "paused_at", "remaining_minutes"])
+        for path in ("portal_index", "portal_session"):
+            with self.subTest(path=path):
+                self.session.ip_address = self.old_ip
+                self.session.save(update_fields=["ip_address"])
+                self.refresh_ip(path)
+                self.allow.assert_not_called()
+                self.block.assert_not_called()
+                self.session.refresh_from_db()
+                self.assertEqual(self.session.status, "paused")
+                self.assertEqual(self.session.remaining_minutes, 120)
+                self.assertEqual(self.session.pause_count, 2)
+
     def test_ip_refresh_changes_no_time_payments_pause_or_usage_fields(self):
-        for path in ("sync", "start"):
+        for path in ("sync", "start", "portal_index", "portal_session"):
             with self.subTest(path=path):
                 self.session.ip_address = self.old_ip
                 self.session.save(update_fields=["ip_address"])

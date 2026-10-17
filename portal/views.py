@@ -193,8 +193,10 @@ def index(request):
             active_session.ip_address = request_ip
             active_session.save(update_fields=["ip_address"])
             if active_session.status == "active":
-                rate = active_session.plan.speed_limit if active_session.plan else None
-                iptables.allow_device(mac_address, rate_kbps=rate)
+                # Match activation: convert plan Mbps and preserve upload caps.
+                dl_kbps = int(active_session.plan.speed_limit * 1024) if active_session.plan and active_session.plan.speed_limit else None
+                ul_kbps = int(active_session.plan.speed_limit_upload * 1024) if active_session.plan and active_session.plan.speed_limit_upload else dl_kbps
+                iptables.allow_device(mac_address, rate_kbps=dl_kbps, upload_kbps=ul_kbps)
 
     if active_session and active_session.time_remaining_seconds <= 1:
         active_session.expire_session()
@@ -313,8 +315,10 @@ def session_page(request):
         active_session.ip_address = request_ip
         active_session.save(update_fields=["ip_address"])
         if active_session.status == "active":
-            rate = active_session.plan.speed_limit if active_session.plan else None
-            iptables.allow_device(mac_address, rate_kbps=rate)
+            # Match activation: convert plan Mbps and preserve upload caps.
+            dl_kbps = int(active_session.plan.speed_limit * 1024) if active_session.plan and active_session.plan.speed_limit else None
+            ul_kbps = int(active_session.plan.speed_limit_upload * 1024) if active_session.plan and active_session.plan.speed_limit_upload else dl_kbps
+            iptables.allow_device(mac_address, rate_kbps=dl_kbps, upload_kbps=ul_kbps)
 
     if not active_session:
         return redirect(f"/?expired=1&mac={mac_address}")
