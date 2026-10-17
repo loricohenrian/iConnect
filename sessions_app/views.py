@@ -204,8 +204,10 @@ def _session_ip_matches_request(session, request):
         session.ip_address = request_ip
         session.save(update_fields=["ip_address"])
         if session.status == "active":
-            rate = session.plan.speed_limit if session.plan else None
-            iptables.allow_device(session.mac_address, rate_kbps=rate)
+            # Plan speeds are Mbps; the firewall helper expects kbps.
+            dl_kbps = int(session.plan.speed_limit * 1024) if session.plan and session.plan.speed_limit else None
+            ul_kbps = int(session.plan.speed_limit_upload * 1024) if session.plan and session.plan.speed_limit_upload else dl_kbps
+            iptables.allow_device(session.mac_address, rate_kbps=dl_kbps, upload_kbps=ul_kbps)
         audit_logger.info(
             "event=session_ip_synced mac=%s new_ip=%s",
             session.mac_address,
@@ -1383,10 +1385,8 @@ def session_start(request):
         if ip_address and existing.ip_address != ip_address:
             existing.ip_address = ip_address
             existing.save(update_fields=["ip_address"])
-            if existing.plan:
-                rate = existing.plan.speed_limit
-                iptables.allow_device(mac_address, rate_kbps=rate)
-            elif existing.session_group:
+            if existing.plan or existing.session_group:
+                # Keep the same per-plan units and upload cap as activation.
                 dl_kbps = int(existing.plan.speed_limit * 1024) if existing.plan and existing.plan.speed_limit else None
                 ul_kbps = int(existing.plan.speed_limit_upload * 1024) if existing.plan and existing.plan.speed_limit_upload else dl_kbps
                 iptables.allow_device(mac_address, rate_kbps=dl_kbps, upload_kbps=ul_kbps)
