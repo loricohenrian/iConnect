@@ -125,6 +125,18 @@
     font-weight: 600;
     color: #64748b;
     background: #f1f5f9;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.ap-monitor-card { min-width: 0; }
+.ap-monitor-list { display: flex; flex-direction: column; gap: 8px; }
+.ap-monitor-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; flex-wrap: wrap; }
+.ap-monitor-name { font-size: 12px; font-weight: 500; color: var(--color-dark); white-space: nowrap; }
+.ap-monitor-row + .ap-monitor-row { border-top: 1px solid var(--color-border); padding-top: 8px; }
+@media (max-width: 480px) {
+    .ap-monitor-card { padding: 12px; }
+    .ap-monitor-name { font-size: 11px; }
+    .ap-monitor-card .ap-status { font-size: 10px; padding: 3px 6px; gap: 4px; }
 }
 .ap-status::before {
     content: '';
@@ -226,16 +238,25 @@
             <div class="stat-card-compact-value font-mono" id="sys-cpu-temp">—</div>
         </div>
 
-        <!-- ROI Progress -->
-        <a href="{% url 'dashboard:roi' %}" class="stat-card-compact stat-card-clickable animate-fadeIn" style="animation-delay: 280ms" title="View Capital Recovery & ROI Details">
+        <!-- Access point states, stacked in the former ROI progress slot -->
+        <div id="access-point-monitor" class="stat-card-compact ap-monitor-card animate-fadeIn" style="animation-delay: 280ms" aria-label="Access point reachability" aria-live="polite">
             <div class="stat-card-compact-header">
-                <span>ROI Progress</span>
+                <span>Access Points</span>
                 <div style="color: #0891b2;">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 12 2v10z"></path></svg>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 8.8a16 16 0 0 1 20 0"></path><path d="M5 12a11 11 0 0 1 14 0"></path><path d="M8.5 15.5a5.5 5.5 0 0 1 7 0"></path><circle cx="12" cy="19" r="1"></circle></svg>
                 </div>
             </div>
-            <div class="stat-card-compact-value" id="roi-progress" style="color: {% if roi_percentage|add:0 < 0 %}var(--color-danger){% elif roi_percentage|add:0 > 0 %}var(--color-success){% else %}var(--color-dark){% endif %};">{{ roi_percentage|default:"0" }}%</div>
-        </a>
+            <div class="ap-monitor-list">
+                <div class="ap-monitor-row" data-ap-id="ap-1">
+                    <span class="ap-monitor-name">EAP225 #1</span>
+                    <span data-ap="status" data-state="unknown" class="ap-status" title="Network reachability, not a power or WiFi health guarantee">Unknown</span>
+                </div>
+                <div class="ap-monitor-row" data-ap-id="ap-2">
+                    <span class="ap-monitor-name">EAP225 #2</span>
+                    <span data-ap="status" data-state="unknown" class="ap-status" title="Network reachability, not a power or WiFi health guarantee">Unknown</span>
+                </div>
+            </div>
+        </div>
     </div>
 
 </div>
@@ -338,16 +359,6 @@
             <div class="d-flex justify-content-between align-items-center">
                 <span class="text-xs text-muted">Data Used</span>
                 <span class="font-semibold text-small" id="live-total-bandwidth">{{ bandwidth_today_mb|default:"0" }} MB</span>
-            </div>
-            <div id="access-point-monitor" class="d-flex flex-column gap-sm" aria-label="Access point reachability" aria-live="polite" style="border-top: 1px solid var(--color-border); padding-top: 10px; margin-top: 2px;">
-                <div class="d-flex justify-content-between align-items-center" data-ap-id="ap-1">
-                    <span class="text-xs text-muted">EAP225 #1</span>
-                    <span data-ap="status" data-state="unknown" class="ap-status" title="Network reachability, not a power or WiFi health guarantee">Unknown</span>
-                </div>
-                <div class="d-flex justify-content-between align-items-center" data-ap-id="ap-2">
-                    <span class="text-xs text-muted">EAP225 #2</span>
-                    <span data-ap="status" data-state="unknown" class="ap-status" title="Network reachability, not a power or WiFi health guarantee">Unknown</span>
-                </div>
             </div>
         </div>
     </div>

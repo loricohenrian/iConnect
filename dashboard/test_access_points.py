@@ -170,20 +170,34 @@ class AccessPointApiTests(SimpleTestCase):
             self.assertEqual(response['Cache-Control'], 'private, no-store')
             self.assertEqual(client.post('/api/dashboard/access-points/').status_code, 405)
 
-    def test_overview_has_two_compact_rows_inside_network_overview(self):
+    def test_overview_replaces_roi_progress_with_two_vertical_ap_states(self):
         html = render_to_string('dashboard/overview.html', {})
+        hero = html.split('<!-- Hero Section', 1)[1].split('<!-- System Resources Strip -->', 1)[0]
         network = html.split('<h3 class="chart-title">Network Overview</h3>', 1)[1].split('<!-- Recent Sessions Table -->', 1)[0]
-        self.assertIn('id="access-point-monitor"', network)
-        self.assertNotIn('<section', network)
+        self.assertIn('id="access-point-monitor"', hero)
+        self.assertIn('ap-monitor-card', hero)
+        self.assertIn('class="ap-monitor-list"', hero)
+        self.assertEqual(html.count('id="access-point-monitor"'), 1)
+        self.assertNotIn('id="access-point-monitor"', network)
+        self.assertNotIn('ROI Progress', html)
+        self.assertNotIn('id="roi-progress"', html)
+        self.assertIn('id="nav-roi"', html)  # The separate ROI page stays available.
         for index, (key, name, mac) in enumerate(monitor.ACCESS_POINTS, 1):
-            self.assertIn(f'data-ap-id="{key}"', html)
-            self.assertIn(f'EAP225 #{index}', network)
+            self.assertEqual(html.count(f'data-ap-id="{key}"'), 1)
+            self.assertIn(f'EAP225 #{index}', hero)
             self.assertNotIn(mac, html)
         for removed in ('data-ap="reason"', 'data-ap="ip"', 'data-ap="checked"', 'data-ap="seen"',
                         'Last checked:', 'Last seen:', 'Fresh reply from this AP MAC',
                         'Checks every 30 seconds while this dashboard is open'):
             self.assertNotIn(removed, html)
-        self.assertEqual(network.count('class="ap-status"'), 2)
-        self.assertIn('not a power or WiFi health guarantee', network)
+        self.assertEqual(hero.count('class="ap-status"'), 2)
+        self.assertIn('not a power or WiFi health guarantee', hero)
         self.assertIn('access_points.js', html)
         self.assertIn('access_points.js?v=2', html)
+
+    def test_ap_card_keeps_stacked_layout_and_network_statistics(self):
+        html = render_to_string('dashboard/overview.html', {})
+        self.assertIn('.ap-monitor-list { display: flex; flex-direction: column;', html)
+        self.assertIn('flex-wrap: wrap;', html)
+        for field in ('live-active-users', 'live-total-bandwidth', 'sys-internet-text', 'sys-cpu-temp'):
+            self.assertIn(f'id="{field}"', html)
