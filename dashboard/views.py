@@ -1340,6 +1340,7 @@ def _sanitize_csv_cell(val):
 @user_passes_test(_is_dashboard_admin, login_url='dashboard:login')
 def export_sessions_csv(request):
     """Export session logs as CSV file."""
+    from reports.web_exports import REPORT_TZ, csv_text
     status_filter = request.GET.get('status', '')
     search = sanitize_text(request.GET.get('search', ''), max_length=60)
     custom_start = request.GET.get('start_date')
@@ -1352,7 +1353,7 @@ def export_sessions_csv(request):
     else:
         period = 'today'
 
-    sessions = Session.objects.select_related('plan').all()
+    sessions = Session.objects.select_related('plan').all().order_by('time_in', 'id')
 
     now = timezone.now()
     today = timezone.localdate()
@@ -1402,25 +1403,25 @@ def export_sessions_csv(request):
     writer = csv.writer(response)
     writer.writerow([
         'Session ID', 'MAC Address', 'IP Address', 'Device Name',
-        'Plan Name', 'Amount Paid (PHP)', 'Duration (Mins)',
-        'Status', 'Time In', 'Time Out', 'Bandwidth Used (MB)'
+        'Current Plan', 'Session Amount Recorded (PHP)', 'Duration Purchased (Mins)',
+        'Current Status', 'Time In (Asia/Manila)', 'Time Out (Asia/Manila)', 'Saved Data Usage (MiB)'
     ])
 
     for session in sessions:
-        time_in_str = timezone.localtime(session.time_in).strftime('%Y-%m-%d %H:%M:%S') if session.time_in else ''
-        time_out_str = timezone.localtime(session.time_out).strftime('%Y-%m-%d %H:%M:%S') if session.time_out else ''
+        time_in_str = timezone.localtime(session.time_in, REPORT_TZ).strftime('%Y-%m-%d %H:%M:%S') if session.time_in else ''
+        time_out_str = timezone.localtime(session.time_out, REPORT_TZ).strftime('%Y-%m-%d %H:%M:%S') if session.time_out else ''
         writer.writerow([
             session.id,
-            _sanitize_csv_cell(session.mac_address),
-            _sanitize_csv_cell(session.ip_address or 'N/A'),
-            _sanitize_csv_cell(session.device_name or 'Unknown'),
-            _sanitize_csv_cell(session.plan.name if session.plan else 'Custom'),
-            session.amount_paid,
+            csv_text(session.mac_address),
+            csv_text(session.ip_address or 'N/A'),
+            csv_text(session.device_name or 'Unknown'),
+            csv_text(session.plan.name if session.plan else 'Custom'),
+            f'{session.amount_paid:.2f}',
             session.duration_minutes_purchased,
             _sanitize_csv_cell(session.get_status_display()),
             time_in_str,
             time_out_str,
-            round(session.bandwidth_used_mb or 0, 2),
+            f'{session.bandwidth_used_mb or 0:.2f}',
         ])
 
     audit_logger.info(
@@ -1428,39 +1429,23 @@ def export_sessions_csv(request):
         request.user.username, sessions.count(), period, status_filter, _client_ip(request)
     )
 
+    response['Cache-Control'] = 'private, no-store'
+    response['X-Content-Type-Options'] = 'nosniff'
     return response
 
 
 @user_passes_test(_is_dashboard_admin, login_url='dashboard:login')
 def export_revenue_csv(request):
-    """Export daily revenue summary logs as CSV file."""
-    summaries = DailyRevenueSummary.objects.all().order_by('-date')
-    today = timezone.localdate()
-
-    response = HttpResponse(content_type='text/csv; charset=utf-8')
-    filename = f"iconnect_revenue_summary_{today.strftime('%Y%m%d')}.csv"
-    response['Content-Disposition'] = f'attachment; filename="{filename}"'
-    response.write('\ufeff') # UTF-8 BOM for Microsoft Excel
-
-    writer = csv.writer(response)
-    writer.writerow([
-        'Date', 'Total Revenue (PHP)', 'Total Sessions',
-        'Avg Session Duration (Mins)', 'Peak Hour'
-    ])
-
-    for summary in summaries:
-        peak_str = f"{summary.peak_hour:02d}:00" if summary.peak_hour is not None else 'N/A'
-        writer.writerow([
-            summary.date.strftime('%Y-%m-%d'),
-            summary.total_revenue,
-            summary.total_sessions,
-            summary.avg_session_minutes,
-            _sanitize_csv_cell(peak_str),
-        ])
-
+    """Export live daily collections, not potentially stale saved summaries."""
+    from reports.web_exports import daily_revenue_csv, private_response, report_data
+    try:
+        data = report_data('all')
+    except (ValueError, OverflowError):
+        return private_response(HttpResponse('The report date range is too large. Use a custom period report instead.', status=400))
+    response = daily_revenue_csv(data)
     audit_logger.info(
         "event=export_revenue_csv user=%s count=%d ip=%s",
-        request.user.username, summaries.count(), _client_ip(request)
+        request.user.username, len(data['daily']), _client_ip(request)
     )
 
     return response

@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>iConnect Report | {{ start_date|date:"Y-m-d" }} to {{ end_date|date:"Y-m-d" }}</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; background: #eef1f5; color: #17212f; font-family: Arial, sans-serif; font-size: 14px; line-height: 1.45; }
+        .toolbar { max-width: 900px; margin: 20px auto 12px; padding: 0 20px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+        .toolbar a, .toolbar button { font: inherit; border: 1px solid #ccd3dd; border-radius: 6px; padding: 9px 14px; color: #17212f; background: white; text-decoration: none; cursor: pointer; }
+        .toolbar button { background: #7b2d3b; color: white; border-color: #7b2d3b; }
+        .print-help { max-width: 860px; margin: 0 auto 14px; padding: 0 20px; color: #526173; font-size: 12px; }
+        .sheet { max-width: 860px; margin: 0 auto 28px; padding: 36px 40px; background: white; border: 1px solid #dce1e8; border-radius: 8px; }
+        .brand { color: #7b2d3b; font-size: 27px; font-weight: 700; letter-spacing: -.6px; }
+        h1 { font-size: 21px; margin: 4px 0 8px; }
+        .meta { color: #526173; font-size: 12px; margin: 4px 0; }
+        header { border-bottom: 2px solid #7b2d3b; padding-bottom: 16px; margin-bottom: 20px; }
+        .summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid #dce1e8; margin: 18px 0; }
+        .summary > div { padding: 14px; }
+        .summary > div + div { border-left: 1px solid #dce1e8; }
+        .summary span { display: block; font-size: 12px; color: #526173; }
+        .summary strong { display: block; margin-top: 4px; font-size: 23px; font-variant-numeric: tabular-nums; }
+        .note { font-size: 11px; color: #526173; margin: 10px 0 18px; }
+        h2 { font-size: 16px; margin: 22px 0 8px; break-after: avoid; }
+        table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 12px; }
+        th, td { padding: 9px 7px; border-bottom: 1px solid #dce1e8; vertical-align: top; overflow-wrap: anywhere; text-align: right; font-variant-numeric: tabular-nums; }
+        th { background: #f1f4f7; color: #354358; font-size: 11px; }
+        th:first-child, td:first-child { text-align: left; }
+        .daily th:first-child { width: 24%; }
+        .plans th:first-child { width: 38%; }
+        td small { display: block; color: #64748b; }
+        .daily td small { display: inline; margin-left: 4px; white-space: nowrap; }
+        tfoot { font-weight: bold; display: table-row-group; }
+        tfoot td { border-top: 2px solid #7b2d3b; background: #f7f8fa; }
+        .empty { text-align: left; color: #64748b; }
+        footer { margin-top: 24px; border-top: 1px solid #dce1e8; padding-top: 10px; font-size: 10px; color: #526173; }
+        @page { size: A4 portrait; margin: 15mm 15mm 18mm;
+            @bottom-left { content: "iConnect | PHP | Asia/Manila"; font: 8pt Arial, sans-serif; color: #64748b; }
+            @bottom-right { content: "Page " counter(page); font: 8pt Arial, sans-serif; color: #64748b; }
+        }
+        @media print {
+            body { background: white; font-size: 10pt; }
+            .toolbar, .print-help { display: none !important; }
+            .sheet { max-width: none; margin: 0; padding: 0; border: 0; border-radius: 0; }
+            header, .summary, tr, footer { break-inside: avoid; }
+            thead { display: table-header-group; break-inside: avoid; }
+            .financial-daily-heading { break-before: page; }
+            th, td { padding: 6pt 5pt; }
+            table { font-size: 9pt; }
+            th { font-size: 8pt; }
+            h2 { font-size: 12pt; }
+            .summary strong { font-size: 17pt; }
+        }
+        @media screen and (max-width: 600px) {
+            .sheet { padding: 20px 12px; border-radius: 0; }
+            .summary > div { padding: 8px; }
+            .summary strong { font-size: 18px; }
+            table { font-size: 10px; }
+            th, td { padding: 6px 3px; }
+        }
+    </style>
+</head>
+<body>
+    <nav class="toolbar" aria-label="Report actions">
+        <a href="{% url 'dashboard:reports' %}">Back to Reports</a>
+        <button type="button" onclick="window.print()">Print / Save as PDF</button>
+        <a href="{{ pdf_url }}">Download PDF</a>
+        <a href="{{ csv_url }}">Download detailed CSV</a>
+    </nav>
+    <p class="print-help">For paper: choose A4, portrait, and turn off the browser's Headers and footers option to avoid printing its URL. Use Download PDF for a fixed-layout copy.</p>
+    <main class="sheet">
+        <header>
+            <div class="brand">iConnect</div>
+            <h1>Financial and Operational Report</h1>
+            <p class="meta">{{ label }} | {{ period_label }}</p>
+            <p class="meta">Generated: {{ generated_at|date:"Y-m-d H:i:s" }} {{ timezone_name }} | Currency: Philippine peso (PHP)</p>
+        </header>
+        <section class="summary" aria-label="Report summary">
+            <div><span>Coin revenue (PHP)</span><strong>{{ revenue|floatformat:2 }}</strong></div>
+            <div><span>Sessions started</span><strong>{{ total_sessions }}</strong></div>
+            <div><span>Avg purchased minutes/session</span><strong>{{ average_minutes|floatformat:2 }}</strong></div>
+        </section>
+        <p class="note">{{ note }}</p>
+        {% if financial %}
+        <h2>All-time financial overview</h2>
+        <table><thead><tr><th scope="col">Measure</th><th scope="col">Value</th></tr></thead>
+            <tbody>
+                <tr><td>Estimated operating expenses (PHP)</td><td>{{ financial.expenses|floatformat:2 }}</td></tr>
+                <tr><td>Operating surplus before capital (PHP)</td><td>{{ financial.surplus|floatformat:2 }}</td></tr>
+                <tr><td>Capital investment, separate (PHP)</td><td>{{ financial.capital|floatformat:2 }}</td></tr>
+                <tr><td>Operating surplus / capital (%)</td><td>{{ financial.ratio|floatformat:1|default:"N/A" }}</td></tr>
+            </tbody>
+        </table>
+        <p class="note">Operating expenses are estimated from configured recurring rates over {{ financial.days }} days, not a ledger of paid bills. Capital is not deducted from operating surplus.</p>
+        {% if financial.items %}
+        <table><thead><tr><th scope="col">Configured cost item</th><th scope="col">Frequency</th><th scope="col">Rate / capital (PHP)</th></tr></thead>
+            <tbody>{% for item in financial.items %}<tr><td>{{ item.name }}</td><td>{{ item.frequency }}</td><td>{{ item.amount|floatformat:2 }}</td></tr>{% endfor %}</tbody>
+        </table>
+        {% endif %}
+        {% endif %}
+        <h2{% if financial %} class="financial-daily-heading"{% endif %}>Daily collection and session breakdown</h2>
+        <table class="daily">
+            <thead><tr><th scope="col">Date / day</th><th scope="col">Coin revenue (PHP)</th><th scope="col">Coin events</th><th scope="col">Sessions started</th><th scope="col">Purchased minutes</th><th scope="col">Plan purchases (PHP)</th></tr></thead>
+            <tbody>
+                {% for row in daily %}
+                <tr><td>{{ row.date|date:"Y-m-d" }}<small>{{ row.date|date:"D" }}</small></td><td>{{ row.revenue|floatformat:2 }}</td><td>{{ row.events }}</td><td>{{ row.sessions }}</td><td>{{ row.minutes }}</td><td>{{ row.purchase_revenue|floatformat:2 }}</td></tr>
+                {% endfor %}
+            </tbody>
+            <tfoot><tr><td>TOTAL</td><td>{{ revenue|floatformat:2 }}</td><td>{{ coin_events }}</td><td>{{ total_sessions }}</td><td>{{ purchased_minutes }}</td><td>{{ purchase_revenue|floatformat:2 }}</td></tr></tfoot>
+        </table>
+        <h2>Plan purchase ledger</h2>
+        <p class="note">Transactions are purchase records, not plan units or unique customers. Current rate is today's configured price, not necessarily the historical price paid. This ledger is not additional coin revenue.</p>
+        <table class="plans">
+            <thead><tr><th scope="col">Plan</th><th scope="col">Current rate (PHP)</th><th scope="col">Transactions</th><th scope="col">Amount (PHP)</th><th scope="col">Share (%)</th></tr></thead>
+            <tbody>
+                {% for plan in plans %}
+                <tr><td>{{ plan.name }}</td><td>{{ plan.plan__price|default_if_none:"N/A" }}</td><td>{{ plan.count }}</td><td>{{ plan.revenue|floatformat:2 }}</td><td>{{ plan.share|floatformat:1 }}</td></tr>
+                {% empty %}<tr><td class="empty" colspan="5">No plan purchases recorded for this period.</td></tr>{% endfor %}
+            </tbody>
+            <tfoot><tr><td>TOTAL</td><td></td><td>{{ purchase_count }}</td><td>{{ purchase_revenue|floatformat:2 }}</td><td>{% if purchase_count %}100.0{% else %}0.0{% endif %}</td></tr></tfoot>
+        </table>
+        <footer>System-generated report; not an audited financial statement. Coin revenue is gross collections before expenses. Device identifiers are omitted from this printable summary. Detailed CSV exports contain device identifiers and must be kept private.</footer>
+    </main>
+</body>
+</html>

@@ -17,17 +17,19 @@
                 <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="vertical-align: -1px; margin-right: 4px;"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708z"/></svg>
                 Revenue CSV
             </a>
-            <a href="{% url 'dashboard:export_sessions_csv' %}" class="btn btn-sm btn-secondary" style="font-size: 13px; padding: 6px 14px;">
+            <a href="{% url 'dashboard:export_sessions_csv' %}?period=all" class="btn btn-sm btn-secondary" style="font-size: 13px; padding: 6px 14px;" title="All recorded sessions; includes device identifiers">
                 <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="vertical-align: -1px; margin-right: 4px;"><path d="M0 2a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2zm15 2h-4v3h4zm0 4h-4v3h4zm0 4h-4v3h3a1 1 0 0 0 1-1zm-5 3v-3H6v3zm-5 0v-3H1v2a1 1 0 0 0 1 1zm-4-4h4V8H1zm0-4h4V4H1zm5-3v3h4V1zm4 0h-4v3h4zM1 3a1 1 0 0 1 1-1h3V1H2a2 2 0 0 0-2 2v1h1z"/></svg>
                 Sessions CSV
             </a>
-            <button type="button" class="btn btn-sm btn-primary" onclick="window.print()" style="font-size: 13px; padding: 6px 14px;">
+            <a href="{% url 'reports:generate' %}?type=all&amp;period=all&amp;format=print" target="_blank" rel="noopener" class="btn btn-sm btn-primary" style="font-size: 13px; padding: 6px 14px;" title="Open a clean, all-time collection report for printing">
                 <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="vertical-align: -1px; margin-right: 4px;"><path d="M2.5 8a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1"/><path d="M5 1a2 2 0 0 0-2 2v2H2a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h1v1a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-1h1a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-1V3a2 2 0 0 0-2-2zM4 3a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2H4zm1 5a2 2 0 0 0-2 2v1H2a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v-1a2 2 0 0 0-2-2zm7 2v3a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1"/></svg>
                 Print Report
-            </button>
+            </a>
         </div>
     </div>
 </div>
+
+<p class="text-xs text-muted" style="margin: 0 4px 18px;">Top exports cover all recorded dates. Print Report opens a clean collection summary; use the period downloads below for a specific range. CSV files may contain device identifiers - keep them private.</p>
 
 <!-- 4 Financial Summary KPI Cards -->
 <div class="stats-grid mb-md" style="grid-template-columns: repeat(4, 1fr);">
@@ -114,7 +116,7 @@
 
             <div class="cost-item" style="background: rgba(16,185,129,0.04); border-radius: 8px;">
                 <div>
-                    <div class="font-semibold" style="color: var(--color-dark);">This Week (7 Days)</div>
+                    <div class="font-semibold" style="color: var(--color-dark);">Last 7 Days (Including Today)</div>
                     <div class="text-xs text-muted">{{ sessions_week }} session{{ sessions_week|pluralize }} recorded</div>
                 </div>
                 <div class="font-bold" style="color: #10b981; font-size: 15px;">+₱{{ revenue_week }}</div>
@@ -122,7 +124,7 @@
 
             <div class="cost-item" style="background: rgba(16,185,129,0.04); border-radius: 8px;">
                 <div>
-                    <div class="font-semibold" style="color: var(--color-dark);">This Month (30 Days)</div>
+                    <div class="font-semibold" style="color: var(--color-dark);">Last 30 Days (Including Today)</div>
                     <div class="text-xs text-muted">{{ sessions_month }} session{{ sessions_month|pluralize }} recorded</div>
                 </div>
                 <div class="font-bold" style="color: #10b981; font-size: 15px;">+₱{{ revenue_month }}</div>
@@ -191,9 +193,11 @@
         <div class="chart-header">
             <div>
                 <h3 class="chart-title">Executive Report Download Center</h3>
-                <span class="text-xs text-muted">Generate official summaries with 1-click</span>
+                <span class="text-xs text-muted">Download dated summaries or detailed records</span>
             </div>
         </div>
+
+        <p class="text-xs text-muted">Weekly covers the last 7 days; monthly covers the last 30 days, both including today. PDFs are printable summaries; period CSVs include detailed tables.</p>
 
         <!-- 1. Formal PDF Reports -->
         <div class="mb-md">
