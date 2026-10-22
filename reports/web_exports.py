@@ -126,8 +126,7 @@ def report_data(period="today", start_date="", end_date=""):
                      "surplus": surplus, "ratio": round(surplus / capital * 100, 1) if capital else None,
                      "items": [{"name": item.name, "frequency": item.get_period_display(), "amount": item.amount}
                                for item in OperatingExpense.objects.order_by("date_added", "pk")] +
-                              [{"name": item.description, "frequency": "One-time capital", "amount": item.amount}
-                               for item in ProjectCost.objects.order_by("date_added", "pk")]}
+                              [{"name": "Total Capital Investment", "frequency": "One-time capital", "amount": capital}]}
     return {
         "label": label, "start_date": start, "end_date": end, "financial": financial,
         "period_label": f"{start:%b %d, %Y} - {end:%b %d, %Y}",

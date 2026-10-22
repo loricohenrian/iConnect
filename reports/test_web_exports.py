@@ -171,9 +171,76 @@ class WebReportTests(TestCase):
         response = self.client.get("/reports/generate/?period=all&format=print")
         self.assertContains(response, "All-time financial overview")
         self.assertContains(response, "not a ledger of paid bills")
-        self.assertContains(response, "Hardware")
+        self.assertContains(response, "Total Capital Investment", count=1)
+        self.assertNotContains(response, "Hardware")
         self.assertContains(response, "period=all")
         self.assertEqual(report_data()["financial"], None)
+
+    def test_all_time_exports_show_one_capital_total_after_recurring_costs(self):
+        from reportlab.platypus import Table
+
+        ProjectCost.objects.create(description="Solar panel item", amount=2029, date_added=self.now)
+        ProjectCost.objects.create(description="Wire connector item", amount=69, date_added=self.now)
+        OperatingExpense.objects.create(name="Globe at HOME 5G", amount=999, period="monthly", date_added=self.now)
+        OperatingExpense.objects.create(name="Maintenance", amount=120, period="yearly", date_added=self.now)
+        before_capital = list(ProjectCost.objects.order_by("pk").values())
+        before_recurring = list(OperatingExpense.objects.order_by("pk").values())
+        data = report_data("all")
+        self.assertEqual(data["financial"]["capital"], 2098)
+        self.assertEqual(data["financial"]["items"], [
+            {"name": "Globe at HOME 5G", "frequency": "Monthly", "amount": 999},
+            {"name": "Maintenance", "frequency": "Yearly", "amount": 120},
+            {"name": "Total Capital Investment", "frequency": "One-time capital", "amount": 2098},
+        ])
+        self.assertEqual(data["financial"]["expenses"],
+                         OperatingExpense.calculate_total_expenses(data["financial"]["days"]))
+        self.assertEqual(data["financial"]["surplus"], round(data["revenue"] - data["financial"]["expenses"], 2))
+
+        printed = self.client.get("/reports/generate/?period=all&format=print")
+        self.assertContains(printed, "Total Capital Investment", count=1)
+        self.assertContains(printed, "Globe at HOME 5G")
+        self.assertContains(printed, "Maintenance")
+        csv_response = report_csv(data)
+        rows = self.rows(csv_response)
+        capital_rows = [row for row in rows if row[0] == "Total Capital Investment"]
+        self.assertEqual([row[:3] for row in capital_rows],
+                         [["Total Capital Investment", "One-time capital", "2098.00"]])
+        self.assertTrue(all(len(row) == 11 for row in rows))
+        self.assertLess(next(i for i, row in enumerate(rows) if row[0] == "Globe at HOME 5G"),
+                        next(i for i, row in enumerate(rows) if row[0] == "Total Capital Investment"))
+
+        with patch("reports.web_exports.Table", wraps=Table) as tables:
+            pdf = report_pdf(data)
+        self.assertTrue(pdf.content.startswith(b"%PDF-"))
+        pdf_tables = [[[cell.getPlainText() for cell in row] for row in call.args[0]]
+                      for call in tables.call_args_list]
+        costs = next(table for table in pdf_tables if table[0][0] == "Configured cost item")
+        self.assertEqual(costs[1:], [
+            ["Globe at HOME 5G", "Monthly", "999.00"],
+            ["Maintenance", "Yearly", "120.00"],
+            ["Total Capital Investment", "One-time capital", "2,098.00"],
+        ])
+        for label in ("Solar panel item", "Wire connector item"):
+            self.assertNotContains(printed, label)
+            self.assertNotIn(label, csv_response.content.decode("utf-8-sig"))
+            self.assertNotIn(label, str(pdf_tables))
+        self.assertEqual(before_capital, list(ProjectCost.objects.order_by("pk").values()))
+        self.assertEqual(before_recurring, list(OperatingExpense.objects.order_by("pk").values()))
+
+    def test_empty_capital_uses_zero_summary_without_creating_cost_records(self):
+        data = report_data("all")
+        self.assertEqual(data["financial"]["capital"], 0)
+        self.assertIsNone(data["financial"]["ratio"])
+        self.assertEqual(data["financial"]["items"], [
+            {"name": "Total Capital Investment", "frequency": "One-time capital", "amount": 0},
+        ])
+        self.assertContains(self.client.get("/reports/generate/?period=all&format=print"),
+                            "Total Capital Investment", count=1)
+        self.assertIn(["Total Capital Investment", "One-time capital", "0.00"],
+                      [row[:3] for row in self.rows(report_csv(data))])
+        self.assertTrue(report_pdf(data).content.startswith(b"%PDF-"))
+        self.assertFalse(ProjectCost.objects.exists())
+        self.assertFalse(OperatingExpense.objects.exists())
 
     def test_empty_period_has_zero_totals_and_pdf_is_valid(self):
         data = report_data("custom", "2026-08-01", "2026-08-02")

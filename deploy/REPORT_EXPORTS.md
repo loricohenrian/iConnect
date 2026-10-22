@@ -21,8 +21,11 @@ The unmodified font and its redistribution license are in `reports/fonts/`.
   resumes. Duration is purchased minutes, not observed online duration.
 - Today is partial as of the displayed generation timestamp. Zero-revenue dates
   are included, but do not establish whether the system was operating.
-- All-time print/PDF/period-CSV reports retain operating-cost estimates, capital
-  items and operating surplus. Estimates use the dashboard's existing recurring
+- All-time print/PDF/period-CSV reports retain operating-cost estimates, total
+  capital investment and operating surplus. Recurring cost rows remain itemized;
+  individual one-time capital items are replaced by one Total Capital Investment
+  row after the recurring rows. Stored capital records are not changed or deleted.
+  Estimates use the dashboard's existing recurring
   cost model; they are not a history of paid bills. Capital is shown separately,
   not deducted from operating surplus. No accounting records are changed.
 - Session CSV amounts are current lifetime session amounts, not cash received
