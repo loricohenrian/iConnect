@@ -21,7 +21,7 @@
         .summary > div + div { border-left: 1px solid #dce1e8; }
         .summary span { display: block; font-size: 12px; color: #526173; }
         .summary strong { display: block; margin-top: 4px; font-size: 23px; font-variant-numeric: tabular-nums; }
-        .note { font-size: 11px; color: #526173; margin: 10px 0 18px; }
+        .note { font-size: 12px; color: #526173; margin: 8px 0 12px; }
         h2 { font-size: 16px; margin: 22px 0 8px; break-after: avoid; }
         table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 12px; }
         th, td { padding: 9px 7px; border-bottom: 1px solid #dce1e8; vertical-align: top; overflow-wrap: anywhere; text-align: right; font-variant-numeric: tabular-nums; }
@@ -40,16 +40,20 @@
             @bottom-right { content: "Page " counter(page); font: 8pt Arial, sans-serif; color: #64748b; }
         }
         @media print {
-            body { background: white; font-size: 10pt; }
+            body { background: white; font-size: 10pt; line-height: 1.3; }
             .toolbar, .print-help { display: none !important; }
             .sheet { max-width: none; margin: 0; padding: 0; border: 0; border-radius: 0; }
             header, .summary, tr, footer { break-inside: avoid; }
             thead { display: table-header-group; break-inside: avoid; }
-            .financial-daily-heading { break-before: page; }
-            th, td { padding: 6pt 5pt; }
+            tbody tr:last-child { break-after: avoid; }
+            header { padding-bottom: 10px; margin-bottom: 12px; }
+            .summary { margin: 12px 0; }
+            .summary > div { padding: 10px; }
+            th, td { padding: 4pt 5pt; }
+            .table-note { break-after: avoid; }
             table { font-size: 9pt; }
             th { font-size: 8pt; }
-            h2 { font-size: 12pt; }
+            h2 { font-size: 12pt; margin-top: 16px; }
             .summary strong { font-size: 17pt; }
         }
         @media screen and (max-width: 600px) {
@@ -68,13 +72,13 @@
         <a href="{{ pdf_url }}">Download PDF</a>
         <a href="{{ csv_url }}">Download detailed CSV</a>
     </nav>
-    <p class="print-help">For paper: choose A4, portrait, and turn off the browser's Headers and footers option to avoid printing its URL. Use Download PDF for a fixed-layout copy.</p>
+    <p class="print-help">Print: A4 portrait, browser headers and footers off.</p>
     <main class="sheet">
         <header>
             <div class="brand">iConnect</div>
-            <h1>Financial and Operational Report</h1>
+            <h1>Financial &amp; Usage Report</h1>
             <p class="meta">{{ label }} | {{ period_label }}</p>
-            <p class="meta">Generated: {{ generated_at|date:"Y-m-d H:i:s" }} {{ timezone_name }} | Currency: Philippine peso (PHP)</p>
+            <p class="meta">Generated: {{ generated_at|date:"Y-m-d H:i:s" }} {{ timezone_name }} | PHP</p>
         </header>
         <section class="summary" aria-label="Report summary">
             <div><span>Coin revenue (PHP)</span><strong>{{ revenue|floatformat:2 }}</strong></div>
@@ -83,23 +87,23 @@
         </section>
         <p class="note">{{ note }}</p>
         {% if financial %}
-        <h2>All-time financial overview</h2>
+        <h2>Financial summary</h2>
         <table><thead><tr><th scope="col">Measure</th><th scope="col">Value</th></tr></thead>
             <tbody>
-                <tr><td>Estimated operating expenses (PHP)</td><td>{{ financial.expenses|floatformat:2 }}</td></tr>
-                <tr><td>Operating surplus before capital (PHP)</td><td>{{ financial.surplus|floatformat:2 }}</td></tr>
-                <tr><td>Capital investment, separate (PHP)</td><td>{{ financial.capital|floatformat:2 }}</td></tr>
-                <tr><td>Operating surplus / capital (%)</td><td>{{ financial.ratio|floatformat:1|default:"N/A" }}</td></tr>
+                <tr><td>Estimated expenses (PHP)</td><td>{{ financial.expenses|floatformat:2 }}</td></tr>
+                <tr><td>Surplus before capital (PHP)</td><td>{{ financial.surplus|floatformat:2 }}</td></tr>
+                <tr><td>Capital investment (PHP)</td><td>{{ financial.capital|floatformat:2 }}</td></tr>
+                <tr><td>Surplus / capital (%)</td><td>{{ financial.ratio|floatformat:1|default:"N/A" }}</td></tr>
             </tbody>
         </table>
-        <p class="note">Operating expenses are estimated from configured recurring rates over {{ financial.days }} days, not a ledger of paid bills. Capital is not deducted from operating surplus.</p>
+        <p class="note">Estimated recurring costs over {{ financial.days }} days; not paid bills. Surplus excludes capital.</p>
         {% if financial.items %}
-        <table><thead><tr><th scope="col">Configured cost item</th><th scope="col">Frequency</th><th scope="col">Rate / capital (PHP)</th></tr></thead>
+        <table><thead><tr><th scope="col">Cost item</th><th scope="col">Frequency</th><th scope="col">Rate / capital (PHP)</th></tr></thead>
             <tbody>{% for item in financial.items %}<tr><td>{{ item.name }}</td><td>{{ item.frequency }}</td><td>{{ item.amount|floatformat:2 }}</td></tr>{% endfor %}</tbody>
         </table>
         {% endif %}
         {% endif %}
-        <h2{% if financial %} class="financial-daily-heading"{% endif %}>Daily collection and session breakdown</h2>
+        <h2>Daily summary</h2>
         <table class="daily">
             <thead><tr><th scope="col">Date / day</th><th scope="col">Coin revenue (PHP)</th><th scope="col">Coin events</th><th scope="col">Sessions started</th><th scope="col">Purchased minutes</th><th scope="col">Plan purchases (PHP)</th></tr></thead>
             <tbody>
@@ -109,18 +113,18 @@
             </tbody>
             <tfoot><tr><td>TOTAL</td><td>{{ revenue|floatformat:2 }}</td><td>{{ coin_events }}</td><td>{{ total_sessions }}</td><td>{{ purchased_minutes }}</td><td>{{ purchase_revenue|floatformat:2 }}</td></tr></tfoot>
         </table>
-        <h2>Plan purchase ledger</h2>
-        <p class="note">Transactions are purchase records, not plan units or unique customers. Current rate is today's configured price, not necessarily the historical price paid. This ledger is not additional coin revenue.</p>
+        <h2>Plan purchases</h2>
+        <p class="note table-note">Counts are transactions; rates are current prices.</p>
         <table class="plans">
             <thead><tr><th scope="col">Plan</th><th scope="col">Current rate (PHP)</th><th scope="col">Transactions</th><th scope="col">Amount (PHP)</th><th scope="col">Share (%)</th></tr></thead>
             <tbody>
                 {% for plan in plans %}
                 <tr><td>{{ plan.name }}</td><td>{{ plan.plan__price|default_if_none:"N/A" }}</td><td>{{ plan.count }}</td><td>{{ plan.revenue|floatformat:2 }}</td><td>{{ plan.share|floatformat:1 }}</td></tr>
-                {% empty %}<tr><td class="empty" colspan="5">No plan purchases recorded for this period.</td></tr>{% endfor %}
+                {% empty %}<tr><td class="empty" colspan="5">No plan purchases recorded.</td></tr>{% endfor %}
             </tbody>
             <tfoot><tr><td>TOTAL</td><td></td><td>{{ purchase_count }}</td><td>{{ purchase_revenue|floatformat:2 }}</td><td>{% if purchase_count %}100.0{% else %}0.0{% endif %}</td></tr></tfoot>
         </table>
-        <footer>System-generated report; not an audited financial statement. Coin revenue is gross collections before expenses. Device identifiers are omitted from this printable summary. Detailed CSV exports contain device identifiers and must be kept private.</footer>
+        <footer>System-generated, unaudited report. Keep detailed CSV files private.</footer>
     </main>
 </body>
 </html>

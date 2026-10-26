@@ -5,6 +5,10 @@ Print Report opens a standalone print preview, not a screenshot of the dashboard
 Use A4 portrait; disable browser Headers and footers to avoid adding the URL.
 Download PDF provides fixed-layout, paginated output with an embedded DejaVu font.
 The unmodified font and its redistribution license are in `reports/fonts/`.
+Print, PDF and detailed CSV use short headings and notes. Essential collection,
+purchase, purchased-time and expense-estimate distinctions stay visible; numeric
+values, date ranges, CSV column order and the single capital total are unchanged.
+Print tables flow continuously instead of forcing the daily summary onto a new page.
 
 ## Scope and definitions
 

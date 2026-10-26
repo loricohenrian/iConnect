@@ -25,18 +25,15 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus import CondPageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from sessions_app.models import CoinEvent, PurchaseTransaction, Session
 
 
 REPORT_TZ = ZoneInfo("Asia/Manila")
 REPORT_NOTE = (
-    "Revenue is the sum of recorded coin collections in this date range, including "
-    "unassigned coins. Plan purchases are shown separately and must not be added "
-    "to coin revenue. Session counts mean sessions started, not unique people or "
-    "simultaneously connected devices. Duration means purchased time, not actual "
-    "online time. Today's figures are partial as of generation."
+    "Gross coin collections include unassigned coins. Plan amounts are separate, "
+    "not additional revenue. Today's totals are partial."
 )
 
 
@@ -167,30 +164,30 @@ def report_csv(data):
     def row(*cells):
         writer.writerow(list(cells) + [""] * (11 - len(cells)))
 
-    row("iConnect Financial and Operational Report")
+    row("iConnect Financial & Usage Report")
     row("Period", data["period_label"])
     row("Generated at (Asia/Manila)", data["generated_at"].strftime("%Y-%m-%d %H:%M:%S"))
     row("Currency", "PHP")
-    row("Definitions", data["note"])
+    row("Notes", data["note"])
     row()
     row("SUMMARY", "Value", "Unit")
     for name, value, unit in (("Coin revenue", f'{data["revenue"]:.2f}', "PHP"),
                               ("Sessions started", data["total_sessions"], "sessions"),
                               ("Purchased time", data["purchased_minutes"], "minutes"),
                               ("Average purchased duration", f'{data["average_minutes"]:.2f}', "minutes/session"),
-                              ("Plan purchases (separate ledger)", f'{data["purchase_revenue"]:.2f}', "PHP")):
+                              ("Plan purchases (separate)", f'{data["purchase_revenue"]:.2f}', "PHP")):
         row(name, value, unit)
     if data["financial"]:
         financial = data["financial"]
         row()
-        row("ALL-TIME FINANCIAL OVERVIEW", "Value", "Unit")
-        row("Estimated operating expenses", f'{financial["expenses"]:.2f}', "PHP")
-        row("Operating surplus before capital", f'{financial["surplus"]:.2f}', "PHP")
-        row("Capital investment (separate)", f'{financial["capital"]:.2f}', "PHP")
-        row("Operating surplus / capital", financial["ratio"] if financial["ratio"] is not None else "N/A", "%")
+        row("FINANCIAL SUMMARY", "Value", "Unit")
+        row("Estimated expenses", f'{financial["expenses"]:.2f}', "PHP")
+        row("Surplus before capital", f'{financial["surplus"]:.2f}', "PHP")
+        row("Capital investment", f'{financial["capital"]:.2f}', "PHP")
+        row("Surplus / capital", financial["ratio"] if financial["ratio"] is not None else "N/A", "%")
         row("Expense estimate period", financial["days"], "days")
-        row("Expense basis", "Configured recurring rates prorated across operating days, not a ledger of paid bills. Capital is not deducted from operating surplus.")
-        row("Configured cost item", "Frequency", "Rate / capital amount (PHP)")
+        row("Expense basis", "Prorated recurring costs, not paid bills. Surplus excludes capital.")
+        row("Cost item", "Frequency", "Rate / capital (PHP)")
         for item in financial["items"]:
             row(csv_text(item["name"]), item["frequency"], f'{item["amount"]:.2f}')
     row()
@@ -200,15 +197,15 @@ def report_csv(data):
         row(item["date"].isoformat(), item["date"].strftime("%A"), f'{item["revenue"]:.2f}', item["events"], item["sessions"], item["minutes"], item["purchases"], f'{item["purchase_revenue"]:.2f}', f'{item["average_minutes"]:.2f}', item["peak_hour"])
     row("TOTAL", "", f'{data["revenue"]:.2f}', data["coin_events"], data["total_sessions"], data["purchased_minutes"], data["purchase_count"], f'{data["purchase_revenue"]:.2f}', f'{data["average_minutes"]:.2f}')
     row()
-    row("PLAN PURCHASE LEDGER (not additional revenue)")
+    row("PLAN PURCHASES")
     row("Plan Name", "Current Rate (PHP)", "Purchase Transactions", "Purchased Amount (PHP)", "Share of Plan Purchases (%)")
     for plan in data["plans"]:
         row(csv_text(plan["name"]), plan["plan__price"] if plan["plan__price"] is not None else "", plan["count"], f'{plan["revenue"]:.2f}', f'{plan["share"]:.1f}')
     row("TOTAL", "", data["purchase_count"], f'{data["purchase_revenue"]:.2f}', "100.0" if data["purchase_count"] else "0.0")
     row()
-    row("SESSION DETAILS - contains device identifiers; keep this file private")
+    row("SESSION DETAILS - private device data")
     row("Session ID", "MAC Address", "IP Address", "Device Name", "Current Plan", "Session Amount Recorded (PHP)", "Duration Purchased (min)", "Current Status", "Time In (Asia/Manila)", "Time Out (Asia/Manila)", "Saved Data Usage (MiB)")
-    row("Note", "Session amounts are lifetime amounts on sessions started in this range, not cash collected during this range.")
+    row("Note", "Lifetime session amounts; not period collections.")
     for session in data["sessions"].iterator():
         row(session.pk, csv_text(session.mac_address), csv_text(session.ip_address), csv_text(session.device_name),
             csv_text(session.plan.name if session.plan else "Unspecified / deleted plan"), f"{session.amount_paid:.2f}",
@@ -236,12 +233,14 @@ def report_pdf(data):
     if font_name not in pdfmetrics.getRegisteredFontNames():
         pdfmetrics.registerFont(TTFont(font_name, str(Path(__file__).parent / "fonts" / "DejaVuSans.ttf")))
     doc = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=15*mm, rightMargin=15*mm,
-                            topMargin=15*mm, bottomMargin=18*mm, title="iConnect Financial and Operational Report", author="iConnect")
+                            topMargin=15*mm, bottomMargin=18*mm, title="iConnect Financial & Usage Report", author="iConnect")
     styles = getSampleStyleSheet()
     styles.add(ParagraphStyle("ReportTitle", fontName="Helvetica-Bold", fontSize=19, leading=23, textColor=colors.HexColor("#7b2d3b"), spaceAfter=9))
     styles.add(ParagraphStyle("ReportCell", fontName=font_name, fontSize=9, leading=12))
-    styles.add(ParagraphStyle("ReportNote", fontName=font_name, fontSize=8, leading=11, textColor=colors.HexColor("#475569"), spaceAfter=10))
+    styles.add(ParagraphStyle("ReportNote", fontName=font_name, fontSize=9, leading=12, textColor=colors.HexColor("#475569"), spaceAfter=8))
+    styles.add(ParagraphStyle("TableNote", parent=styles["ReportNote"], keepWithNext=True))
     styles["Heading2"].keepWithNext = True
+    styles.add(ParagraphStyle("DailyHeading", parent=styles["Heading2"], keepWithNext=False))
     story = []
 
     def text(value, style="ReportCell"):
@@ -255,7 +254,7 @@ def report_pdf(data):
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
             ("LINEBELOW", (0, 0), (-1, 0), 0.8, colors.HexColor("#7b2d3b")),
             ("LINEBELOW", (0, 1), (-1, -1), 0.3, colors.HexColor("#e2e8f0")),
-            ("TOPPADDING", (0, 0), (-1, -1), 5), ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+            ("TOPPADDING", (0, 0), (-1, -1), 4), ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
         ]))
         if len(rows) > 2 and rows[-1][0] == "TOTAL":
             # A totals-only continuation page is not useful to a reader.
@@ -263,7 +262,7 @@ def report_pdf(data):
         return result
 
     styles.add(ParagraphStyle("ReportNumber", parent=styles["ReportCell"], alignment=2))
-    story += [text("iConnect", "ReportTitle"), text("Financial and Operational Report", "Heading2"),
+    story += [text("iConnect", "ReportTitle"), text("Financial & Usage Report", "Heading2"),
               text(f'{data["label"]} | {data["period_label"]}', "ReportNote"),
               text(f'Generated: {data["generated_at"]:%Y-%m-%d %H:%M:%S} Asia/Manila | Currency: PHP', "ReportNote")]
     story.append(table([["Coin revenue (PHP)", "Sessions started", "Avg purchased minutes/session"],
@@ -271,29 +270,30 @@ def report_pdf(data):
     story += [Spacer(1, 10), text(data["note"], "ReportNote")]
     if data["financial"]:
         financial = data["financial"]
-        story += [text("All-time financial overview", "Heading2"),
+        story += [text("Financial summary", "Heading2"),
                   table([["Measure", "Value"],
-                         ["Estimated operating expenses (PHP)", f'{financial["expenses"]:,.2f}'],
-                         ["Operating surplus before capital (PHP)", f'{financial["surplus"]:,.2f}'],
-                         ["Capital investment, separate (PHP)", f'{financial["capital"]:,.2f}'],
-                         ["Operating surplus / capital (%)", f'{financial["ratio"]:.1f}' if financial["ratio"] is not None else "N/A"]], [.70, .30]),
-                  Spacer(1, 8), text(f'Operating expenses are estimated from configured recurring rates over {financial["days"]} days, not a ledger of paid bills. Capital is not deducted from operating surplus.', "ReportNote")]
+                         ["Estimated expenses (PHP)", f'{financial["expenses"]:,.2f}'],
+                         ["Surplus before capital (PHP)", f'{financial["surplus"]:,.2f}'],
+                         ["Capital investment (PHP)", f'{financial["capital"]:,.2f}'],
+                         ["Surplus / capital (%)", f'{financial["ratio"]:.1f}' if financial["ratio"] is not None else "N/A"]], [.70, .30]),
+                  Spacer(1, 8), text(f'Estimated recurring costs over {financial["days"]} days; not paid bills. Surplus excludes capital.', "ReportNote")]
         if financial["items"]:
-            story.append(table([["Configured cost item", "Frequency", "Rate / capital (PHP)"]] +
+            story.append(table([["Cost item", "Frequency", "Rate / capital (PHP)"]] +
                                [[item["name"], item["frequency"], f'{item["amount"]:,.2f}'] for item in financial["items"]], [.52, .26, .22]))
-    story.append(text("Daily collection and session breakdown", "Heading2"))
+    # Reserve room for the heading, header and first row, not the entire ledger.
+    story += [CondPageBreak(100), text("Daily summary", "DailyHeading")]
     rows = [["Date / day", "Coin revenue (PHP)", "Coin events", "Sessions started", "Purchased minutes", "Plan purchases (PHP)"]]
     rows += [[f'{row["date"]:%Y-%m-%d} {row["date"]:%a}', f'{row["revenue"]:,.2f}', row["events"], row["sessions"], row["minutes"], f'{row["purchase_revenue"]:,.2f}'] for row in data["daily"]]
     rows.append(["TOTAL", f'{data["revenue"]:,.2f}', data["coin_events"], data["total_sessions"], data["purchased_minutes"], f'{data["purchase_revenue"]:,.2f}'])
     story.append(table(rows, [.24, .17, .12, .13, .17, .17]))
-    story += [Spacer(1, 8), text("Plan purchase ledger", "Heading2"), text("Transactions are purchase records, not plan units or unique customers. Current rate is today's configured price, not necessarily the historical price paid.", "ReportNote")]
+    story += [Spacer(1, 8), text("Plan purchases", "Heading2"), text("Counts are transactions; rates are current prices.", "TableNote")]
     rows = [["Plan", "Current rate (PHP)", "Transactions", "Amount (PHP)", "Share (%)"]]
     rows += [[row["name"], row["plan__price"] if row["plan__price"] is not None else "N/A", row["count"], f'{row["revenue"]:,.2f}', f'{row["share"]:.1f}'] for row in data["plans"]]
     if not data["plans"]:
         rows.append(["No plan purchases recorded", "", "0", "0.00", "0.0"])
     rows.append(["TOTAL", "", data["purchase_count"], f'{data["purchase_revenue"]:,.2f}', "100.0" if data["purchase_count"] else "0.0"])
     story.append(table(rows, [.40, .16, .14, .18, .12]))
-    story += [Spacer(1, 10), text("System-generated report; not an audited financial statement. Coin revenue is gross collections before expenses. Device identifiers are omitted from this printable summary.", "ReportNote")]
+    story += [Spacer(1, 10), text("System-generated, unaudited report.", "ReportNote")]
 
     def footer(canvas, document):
         canvas.saveState()

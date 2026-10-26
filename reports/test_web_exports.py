@@ -169,8 +169,9 @@ class WebReportTests(TestCase):
         self.assertEqual(data["financial"]["expenses"], 110)
         self.assertEqual(data["financial"]["surplus"], -85)
         response = self.client.get("/reports/generate/?period=all&format=print")
-        self.assertContains(response, "All-time financial overview")
-        self.assertContains(response, "not a ledger of paid bills")
+        self.assertContains(response, "Financial summary")
+        self.assertContains(response, "Estimated recurring costs over 11 days; not paid bills.")
+        self.assertContains(response, "Surplus excludes capital.")
         self.assertContains(response, "Total Capital Investment", count=1)
         self.assertNotContains(response, "Hardware")
         self.assertContains(response, "period=all")
@@ -214,7 +215,7 @@ class WebReportTests(TestCase):
         self.assertTrue(pdf.content.startswith(b"%PDF-"))
         pdf_tables = [[[cell.getPlainText() for cell in row] for row in call.args[0]]
                       for call in tables.call_args_list]
-        costs = next(table for table in pdf_tables if table[0][0] == "Configured cost item")
+        costs = next(table for table in pdf_tables if table[0][0] == "Cost item")
         self.assertEqual(costs[1:], [
             ["Globe at HOME 5G", "Monthly", "999.00"],
             ["Maintenance", "Yearly", "120.00"],
